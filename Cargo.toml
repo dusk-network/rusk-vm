@@ -1,0 +1,13 @@
+[package]
+name = "vm"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+edition = "2018"
+
+[dependencies]
+wasmi = "*"
+parity-wasm = "*"
+wabt = "*"
+signatory = "*"
+signatory-dalek = "*"
+blake2-rfc = "0.2.17"
