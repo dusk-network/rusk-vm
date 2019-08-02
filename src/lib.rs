@@ -93,7 +93,7 @@ mod tests {
         let _bob_pk = network.new_account(0);
 
         let contract = network.new_contract(include_bytes!(
-            "../../test_contract/target/wasm32-unknown-unknown/release/test_contract.wasm"
+            "../test_contracts/basic/target/wasm32-unknown-unknown/release/test_contract.wasm"
         ));
 
         // network.call(&contract, "saturating_sub", &[RuntimeValue::I32(5)]);
