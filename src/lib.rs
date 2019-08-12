@@ -1,102 +1,69 @@
-use std::collections::HashMap;
-use std::io::Write;
-
-use blake2_rfc::blake2b::Blake2b;
-use signatory::{
-    ed25519::{self, PublicKey},
-    PublicKeyed,
-};
-use signatory_dalek::Ed25519Signer;
-use wasmi::{ImportsBuilder, Module, ModuleInstance, RuntimeValue};
-
+mod digest;
 mod host_fns;
+mod state;
+mod transaction;
+mod wallet;
 
-use host_fns::HostExternals;
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
-pub struct Digest([u8; 32]);
-
-struct Account {
-    #[allow(unused)]
-    balance: u128,
-}
-
-impl Digest {
-    fn new(bytes: &[u8]) -> Self {
-        let mut digest = [0u8; 32];
-        let mut state = Blake2b::new(32);
-        state.update(bytes);
-        digest
-            .as_mut()
-            .write(state.finalize().as_bytes())
-            .expect("in-memory write");
-        Digest(digest)
-    }
-}
-
-#[derive(Default)]
-pub struct NetworkState {
-    contracts: HashMap<Digest, Module>,
-    accounts: HashMap<PublicKey, Account>,
-}
-
-impl NetworkState {
-    pub fn new_account(&mut self, balance: u128) -> PublicKey {
-        let seed = ed25519::Seed::generate();
-        let signer = Ed25519Signer::from(&seed);
-        let pk = signer.public_key().unwrap();
-
-        self.accounts.insert(pk.clone(), Account { balance });
-        pk
-    }
-
-    pub fn new_contract(&mut self, bytecode: &[u8]) -> Digest {
-        let module = wasmi::Module::from_buffer(bytecode)
-            .expect("failed to parse bytecode");
-
-        let hash = Digest::new(bytecode);
-
-        self.contracts.insert(hash.clone(), module);
-        hash
-    }
-
-    pub fn call(
-        &mut self,
-        contract_hash: &Digest,
-        method: &str,
-        args: &[RuntimeValue],
-    ) {
-        if let Some(contract) = self.contracts.get(&contract_hash) {
-            let imports =
-                ImportsBuilder::new().with_resolver("env", &HostExternals);
-
-            let instance = ModuleInstance::new(&contract, &imports)
-                .expect("failed to instantiate wasm module")
-                .assert_no_start();
-
-            let result =
-                instance.invoke_export(method, args, &mut HostExternals);
-
-            println!("{:?}", result);
-        }
-    }
-}
+pub use state::NetworkState;
+pub use wallet::Wallet;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+
+    use crate::state::NetworkState;
+    use crate::wallet::Wallet;
 
     #[test]
-    fn it_works() {
-        let mut network = NetworkState::default();
-        let _alice_pk = network.new_account(1000);
-        let _bob_pk = network.new_account(0);
+    fn simple_transactions() {
+        let mut wallet = Wallet::new();
 
-        let contract = network.new_contract(include_bytes!(
-            "../test_contracts/basic/target/wasm32-unknown-unknown/release/test_contract.wasm"
-        ));
+        let primary = wallet.default_account();
+        wallet.new_account("secondary").unwrap();
 
-        // network.call(&contract, "saturating_sub", &[RuntimeValue::I32(5)]);
-        network.call(&contract, "trampoline", &[]);
+        let mut network = NetworkState::genesis(wallet.default_account());
+
+        assert_eq!(
+            network
+                .get_account(&wallet.default_account().id())
+                .unwrap()
+                .balance(),
+            1_000_000
+        );
+
+        // our local wallet has not been synced yet
+        assert_eq!(wallet.default_account().balance(), 0);
+
+        // sync local wallet
+        wallet.sync(&network);
+
+        // now the genesis mint should be readable
+        assert_eq!(wallet.default_account().balance(), 1_000_000);
+
+        // get the id of our secondary account
+        let secondary_id = wallet.get_account("secondary").unwrap().id();
+
+        // cannot send more than we have
+        assert!(wallet
+            .default_account_mut()
+            .send_value(secondary_id.clone(), 2_000_000)
+            .is_err());
+
+        // send 1000 Dusk to secondary account!
+        let transaction = wallet
+            .default_account_mut()
+            .send_value(secondary_id, 1000)
+            .unwrap();
+
+        // put the transaction in the queue
+        network.queue_transaction(transaction);
+
+        network.mint_block();
+
+        // sync local wallet again
+        wallet.sync(&network);
+
+        // Transaction should have taken place
+        assert_eq!(wallet.default_account().balance(), 999_000);
+        assert_eq!(wallet.get_account("secondary").unwrap().balance(), 1000);
     }
 }

@@ -1,12 +1,9 @@
 [package]
-name = "test_contract"
+name = "dusk-abi"
 version = "0.1.0"
 authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
 edition = "2018"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dusk-abi = { path = "../../dusk-abi"}
-pwasm-std = "*"
