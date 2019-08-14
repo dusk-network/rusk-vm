@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use wasmi::{ExternVal, ImportsBuilder, ModuleInstance, RuntimeValue};
+
 use crate::digest::Digest;
+use crate::host_fns::{HostExternals, HostImportResolver};
 use crate::transaction::Transaction;
 use crate::wallet::ManagedAccount;
-
-//use wasmi::{ExternVal, ImportsBuilder, ModuleInstance, RuntimeValue};
-//use host_fns::{HostExternals, HostImportResolver};
 
 struct Block {
     height: u128,
@@ -96,6 +96,28 @@ impl NetworkState {
 
     pub fn queue_transaction(&mut self, transaction: Transaction) {
         self.queue.push(transaction)
+    }
+
+    pub fn deploy_code(&mut self, bytecode: &[u8]) -> Result<(), wasmi::Error> {
+        let module = wasmi::Module::from_buffer(bytecode)?;
+        module.deny_floating_point()?;
+
+        let imports =
+            ImportsBuilder::new().with_resolver("env", &HostImportResolver);
+
+        let instance =
+            ModuleInstance::new(&module, &imports)?.assert_no_start();
+
+        // Get memory reference for call
+        match instance.export_by_name("memory") {
+            Some(ExternVal::Memory(memref)) => {
+                let mut externals = HostExternals(memref.clone());
+                instance.invoke_export("deploy", &[], &mut externals);
+            }
+            _ => panic!("No memory available"),
+        }
+
+        Ok(())
     }
 
     // pub fn new_contract(

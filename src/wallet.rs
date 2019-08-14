@@ -65,6 +65,27 @@ impl ManagedAccount {
             Err(())
         }
     }
+
+    pub fn deploy_contract<B: Into<Vec<u8>>>(
+        &mut self,
+        bytecode: B,
+        value: u128,
+    ) -> Result<Transaction, ()> {
+        if self.balance >= value {
+            self.nonce += 1;
+
+            let transaction = Transaction::deploy_contract(
+                self.id(),
+                value,
+                self.nonce,
+                bytecode.into(),
+                &self.signer,
+            );
+            Ok(transaction)
+        } else {
+            Err(())
+        }
+    }
 }
 
 pub struct Wallet(HashMap<String, ManagedAccount>);

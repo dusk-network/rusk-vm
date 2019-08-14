@@ -56,7 +56,6 @@ mod tests {
 
         // put the transaction in the queue
         network.queue_transaction(transaction);
-
         network.mint_block();
 
         // sync local wallet again
@@ -65,5 +64,24 @@ mod tests {
         // Transaction should have taken place
         assert_eq!(wallet.default_account().balance(), 999_000);
         assert_eq!(wallet.get_account("secondary").unwrap().balance(), 1000);
+    }
+
+    #[test]
+    fn echo_contract() {
+        const ECHO_CONTRACT: &'static [u8] = include_bytes!("../test_contracts/basic/target/wasm32-unknown-unknown/release/test_contract.wasm");
+
+        let mut wallet = Wallet::new();
+        let mut network = NetworkState::genesis(wallet.default_account());
+
+        wallet.sync(&network);
+
+        // deploy echo contract with 1000 dusk
+        let transaction = wallet
+            .default_account_mut()
+            .deploy_contract(ECHO_CONTRACT, 1000)
+            .unwrap();
+
+        network.queue_transaction(transaction);
+        network.mint_block();
     }
 }
