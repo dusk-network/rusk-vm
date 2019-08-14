@@ -1,23 +1,28 @@
 #![no_std]
 use core::slice;
 
-extern "C" {
-    fn abi_debug(len: u32);
-    fn abi_memory() -> *mut u8;
-}
+#[repr(C)]
+pub struct U256([u8; 32]);
 
-fn get_memory() -> &'static mut [u8] {
-    unsafe {
-        let ofs = abi_memory();
-        let len = (*ofs) as usize;
-        slice::from_raw_parts_mut(ofs, len)
+impl U256 {
+    pub fn zero() -> Self {
+        U256([0u8; 32])
+    }
+
+    pub fn max() -> Self {
+        U256([255u8; 32])
     }
 }
 
-pub fn debug(string: &str) {
+mod external {
+    use super::U256;
+    extern "C" {
+        pub fn abi_set_storage(key: *const U256, key: *const U256);
+    }
+}
+
+pub fn set_storage(key: &U256, val: &U256) {
     unsafe {
-        let memory = get_memory();
-        memory[0] = 65;
-        abi_debug(1);
+        external::abi_set_storage(key, val);
     }
 }

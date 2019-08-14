@@ -1,11 +1,33 @@
+use std::collections::HashMap;
+
 use wasmi::{
     Externals, FuncInstance, FuncRef, MemoryRef, ModuleImportResolver,
     RuntimeArgs, RuntimeValue, Signature, Trap, ValueType,
 };
 
-const ABI_PANIC: usize = 1;
+use crate::digest::Digest;
 
-pub(crate) struct HostExternals(pub MemoryRef);
+const ABI_PANIC: usize = 0;
+const ABI_DEBUG: usize = 1;
+const ABI_STORAGE_SET: usize = 2;
+
+pub(crate) struct HostExternals<'a> {
+    memory: MemoryRef,
+    storage: &'a mut HashMap<Digest, Digest>,
+}
+
+impl<'a> HostExternals<'a> {
+    pub fn new(
+        memory: &MemoryRef,
+        storage: &'a mut HashMap<Digest, Digest>,
+    ) -> Self {
+        HostExternals {
+            memory: memory.clone(),
+            storage,
+        }
+    }
+}
+
 pub(crate) struct HostImportResolver;
 
 fn args_to_slice<'a>(bytes: &'a [u8], args: &RuntimeArgs) -> &'a [u8] {
@@ -15,7 +37,7 @@ fn args_to_slice<'a>(bytes: &'a [u8], args: &RuntimeArgs) -> &'a [u8] {
     unsafe { std::slice::from_raw_parts(&bytes[ofs as usize], len as usize) }
 }
 
-impl Externals for HostExternals {
+impl<'a> Externals for HostExternals<'a> {
     fn invoke_index(
         &mut self,
         index: usize,
@@ -23,17 +45,32 @@ impl Externals for HostExternals {
     ) -> Result<Option<RuntimeValue>, Trap> {
         match index {
             ABI_PANIC => {
-                self.0.with_direct_access(|a| {
+                self.memory.with_direct_access(|a| {
                     let slice = args_to_slice(a, &args);
                     let str = std::str::from_utf8(slice).unwrap();
                     panic!("Guest script panic! {:?}", str);
                 });
                 unreachable!()
             }
-            // ABI_DEBUG => {
-            //     println!("abi_debug called with {:?}", args);
-            //     Ok(None)
-            // }
+            ABI_STORAGE_SET => {
+                let args = args.as_ref();
+                let (key, val) = self.memory.with_direct_access(|a| {
+                    let key_ptr = args[0].try_into::<u32>().unwrap() as usize;
+                    let val_ptr = args[1].try_into::<u32>().unwrap() as usize;
+                    unsafe {
+                        (
+                            Digest::from_ptr(&a[key_ptr]),
+                            Digest::from_ptr(&a[val_ptr]),
+                        )
+                    }
+                });
+                self.storage.insert(key, val);
+                Ok(None)
+            }
+            ABI_DEBUG => {
+                println!("abi_debug called with {:?}", args);
+                Ok(None)
+            }
             _ => panic!("Unimplemented function at {}", index),
         }
     }
@@ -54,6 +91,10 @@ impl ModuleImportResolver for HostImportResolver {
             "debug" => Ok(FuncInstance::alloc_host(
                 Signature::new(&[ValueType::I32, ValueType::I32][..], None),
                 ABI_PANIC,
+            )),
+            "abi_set_storage" => Ok(FuncInstance::alloc_host(
+                Signature::new(&[ValueType::I32, ValueType::I32][..], None),
+                ABI_STORAGE_SET,
             )),
             name => unimplemented!("{:?}", name),
         }

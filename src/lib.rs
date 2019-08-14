@@ -67,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn echo_contract() {
+    fn contract_deployment() {
         const ECHO_CONTRACT: &'static [u8] = include_bytes!("../test_contracts/basic/target/wasm32-unknown-unknown/release/test_contract.wasm");
 
         let mut wallet = Wallet::new();

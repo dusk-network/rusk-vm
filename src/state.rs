@@ -19,9 +19,9 @@ pub struct Account {
 }
 
 pub struct Contract {
-    #[allow(unused)]
     balance: u128,
     code: Vec<u8>,
+    storage: HashMap<Digest, Digest>,
 }
 
 impl Account {
@@ -108,10 +108,12 @@ impl NetworkState {
         let instance =
             ModuleInstance::new(&module, &imports)?.assert_no_start();
 
+        let mut storage = HashMap::new();
+
         // Get memory reference for call
         match instance.export_by_name("memory") {
             Some(ExternVal::Memory(memref)) => {
-                let mut externals = HostExternals(memref.clone());
+                let mut externals = HostExternals::new(&memref, &mut storage);
                 instance.invoke_export("deploy", &[], &mut externals);
             }
             _ => panic!("No memory available"),
@@ -119,42 +121,4 @@ impl NetworkState {
 
         Ok(())
     }
-
-    // pub fn new_contract(
-    //     &mut self,
-    //     bytecode: &[u8],
-    // ) -> Result<Digest, wasmi::Error> {
-    //     let module = wasmi::Module::from_buffer(bytecode)?;
-    //     module.deny_floating_point()?;
-
-    //     let hash = Digest::new(bytecode);
-    //     self.contracts.insert(hash.clone(), module);
-
-    //     Ok(hash)
-    // }
-
-    // pub fn call(
-    //     &mut self,
-    //     contract_hash: &Digest,
-    //     method: &str,
-    // ) -> Result<Option<RuntimeValue>, wasmi::Error> {
-    //     if let Some(contract) = self.contracts.get(&contract_hash) {
-    //         let imports =
-    //             ImportsBuilder::new().with_resolver("env", &HostImportResolver);
-
-    //         let instance =
-    //             ModuleInstance::new(&contract, &imports)?.assert_no_start();
-
-    //         // Get memory reference for call
-    //         match instance.export_by_name("memory") {
-    //             Some(ExternVal::Memory(memref)) => {
-    //                 let mut externals = HostExternals(memref.clone());
-    //                 instance.invoke_export(method, &[], &mut externals)
-    //             }
-    //             _ => panic!("No memory available"),
-    //         }
-    //     } else {
-    //         panic!("no contract")
-    //     }
-    // }
 }

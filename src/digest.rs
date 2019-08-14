@@ -1,9 +1,18 @@
 use std::io::Write;
+use std::ptr;
 
 use blake2_rfc::blake2b::Blake2b;
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Digest([u8; 32]);
+
+impl Digest {
+    pub unsafe fn from_ptr(src: &u8) -> Self {
+        let mut arr = [0u8; 32];
+        ptr::copy_nonoverlapping(src, &mut arr[0], 1);
+        Digest(arr)
+    }
+}
 
 impl AsRef<[u8]> for Digest {
     fn as_ref(&self) -> &[u8] {
