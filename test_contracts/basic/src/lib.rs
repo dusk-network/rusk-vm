@@ -5,6 +5,6 @@ use dusk_abi::{self, U256};
 
 #[no_mangle]
 pub fn deploy() {
-    dusk_abi::set_storage(&U256::max(), &U256::max());
+    dusk_abi::set_storage(&U256::max_value(), &U256::max_value());
     // pwasm_std::logger::debug("abcd");
 }

@@ -18,12 +18,6 @@ pub struct Account {
     balance: u128,
 }
 
-pub struct Contract {
-    balance: u128,
-    code: Vec<u8>,
-    storage: HashMap<U256, U256>,
-}
-
 impl Account {
     pub fn balance(&self) -> u128 {
         self.balance
@@ -39,6 +33,18 @@ impl Account {
 
     pub fn nonce_mut(&mut self) -> &mut u128 {
         &mut self.nonce
+    }
+}
+
+pub struct Contract {
+    balance: u128,
+    code: Vec<u8>,
+    storage: HashMap<U256, U256>,
+}
+
+impl Contract {
+    pub fn storage(&self) -> &HashMap<U256, U256> {
+        &self.storage
     }
 }
 
@@ -67,6 +73,10 @@ impl NetworkState {
             blocks: vec![],
             queue: vec![],
         }
+    }
+
+    pub fn get_contract(&self, contract_id: &U256) -> Option<&Contract> {
+        self.contracts.get(contract_id)
     }
 
     pub fn get_account(&self, account_id: &U256) -> Option<&Account> {
@@ -101,6 +111,8 @@ impl NetworkState {
     pub fn deploy_bytecode(
         &mut self,
         bytecode: &[u8],
+        contract_id: &U256,
+        balance: u128,
     ) -> Result<(), wasmi::Error> {
         let module = wasmi::Module::from_buffer(bytecode)?;
         module.deny_floating_point()?;
@@ -117,10 +129,19 @@ impl NetworkState {
         match instance.export_by_name("memory") {
             Some(ExternVal::Memory(memref)) => {
                 let mut externals = HostExternals::new(&memref, &mut storage);
+                // Run contract initialization
                 instance.invoke_export("deploy", &[], &mut externals);
             }
             _ => panic!("No memory available"),
         }
+
+        let contract = Contract {
+            balance,
+            // this should be the actual contract code, not the deploy script
+            code: vec![],
+            storage,
+        };
+        self.contracts.insert(contract_id.clone(), contract);
 
         Ok(())
     }

@@ -12,6 +12,7 @@ mod tests {
 
     use crate::state::NetworkState;
     use crate::wallet::Wallet;
+    use ethereum_types::U256;
 
     #[test]
     fn simple_transactions() {
@@ -83,5 +84,16 @@ mod tests {
 
         network.queue_transaction(transaction);
         network.mint_block();
+
+        // should have written value U256::max_value() to key U256::max_value()
+        assert_eq!(
+            network
+                .get_contract(&contract_id)
+                .unwrap()
+                .storage()
+                .get(&U256::max_value())
+                .unwrap(),
+            &U256::max_value()
+        );
     }
 }

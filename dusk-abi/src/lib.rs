@@ -1,18 +1,5 @@
 #![no_std]
-use core::slice;
-
-#[repr(C)]
-pub struct U256([u8; 32]);
-
-impl U256 {
-    pub fn zero() -> Self {
-        U256([0u8; 32])
-    }
-
-    pub fn max() -> Self {
-        U256([255u8; 32])
-    }
-}
+pub use ethereum_types::U256;
 
 mod external {
     use super::U256;

@@ -78,10 +78,7 @@ impl<'a> Externals for HostExternals<'a> {
                 self.storage.insert(key, val);
                 Ok(None)
             }
-            ABI_DEBUG => {
-                println!("abi_debug called with {:?}", args);
-                Ok(None)
-            }
+            ABI_DEBUG => Ok(None),
             _ => panic!("Unimplemented function at {}", index),
         }
     }
@@ -93,7 +90,6 @@ impl ModuleImportResolver for HostImportResolver {
         field_name: &str,
         signature: &Signature,
     ) -> Result<FuncRef, wasmi::Error> {
-        println!("resolve_func {}, signature {:?}", field_name, signature);
         match field_name {
             "panic" => Ok(FuncInstance::alloc_host(
                 Signature::new(&[ValueType::I32, ValueType::I32][..], None),

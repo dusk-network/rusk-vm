@@ -12,6 +12,7 @@ struct ValueTransaction {
 }
 
 struct ContractTransaction {
+    contract_id: U256,
     bytecode: Vec<u8>,
 }
 
@@ -83,6 +84,7 @@ impl Transaction {
 
         let kind = TransactionKind::ContractTransaction(ContractTransaction {
             bytecode,
+            contract_id,
         });
         let raw = RawTransaction {
             from,
@@ -113,9 +115,10 @@ impl Transaction {
             }
             TransactionKind::ContractTransaction(ContractTransaction {
                 ref bytecode,
+                ref contract_id,
             }) => {
                 //
-                state.deploy_bytecode(bytecode);
+                state.deploy_bytecode(bytecode, contract_id, raw.value);
             }
         }
     }
