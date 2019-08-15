@@ -5,7 +5,7 @@ use wasmi::{
     RuntimeArgs, RuntimeValue, Signature, Trap, ValueType,
 };
 
-use crate::digest::Digest;
+use ethereum_types::U256;
 
 const ABI_PANIC: usize = 0;
 const ABI_DEBUG: usize = 1;
@@ -13,13 +13,24 @@ const ABI_STORAGE_SET: usize = 2;
 
 pub(crate) struct HostExternals<'a> {
     memory: MemoryRef,
-    storage: &'a mut HashMap<Digest, Digest>,
+    storage: &'a mut HashMap<U256, U256>,
+}
+
+trait FromPtr {
+    unsafe fn from_ptr(ptr: &u8) -> Self;
+}
+
+impl FromPtr for U256 {
+    unsafe fn from_ptr(ptr: &u8) -> Self {
+        let slice = std::slice::from_raw_parts(ptr, 32);
+        U256::from_little_endian(slice)
+    }
 }
 
 impl<'a> HostExternals<'a> {
     pub fn new(
         memory: &MemoryRef,
-        storage: &'a mut HashMap<Digest, Digest>,
+        storage: &'a mut HashMap<U256, U256>,
     ) -> Self {
         HostExternals {
             memory: memory.clone(),
@@ -59,8 +70,8 @@ impl<'a> Externals for HostExternals<'a> {
                     let val_ptr = args[1].try_into::<u32>().unwrap() as usize;
                     unsafe {
                         (
-                            Digest::from_ptr(&a[key_ptr]),
-                            Digest::from_ptr(&a[val_ptr]),
+                            U256::from_ptr(&a[key_ptr]),
+                            U256::from_ptr(&a[val_ptr]),
                         )
                     }
                 });

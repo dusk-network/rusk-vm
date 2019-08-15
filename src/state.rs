@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use wasmi::{ExternVal, ImportsBuilder, ModuleInstance, RuntimeValue};
+use ethereum_types::U256;
+use wasmi::{ExternVal, ImportsBuilder, ModuleInstance};
 
-use crate::digest::Digest;
 use crate::host_fns::{HostExternals, HostImportResolver};
 use crate::transaction::Transaction;
 use crate::wallet::ManagedAccount;
@@ -21,7 +21,7 @@ pub struct Account {
 pub struct Contract {
     balance: u128,
     code: Vec<u8>,
-    storage: HashMap<Digest, Digest>,
+    storage: HashMap<U256, U256>,
 }
 
 impl Account {
@@ -44,8 +44,8 @@ impl Account {
 
 #[derive(Default)]
 pub struct NetworkState {
-    accounts: HashMap<Digest, Account>,
-    contracts: HashMap<Digest, Contract>,
+    accounts: HashMap<U256, Account>,
+    contracts: HashMap<U256, Contract>,
     blocks: Vec<Block>,
     queue: Vec<Transaction>,
 }
@@ -69,12 +69,12 @@ impl NetworkState {
         }
     }
 
-    pub fn get_account(&self, account_id: &Digest) -> Option<&Account> {
+    pub fn get_account(&self, account_id: &U256) -> Option<&Account> {
         self.accounts.get(account_id)
     }
 
     // Gets a mutable reference to the account id, creating it if it does not already exist
-    pub fn get_account_mut(&mut self, account_id: &Digest) -> &mut Account {
+    pub fn get_account_mut(&mut self, account_id: &U256) -> &mut Account {
         self.accounts.entry(*account_id).or_default()
     }
 
@@ -98,7 +98,10 @@ impl NetworkState {
         self.queue.push(transaction)
     }
 
-    pub fn deploy_code(&mut self, bytecode: &[u8]) -> Result<(), wasmi::Error> {
+    pub fn deploy_bytecode(
+        &mut self,
+        bytecode: &[u8],
+    ) -> Result<(), wasmi::Error> {
         let module = wasmi::Module::from_buffer(bytecode)?;
         module.deny_floating_point()?;
 

@@ -1,17 +1,18 @@
+use ethereum_types::U256;
 use signatory;
 use signatory::ed25519::Signature;
 use signatory::signature::Signer as _;
 use signatory_dalek::Ed25519Signer as Signer;
 
-use crate::digest::{CryptoHash, Digest, HashState, MakeDigest};
+use crate::digest::{Digest, HashState, MakeDigest};
 use crate::state::NetworkState;
 
 struct ValueTransaction {
-    to: Digest,
+    to: U256,
 }
 
 struct ContractTransaction {
-    code: Vec<u8>,
+    bytecode: Vec<u8>,
 }
 
 enum TransactionKind {
@@ -22,23 +23,23 @@ enum TransactionKind {
 pub struct RawTransaction {
     value: u128,
     nonce: u128,
-    from: Digest,
+    from: U256,
     kind: TransactionKind,
 }
 
-impl CryptoHash for RawTransaction {
-    fn crypto_hash(&self, state: &mut HashState) {
-        state.update(&self.value.to_be_bytes());
-        state.update(&self.from.as_ref());
-        state.update(&self.nonce.to_be_bytes());
+impl MakeDigest for RawTransaction {
+    fn make_digest(&self, state: &mut HashState) {
+        self.value.make_digest(state);
+        self.from.make_digest(state);
+        self.nonce.make_digest(state);
         match self.kind {
             TransactionKind::ValueTransaction(ref val) => {
                 state.update(&[0]);
-                state.update(val.to.as_ref());
+                val.to.make_digest(state);
             }
             TransactionKind::ContractTransaction(ref con) => {
                 state.update(&[1]);
-                state.update(&con.code[..]);
+                state.update(&con.bytecode[..]);
             }
         }
     }
@@ -51,8 +52,8 @@ pub struct Transaction {
 
 impl Transaction {
     pub(crate) fn send_value(
-        from: Digest,
-        to: Digest,
+        from: U256,
+        to: U256,
         value: u128,
         nonce: u128,
         signer: &Signer,
@@ -64,29 +65,36 @@ impl Transaction {
             kind,
             nonce,
         };
-        let digest = raw.digest();
-        let signature = signer.sign(digest.as_ref());
+        let mut bytes = [0u8; 32];
+        raw.digest().to_little_endian(&mut bytes);
+        let signature = signer.sign(&bytes);
         Transaction { raw, signature }
     }
 
     pub(crate) fn deploy_contract(
-        from: Digest,
+        from: U256,
         value: u128,
         nonce: u128,
-        code: Vec<u8>,
+        bytecode: Vec<u8>,
         signer: &Signer,
-    ) -> Self {
-        let kind =
-            TransactionKind::ContractTransaction(ContractTransaction { code });
+    ) -> (Self, U256) {
+        // the contract id is the hash of the bytecode xor the author
+        let contract_id = (&bytecode[..]).digest() ^ from;
+
+        let kind = TransactionKind::ContractTransaction(ContractTransaction {
+            bytecode,
+        });
         let raw = RawTransaction {
             from,
             value,
             kind,
             nonce,
         };
-        let digest = raw.digest();
-        let signature = signer.sign(digest.as_ref());
-        Transaction { raw, signature }
+        let mut bytes = [0u8; 32];
+        raw.digest().to_little_endian(&mut bytes);
+        let signature = signer.sign(&bytes);
+
+        (Transaction { raw, signature }, contract_id)
     }
 
     pub(crate) fn valid(&self, _state: &NetworkState) -> bool {
@@ -104,10 +112,10 @@ impl Transaction {
                 *state.get_account_mut(&to).balance_mut() += raw.value;
             }
             TransactionKind::ContractTransaction(ContractTransaction {
-                ref code,
+                ref bytecode,
             }) => {
                 //
-                state.deploy_code(code);
+                state.deploy_bytecode(bytecode);
             }
         }
     }

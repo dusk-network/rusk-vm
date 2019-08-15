@@ -68,17 +68,17 @@ mod tests {
 
     #[test]
     fn contract_deployment() {
-        const ECHO_CONTRACT: &'static [u8] = include_bytes!("../test_contracts/basic/target/wasm32-unknown-unknown/release/test_contract.wasm");
+        const CONTRACT: &'static [u8] = include_bytes!("../test_contracts/basic/target/wasm32-unknown-unknown/release/test_contract.wasm");
 
         let mut wallet = Wallet::new();
         let mut network = NetworkState::genesis(wallet.default_account());
 
         wallet.sync(&network);
 
-        // deploy echo contract with 1000 dusk
-        let transaction = wallet
+        // deploy contract with 1000 dusk
+        let (transaction, contract_id) = wallet
             .default_account_mut()
-            .deploy_contract(ECHO_CONTRACT, 1000)
+            .deploy_contract(CONTRACT, 1000)
             .unwrap();
 
         network.queue_transaction(transaction);

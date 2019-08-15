@@ -1,10 +1,11 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+use ethereum_types::U256;
 use signatory::{ed25519, PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
 
-use crate::digest::{Digest, MakeDigest};
+use crate::digest::Digest;
 use crate::state::{Account, NetworkState};
 use crate::transaction::Transaction;
 
@@ -29,7 +30,7 @@ impl Default for ManagedAccount {
 }
 
 impl ManagedAccount {
-    pub fn id(&self) -> Digest {
+    pub fn id(&self) -> U256 {
         self.signer
             .public_key()
             .expect("could not get public key from signer (unreachable)")
@@ -47,7 +48,7 @@ impl ManagedAccount {
 
     pub fn send_value(
         &mut self,
-        to: Digest,
+        to: U256,
         value: u128,
     ) -> Result<Transaction, ()> {
         if self.balance >= value {
@@ -66,22 +67,23 @@ impl ManagedAccount {
         }
     }
 
-    pub fn deploy_contract<B: Into<Vec<u8>>>(
+    pub fn deploy_contract<B: Into<Vec<u8>> + AsRef<[u8]>>(
         &mut self,
         bytecode: B,
         value: u128,
-    ) -> Result<Transaction, ()> {
+    ) -> Result<(Transaction, U256), ()> {
         if self.balance >= value {
             self.nonce += 1;
 
-            let transaction = Transaction::deploy_contract(
+            let (transaction, contract_id) = Transaction::deploy_contract(
                 self.id(),
                 value,
                 self.nonce,
                 bytecode.into(),
                 &self.signer,
             );
-            Ok(transaction)
+
+            Ok((transaction, contract_id))
         } else {
             Err(())
         }
