@@ -6,9 +6,10 @@ edition = "2018"
 
 [dependencies]
 wasmi = "*"
-parity-wasm = "*"
+parity-wasm = "0.31"
 wabt = "*"
 signatory = "*"
 signatory-dalek = "*"
 blake2-rfc = "0.2"
 ethereum-types = "0.4"
+failure = "*"

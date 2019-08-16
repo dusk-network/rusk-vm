@@ -8,3 +8,8 @@ pub fn deploy() {
     dusk_abi::set_storage(&U256::max_value(), &U256::max_value());
     // pwasm_std::logger::debug("abcd");
 }
+
+#[no_mangle]
+pub fn call() {
+    unimplemented!()
+}

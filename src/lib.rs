@@ -1,5 +1,6 @@
 mod digest;
 mod host_fns;
+mod prepare_module;
 mod state;
 mod transaction;
 mod wallet;

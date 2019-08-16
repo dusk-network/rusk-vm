@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use ethereum_types::U256;
+use failure::Error;
 use wasmi::{ExternVal, ImportsBuilder, ModuleInstance};
 
 use crate::host_fns::{HostExternals, HostImportResolver};
+use crate::prepare_module::prepare_module;
 use crate::transaction::Transaction;
 use crate::wallet::ManagedAccount;
 
@@ -113,15 +115,13 @@ impl NetworkState {
         bytecode: &[u8],
         contract_id: &U256,
         balance: u128,
-    ) -> Result<(), wasmi::Error> {
-        let module = wasmi::Module::from_buffer(bytecode)?;
-        module.deny_floating_point()?;
+    ) -> Result<(), Error> {
+        let (ctor, to_deploy) = prepare_module(bytecode)?;
 
         let imports =
             ImportsBuilder::new().with_resolver("env", &HostImportResolver);
 
-        let instance =
-            ModuleInstance::new(&module, &imports)?.assert_no_start();
+        let instance = ModuleInstance::new(&ctor, &imports)?.assert_no_start();
 
         let mut storage = HashMap::new();
 
