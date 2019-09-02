@@ -1,7 +1,7 @@
-cd test_contracts/basic
-cargo build --release --target wasm32-unknown-unknown
-cd -
-cd tools/printwat;
-cargo run -- ../../test_contracts/basic/target/wasm32-unknown-unknown/release/test_contract.wasm
-cd -
-cargo test -- --nocapture
+echo $1
+
+cargo build --manifest-path=test_contracts/$1/Cargo.toml --release --target wasm32-unknown-unknown
+
+cargo test $1
+
+			

@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 use ethereum_types::U256;
+use failure::{bail, Error};
 use signatory::{ed25519, PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
 
@@ -48,7 +49,7 @@ impl ManagedAccount {
 
     pub fn send_value(
         &mut self,
-        to: U256,
+        to: &U256,
         value: u128,
     ) -> Result<Transaction, ()> {
         if self.balance >= value {
@@ -56,7 +57,7 @@ impl ManagedAccount {
 
             let transaction = Transaction::send_value(
                 self.id(),
-                to,
+                to.clone(),
                 value,
                 self.nonce,
                 &self.signer,
@@ -64,6 +65,29 @@ impl ManagedAccount {
             Ok(transaction)
         } else {
             Err(())
+        }
+    }
+
+    pub fn call_contract(
+        &mut self,
+        contract_id: &U256,
+        value: u128,
+        data: &[u8],
+    ) -> Result<Transaction, Error> {
+        if self.balance >= value {
+            self.nonce += 1;
+
+            let transaction = Transaction::call_contract(
+                self.id(),
+                contract_id.clone(),
+                self.nonce,
+                value,
+                data.into(),
+                &self.signer,
+            );
+            Ok(transaction)
+        } else {
+            bail!("Insufficient balance")
         }
     }
 
@@ -131,7 +155,7 @@ impl Wallet {
     }
 
     pub fn sync(&mut self, state: &NetworkState) {
-        for (_, mut account) in self.0.iter_mut() {
+        for (_, account) in self.0.iter_mut() {
             if let Some(account_state) = state.get_account(&account.id()) {
                 account.update(account_state);
             }

@@ -5,8 +5,8 @@ authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
 edition = "2018"
 
 [dependencies]
-wasmi = "*"
-parity-wasm = "0.31"
+wasmi = { path = "../wasmi" }
+parity-wasm = "0.39"
 wabt = "*"
 signatory = "*"
 signatory-dalek = "*"

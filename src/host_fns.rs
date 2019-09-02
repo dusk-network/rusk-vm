@@ -64,6 +64,7 @@ impl<'a> Externals for HostExternals<'a> {
                 unreachable!()
             }
             ABI_STORAGE_SET => {
+                println!("STORAGE_SET");
                 let args = args.as_ref();
                 let (key, val) = self.memory.with_direct_access(|a| {
                     let key_ptr = args[0].try_into::<u32>().unwrap() as usize;
@@ -76,6 +77,9 @@ impl<'a> Externals for HostExternals<'a> {
                     }
                 });
                 self.storage.insert(key, val);
+
+                println!("storage state: {:?}", self.storage);
+
                 Ok(None)
             }
             ABI_DEBUG => Ok(None),
@@ -88,7 +92,7 @@ impl ModuleImportResolver for HostImportResolver {
     fn resolve_func(
         &self,
         field_name: &str,
-        signature: &Signature,
+        _signature: &Signature,
     ) -> Result<FuncRef, wasmi::Error> {
         match field_name {
             "panic" => Ok(FuncInstance::alloc_host(

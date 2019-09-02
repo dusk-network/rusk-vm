@@ -1,5 +1,4 @@
 use std::io::Write;
-use std::ptr;
 
 use blake2_rfc::blake2b::Blake2b;
 use ethereum_types::U256;
