@@ -7,13 +7,14 @@ use signatory::{ed25519, PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
 
 use crate::digest::Digest;
-use crate::state::{Account, NetworkState};
-use crate::transaction::Transaction;
+use crate::state::{Contract, NetworkState};
+// use crate::transaction::Transaction;
+
+const SECRET: [u8; 32] = *b"super secret key is super secret";
 
 pub struct ManagedAccount {
     /// The balance in Dusk
     balance: u128,
-    /// Nonce to prevent replay-attacks.
     nonce: u128,
     signer: Signer,
 }
@@ -22,6 +23,7 @@ impl Default for ManagedAccount {
     fn default() -> Self {
         let seed = ed25519::Seed::generate();
         let signer = Signer::from(&seed);
+
         ManagedAccount {
             balance: 0,
             nonce: 0,
@@ -38,80 +40,73 @@ impl ManagedAccount {
             .digest()
     }
 
-    pub fn update(&mut self, account: &Account) {
-        self.balance = account.balance();
-        assert_eq!(self.nonce, account.nonce());
+    pub fn from_seed(seed: [u8; 32]) -> Self {
+        let seed = ed25519::Seed::new(seed);
+        let signer = Signer::from(&seed);
+
+        ManagedAccount {
+            balance: 0,
+            nonce: 0,
+            signer,
+        }
+    }
+
+    pub fn update(&mut self, contract: &Contract) {
+        self.balance = contract.balance();
     }
 
     pub fn balance(&self) -> u128 {
         self.balance
     }
 
-    pub fn send_value(
-        &mut self,
-        to: &U256,
-        value: u128,
-    ) -> Result<Transaction, ()> {
-        if self.balance >= value {
-            self.nonce += 1;
-
-            let transaction = Transaction::send_value(
-                self.id(),
-                to.clone(),
-                value,
-                self.nonce,
-                &self.signer,
-            );
-            Ok(transaction)
-        } else {
-            Err(())
-        }
+    pub fn public_key(&self) -> signatory::ed25519::PublicKey {
+        self.signer.public_key().expect("never fails")
     }
 
-    pub fn call_contract(
-        &mut self,
-        contract_id: &U256,
-        value: u128,
-        data: &[u8],
-    ) -> Result<Transaction, Error> {
-        if self.balance >= value {
-            self.nonce += 1;
+    // pub fn call_contract(
+    //     &mut self,
+    //     contract_id: &U256,
+    //     value: u128,
+    //     data: &[u8],
+    // ) -> Result<Transaction, Error> {
+    //     if self.balance >= value {
+    //         self.nonce += 1;
 
-            let transaction = Transaction::call_contract(
-                self.id(),
-                contract_id.clone(),
-                self.nonce,
-                value,
-                data.into(),
-                &self.signer,
-            );
-            Ok(transaction)
-        } else {
-            bail!("Insufficient balance")
-        }
-    }
+    //         let transaction = Transaction::call_contract(
+    //             self.id(),
+    //             contract_id.clone(),
+    //             self.nonce,
+    //             value,
+    //             data.into(),
+    //             &self.signer,
+    //         );
+    //         Ok(transaction)
+    //     } else {
+    //         bail!("Insufficient balance")
+    //     }
+    // }
 
-    pub fn deploy_contract<B: Into<Vec<u8>> + AsRef<[u8]>>(
-        &mut self,
-        bytecode: B,
-        value: u128,
-    ) -> Result<(Transaction, U256), ()> {
-        if self.balance >= value {
-            self.nonce += 1;
+    // pub fn deploy_contract<B: Into<Vec<u8>> + AsRef<[u8]>>(
+    //     &mut self,
+    //     bytecode: B,
+    //     value: u128,
+    // ) -> Result<(Transaction, U256), ()> {
+    //     if self.balance >= value {
+    //         self.nonce += 1;
 
-            let (transaction, contract_id) = Transaction::deploy_contract(
-                self.id(),
-                value,
-                self.nonce,
-                bytecode.into(),
-                &self.signer,
-            );
+    //         let (transaction, contract_id) = Transaction::deploy_contract(
+    //             self.id(),
+    //             value,
+    //             self.nonce,
+    //             bytecode.into(),
+    //             &self.signer,
+    //         );
 
-            Ok((transaction, contract_id))
-        } else {
-            Err(())
-        }
-    }
+    //         Ok((transaction, contract_id))
+    //     } else {
+    //         Err(())
+    //     }
+    // }
 }
 
 pub struct Wallet(HashMap<String, ManagedAccount>);
@@ -119,7 +114,14 @@ pub struct Wallet(HashMap<String, ManagedAccount>);
 impl Wallet {
     pub fn new() -> Self {
         let mut w = Wallet(HashMap::new());
-        w.new_account("default").expect("Empty hashmap");
+        w.new_account("default").expect("conflict in empty hashmap");
+        w
+    }
+
+    pub(crate) fn genesis() -> Self {
+        let mut w = Wallet(HashMap::new());
+        w.new_account_with_seed("default", SECRET)
+            .expect("conflict in empty hashmap");
         w
     }
 
@@ -143,6 +145,19 @@ impl Wallet {
         }
     }
 
+    /// Create a new account with the given name and given seed,
+    /// Returns an error if an account with that name already exists
+    pub fn new_account_with_seed<S: Into<String>>(
+        &mut self,
+        name: S,
+        seed: [u8; 32],
+    ) -> Result<&mut ManagedAccount, ()> {
+        match self.0.entry(name.into()) {
+            Entry::Vacant(v) => Ok(v.insert(ManagedAccount::from_seed(seed))),
+            _ => Err(()),
+        }
+    }
+
     pub fn get_account(&self, name: &str) -> Option<&ManagedAccount> {
         self.0.get(name)
     }
@@ -155,9 +170,9 @@ impl Wallet {
     }
 
     pub fn sync(&mut self, state: &NetworkState) {
-        for (_, account) in self.0.iter_mut() {
-            if let Some(account_state) = state.get_account(&account.id()) {
-                account.update(account_state);
+        for (_, contract) in self.0.iter_mut() {
+            if let Some(account_state) = state.get_contract(&contract.id()) {
+                contract.update(account_state);
             }
         }
     }

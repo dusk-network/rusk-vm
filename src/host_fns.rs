@@ -1,18 +1,23 @@
 use std::collections::HashMap;
 
-use wasmi::{
-    Externals, FuncInstance, FuncRef, MemoryRef, ModuleImportResolver,
-    RuntimeArgs, RuntimeValue, Signature, Trap, ValueType,
-};
-
 use ethereum_types::U256;
+use failure::format_err;
+use wasmi::{
+    Externals, FuncInstance, FuncRef, HostError, MemoryRef,
+    ModuleImportResolver, RuntimeArgs, RuntimeValue, Signature, Trap, TrapKind,
+    ValueType,
+};
 
 const ABI_PANIC: usize = 0;
 const ABI_DEBUG: usize = 1;
 const ABI_STORAGE_SET: usize = 2;
+#[allow(unused)]
+const ABI_STORAGE_GET: usize = 3;
+const ABI_CALLER: usize = 4;
 
-pub(crate) struct HostExternals<'a> {
+pub(crate) struct CallContext<'a> {
     memory: MemoryRef,
+    caller: U256,
     storage: &'a mut HashMap<U256, U256>,
 }
 
@@ -27,13 +32,15 @@ impl FromPtr for U256 {
     }
 }
 
-impl<'a> HostExternals<'a> {
+impl<'a> CallContext<'a> {
     pub fn new(
         memory: &MemoryRef,
+        caller: U256,
         storage: &'a mut HashMap<U256, U256>,
     ) -> Self {
-        HostExternals {
+        CallContext {
             memory: memory.clone(),
+            caller,
             storage,
         }
     }
@@ -48,23 +55,40 @@ fn args_to_slice<'a>(bytes: &'a [u8], args: &RuntimeArgs) -> &'a [u8] {
     unsafe { std::slice::from_raw_parts(&bytes[ofs as usize], len as usize) }
 }
 
-impl<'a> Externals for HostExternals<'a> {
+#[derive(Debug)]
+struct ContractPanic(String);
+
+// for some reason the derive does not work for Display in this case.
+impl std::fmt::Display for ContractPanic {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unimplemented!()
+    }
+}
+
+impl ContractPanic {
+    fn new(msg: &str) -> Self {
+        ContractPanic(msg.into())
+    }
+}
+
+impl HostError for ContractPanic {}
+
+impl<'a> Externals for CallContext<'a> {
     fn invoke_index(
         &mut self,
         index: usize,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, Trap> {
         match index {
-            ABI_PANIC => {
-                self.memory.with_direct_access(|a| {
-                    let slice = args_to_slice(a, &args);
-                    let str = std::str::from_utf8(slice).unwrap();
-                    panic!("Guest script panic! {:?}", str);
-                });
-                unreachable!()
-            }
+            ABI_PANIC => self.memory.with_direct_access(|a| {
+                let slice = args_to_slice(a, &args);
+                let str = std::str::from_utf8(slice).unwrap();
+                println!("CONTRACT PANIC: {:?}", str);
+                Err(Trap::new(TrapKind::Host(Box::new(ContractPanic::new(
+                    str,
+                )))))
+            }),
             ABI_STORAGE_SET => {
-                println!("STORAGE_SET");
                 let args = args.as_ref();
                 let (key, val) = self.memory.with_direct_access(|a| {
                     let key_ptr = args[0].try_into::<u32>().unwrap() as usize;
@@ -78,11 +102,28 @@ impl<'a> Externals for HostExternals<'a> {
                 });
                 self.storage.insert(key, val);
 
-                println!("storage state: {:?}", self.storage);
+                println!("storage updated to {:?}", self.storage);
 
                 Ok(None)
             }
-            ABI_DEBUG => Ok(None),
+            ABI_DEBUG => {
+                self.memory.with_direct_access(|a| {
+                    let slice = args_to_slice(a, &args);
+                    let str = std::str::from_utf8(slice).unwrap();
+                    println!("CONTRACT DEBUG: {:?}", str);
+                });
+                Ok(None)
+            }
+            ABI_CALLER => {
+                let args = args.as_ref();
+                let buffer_ofs = args[0].try_into::<u32>().unwrap() as usize;
+
+                self.memory.with_direct_access_mut(|a| {
+                    self.caller
+                        .to_big_endian(&mut a[buffer_ofs..buffer_ofs + 32]);
+                });
+                Ok(None)
+            }
             _ => panic!("Unimplemented function at {}", index),
         }
     }
@@ -101,11 +142,15 @@ impl ModuleImportResolver for HostImportResolver {
             )),
             "debug" => Ok(FuncInstance::alloc_host(
                 Signature::new(&[ValueType::I32, ValueType::I32][..], None),
-                ABI_PANIC,
+                ABI_DEBUG,
             )),
-            "abi_set_storage" => Ok(FuncInstance::alloc_host(
+            "set_storage" => Ok(FuncInstance::alloc_host(
                 Signature::new(&[ValueType::I32, ValueType::I32][..], None),
                 ABI_STORAGE_SET,
+            )),
+            "caller" => Ok(FuncInstance::alloc_host(
+                Signature::new(&[ValueType::I32][..], None),
+                ABI_CALLER,
             )),
             name => unimplemented!("{:?}", name),
         }

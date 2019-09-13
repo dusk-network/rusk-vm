@@ -4,42 +4,14 @@ use ethereum_types::U256;
 use failure::{bail, format_err, Error};
 use wasmi::{ExternVal, ImportsBuilder, ModuleInstance};
 
-use crate::host_fns::{HostExternals, HostImportResolver};
-use crate::prepare_module::prepare_module;
-use crate::transaction::Transaction;
+use crate::contract_builder::WasmBytecode;
+use crate::digest::Digest;
+use crate::host_fns::{CallContext, HostImportResolver};
 use crate::wallet::ManagedAccount;
 
-#[derive(Default, Debug)]
-struct Block {
-    height: u128,
-    transactions: Vec<Transaction>,
-}
+use crate::contract_code;
 
-#[derive(Default, Debug)]
-pub struct Account {
-    nonce: u128,
-    balance: u128,
-}
-
-impl Account {
-    pub fn balance(&self) -> u128 {
-        self.balance
-    }
-
-    pub fn nonce(&self) -> u128 {
-        self.nonce
-    }
-
-    pub fn balance_mut(&mut self) -> &mut u128 {
-        &mut self.balance
-    }
-
-    pub fn nonce_mut(&mut self) -> &mut u128 {
-        &mut self.nonce
-    }
-}
-
-#[derive(Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Contract {
     balance: u128,
     bytecode: Vec<u8>,
@@ -47,6 +19,14 @@ pub struct Contract {
 }
 
 impl Contract {
+    pub fn balance(&self) -> u128 {
+        self.balance
+    }
+
+    pub fn balance_mut(&mut self) -> &mut u128 {
+        &mut self.balance
+    }
+
     pub fn storage(&self) -> &HashMap<U256, U256> {
         &self.storage
     }
@@ -58,78 +38,70 @@ impl Contract {
     pub fn bytecode(&self) -> &[u8] {
         &self.bytecode
     }
+
+    pub fn bytecode_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.bytecode
+    }
 }
 
-#[derive(Default, Debug)]
-pub struct NetworkState {
-    accounts: HashMap<U256, Account>,
-    contracts: HashMap<U256, Contract>,
-    blocks: Vec<Block>,
-    queue: Vec<Transaction>,
-}
+// Clone is obviously relatively expensive in the mock implementation
+// but it will be using persistent datastructures in production
+#[derive(Default, Debug, Clone)]
+pub struct NetworkState(HashMap<U256, Contract>);
 
 impl NetworkState {
-    pub fn genesis(mint: &ManagedAccount) -> Self {
-        let account_id = mint.id();
-        let mut accounts = HashMap::new();
-        accounts.insert(
-            account_id.clone(),
-            Account {
+    pub fn genesis() -> Self {
+        let default_account_id =
+            (&contract_code!("default_account")[..]).digest();
+        let mut contracts = HashMap::new();
+        contracts.insert(
+            default_account_id,
+            Contract {
+                bytecode: vec![],
                 balance: 1_000_000,
-                nonce: 0,
+                storage: HashMap::default(),
             },
         );
-        NetworkState {
-            accounts,
-            contracts: HashMap::new(),
-            blocks: vec![],
-            queue: vec![],
+        NetworkState(contracts)
+    }
+
+    // Deploys contract to the network state and runs the deploy function
+    pub fn deploy_contract(
+        &mut self,
+        bytecode: WasmBytecode,
+    ) -> Result<(), Error> {
+        let id = bytecode.digest();
+
+        let contract = self.0.entry(id).or_insert(Contract {
+            bytecode: vec![],
+            balance: 0,
+            storage: HashMap::default(),
+        });
+
+        if contract.bytecode().len() == 0 {
+            *contract.bytecode_mut() = bytecode.into_bytecode();
         }
+
+        let module = wasmi::Module::from_buffer(contract.bytecode())?;
+        Self::invoke_bytecode(&module, id, "deploy", contract.storage_mut())?;
+
+        Ok(())
     }
 
     pub fn get_contract(&self, contract_id: &U256) -> Option<&Contract> {
-        self.contracts.get(contract_id)
+        self.0.get(contract_id)
     }
 
     pub fn get_contract_mut(
         &mut self,
         contract_id: &U256,
     ) -> Option<&mut Contract> {
-        self.contracts.get_mut(contract_id)
+        self.0.get_mut(contract_id)
     }
 
-    pub fn get_account(&self, account_id: &U256) -> Option<&Account> {
-        self.accounts.get(account_id)
-    }
-
-    // Gets a mutable reference to the account id, creating it if it does not already exist
-    pub fn get_account_mut(&mut self, account_id: &U256) -> &mut Account {
-        self.accounts.entry(*account_id).or_default()
-    }
-
-    pub fn mint_block(&mut self) -> Result<(), Error> {
-        let mut block = vec![];
-        let mut queue = std::mem::replace(&mut self.queue, vec![]);
-        for tcn in queue.drain(..) {
-            if tcn.valid(self) {
-                tcn.apply(self)?;
-                block.push(tcn);
-            }
-        }
-        self.append_transaction_block(block);
-        Ok(())
-    }
-
-    fn append_transaction_block(&mut self, _transactions: Vec<Transaction>) {
-        ()
-    }
-
-    pub fn queue_transaction(&mut self, transaction: Transaction) {
-        self.queue.push(transaction)
-    }
-
-    fn invoke_code(
+    fn invoke_bytecode(
         module: &wasmi::Module,
+        caller: U256,
         call: &str,
         storage: &mut HashMap<U256, U256>,
     ) -> Result<(), Error> {
@@ -142,7 +114,7 @@ impl NetworkState {
         // Get memory reference for call
         match instance.export_by_name("memory") {
             Some(ExternVal::Memory(memref)) => {
-                let mut externals = HostExternals::new(&memref, storage);
+                let mut externals = CallContext::new(&memref, caller, storage);
                 // Run contract initialization
                 instance.invoke_export(call, &[], &mut externals)?;
                 Ok(())
@@ -151,40 +123,19 @@ impl NetworkState {
         }
     }
 
-    pub fn deploy_contract(
-        &mut self,
-        bytecode: &[u8],
-        contract_id: &U256,
-        balance: u128,
-    ) -> Result<(), Error> {
-        let (ctor, bytecode) = prepare_module(bytecode)?;
-
-        let mut storage = HashMap::new();
-        Self::invoke_code(&ctor, "deploy", &mut storage)?;
-
-        let contract = Contract {
-            balance,
-            bytecode,
-            storage,
-        };
-
-        self.contracts.insert(contract_id.clone(), contract);
-
-        Ok(())
-    }
-
     pub fn call_contract(
         &mut self,
-        data: &[u8],
+        caller: U256,
+        _data: &[u8],
         contract_id: &U256,
-        value: u128,
+        _value: u128,
     ) -> Result<(), Error> {
         let contract = self
             .get_contract_mut(contract_id)
             .ok_or_else(|| format_err!("no such contract"))?;
 
         let module = wasmi::Module::from_buffer(contract.bytecode())?;
-        Self::invoke_code(&module, "call", contract.storage_mut())?;
+        Self::invoke_bytecode(&module, caller, "call", contract.storage_mut())?;
 
         Ok(())
     }

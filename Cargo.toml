@@ -1,7 +1,7 @@
 [package]
 name = "vm"
 version = "0.1.0"
-authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [dependencies]
@@ -13,3 +13,8 @@ signatory-dalek = "*"
 blake2-rfc = "0.2"
 ethereum-types = "0.4"
 failure = "*"
+genesis = { path = "genesis" }
+
+# [dev-dependencies]
+# dusk-abi = { path = "dusk-abi" , default-features = false }
+# sub_token = { path = "test_contracts/sub_token" }

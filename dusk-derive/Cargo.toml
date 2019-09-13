@@ -1,0 +1,12 @@
+[package]
+name = "dusk-derive"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "*"
+signatory-dalek = "*"
