@@ -62,7 +62,7 @@ impl Transaction {
     // }
 
     pub(crate) fn apply(&self, state: &mut NetworkState) -> Result<(), Error> {
-        unimplemented!()
+        unimplemented!("apply")
         // let raw = &self.raw;
         // let source_contract = state.get_contract_mut(&raw.from);
         // *source_account.nonce_mut() = raw.nonce;

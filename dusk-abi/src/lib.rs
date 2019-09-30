@@ -1,35 +1,31 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![feature(lang_items)]
 #![feature(panic_info_message)]
 
 pub use serde::{Deserialize, Serialize};
-use ssmarshal;
 
 pub mod encoding;
 mod panic;
-mod signature;
-mod u256;
+pub mod types;
 
-pub use signature::Signature;
-pub use u256::U256;
+use types::H256;
 
 // declare available host-calls
 mod external {
-    use super::U256;
-    #[rustfmt::skip]
-    extern {
-        pub fn set_storage(key: *const U256, value: *const U256);
+    use super::H256;
+    extern "C" {
+        pub fn set_storage(key: &H256, value: &H256);
         pub fn caller(buffer: &mut [u8; 32]);
         pub fn balance(buffer: &mut [u8; 32]);
         pub fn debug(text: &str);
         pub fn panic(msg: &[u8]) -> !;
-        pub fn args(buffer: &mut [u8]);
+        pub fn call_data(buffer: &mut [u8]);
         pub fn ret(data: &[u8]);
     }
 }
 
 // implementations
-pub fn set_storage(key: &U256, val: &U256) {
+pub fn set_storage(key: &H256, val: &H256) {
     unsafe {
         external::set_storage(key, val);
     }
@@ -42,22 +38,22 @@ pub fn debug(s: &str) {
     }
 }
 
-pub fn caller() -> U256 {
+pub fn caller() -> H256 {
     let mut buffer = [0u8; 32];
     unsafe { external::caller(&mut buffer) }
-    ssmarshal::deserialize(&buffer[..]).unwrap().0
+    encoding::decode(&buffer[..]).unwrap()
 }
 
-pub fn balance() -> U256 {
+pub fn balance() -> H256 {
     let mut buffer = [0u8; 32];
     unsafe { external::balance(&mut buffer) }
-    ssmarshal::deserialize(&buffer[..]).unwrap().0
+    encoding::decode(&buffer[..]).unwrap()
 }
 
-pub fn args(buffer: &mut [u8]) {
-    unsafe { external::args(buffer) }
+pub fn call_data(buffer: &mut [u8]) {
+    unsafe { external::call_data(buffer) }
 }
 
 pub fn ret<T: Serialize>(_ret: T) {
-    unimplemented!()
+    unimplemented!("ret")
 }

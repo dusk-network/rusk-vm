@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use ethereum_types::U256;
+use dusk_abi::types::H256;
 use failure::{bail, format_err, Error};
 use wasmi::{ExternVal, ImportsBuilder, ModuleInstance};
 
 use crate::contract_builder::WasmBytecode;
 use crate::digest::Digest;
 use crate::host_fns::{CallContext, HostImportResolver};
-use crate::wallet::ManagedAccount;
 
 use crate::contract_code;
 
@@ -15,7 +14,7 @@ use crate::contract_code;
 pub struct Contract {
     balance: u128,
     bytecode: Vec<u8>,
-    storage: HashMap<U256, U256>,
+    storage: HashMap<H256, H256>,
 }
 
 impl Contract {
@@ -27,11 +26,11 @@ impl Contract {
         &mut self.balance
     }
 
-    pub fn storage(&self) -> &HashMap<U256, U256> {
+    pub fn storage(&self) -> &HashMap<H256, H256> {
         &self.storage
     }
 
-    pub fn storage_mut(&mut self) -> &mut HashMap<U256, U256> {
+    pub fn storage_mut(&mut self) -> &mut HashMap<H256, H256> {
         &mut self.storage
     }
 
@@ -46,23 +45,35 @@ impl Contract {
 
 // Clone is obviously relatively expensive in the mock implementation
 // but it will be using persistent datastructures in production
-#[derive(Default, Debug, Clone)]
-pub struct NetworkState(HashMap<U256, Contract>);
+#[derive(Debug, Clone)]
+pub struct NetworkState {
+    genesis_id: H256,
+    contracts: HashMap<H256, Contract>,
+}
 
 impl NetworkState {
-    pub fn genesis() -> Self {
-        let default_account_id =
-            (&contract_code!("default_account")[..]).digest();
+    pub fn genesis(bytecode: &[u8], value: u128) -> Self {
+        let mut genesis_code = vec![];
+        genesis_code.extend_from_slice(bytecode);
+
+        let genesis_id = (&genesis_code[..]).digest();
         let mut contracts = HashMap::new();
         contracts.insert(
-            default_account_id,
+            genesis_id.clone(),
             Contract {
-                bytecode: vec![],
+                bytecode: genesis_code,
                 balance: 1_000_000,
                 storage: HashMap::default(),
             },
         );
-        NetworkState(contracts)
+        NetworkState {
+            genesis_id,
+            contracts,
+        }
+    }
+
+    pub fn genesis_id(&self) -> &H256 {
+        &self.genesis_id
     }
 
     // Deploys contract to the network state and runs the deploy function
@@ -72,7 +83,7 @@ impl NetworkState {
     ) -> Result<(), Error> {
         let id = bytecode.digest();
 
-        let contract = self.0.entry(id).or_insert(Contract {
+        let contract = self.contracts.entry(id).or_insert(Contract {
             bytecode: vec![],
             balance: 0,
             storage: HashMap::default(),
@@ -83,27 +94,34 @@ impl NetworkState {
         }
 
         let module = wasmi::Module::from_buffer(contract.bytecode())?;
-        Self::invoke_bytecode(&module, id, "deploy", contract.storage_mut())?;
+        Self::invoke_bytecode(
+            &module,
+            &id,
+            "deploy",
+            &[],
+            contract.storage_mut(),
+        )?;
 
         Ok(())
     }
 
-    pub fn get_contract(&self, contract_id: &U256) -> Option<&Contract> {
-        self.0.get(contract_id)
+    pub fn get_contract(&self, contract_id: &H256) -> Option<&Contract> {
+        self.contracts.get(contract_id)
     }
 
     pub fn get_contract_mut(
         &mut self,
-        contract_id: &U256,
+        contract_id: &H256,
     ) -> Option<&mut Contract> {
-        self.0.get_mut(contract_id)
+        self.contracts.get_mut(contract_id)
     }
 
     fn invoke_bytecode(
         module: &wasmi::Module,
-        caller: U256,
+        caller: &H256,
         call: &str,
-        storage: &mut HashMap<U256, U256>,
+        call_data: &[u8],
+        storage: &mut HashMap<H256, H256>,
     ) -> Result<(), Error> {
         let imports =
             ImportsBuilder::new().with_resolver("env", &HostImportResolver);
@@ -114,7 +132,8 @@ impl NetworkState {
         // Get memory reference for call
         match instance.export_by_name("memory") {
             Some(ExternVal::Memory(memref)) => {
-                let mut externals = CallContext::new(&memref, caller, storage);
+                let mut externals =
+                    CallContext::new(&memref, caller, storage, call_data);
                 // Run contract initialization
                 instance.invoke_export(call, &[], &mut externals)?;
                 Ok(())
@@ -125,17 +144,23 @@ impl NetworkState {
 
     pub fn call_contract(
         &mut self,
-        caller: U256,
-        _data: &[u8],
-        contract_id: &U256,
+        contract_id: &H256,
         _value: u128,
+        data: &[u8],
     ) -> Result<(), Error> {
         let contract = self
             .get_contract_mut(contract_id)
             .ok_or_else(|| format_err!("no such contract"))?;
 
         let module = wasmi::Module::from_buffer(contract.bytecode())?;
-        Self::invoke_bytecode(&module, caller, "call", contract.storage_mut())?;
+        Self::invoke_bytecode(
+            &module,
+            // In top level call, caller is "self"
+            contract_id,
+            "call",
+            data,
+            contract.storage_mut(),
+        )?;
 
         Ok(())
     }

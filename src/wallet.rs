@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-use ethereum_types::U256;
+use dusk_abi::types::H256;
 use failure::{bail, Error};
 use signatory::{ed25519, PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
@@ -33,7 +33,7 @@ impl Default for ManagedAccount {
 }
 
 impl ManagedAccount {
-    pub fn id(&self) -> U256 {
+    pub fn id(&self) -> H256 {
         self.signer
             .public_key()
             .expect("could not get public key from signer (unreachable)")
@@ -65,7 +65,7 @@ impl ManagedAccount {
 
     // pub fn call_contract(
     //     &mut self,
-    //     contract_id: &U256,
+    //     contract_id: &H256,
     //     value: u128,
     //     data: &[u8],
     // ) -> Result<Transaction, Error> {
@@ -90,7 +90,7 @@ impl ManagedAccount {
     //     &mut self,
     //     bytecode: B,
     //     value: u128,
-    // ) -> Result<(Transaction, U256), ()> {
+    // ) -> Result<(Transaction, H256), ()> {
     //     if self.balance >= value {
     //         self.nonce += 1;
 

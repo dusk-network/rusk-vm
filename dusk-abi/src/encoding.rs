@@ -1,9 +1,10 @@
-pub use serde::{Deserialize, Serialize};
+use fermion::{self, Error};
+use serde::{Deserialize, Serialize};
 
-pub fn serialize<T: Serialize>(t: T, into: &mut [u8]) {
-    unimplemented!()
+pub fn encode<T: Serialize>(t: &T, into: &mut [u8]) -> Result<(), Error> {
+    fermion::encode(t, into)
 }
 
-pub fn deserialize<'de, T: Deserialize<'de>>(from: &[u8]) -> T {
-    unimplemented!()
+pub fn decode<'a, T: Deserialize<'a>>(from: &'a [u8]) -> Result<T, Error> {
+    fermion::decode(from)
 }

@@ -11,10 +11,10 @@ wabt = "*"
 signatory = "*"
 signatory-dalek = "*"
 blake2-rfc = "0.2"
-ethereum-types = "0.4"
 failure = "*"
 genesis = { path = "genesis" }
+dusk-abi = { path = "./dusk-abi" }
 
-# [dev-dependencies]
-# dusk-abi = { path = "dusk-abi" , default-features = false }
-# sub_token = { path = "test_contracts/sub_token" }
+[dev-dependencies]
+default_account = { path = "contracts/default_account" }
+

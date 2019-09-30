@@ -5,12 +5,19 @@ use ethereum_types::U256 as Wrapped;
 /// Newtype for ethereum_types::U256, to support serde without std
 pub struct U256(Wrapped);
 
+impl core::fmt::Debug for U256 {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        //
+        Ok(())
+    }
+}
+
 impl Serialize for U256 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        unimplemented!()
+        serializer.serialize_unit()
     }
 }
 
@@ -19,7 +26,8 @@ impl<'de> Deserialize<'de> for U256 {
     where
         D: Deserializer<'de>,
     {
-        unimplemented!()
+        // Dummy for now
+        Ok(U256(Wrapped::zero()))
     }
 }
 

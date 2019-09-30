@@ -1,5 +1,10 @@
 #![no_std]
-use dusk_abi::{self, encoding, Signature, U256};
+use core::mem;
+
+use dusk_abi::{
+    self, encoding,
+    types::{Signature, H256},
+};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
@@ -10,13 +15,13 @@ static PUBLIC_KEY: [u8; 32] = [
 ];
 
 lazy_static! {
-    static ref NONCE: U256 = { U256::zero() };
+    static ref NONCE_KEY: H256 = { H256::zero() };
 }
 
-#[derive(Serialize, Deserialize)]
-enum AccountCall<'a> {
+#[derive(Serialize, Deserialize, Debug)]
+pub enum AccountCall<'a> {
     CallThrough {
-        to: U256,
+        to: H256,
         amount: u128,
         call_data: &'a [u8],
         signature: Signature,
@@ -26,15 +31,32 @@ enum AccountCall<'a> {
 
 #[no_mangle]
 pub fn call() {
-    // dusk_abi::debug("Who was phone?");
-    // let mut args = [0u8; mem::size_of::<AccountCall>()];
-    // dusk_abi::args(&mut args);
-    // let _call: AccountCall = encoding::deserialize(&args);
+    dusk_abi::debug("default contract called");
+    let mut args = [0u8; 256];
+
+    // read the arguments into buffer
+    dusk_abi::call_data(&mut args);
+    dusk_abi::debug("a");
+    let call: AccountCall = encoding::decode(&args).unwrap();
+    dusk_abi::debug("b");
+    panic!("hehe {:?}", call);
+
+    // let nonce = dusk_abi::get_storage(&NONCE_KEY);
+
+    // // xoring hashes, crypto review needed ;)
+    // let digest = call.to.digest()
+    //     ^ call.call_data.digest()
+    //     ^ call.amount.digest()
+    //     ^ nonce.digest();
+
+    // if dusk_abi::verify_signature(call.signature, PUBLIC_KEY, digest) {
+    //     dusk_abi::set_storage(&NONCE_KEY, nonce + 1);
+    //     dusk_abi::call(call.to, amount, call_data);
+    // }
 }
 
 #[no_mangle]
 pub fn deploy() {
     // Set the initial nonce to zero
-
-    dusk_abi::set_storage(&NONCE, &U256::zero())
+    dusk_abi::set_storage(&NONCE_KEY, &H256::zero())
 }

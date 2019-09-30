@@ -1,18 +1,18 @@
 use std::io::Write;
 
 use blake2_rfc::blake2b::Blake2b;
-use ethereum_types::U256;
+use dusk_abi::types::H256;
 
 pub trait MakeDigest {
     fn make_digest(&self, state: &mut HashState);
 }
 
 pub trait Digest: MakeDigest {
-    fn digest(&self) -> U256;
+    fn digest(&self) -> H256;
 }
 
 impl<T: MakeDigest> Digest for T {
-    fn digest(&self) -> U256 {
+    fn digest(&self) -> H256 {
         let mut state = HashState::new();
         self.make_digest(&mut state);
         state.fin()
@@ -25,11 +25,9 @@ impl MakeDigest for u128 {
     }
 }
 
-impl MakeDigest for U256 {
+impl MakeDigest for H256 {
     fn make_digest(&self, state: &mut HashState) {
-        let mut bytes = [0u8; 32];
-        self.to_little_endian(&mut bytes);
-        state.update(&bytes)
+        state.update(self.as_ref())
     }
 }
 
@@ -46,12 +44,13 @@ impl HashState {
         HashState(Blake2b::new(32))
     }
 
-    pub fn fin(self) -> U256 {
-        let mut arr = [0u8; 32];
-        arr.as_mut()
+    pub fn fin(self) -> H256 {
+        let mut digest = H256::zero();
+        digest
+            .as_mut()
             .write(self.0.finalize().as_bytes())
             .expect("in-memory write");
-        U256::from_little_endian(&arr)
+        digest
     }
 
     pub fn update(&mut self, bytes: &[u8]) {

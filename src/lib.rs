@@ -15,24 +15,41 @@ pub use wallet::Wallet;
 mod tests {
     use crate::contract_builder::ContractBuilder;
     use crate::contract_code;
+    use crate::digest::Digest;
     use crate::state::NetworkState;
     use crate::wallet::Wallet;
-    use ethereum_types::U256;
+    //use ethereum_types::U256;
 
     #[test]
     fn default_account() {
-        let mut network = NetworkState::genesis();
+        use default_account::AccountCall;
+        use dusk_abi::{
+            encoding,
+            types::{Signature, H256},
+        };
+
+        let mut network = NetworkState::genesis(
+            contract_code!("default_account"),
+            1_000_000_000,
+        );
         let mut wallet = Wallet::genesis();
 
         let pub_key = wallet.default_account().public_key();
 
-        let mut contract =
-            ContractBuilder::new(contract_code!("default_account")).unwrap();
-        contract.set_parameter("PUBLIC_KEY", pub_key).unwrap();
+        // borrow checker cannot prove that genesis_id() is constant.
+        // so we clone.
+        let genesis_id = network.genesis_id().clone();
+        // make a dummy call
+        network.call_contract(&genesis_id, 0, &[]).unwrap();
 
-        let code = contract.build().unwrap();
+        // let signer = wallet.default_account().signer();
 
-        network.deploy_contract(code).unwrap();
+        // Burn 123 tokens, by sending them to an unretrievable address.
+        // let call = AccountCall::new(signer, H256::zero(), 123, &[0, 11, 2]);
+
+        // let mut buffer = [0u8; 120];
+
+        // encoding::encode(&call, &mut buffer);
     }
 
     // #[test]
@@ -105,18 +122,18 @@ mod tests {
     //     network.queue_transaction(transaction);
     //     network.mint_block().unwrap();
 
-    //     // should have written value U256::max_value() to key U256::max_value()
+    //     // should have written value H256::max_value() to key H256::max_value()
     //     assert_eq!(
     //         network
     //             .get_contract(&contract_id)
     //             .expect("a")
     //             .storage()
-    //             .get(&U256::max_value())
+    //             .get(&H256::max_value())
     //             .expect("b"),
-    //         &U256::max_value()
+    //         &H256::max_value()
     //     );
 
-    //     let max_minus_one = U256::max_value() - 1;
+    //     let max_minus_one = H256::max_value() - 1;
 
     //     assert!(network
     //         .get_contract(&contract_id)
