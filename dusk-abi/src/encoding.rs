@@ -1,10 +1,13 @@
 use fermion::{self, Error};
 use serde::{Deserialize, Serialize};
 
-pub fn encode<T: Serialize>(t: &T, into: &mut [u8]) -> Result<(), Error> {
+pub fn encode<'se, T: Serialize>(
+    t: &T,
+    into: &'se mut [u8],
+) -> Result<&'se [u8], Error> {
     fermion::encode(t, into)
 }
 
-pub fn decode<'a, T: Deserialize<'a>>(from: &'a [u8]) -> Result<T, Error> {
+pub fn decode<'de, T: Deserialize<'de>>(from: &'de [u8]) -> Result<T, Error> {
     fermion::decode(from)
 }

@@ -1,23 +1,22 @@
 use std::collections::HashMap;
 
-use dusk_abi::types::H256;
+use dusk_abi::{encoding, H256};
 use failure::{bail, format_err, Error};
+use serde::Serialize;
 use wasmi::{ExternVal, ImportsBuilder, ModuleInstance};
 
-use crate::contract_builder::WasmBytecode;
+use crate::contract::Contract;
 use crate::digest::Digest;
 use crate::host_fns::{CallContext, HostImportResolver};
 
-use crate::contract_code;
-
 #[derive(Default, Debug, Clone)]
-pub struct Contract {
+pub struct ContractState {
     balance: u128,
-    bytecode: Vec<u8>,
+    contract: Contract,
     storage: HashMap<H256, H256>,
 }
 
-impl Contract {
+impl ContractState {
     pub fn balance(&self) -> u128 {
         self.balance
     }
@@ -34,12 +33,12 @@ impl Contract {
         &mut self.storage
     }
 
-    pub fn bytecode(&self) -> &[u8] {
-        &self.bytecode
+    pub fn contract(&self) -> &Contract {
+        &self.contract
     }
 
-    pub fn bytecode_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.bytecode
+    pub fn contract_mut(&mut self) -> &mut Contract {
+        &mut self.contract
     }
 }
 
@@ -48,21 +47,18 @@ impl Contract {
 #[derive(Debug, Clone)]
 pub struct NetworkState {
     genesis_id: H256,
-    contracts: HashMap<H256, Contract>,
+    contracts: HashMap<H256, ContractState>,
 }
 
 impl NetworkState {
-    pub fn genesis(bytecode: &[u8], value: u128) -> Self {
-        let mut genesis_code = vec![];
-        genesis_code.extend_from_slice(bytecode);
-
-        let genesis_id = (&genesis_code[..]).digest();
+    pub fn genesis(contract: Contract, value: u128) -> Self {
+        let genesis_id = contract.digest();
         let mut contracts = HashMap::new();
         contracts.insert(
             genesis_id.clone(),
-            Contract {
-                bytecode: genesis_code,
-                balance: 1_000_000,
+            ContractState {
+                contract: contract,
+                balance: value,
                 storage: HashMap::default(),
             },
         );
@@ -77,42 +73,39 @@ impl NetworkState {
     }
 
     // Deploys contract to the network state and runs the deploy function
-    pub fn deploy_contract(
-        &mut self,
-        bytecode: WasmBytecode,
-    ) -> Result<(), Error> {
-        let id = bytecode.digest();
+    pub fn deploy_contract(&mut self, contract: Contract) -> Result<(), Error> {
+        let id = contract.digest();
 
-        let contract = self.contracts.entry(id).or_insert(Contract {
-            bytecode: vec![],
-            balance: 0,
-            storage: HashMap::default(),
-        });
+        let state =
+            self.contracts.entry(id).or_insert(ContractState::default());
 
-        if contract.bytecode().len() == 0 {
-            *contract.bytecode_mut() = bytecode.into_bytecode();
+        if state.contract.bytecode().len() == 0 {
+            state.contract = contract
         }
 
-        let module = wasmi::Module::from_buffer(contract.bytecode())?;
+        let module = wasmi::Module::from_buffer(state.contract.bytecode())?;
         Self::invoke_bytecode(
             &module,
             &id,
             "deploy",
             &[],
-            contract.storage_mut(),
+            state.storage_mut(),
         )?;
 
         Ok(())
     }
 
-    pub fn get_contract(&self, contract_id: &H256) -> Option<&Contract> {
+    pub fn get_contract_state(
+        &self,
+        contract_id: &H256,
+    ) -> Option<&ContractState> {
         self.contracts.get(contract_id)
     }
 
-    pub fn get_contract_mut(
+    pub fn get_contract_state_mut(
         &mut self,
         contract_id: &H256,
-    ) -> Option<&mut Contract> {
+    ) -> Option<&mut ContractState> {
         self.contracts.get_mut(contract_id)
     }
 
@@ -142,24 +135,27 @@ impl NetworkState {
         }
     }
 
-    pub fn call_contract(
+    pub fn call_contract<C: Serialize>(
         &mut self,
         contract_id: &H256,
-        _value: u128,
-        data: &[u8],
+        call: &C,
     ) -> Result<(), Error> {
-        let contract = self
-            .get_contract_mut(contract_id)
+        let state = self
+            .get_contract_state_mut(contract_id)
             .ok_or_else(|| format_err!("no such contract"))?;
 
-        let module = wasmi::Module::from_buffer(contract.bytecode())?;
+        let mut buf = [0u8; 1024];
+
+        let slice = encoding::encode(call, &mut buf)?;
+
+        let module = wasmi::Module::from_buffer(state.contract().bytecode())?;
         Self::invoke_bytecode(
             &module,
             // In top level call, caller is "self"
             contract_id,
             "call",
-            data,
-            contract.storage_mut(),
+            slice,
+            state.storage_mut(),
         )?;
 
         Ok(())

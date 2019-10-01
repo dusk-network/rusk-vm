@@ -6,9 +6,12 @@ pub use serde::{Deserialize, Serialize};
 
 pub mod encoding;
 mod panic;
-pub mod types;
+mod types;
 
-use types::H256;
+pub use types::{Signature, H256};
+
+// TODO: Extend this error type
+pub use fermion::Error;
 
 // declare available host-calls
 mod external {

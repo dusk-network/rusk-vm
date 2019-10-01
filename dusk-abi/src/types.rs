@@ -55,16 +55,22 @@ struct SignatureSerializationHack([u8; 32], [u8; 32]);
 impl core::fmt::Debug for Signature {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "Signature(")?;
-        for i in 0..4 {
+        for i in 0..64 {
             write!(f, "{:02x}", self.0[i])?;
         }
-        write!(f, "...)")
+        Ok(())
     }
 }
 
 impl Signature {
     pub fn new() -> Self {
         Signature([42u8; SIGNATURE_BYTES])
+    }
+
+    pub fn from_slice(slice: &[u8]) -> Self {
+        let mut buf = [0u8; 64];
+        buf.copy_from_slice(slice);
+        Signature(buf)
     }
 }
 
@@ -79,8 +85,6 @@ impl Serialize for Signature {
             // make sure this serialization hack is sound
             // TODO: verify that this is optimised out on non-debug builds
             {
-                use fermion;
-
                 let mut buf = [0u8; 64];
                 fermion::encode(hack, &mut buf);
 

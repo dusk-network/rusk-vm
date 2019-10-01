@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 serde = { version = "*", default-features = false }
-fermion = { version = "0.1", default-features = false }
+fermion = { path = "../../fermion", default-features = false }
 
 [features]
 default = ["std"]

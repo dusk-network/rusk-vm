@@ -14,7 +14,7 @@ blake2-rfc = "0.2"
 failure = "*"
 genesis = { path = "genesis" }
 dusk-abi = { path = "./dusk-abi" }
+serde = "*"
 
-[dev-dependencies]
 default_account = { path = "contracts/default_account" }
 

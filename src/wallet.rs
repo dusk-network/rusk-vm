@@ -1,27 +1,24 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-use dusk_abi::types::H256;
-use failure::{bail, Error};
-use signatory::{ed25519, PublicKeyed};
+use dusk_abi::H256;
+use signatory::{ed25519::Seed, PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
 
 use crate::digest::Digest;
-use crate::state::{Contract, NetworkState};
-// use crate::transaction::Transaction;
-
-const SECRET: [u8; 32] = *b"super secret key is super secret";
+use crate::state::{ContractState, NetworkState};
 
 pub struct ManagedAccount {
     /// The balance in Dusk
     balance: u128,
+    #[allow(unused)]
     nonce: u128,
     signer: Signer,
 }
 
 impl Default for ManagedAccount {
     fn default() -> Self {
-        let seed = ed25519::Seed::generate();
+        let seed = Seed::generate();
         let signer = Signer::from(&seed);
 
         ManagedAccount {
@@ -34,25 +31,11 @@ impl Default for ManagedAccount {
 
 impl ManagedAccount {
     pub fn id(&self) -> H256 {
-        self.signer
-            .public_key()
-            .expect("could not get public key from signer (unreachable)")
-            .digest()
+        self.signer.public_key().expect("cannot fail").digest()
     }
 
-    pub fn from_seed(seed: [u8; 32]) -> Self {
-        let seed = ed25519::Seed::new(seed);
-        let signer = Signer::from(&seed);
-
-        ManagedAccount {
-            balance: 0,
-            nonce: 0,
-            signer,
-        }
-    }
-
-    pub fn update(&mut self, contract: &Contract) {
-        self.balance = contract.balance();
+    pub fn update(&mut self, state: &ContractState) {
+        self.balance = state.balance();
     }
 
     pub fn balance(&self) -> u128 {
@@ -61,6 +44,10 @@ impl ManagedAccount {
 
     pub fn public_key(&self) -> signatory::ed25519::PublicKey {
         self.signer.public_key().expect("never fails")
+    }
+
+    pub fn signer(&self) -> &Signer {
+        &self.signer
     }
 
     // pub fn call_contract(
@@ -118,13 +105,6 @@ impl Wallet {
         w
     }
 
-    pub(crate) fn genesis() -> Self {
-        let mut w = Wallet(HashMap::new());
-        w.new_account_with_seed("default", SECRET)
-            .expect("conflict in empty hashmap");
-        w
-    }
-
     pub fn default_account(&self) -> &ManagedAccount {
         self.0.get("default").expect("No default account")
     }
@@ -145,19 +125,6 @@ impl Wallet {
         }
     }
 
-    /// Create a new account with the given name and given seed,
-    /// Returns an error if an account with that name already exists
-    pub fn new_account_with_seed<S: Into<String>>(
-        &mut self,
-        name: S,
-        seed: [u8; 32],
-    ) -> Result<&mut ManagedAccount, ()> {
-        match self.0.entry(name.into()) {
-            Entry::Vacant(v) => Ok(v.insert(ManagedAccount::from_seed(seed))),
-            _ => Err(()),
-        }
-    }
-
     pub fn get_account(&self, name: &str) -> Option<&ManagedAccount> {
         self.0.get(name)
     }
@@ -170,9 +137,11 @@ impl Wallet {
     }
 
     pub fn sync(&mut self, state: &NetworkState) {
-        for (_, contract) in self.0.iter_mut() {
-            if let Some(account_state) = state.get_contract(&contract.id()) {
-                contract.update(account_state);
+        for (_, contract_state) in self.0.iter_mut() {
+            if let Some(account_state) =
+                state.get_contract_state(&contract_state.id())
+            {
+                contract_state.update(account_state);
             }
         }
     }

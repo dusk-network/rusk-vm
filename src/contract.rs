@@ -1,6 +1,6 @@
 use failure::{bail, Error};
 use parity_wasm::elements::{
-    InitExpr, Instruction, Internal, Module, Section, Serialize,
+    InitExpr, Instruction, Internal, Module, Serialize,
 };
 use std::{mem, ptr};
 
@@ -19,9 +19,10 @@ fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     }
 }
 
-pub struct WasmBytecode(Vec<u8>);
+#[derive(Default, Debug, Clone)]
+pub struct Contract(Vec<u8>);
 
-impl WasmBytecode {
+impl Contract {
     pub fn bytecode(&self) -> &[u8] {
         &self.0
     }
@@ -31,7 +32,7 @@ impl WasmBytecode {
     }
 }
 
-impl MakeDigest for WasmBytecode {
+impl MakeDigest for Contract {
     fn make_digest(&self, state: &mut HashState) {
         state.update(&self.0);
     }
@@ -65,7 +66,6 @@ impl ContractBuilder {
         let mut offset = None;
         if let Some(index) = global_index {
             if let Some(global_section) = self.0.global_section() {
-                let entry = &global_section.entries()[*index as usize];
                 let init_expr =
                     global_section.entries()[*index as usize].init_expr();
 
@@ -79,7 +79,7 @@ impl ContractBuilder {
 
         // Update the pointed-to value in the data section
         if let Some(mut data_offset) = offset {
-            if let Some(mut data) = self.0.data_section_mut() {
+            if let Some(data) = self.0.data_section_mut() {
                 let entries = data.entries_mut();
 
                 // Find the correct data section by offset.
@@ -142,9 +142,9 @@ impl ContractBuilder {
         }
     }
 
-    pub fn build(self) -> Result<WasmBytecode, Error> {
+    pub fn build(self) -> Result<Contract, Error> {
         let mut vec = vec![];
         self.0.serialize(&mut vec)?;
-        Ok(WasmBytecode(vec))
+        Ok(Contract(vec))
     }
 }

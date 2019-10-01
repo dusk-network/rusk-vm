@@ -1,55 +1,71 @@
 #![feature(drain_filter)]
+mod contract;
 mod digest;
-mod host_fns;
-// mod prepare_module;
-mod state;
-// mod transaction;
-mod contract_builder;
 mod helpers;
+mod host_fns;
+mod interfaces;
+mod state;
 mod wallet;
 
+pub use contract::ContractBuilder;
+pub use interfaces::DefaultAccount;
 pub use state::NetworkState;
 pub use wallet::Wallet;
 
 #[cfg(test)]
 mod tests {
-    use crate::contract_builder::ContractBuilder;
-    use crate::contract_code;
-    use crate::digest::Digest;
-    use crate::state::NetworkState;
-    use crate::wallet::Wallet;
-    //use ethereum_types::U256;
+    use super::*;
+
+    use digest::Digest;
 
     #[test]
     fn default_account() {
-        use default_account::AccountCall;
-        use dusk_abi::{
-            encoding,
-            types::{Signature, H256},
-        };
+        let mut wallet = Wallet::new();
 
-        let mut network = NetworkState::genesis(
-            contract_code!("default_account"),
-            1_000_000_000,
-        );
-        let mut wallet = Wallet::genesis();
+        let mut genesis_builder =
+            ContractBuilder::new(contract_code!("default_account")).unwrap();
 
         let pub_key = wallet.default_account().public_key();
+        genesis_builder
+            .set_parameter("PUBLIC_KEY", pub_key)
+            .unwrap();
 
-        // borrow checker cannot prove that genesis_id() is constant.
-        // so we clone.
+        let genesis = genesis_builder.build().unwrap();
+
+        // New genesis network with initial value
+        let mut network = NetworkState::genesis(genesis, 1_000_000_000);
+
         let genesis_id = network.genesis_id().clone();
-        // make a dummy call
-        network.call_contract(&genesis_id, 0, &[]).unwrap();
 
-        // let signer = wallet.default_account().signer();
+        // setup a secondary account
 
-        // Burn 123 tokens, by sending them to an unretrievable address.
-        // let call = AccountCall::new(signer, H256::zero(), 123, &[0, 11, 2]);
+        wallet.new_account("alice");
 
-        // let mut buffer = [0u8; 120];
+        let mut account_builder =
+            ContractBuilder::new(contract_code!("default_account")).unwrap();
 
-        // encoding::encode(&call, &mut buffer);
+        let alice_pub_key = wallet.get_account("alice").unwrap().public_key();
+        account_builder
+            .set_parameter("PUBLIC_KEY", alice_pub_key)
+            .unwrap();
+
+        let alice_account = account_builder.build().unwrap();
+
+        // transfer 1000 to alice from genesis account
+
+        let genesis_signer = wallet.default_account().signer();
+
+        let call = DefaultAccount::transfer(
+            genesis_signer,
+            alice_account.digest(),
+            1000,
+            0,
+        )
+        .unwrap();
+
+        println!("{:?}", call);
+
+        network.call_contract(&genesis_id, &call).unwrap();
     }
 
     // #[test]

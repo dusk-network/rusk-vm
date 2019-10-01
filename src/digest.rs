@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use blake2_rfc::blake2b::Blake2b;
-use dusk_abi::types::H256;
+use dusk_abi::H256;
 
 pub trait MakeDigest {
     fn make_digest(&self, state: &mut HashState);

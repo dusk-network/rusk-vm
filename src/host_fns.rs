@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use dusk_abi::types::H256;
+use dusk_abi::H256;
 
 use wasmi::{
     Externals, FuncInstance, FuncRef, HostError, MemoryRef,
@@ -80,7 +80,7 @@ struct ContractPanic(String);
 // for some reason the derive does not work for Display in this case.
 impl std::fmt::Display for ContractPanic {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        unimplemented!("euaoeu")
+        self.0.fmt(f)
     }
 }
 
