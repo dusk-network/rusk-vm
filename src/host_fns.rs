@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use dusk_abi::H256;
+use signatory::{ed25519, Signature as _, Verifier as _};
 
 use wasmi::{
     Externals, FuncInstance, FuncRef, HostError, MemoryRef,
@@ -11,10 +12,10 @@ use wasmi::{
 const ABI_PANIC: usize = 0;
 const ABI_DEBUG: usize = 1;
 const ABI_STORAGE_SET: usize = 2;
-#[allow(unused)]
 const ABI_STORAGE_GET: usize = 3;
 const ABI_CALLER: usize = 4;
 const ABI_CALL_DATA: usize = 5;
+const ABI_VERIFY_ED25519_SIGNATURE: usize = 6;
 
 pub(crate) struct CallContext<'a> {
     memory: MemoryRef,
@@ -55,10 +56,14 @@ impl<'a> CallContext<'a> {
 
 pub(crate) struct HostImportResolver;
 
-fn args_to_slice<'a>(bytes: &'a [u8], args: &RuntimeArgs) -> &'a [u8] {
+fn args_to_slice<'a>(
+    bytes: &'a [u8],
+    args_ofs: usize,
+    args: &RuntimeArgs,
+) -> &'a [u8] {
     let args = args.as_ref();
-    let ofs: u32 = args[0].try_into().unwrap();
-    let len: u32 = args[1].try_into().unwrap();
+    let ofs: u32 = args[args_ofs].try_into().unwrap();
+    let len: u32 = args[args_ofs + 1].try_into().unwrap();
     unsafe { std::slice::from_raw_parts(&bytes[ofs as usize], len as usize) }
 }
 
@@ -100,7 +105,7 @@ impl<'a> Externals for CallContext<'a> {
     ) -> Result<Option<RuntimeValue>, Trap> {
         match index {
             ABI_PANIC => self.memory.with_direct_access(|a| {
-                let slice = args_to_slice(a, &args);
+                let slice = args_to_slice(a, 0, &args);
                 let str = std::str::from_utf8(slice).unwrap();
                 Err(Trap::new(TrapKind::Host(Box::new(ContractPanic::new(
                     str,
@@ -123,7 +128,7 @@ impl<'a> Externals for CallContext<'a> {
             }
             ABI_DEBUG => {
                 self.memory.with_direct_access(|a| {
-                    let slice = args_to_slice(a, &args);
+                    let slice = args_to_slice(a, 0, &args);
                     let str = std::str::from_utf8(slice).unwrap();
                     println!("CONTRACT DEBUG: {:?}", str);
                 });
@@ -136,9 +141,6 @@ impl<'a> Externals for CallContext<'a> {
                 self.memory.with_direct_access_mut(|a| {
                     a[buffer_ofs..buffer_ofs + 32]
                         .copy_from_slice(self.caller.as_ref())
-
-                    // self.caller
-                    //     .to_big_endian(&mut a[buffer_ofs..buffer_ofs + 32]);
                 });
                 Ok(None)
             }
@@ -146,11 +148,37 @@ impl<'a> Externals for CallContext<'a> {
                 self.memory.with_direct_access_mut(|a| {
                     let slice = args_to_slice_mut(a, &args);
                     let len = self.call_data.len();
-                    println!("len {}", len);
-                    println!("slice_len {}", slice.len());
                     slice[0..len].copy_from_slice(self.call_data)
                 });
                 Ok(None)
+            }
+            ABI_VERIFY_ED25519_SIGNATUNE => {
+                let key_ptr =
+                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
+                let sig_ptr =
+                    args.as_ref()[1].try_into::<u32>().unwrap() as usize;
+
+                self.memory.with_direct_access_mut(|a| {
+                    let pub_key = ed25519::PublicKey::from_bytes(
+                        &a[key_ptr..key_ptr + 32],
+                    )
+                    .unwrap();
+
+                    let signature = ed25519::Signature::from_bytes(
+                        &a[sig_ptr..sig_ptr + 64],
+                    )
+                    .unwrap();
+
+                    let data_slice = args_to_slice(a, 2, &args);
+
+                    let verifier: signatory_dalek::Ed25519Verifier =
+                        (&pub_key).into();
+
+                    match verifier.verify(data_slice, &signature) {
+                        Ok(_) => Ok(Some(RuntimeValue::I32(1))),
+                        Err(_) => Ok(Some(RuntimeValue::I32(0))),
+                    }
+                })
             }
             _ => panic!("Unimplemented function at {}", index),
         }
@@ -183,6 +211,18 @@ impl ModuleImportResolver for HostImportResolver {
             "call_data" => Ok(FuncInstance::alloc_host(
                 Signature::new(&[ValueType::I32, ValueType::I32][..], None),
                 ABI_CALL_DATA,
+            )),
+            "verify_ed25519_signature" => Ok(FuncInstance::alloc_host(
+                Signature::new(
+                    &[
+                        ValueType::I32,
+                        ValueType::I32,
+                        ValueType::I32,
+                        ValueType::I32,
+                    ][..],
+                    Some(ValueType::I32),
+                ),
+                ABI_VERIFY_ED25519_SIGNATURE,
             )),
             name => unimplemented!("{:?}", name),
         }

@@ -19,12 +19,6 @@ impl DefaultAccount {
 
         let signature = Signature::from_slice(signature.as_slice());
 
-        Ok(AccountCall::CallThrough {
-            to,
-            amount,
-            call_data: &[],
-            nonce,
-            signature,
-        })
+        Ok(AccountCall::new(to, amount, &[], nonce, signature))
     }
 }

@@ -15,7 +15,7 @@ pub use fermion::Error;
 
 // declare available host-calls
 mod external {
-    use super::H256;
+    use super::{Signature, H256};
     extern "C" {
         pub fn set_storage(key: &H256, value: &H256);
         pub fn caller(buffer: &mut [u8; 32]);
@@ -23,6 +23,11 @@ mod external {
         pub fn debug(text: &str);
         pub fn panic(msg: &[u8]) -> !;
         pub fn call_data(buffer: &mut [u8]);
+        pub fn verify_ed25519_signature(
+            pub_key: &[u8; 32],
+            signature: &[u8; 64],
+            buffer: &[u8],
+        ) -> bool;
         pub fn ret(data: &[u8]);
     }
 }
@@ -55,6 +60,20 @@ pub fn balance() -> H256 {
 
 pub fn call_data(buffer: &mut [u8]) {
     unsafe { external::call_data(buffer) }
+}
+
+pub fn verify_ed25519_signature(
+    pub_key: &[u8; 32],
+    signature: &Signature,
+    buffer: &[u8],
+) -> bool {
+    unsafe {
+        external::verify_ed25519_signature(
+            pub_key,
+            signature.as_array(),
+            buffer,
+        )
+    }
 }
 
 pub fn ret<T: Serialize>(_ret: T) {

@@ -40,6 +40,24 @@ const SIGNATURE_BYTES: usize = 64;
 #[repr(C)]
 pub struct Signature([u8; SIGNATURE_BYTES]);
 
+impl Signature {
+    pub fn as_array(&self) -> &[u8; 64] {
+        &self.0
+    }
+}
+
+impl AsRef<[u8]> for Signature {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl AsMut<[u8]> for Signature {
+    fn as_mut(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+}
+
 // Serde hack.
 //
 // Due to rust not yet having stable const genecics, serde is not able to automatically derive
