@@ -9,10 +9,12 @@ use wasmi::{
     ValueType,
 };
 
+use crate::state::Storage;
+
 const ABI_PANIC: usize = 0;
 const ABI_DEBUG: usize = 1;
-const ABI_STORAGE_SET: usize = 2;
-const ABI_STORAGE_GET: usize = 3;
+const ABI_SET_STORAGE: usize = 2;
+const ABI_GET_STORAGE: usize = 3;
 const ABI_CALLER: usize = 4;
 const ABI_CALL_DATA: usize = 5;
 const ABI_VERIFY_ED25519_SIGNATURE: usize = 6;
@@ -20,7 +22,7 @@ const ABI_VERIFY_ED25519_SIGNATURE: usize = 6;
 pub(crate) struct CallContext<'a> {
     memory: MemoryRef,
     caller: &'a H256,
-    storage: &'a mut HashMap<H256, H256>,
+    storage: &'a mut Storage,
     call_data: &'a [u8],
 }
 
@@ -42,7 +44,7 @@ impl<'a> CallContext<'a> {
     pub fn new(
         memory: &MemoryRef,
         caller: &'a H256,
-        storage: &'a mut HashMap<H256, H256>,
+        storage: &'a mut Storage,
         call_data: &'a [u8],
     ) -> Self {
         CallContext {
@@ -111,21 +113,31 @@ impl<'a> Externals for CallContext<'a> {
                     str,
                 )))))
             }),
-            ABI_STORAGE_SET => {
-                let args = args.as_ref();
+            ABI_SET_STORAGE => {
                 let (key, val) = self.memory.with_direct_access(|a| {
-                    let key_ptr = args[0].try_into::<u32>().unwrap() as usize;
-                    let val_ptr = args[1].try_into::<u32>().unwrap() as usize;
-                    unsafe {
-                        (
-                            H256::from_ptr(&a[key_ptr]),
-                            H256::from_ptr(&a[val_ptr]),
-                        )
-                    }
+                    (
+                        args_to_slice(a, 0, &args).into(),
+                        args_to_slice(a, 2, &args).into(),
+                    )
                 });
                 self.storage.insert(key, val);
+
                 Ok(None)
             }
+            ABI_GET_STORAGE => self.memory.with_direct_access_mut(|a| {
+                let key = args_to_slice(a, 0, &args);
+                let val_buf =
+                    args.as_ref()[2].try_into::<u32>().unwrap() as usize;
+
+                match self.storage.get(key) {
+                    Some(ref value) => {
+                        a[val_buf..val_buf + value.len()]
+                            .copy_from_slice(value);
+                        Ok(Some(RuntimeValue::I32(1)))
+                    }
+                    None => Ok(Some(RuntimeValue::I32(0))),
+                }
+            }),
             ABI_DEBUG => {
                 self.memory.with_direct_access(|a| {
                     let slice = args_to_slice(a, 0, &args);
@@ -201,8 +213,23 @@ impl ModuleImportResolver for HostImportResolver {
                 ABI_DEBUG,
             )),
             "set_storage" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32, ValueType::I32][..], None),
-                ABI_STORAGE_SET,
+                Signature::new(
+                    &[
+                        ValueType::I32,
+                        ValueType::I32,
+                        ValueType::I32,
+                        ValueType::I32,
+                    ][..],
+                    None,
+                ),
+                ABI_SET_STORAGE,
+            )),
+            "get_storage" => Ok(FuncInstance::alloc_host(
+                Signature::new(
+                    &[ValueType::I32, ValueType::I32, ValueType::I32][..],
+                    Some(ValueType::I32),
+                ),
+                ABI_GET_STORAGE,
             )),
             "caller" => Ok(FuncInstance::alloc_host(
                 Signature::new(&[ValueType::I32][..], None),
@@ -223,6 +250,18 @@ impl ModuleImportResolver for HostImportResolver {
                     Some(ValueType::I32),
                 ),
                 ABI_VERIFY_ED25519_SIGNATURE,
+            )),
+            "call_contract" => Ok(FuncInstance::alloc_host(
+                Signature::new(
+                    &[
+                        ValueType::I32,
+                        ValueType::I32,
+                        ValueType::I32,
+                        ValueType::I32,
+                    ][..],
+                    None,
+                ),
+                ABI_CALL_DATA,
             )),
             name => unimplemented!("{:?}", name),
         }

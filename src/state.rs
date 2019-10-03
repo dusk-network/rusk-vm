@@ -9,11 +9,13 @@ use crate::contract::Contract;
 use crate::digest::Digest;
 use crate::host_fns::{CallContext, HostImportResolver};
 
+pub type Storage = HashMap<Vec<u8>, Vec<u8>>;
+
 #[derive(Default, Debug, Clone)]
 pub struct ContractState {
     balance: u128,
     contract: Contract,
-    storage: HashMap<H256, H256>,
+    storage: Storage,
 }
 
 impl ContractState {
@@ -25,11 +27,11 @@ impl ContractState {
         &mut self.balance
     }
 
-    pub fn storage(&self) -> &HashMap<H256, H256> {
+    pub fn storage(&self) -> &Storage {
         &self.storage
     }
 
-    pub fn storage_mut(&mut self) -> &mut HashMap<H256, H256> {
+    pub fn storage_mut(&mut self) -> &mut Storage {
         &mut self.storage
     }
 
@@ -57,15 +59,16 @@ impl NetworkState {
         contracts.insert(
             genesis_id.clone(),
             ContractState {
-                contract: contract,
                 balance: value,
-                storage: HashMap::default(),
+                ..Default::default()
             },
         );
-        NetworkState {
+        let mut state = NetworkState {
             genesis_id,
             contracts,
-        }
+        };
+        state.deploy_contract(contract);
+        state
     }
 
     pub fn genesis_id(&self) -> &H256 {
@@ -114,7 +117,7 @@ impl NetworkState {
         caller: &H256,
         call: &str,
         call_data: &[u8],
-        storage: &mut HashMap<H256, H256>,
+        storage: &mut Storage,
     ) -> Result<(), Error> {
         let imports =
             ImportsBuilder::new().with_resolver("env", &HostImportResolver);
