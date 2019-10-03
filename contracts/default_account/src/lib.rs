@@ -1,6 +1,5 @@
 #![no_std]
-use dusk_abi::{self, encoding, Signature, H256};
-use lazy_static::lazy_static;
+use dusk_abi::{self, encoding, Signature, H256, MAX_CALL_DATA_SIZE};
 use serde::{Deserialize, Serialize};
 
 #[no_mangle]
@@ -36,26 +35,25 @@ impl<'a> AccountCall<'a> {
 #[no_mangle]
 pub fn call() {
     dusk_abi::debug("callz");
-    let mut args = [0u8; 1024];
-    // read the arguments into buffer
-    dusk_abi::call_data(&mut args);
-    let call: AccountCall = encoding::decode(&args).unwrap();
+
+    let mut buffer = [0u8; MAX_CALL_DATA_SIZE];
+    let data: AccountCall = dusk_abi::call_data(&mut buffer);
 
     let current_nonce = dusk_abi::get_storage("nonce").unwrap();
 
-    assert!(call.nonce == current_nonce);
+    assert!(data.nonce == current_nonce);
 
     let mut verify_buf = [0u8; 32 + 16 + 8];
     let encoded =
-        encoding::encode(&(call.to, call.amount, call.nonce), &mut verify_buf)
+        encoding::encode(&(data.to, data.amount, data.nonce), &mut verify_buf)
             .expect("buffer insufficient");
 
-    if dusk_abi::verify_ed25519_signature(&PUBLIC_KEY, &call.signature, encoded)
+    if dusk_abi::verify_ed25519_signature(&PUBLIC_KEY, &data.signature, encoded)
     {
-        dusk_abi::call_contract(&call.to, call.amount, &call.call_data);
+        dusk_abi::call_contract(&data.to, data.amount, &data.call_data);
         dusk_abi::set_storage("nonce", current_nonce + 1);
     } else {
-        panic!("incorrect!");
+        panic!("invalid signature!");
     }
 }
 

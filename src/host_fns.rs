@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use dusk_abi::H256;
 use signatory::{ed25519, Signature as _, Verifier as _};
 
@@ -18,6 +16,7 @@ const ABI_GET_STORAGE: usize = 3;
 const ABI_CALLER: usize = 4;
 const ABI_CALL_DATA: usize = 5;
 const ABI_VERIFY_ED25519_SIGNATURE: usize = 6;
+const ABI_CALL_CONTRACT: usize = 7;
 
 pub(crate) struct CallContext<'a> {
     memory: MemoryRef,
@@ -164,7 +163,7 @@ impl<'a> Externals for CallContext<'a> {
                 });
                 Ok(None)
             }
-            ABI_VERIFY_ED25519_SIGNATUNE => {
+            ABI_VERIFY_ED25519_SIGNATURE => {
                 let key_ptr =
                     args.as_ref()[0].try_into::<u32>().unwrap() as usize;
                 let sig_ptr =
@@ -191,6 +190,10 @@ impl<'a> Externals for CallContext<'a> {
                         Err(_) => Ok(Some(RuntimeValue::I32(0))),
                     }
                 })
+            }
+            ABI_CALL_CONTRACT => {
+                //
+                unimplemented!("got herez")
             }
             _ => panic!("Unimplemented function at {}", index),
         }
@@ -261,7 +264,7 @@ impl ModuleImportResolver for HostImportResolver {
                     ][..],
                     None,
                 ),
-                ABI_CALL_DATA,
+                ABI_CALL_CONTRACT,
             )),
             name => unimplemented!("{:?}", name),
         }

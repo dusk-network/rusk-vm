@@ -13,6 +13,8 @@ pub use types::{Signature, H256};
 // TODO: Extend this error type
 pub use fermion::Error;
 
+pub const MAX_CALL_DATA_SIZE: usize = 1024 * 16;
+
 // declare available host-calls
 mod external {
     use super::{Signature, H256};
@@ -84,8 +86,12 @@ pub fn balance() -> H256 {
     encoding::decode(&buffer[..]).unwrap()
 }
 
-pub fn call_data(buffer: &mut [u8]) {
+pub fn call_data<'de, D>(buffer: &'de mut [u8]) -> D
+where
+    D: Deserialize<'de>,
+{
     unsafe { external::call_data(buffer) }
+    encoding::decode(buffer).unwrap()
 }
 
 pub fn verify_ed25519_signature(

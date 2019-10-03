@@ -33,13 +33,14 @@ mod tests {
         let genesis = genesis_builder.build().unwrap();
 
         // New genesis network with initial value
-        let mut network = NetworkState::genesis(genesis, 1_000_000_000);
+        let mut network =
+            NetworkState::genesis(genesis, 1_000_000_000).unwrap();
 
         let genesis_id = network.genesis_id().clone();
 
         // setup a secondary account
 
-        wallet.new_account("alice");
+        wallet.new_account("alice").unwrap();
 
         let mut account_builder =
             ContractBuilder::new(contract_code!("default_account")).unwrap();

@@ -53,7 +53,7 @@ pub struct NetworkState {
 }
 
 impl NetworkState {
-    pub fn genesis(contract: Contract, value: u128) -> Self {
+    pub fn genesis(contract: Contract, value: u128) -> Result<Self, Error> {
         let genesis_id = contract.digest();
         let mut contracts = HashMap::new();
         contracts.insert(
@@ -67,8 +67,8 @@ impl NetworkState {
             genesis_id,
             contracts,
         };
-        state.deploy_contract(contract);
-        state
+        state.deploy_contract(contract)?;
+        Ok(state)
     }
 
     pub fn genesis_id(&self) -> &H256 {
