@@ -16,8 +16,6 @@ pub use wallet::Wallet;
 mod tests {
     use super::*;
 
-    use digest::Digest;
-
     #[test]
     fn default_account() {
         let mut wallet = Wallet::new();
@@ -38,35 +36,43 @@ mod tests {
 
         let genesis_id = network.genesis_id().clone();
 
-        // setup a secondary account
+        // check balance of genesis account
+        let mut call = DefaultAccount::balance();
 
-        wallet.new_account("alice").unwrap();
+        assert_eq!(
+            network.perform_call(genesis_id, &mut call).unwrap(),
+            1_000_000_000
+        );
 
-        let mut account_builder =
-            ContractBuilder::new(contract_code!("default_account")).unwrap();
+        // // setup a secondary account
 
-        let alice_pub_key = wallet.get_account("alice").unwrap().public_key();
-        account_builder
-            .set_parameter("PUBLIC_KEY", alice_pub_key)
-            .unwrap();
+        // wallet.new_account("alice").unwrap();
 
-        let alice_account = account_builder.build().unwrap();
+        // let mut account_builder =
+        //     ContractBuilder::new(contract_code!("default_account")).unwrap();
 
-        // transfer 1000 to alice from genesis account
+        // let alice_pub_key = wallet.get_account("alice").unwrap().public_key();
+        // account_builder
+        //     .set_parameter("PUBLIC_KEY", alice_pub_key)
+        //     .unwrap();
 
-        let genesis_signer = wallet.default_account().signer();
+        // let alice_account = account_builder.build().unwrap();
 
-        let call = DefaultAccount::transfer(
-            genesis_signer,
-            alice_account.digest(),
-            1000,
-            0,
-        )
-        .unwrap();
+        // // transfer 1000 to alice from genesis account
 
-        println!("{:?}", call);
+        // let genesis_signer = wallet.default_account().signer();
 
-        network.call_contract(&genesis_id, &call).unwrap();
+        // let call = DefaultAccount::transfer(
+        //     genesis_signer,
+        //     alice_account.digest(),
+        //     1000,
+        //     0,
+        // )
+        // .unwrap();
+
+        // println!("{:?}", call);
+
+        // network.call_contract(&genesis_id, &call).unwrap();
     }
 
     // #[test]

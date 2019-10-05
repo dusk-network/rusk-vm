@@ -2,12 +2,13 @@ use std::collections::HashMap;
 
 use dusk_abi::{encoding, H256};
 use failure::{bail, format_err, Error};
-use serde::Serialize;
-use wasmi::{ExternVal, ImportsBuilder, ModuleInstance};
+use serde::{Deserialize, Serialize};
+use wasmi::{ExternVal, ImportsBuilder, ModuleInstance, Trap, TrapKind};
 
 use crate::contract::Contract;
 use crate::digest::Digest;
 use crate::host_fns::{CallContext, HostImportResolver};
+use crate::interfaces::ContractCall;
 
 pub type Storage = HashMap<Vec<u8>, Vec<u8>>;
 
@@ -79,7 +80,7 @@ impl NetworkState {
     pub fn deploy_contract(&mut self, contract: Contract) -> Result<(), Error> {
         let id = contract.digest();
 
-        let state =
+        let mut state =
             self.contracts.entry(id).or_insert(ContractState::default());
 
         if state.contract.bytecode().len() == 0 {
@@ -87,12 +88,14 @@ impl NetworkState {
         }
 
         let module = wasmi::Module::from_buffer(state.contract.bytecode())?;
-        Self::invoke_bytecode(
+        // on deploy, caller is self-id
+        let self_id = state.contract().digest();
+        Self::invoke_bytecode::<(), ()>(
             &module,
-            &id,
+            &mut state,
+            self_id,
             "deploy",
-            &[],
-            state.storage_mut(),
+            &mut ContractCall::nil(),
         )?;
 
         Ok(())
@@ -112,12 +115,12 @@ impl NetworkState {
         self.contracts.get_mut(contract_id)
     }
 
-    fn invoke_bytecode(
+    fn invoke_bytecode<C: Serialize, R>(
         module: &wasmi::Module,
-        caller: &H256,
-        call: &str,
-        call_data: &[u8],
-        storage: &mut Storage,
+        state: &mut ContractState,
+        caller: H256,
+        call_name: &str,
+        call: &mut ContractCall<C, R>,
     ) -> Result<(), Error> {
         let imports =
             ImportsBuilder::new().with_resolver("env", &HostImportResolver);
@@ -129,38 +132,39 @@ impl NetworkState {
         match instance.export_by_name("memory") {
             Some(ExternVal::Memory(memref)) => {
                 let mut externals =
-                    CallContext::new(&memref, caller, storage, call_data);
-                // Run contract initialization
-                instance.invoke_export(call, &[], &mut externals)?;
-                Ok(())
+                    CallContext::new(&memref, state, caller, call);
+
+                match instance.invoke_export(call_name, &[], &mut externals) {
+                    Ok(_) => Ok(()),
+                    Err(wasmi::Error::Trap(trap)) => {
+                        if trap.kind().is_host() {
+                            // ContractReturn is the only Host trap at the moment
+                            Ok(())
+                        } else {
+                            Err(wasmi::Error::Trap(trap).into())
+                        }
+                    }
+                    Err(e) => Err(e.into()),
+                }
             }
             _ => bail!("No memory available"),
         }
     }
 
-    pub fn call_contract<C: Serialize>(
+    pub fn perform_call<C: Serialize, R: for<'de> Deserialize<'de>>(
         &mut self,
-        contract_id: &H256,
-        call: &C,
-    ) -> Result<(), Error> {
-        let state = self
-            .get_contract_state_mut(contract_id)
+        recipient: H256,
+        call: &mut ContractCall<C, R>,
+    ) -> Result<R, Error> {
+        let mut state = self
+            .get_contract_state_mut(&recipient)
             .ok_or_else(|| format_err!("no such contract"))?;
 
-        let mut buf = [0u8; 1024];
-
-        let slice = encoding::encode(call, &mut buf)?;
-
         let module = wasmi::Module::from_buffer(state.contract().bytecode())?;
-        Self::invoke_bytecode(
-            &module,
-            // In top level call, caller is "self"
-            contract_id,
-            "call",
-            slice,
-            state.storage_mut(),
-        )?;
 
-        Ok(())
+        // Top-level, caller is same as recipient
+        Self::invoke_bytecode(&module, &mut state, recipient, "call", call)?;
+
+        Ok(encoding::decode(call.data())?)
     }
 }

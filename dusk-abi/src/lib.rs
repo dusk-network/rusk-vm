@@ -17,12 +17,13 @@ pub const MAX_CALL_DATA_SIZE: usize = 1024 * 16;
 
 // declare available host-calls
 mod external {
-    use super::{Signature, H256};
+    use super::*;
     extern "C" {
         pub fn set_storage(key: &[u8], value: &[u8]);
         pub fn get_storage(key: &[u8], val: &mut [u8; 1024]) -> bool;
         pub fn caller(buffer: &mut [u8; 32]);
-        pub fn balance(buffer: &mut [u8; 32]);
+        // balance returns u128
+        pub fn balance(buffer: &mut [u8; 16]);
         pub fn debug(text: &str);
         pub fn panic(msg: &[u8]) -> !;
         pub fn call_data(buffer: &mut [u8]);
@@ -32,7 +33,7 @@ mod external {
             signature: &[u8; 64],
             buffer: &[u8],
         ) -> bool;
-        pub fn ret(data: &[u8]);
+        pub fn ret(data: &[u8; MAX_CALL_DATA_SIZE]) -> !;
     }
 }
 
@@ -80,8 +81,8 @@ pub fn caller() -> H256 {
     encoding::decode(&buffer[..]).unwrap()
 }
 
-pub fn balance() -> H256 {
-    let mut buffer = [0u8; 32];
+pub fn balance() -> u128 {
+    let mut buffer = [0u8; 16];
     unsafe { external::balance(&mut buffer) }
     encoding::decode(&buffer[..]).unwrap()
 }
@@ -114,6 +115,9 @@ pub fn call_contract(target: &H256, amount: u128, data: &[u8]) {
     unsafe { external::call_contract(target, &buf, data) }
 }
 
-pub fn ret<T: Serialize>(_ret: T) {
-    unimplemented!("ret")
+pub fn ret<T: Serialize>(ret: T) -> ! {
+    let mut ret_buffer = [0u8; MAX_CALL_DATA_SIZE];
+    encoding::encode(&ret, &mut ret_buffer);
+    unsafe { external::ret(&ret_buffer) }
+    unreachable!("after return")
 }

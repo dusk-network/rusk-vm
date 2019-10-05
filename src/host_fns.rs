@@ -1,4 +1,5 @@
-use dusk_abi::H256;
+use dusk_abi::{encoding, H256};
+use serde::Serialize;
 use signatory::{ed25519, Signature as _, Verifier as _};
 
 use wasmi::{
@@ -7,7 +8,8 @@ use wasmi::{
     ValueType,
 };
 
-use crate::state::Storage;
+use crate::interfaces::ContractCall;
+use crate::state::ContractState;
 
 const ABI_PANIC: usize = 0;
 const ABI_DEBUG: usize = 1;
@@ -17,14 +19,29 @@ const ABI_CALLER: usize = 4;
 const ABI_CALL_DATA: usize = 5;
 const ABI_VERIFY_ED25519_SIGNATURE: usize = 6;
 const ABI_CALL_CONTRACT: usize = 7;
+const ABI_BALANCE: usize = 8;
+const ABI_RETURN: usize = 9;
 
-pub(crate) struct CallContext<'a> {
-    memory: MemoryRef,
-    caller: &'a H256,
-    storage: &'a mut Storage,
-    call_data: &'a [u8],
+// Signal that the contract finished execution
+#[derive(Debug)]
+struct ContractReturn;
+
+impl core::fmt::Display for ContractReturn {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
+impl HostError for ContractReturn {}
+
+pub(crate) struct CallContext<'a, C, R> {
+    memory: MemoryRef,
+    caller: H256,
+    state: &'a mut ContractState,
+    call: &'a mut ContractCall<C, R>,
+}
+
+// TODO: remove this
 trait FromPtr {
     unsafe fn from_ptr(ptr: &u8) -> Self;
 }
@@ -39,18 +56,18 @@ impl FromPtr for H256 {
     }
 }
 
-impl<'a> CallContext<'a> {
+impl<'a, C, R> CallContext<'a, C, R> {
     pub fn new(
         memory: &MemoryRef,
-        caller: &'a H256,
-        storage: &'a mut Storage,
-        call_data: &'a [u8],
+        state: &'a mut ContractState,
+        caller: H256,
+        call: &'a mut ContractCall<C, R>,
     ) -> Self {
         CallContext {
             memory: memory.clone(),
             caller,
-            storage,
-            call_data,
+            state,
+            call,
         }
     }
 }
@@ -98,7 +115,7 @@ impl ContractPanic {
 
 impl HostError for ContractPanic {}
 
-impl<'a> Externals for CallContext<'a> {
+impl<'a, C: Serialize, R> Externals for CallContext<'a, C, R> {
     fn invoke_index(
         &mut self,
         index: usize,
@@ -119,7 +136,7 @@ impl<'a> Externals for CallContext<'a> {
                         args_to_slice(a, 2, &args).into(),
                     )
                 });
-                self.storage.insert(key, val);
+                self.state.storage_mut().insert(key, val);
 
                 Ok(None)
             }
@@ -128,7 +145,7 @@ impl<'a> Externals for CallContext<'a> {
                 let val_buf =
                     args.as_ref()[2].try_into::<u32>().unwrap() as usize;
 
-                match self.storage.get(key) {
+                match self.state.storage().get(key) {
                     Some(ref value) => {
                         a[val_buf..val_buf + value.len()]
                             .copy_from_slice(value);
@@ -158,8 +175,8 @@ impl<'a> Externals for CallContext<'a> {
             ABI_CALL_DATA => {
                 self.memory.with_direct_access_mut(|a| {
                     let slice = args_to_slice_mut(a, &args);
-                    let len = self.call_data.len();
-                    slice[0..len].copy_from_slice(self.call_data)
+                    let len = self.call.data().len();
+                    slice[0..len].copy_from_slice(self.call.data())
                 });
                 Ok(None)
             }
@@ -194,6 +211,43 @@ impl<'a> Externals for CallContext<'a> {
             ABI_CALL_CONTRACT => {
                 //
                 unimplemented!("got herez")
+            }
+            ABI_BALANCE => {
+                // first argument is a pointer to a 16 byte buffer
+                let args = args.as_ref();
+                let buffer_ofs = args[0].try_into::<u32>().unwrap() as usize;
+
+                self.memory.with_direct_access_mut(|a| {
+                    encoding::encode(
+                        &self.state.balance(),
+                        &mut a[buffer_ofs..],
+                    )
+                    .unwrap();
+                });
+
+                Ok(None)
+            }
+            ABI_RETURN => {
+                // first argument is a pointer to a `MAX_CALL_DATA_SIZE` byte buffer
+                let args = args.as_ref();
+                let buffer_ofs = args[0].try_into::<u32>().unwrap() as usize;
+
+                // split self to make borrow checker happy
+                let CallContext {
+                    ref mut memory,
+                    ref mut call,
+                    ..
+                } = self;
+
+                // copy from memory into call_data
+                memory.with_direct_access_mut(|a| {
+                    call.data_mut()[..].copy_from_slice(
+                        &a[buffer_ofs
+                            ..buffer_ofs + dusk_abi::MAX_CALL_DATA_SIZE],
+                    );
+                });
+
+                Err(Trap::new(TrapKind::Host(Box::new(ContractReturn))))
             }
             _ => panic!("Unimplemented function at {}", index),
         }
@@ -265,6 +319,14 @@ impl ModuleImportResolver for HostImportResolver {
                     None,
                 ),
                 ABI_CALL_CONTRACT,
+            )),
+            "balance" => Ok(FuncInstance::alloc_host(
+                Signature::new(&[ValueType::I32][..], None),
+                ABI_BALANCE,
+            )),
+            "ret" => Ok(FuncInstance::alloc_host(
+                Signature::new(&[ValueType::I32][..], None),
+                ABI_RETURN,
             )),
             name => unimplemented!("{:?}", name),
         }
