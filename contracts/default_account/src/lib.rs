@@ -1,6 +1,8 @@
 #![no_std]
-use dusk_abi::{self, encoding, Signature, H256, MAX_CALL_DATA_SIZE};
+use dusk_abi::{self, encoding, ContractCall, Signature, CALL_DATA_SIZE, H256};
 use serde::{Deserialize, Serialize};
+
+const NONCE: [u8; 1] = [0u8];
 
 #[no_mangle]
 static PUBLIC_KEY: [u8; 32] = [0u8; 32];
@@ -19,7 +21,7 @@ pub enum AccountCall<'a> {
 
 #[no_mangle]
 pub fn call() {
-    let mut buffer = [0u8; MAX_CALL_DATA_SIZE];
+    let mut buffer = [0u8; CALL_DATA_SIZE];
     let data: AccountCall = dusk_abi::call_data(&mut buffer);
     match data {
         // Transfer funds and call through to another contract
@@ -31,7 +33,7 @@ pub fn call() {
             call_data,
             ..
         } => {
-            let current_nonce = dusk_abi::get_storage("nonce").unwrap();
+            let current_nonce = dusk_abi::get_storage(&NONCE).unwrap();
 
             assert!(nonce == current_nonce);
 
@@ -45,14 +47,15 @@ pub fn call() {
                 &signature,
                 encoded,
             ) {
-                dusk_abi::call_contract(&to, amount, &call_data);
-                dusk_abi::set_storage("nonce", current_nonce + 1);
+                let mut call = ContractCall::<()>::new_raw(call_data);
+                dusk_abi::call_contract(&to, amount, &mut call);
+                dusk_abi::set_storage(&NONCE, current_nonce + 1);
             } else {
                 panic!("invalid signature!");
             }
         }
         // Return the account balance
-        Balance => {
+        AccountCall::Balance => {
             let balance = dusk_abi::balance();
             dusk_abi::ret(balance);
         }
@@ -62,5 +65,5 @@ pub fn call() {
 #[no_mangle]
 pub fn deploy() {
     // Set the initial nonce to zero
-    dusk_abi::set_storage("nonce", 0u64)
+    dusk_abi::set_storage(&NONCE, 0u64)
 }

@@ -1,0 +1,65 @@
+use crate::{encoding, Error, CALL_DATA_SIZE};
+use core::borrow::Borrow;
+use core::marker::PhantomData;
+use core::mem;
+use serde::{Deserialize, Serialize};
+
+// R is the return type of the Call
+pub struct ContractCall<R> {
+    data: [u8; CALL_DATA_SIZE],
+    len: usize,
+    _marker: PhantomData<R>,
+}
+
+impl<R> Clone for ContractCall<R> {
+    fn clone(&self) -> Self {
+        let mut data = [0u8; CALL_DATA_SIZE];
+        data.copy_from_slice(&self.data);
+        ContractCall {
+            data,
+            len: self.len,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<R> ContractCall<R> {
+    pub fn new<C: Serialize + core::fmt::Debug>(
+        call: C,
+    ) -> Result<Self, Error> {
+        let mut data = [0u8; CALL_DATA_SIZE];
+        let len = encoding::encode(&call, &mut data)?.len();
+        Ok(ContractCall {
+            data,
+            len,
+            _marker: PhantomData,
+        })
+    }
+
+    pub fn new_raw(raw: &[u8]) -> Self {
+        let mut data = [0u8; CALL_DATA_SIZE];
+        let len = raw.len();
+        data[0..len].copy_from_slice(raw);
+        ContractCall {
+            data,
+            len,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn nil() -> Self {
+        ContractCall {
+            data: [0u8; CALL_DATA_SIZE],
+            len: 0,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn data(&self) -> &[u8; CALL_DATA_SIZE] {
+        &self.data
+    }
+
+    pub fn data_mut(&mut self) -> &mut [u8; CALL_DATA_SIZE] {
+        &mut self.data
+    }
+}

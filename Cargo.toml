@@ -18,3 +18,5 @@ serde = "*"
 
 default_account = { path = "contracts/default_account" }
 
+[dev-dependencies]
+factorial = { path = "contracts/factorial" }

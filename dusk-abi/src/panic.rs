@@ -1,11 +1,9 @@
 use core::fmt::{self, Write};
 use core::panic::PanicInfo;
 
-#[cfg(not(feature = "std"))]
 #[lang = "eh_personality"]
 extern "C" fn eh_personality() {}
 
-#[cfg(not(feature = "std"))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     let mut buffer = [0u8; 1024];

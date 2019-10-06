@@ -1,7 +1,5 @@
 use core::mem;
-use serde::{
-    ser::SerializeTuple, Deserialize, Deserializer, Serialize, Serializer,
-};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct H256([u8; 32]);

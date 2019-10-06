@@ -1,16 +1,14 @@
 use std::collections::HashMap;
 
-use dusk_abi::{encoding, H256};
-use failure::{bail, format_err, Error};
-use serde::{Deserialize, Serialize};
-use wasmi::{ExternVal, ImportsBuilder, ModuleInstance, Trap, TrapKind};
+use dusk_abi::{ContractCall, CALL_DATA_SIZE, H256, STORAGE_KEY_SIZE};
+use failure::Error;
+use serde::Deserialize;
 
 use crate::contract::Contract;
 use crate::digest::Digest;
-use crate::host_fns::{CallContext, HostImportResolver};
-use crate::interfaces::ContractCall;
+use crate::host_fns::{CallContext, CallKind};
 
-pub type Storage = HashMap<Vec<u8>, Vec<u8>>;
+pub type Storage = HashMap<[u8; STORAGE_KEY_SIZE], Vec<u8>>;
 
 #[derive(Default, Debug, Clone)]
 pub struct ContractState {
@@ -86,17 +84,10 @@ impl NetworkState {
         if state.contract.bytecode().len() == 0 {
             state.contract = contract
         }
+        let mut deploy_buffer = [0u8; CALL_DATA_SIZE];
 
-        let module = wasmi::Module::from_buffer(state.contract.bytecode())?;
-        // on deploy, caller is self-id
-        let self_id = state.contract().digest();
-        Self::invoke_bytecode::<(), ()>(
-            &module,
-            &mut state,
-            self_id,
-            "deploy",
-            &mut ContractCall::nil(),
-        )?;
+        let mut context = CallContext::new(self);
+        context.call(id, &mut deploy_buffer, CallKind::Deploy)?;
 
         Ok(())
     }
@@ -115,56 +106,23 @@ impl NetworkState {
         self.contracts.get_mut(contract_id)
     }
 
-    fn invoke_bytecode<C: Serialize, R>(
-        module: &wasmi::Module,
-        state: &mut ContractState,
-        caller: H256,
-        call_name: &str,
-        call: &mut ContractCall<C, R>,
-    ) -> Result<(), Error> {
-        let imports =
-            ImportsBuilder::new().with_resolver("env", &HostImportResolver);
-
-        let instance =
-            ModuleInstance::new(&module, &imports)?.assert_no_start();
-
-        // Get memory reference for call
-        match instance.export_by_name("memory") {
-            Some(ExternVal::Memory(memref)) => {
-                let mut externals =
-                    CallContext::new(&memref, state, caller, call);
-
-                match instance.invoke_export(call_name, &[], &mut externals) {
-                    Ok(_) => Ok(()),
-                    Err(wasmi::Error::Trap(trap)) => {
-                        if trap.kind().is_host() {
-                            // ContractReturn is the only Host trap at the moment
-                            Ok(())
-                        } else {
-                            Err(wasmi::Error::Trap(trap).into())
-                        }
-                    }
-                    Err(e) => Err(e.into()),
-                }
-            }
-            _ => bail!("No memory available"),
-        }
+    pub fn get_contract_state_mut_or_default(
+        &mut self,
+        contract_id: &H256,
+    ) -> &mut ContractState {
+        self.contracts
+            .entry(*contract_id)
+            .or_insert(ContractState::default())
     }
 
-    pub fn perform_call<C: Serialize, R: for<'de> Deserialize<'de>>(
+    pub fn call_contract<'de, R: Deserialize<'de>>(
         &mut self,
-        recipient: H256,
-        call: &mut ContractCall<C, R>,
+        target: H256,
+        mut call: ContractCall<R>,
     ) -> Result<R, Error> {
-        let mut state = self
-            .get_contract_state_mut(&recipient)
-            .ok_or_else(|| format_err!("no such contract"))?;
-
-        let module = wasmi::Module::from_buffer(state.contract().bytecode())?;
-
-        // Top-level, caller is same as recipient
-        Self::invoke_bytecode(&module, &mut state, recipient, "call", call)?;
-
-        Ok(encoding::decode(call.data())?)
+        let mut context = CallContext::new(self);
+        let data = call.data_mut();
+        context.call(target, data, CallKind::Call)?;
+        unimplemented!()
     }
 }

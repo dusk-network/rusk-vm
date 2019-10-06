@@ -1,9 +1,7 @@
 use default_account::AccountCall;
-use dusk_abi::{encoding, Signature, H256};
+use dusk_abi::{encoding, ContractCall, Signature, H256};
 use signatory::{Signature as _, Signer as _};
 use signatory_dalek::Ed25519Signer as Signer;
-
-use crate::interfaces::ContractCall;
 
 pub struct DefaultAccount;
 
@@ -13,7 +11,7 @@ impl DefaultAccount {
         to: H256,
         amount: u128,
         nonce: u64,
-    ) -> ContractCall<AccountCall<'static>, ()> {
+    ) -> ContractCall<()> {
         let mut buf = [0u8; 32 + 16 + 8];
         let encoded = encoding::encode(&(to, amount, nonce), &mut buf)
             .expect("static buffer too small");
@@ -28,11 +26,10 @@ impl DefaultAccount {
             call_data: &[],
             signature,
         })
-        .expect("MAX_CALL_DATA too small")
+        .expect("CALL_DATA too small")
     }
 
-    pub fn balance() -> ContractCall<AccountCall<'static>, u128> {
-        ContractCall::new(AccountCall::Balance)
-            .expect("MAX_CALL_DATA too small")
+    pub fn balance() -> ContractCall<u128> {
+        ContractCall::new(AccountCall::Balance).expect("CALL_DATA too small")
     }
 }
