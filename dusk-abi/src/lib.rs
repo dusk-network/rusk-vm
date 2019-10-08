@@ -4,13 +4,14 @@
 
 pub use serde::{Deserialize, Serialize};
 
+pub mod bufwriter;
 mod contract_call;
 pub mod encoding;
 #[cfg(not(feature = "std"))]
 mod panic;
 mod types;
 
-pub use contract_call::ContractCall;
+pub use contract_call::{ContractCall, ContractReturn};
 pub use types::{Signature, H256};
 
 // TODO: Extend this error type
@@ -19,17 +20,21 @@ pub use fermion::Error;
 pub const CALL_DATA_SIZE: usize = 1024 * 16;
 pub const STORAGE_VALUE_SIZE: usize = 1024 * 4;
 pub const STORAGE_KEY_SIZE: usize = 32;
+pub const PANIC_BUFFER_SIZE: usize = 1024 * 16;
+pub const DEBUG_BUFFER_SIZE: usize = 1024 * 16;
 
 // declare available host-calls
 mod external {
     use super::*;
     extern "C" {
+        pub fn balance(buffer: &mut [u8; 16]);
+
         pub fn set_storage(
             key: &[u8; 32],
             value: &[u8; STORAGE_VALUE_SIZE],
             value_len: i32,
         );
-        // get storage returns the length of the value
+        // `get_storage` returns the length of the value
         // 0 is equivalent to no value
         pub fn get_storage(
             key: &[u8; STORAGE_KEY_SIZE],
@@ -37,20 +42,24 @@ mod external {
         ) -> i32;
         pub fn caller(buffer: &mut [u8; 32]);
         pub fn self_hash(buffer: &mut [u8; 32]);
-        // balance returns u128
-        pub fn balance(buffer: &mut [u8; 16]);
-        pub fn debug(text: &str);
-        pub fn panic(msg: &[u8]) -> !;
+
+        #[allow(unused)]
+        pub fn panic(msg: &u8, len: i32) -> !;
+
+        pub fn debug(msg: &u8, len: i32);
+
         pub fn call_data(buffer: &mut [u8; CALL_DATA_SIZE]);
         pub fn call_contract(
             target: &[u8; 32],
             amount: &[u8; 16],
             data: &[u8; CALL_DATA_SIZE],
+            data_len: i32,
         );
         pub fn verify_ed25519_signature(
             pub_key: &[u8; 32],
             signature: &[u8; 64],
-            buffer: &[u8],
+            buffer: &u8,
+            buffer_len: i32,
         ) -> bool;
         pub fn ret(data: &[u8; CALL_DATA_SIZE]) -> !;
     }
@@ -96,12 +105,6 @@ where
     }
 }
 
-pub fn debug(s: &str) {
-    unsafe {
-        external::debug(s);
-    }
-}
-
 pub fn caller() -> H256 {
     let mut buffer = [0u8; 32];
     unsafe { external::caller(&mut buffer) }
@@ -134,10 +137,12 @@ pub fn verify_ed25519_signature(
     buffer: &[u8],
 ) -> bool {
     unsafe {
+        let len = buffer.len() as i32;
         external::verify_ed25519_signature(
             pub_key,
             signature.as_array(),
-            buffer,
+            &buffer[0],
+            len,
         )
     }
 }
@@ -151,12 +156,40 @@ pub fn call_contract<'de, R: 'de + Deserialize<'de>>(
     encoding::encode(&target, &mut target_buf).unwrap();
     let mut amount_buf = [0u8; 16];
     encoding::encode(&amount, &mut amount_buf).unwrap();
-    unsafe { external::call_contract(&target_buf, &amount_buf, call.data()) }
+    unsafe {
+        external::call_contract(
+            &target_buf,
+            &amount_buf,
+            call.data(),
+            call.len() as i32,
+        )
+    }
     encoding::decode(call.data()).unwrap()
 }
 
 pub fn ret<T: Serialize>(ret: T) -> ! {
     let mut ret_buffer = [0u8; CALL_DATA_SIZE];
-    encoding::encode(&ret, &mut ret_buffer);
+    encoding::encode(&ret, &mut ret_buffer).unwrap();
     unsafe { external::ret(&ret_buffer) }
+}
+
+#[doc(hidden)]
+pub fn _debug(buf: &[u8]) {
+    let len = buf.len() as i32;
+    unsafe { external::debug(&buf[0], len) }
+}
+
+#[macro_export]
+macro_rules! debug {
+    ($($tt:tt)*) => {
+        use core::fmt::Write;
+        use $crate::bufwriter::BufWriter;
+        let mut buffer = [0u8; $crate::DEBUG_BUFFER_SIZE];
+        let len = {
+            let mut bw = BufWriter::new(&mut buffer);
+            write!(bw, $($tt)*).unwrap();
+            bw.ofs()
+        };
+        $crate::_debug(&buffer[0..len])
+    };
 }

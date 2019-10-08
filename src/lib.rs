@@ -98,6 +98,14 @@ mod tests {
     fn factorial() {
         use factorial::factorial;
 
+        fn factorial_reference(n: u64) -> u64 {
+            if n <= 1 {
+                1
+            } else {
+                n * factorial_reference(n - 1)
+            }
+        }
+
         let genesis_builder =
             ContractBuilder::new(contract_code!("factorial")).unwrap();
 
@@ -109,11 +117,10 @@ mod tests {
 
         let genesis_id = network.genesis_id().clone();
 
-        assert_eq!(network.call_contract(genesis_id, factorial(0)).unwrap(), 0);
-        assert_eq!(network.call_contract(genesis_id, factorial(1)).unwrap(), 1);
+        let n = 6;
         assert_eq!(
-            network.call_contract(genesis_id, factorial(5)).unwrap(),
-            120
+            network.call_contract(genesis_id, factorial(n)).unwrap(),
+            factorial_reference(n)
         );
     }
 }

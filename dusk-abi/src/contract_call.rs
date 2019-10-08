@@ -1,7 +1,6 @@
 use crate::{encoding, Error, CALL_DATA_SIZE};
-use core::borrow::Borrow;
 use core::marker::PhantomData;
-use core::mem;
+use core::ops::Deref;
 use serde::{Deserialize, Serialize};
 
 // R is the return type of the Call
@@ -55,11 +54,44 @@ impl<R> ContractCall<R> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
     pub fn data(&self) -> &[u8; CALL_DATA_SIZE] {
         &self.data
     }
 
     pub fn data_mut(&mut self) -> &mut [u8; CALL_DATA_SIZE] {
         &mut self.data
+    }
+
+    pub fn into_data(self) -> [u8; CALL_DATA_SIZE] {
+        self.data
+    }
+}
+
+pub struct ContractReturn<R> {
+    #[allow(unused)]
+    data: [u8; CALL_DATA_SIZE],
+    val: R,
+}
+
+impl<R> From<ContractCall<R>> for ContractReturn<R>
+where
+    R: for<'de> Deserialize<'de>,
+{
+    fn from(from: ContractCall<R>) -> Self {
+        let data = from.data;
+        let val = encoding::decode(&data).unwrap();
+
+        ContractReturn { data, val }
+    }
+}
+
+impl<R> Deref for ContractReturn<R> {
+    type Target = R;
+    fn deref(&self) -> &Self::Target {
+        &self.val
     }
 }

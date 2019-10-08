@@ -9,31 +9,15 @@ pub fn factorial(of: u64) -> ContractCall<u64> {
 #[no_mangle]
 pub fn call() {
     let mut buffer = [0u8; CALL_DATA_SIZE];
-    let input: u64 = dusk_abi::call_data(&mut buffer);
+    let n: u64 = dusk_abi::call_data(&mut buffer);
 
     let self_hash = dusk_abi::self_hash();
 
-    if input < 2 {
-        dusk_abi::ret(input);
+    if n <= 1 {
+        dusk_abi::ret(1);
     } else {
-        let result = dusk_abi::call_contract(
-            &self_hash,
-            0,
-            &mut factorial(
-                input
-                    * dusk_abi::call_contract(
-                        &self_hash,
-                        0,
-                        &mut factorial(input - 1),
-                    ),
-            ),
+        dusk_abi::ret(
+            n * dusk_abi::call_contract(&self_hash, 0, &mut factorial(n - 1)),
         );
-        dusk_abi::ret(result);
     }
-}
-
-#[no_mangle]
-pub fn deploy() {
-    // Set the initial nonce to zero
-    dusk_abi::set_storage("nonce", 0u64)
 }

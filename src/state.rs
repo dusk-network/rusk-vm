@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use dusk_abi::{ContractCall, CALL_DATA_SIZE, H256, STORAGE_KEY_SIZE};
+use dusk_abi::{
+    encoding, ContractCall, CALL_DATA_SIZE, H256, STORAGE_KEY_SIZE,
+};
 use failure::Error;
 use serde::Deserialize;
 
@@ -84,10 +86,10 @@ impl NetworkState {
         if state.contract.bytecode().len() == 0 {
             state.contract = contract
         }
-        let mut deploy_buffer = [0u8; CALL_DATA_SIZE];
+        let deploy_buffer = [0u8; CALL_DATA_SIZE];
 
         let mut context = CallContext::new(self);
-        context.call(id, &mut deploy_buffer, CallKind::Deploy)?;
+        context.call(id, deploy_buffer, CallKind::Deploy)?;
 
         Ok(())
     }
@@ -115,14 +117,15 @@ impl NetworkState {
             .or_insert(ContractState::default())
     }
 
-    pub fn call_contract<'de, R: Deserialize<'de>>(
+    pub fn call_contract<R: for<'de> Deserialize<'de>>(
         &mut self,
         target: H256,
-        mut call: ContractCall<R>,
+        call: ContractCall<R>,
     ) -> Result<R, Error> {
         let mut context = CallContext::new(self);
-        let data = call.data_mut();
-        context.call(target, data, CallKind::Call)?;
-        unimplemented!()
+        let data = call.into_data();
+        let data_return = context.call(target, data, CallKind::Call)?;
+        let decoded = encoding::decode(&data_return)?;
+        Ok(decoded)
     }
 }

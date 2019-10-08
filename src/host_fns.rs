@@ -26,32 +26,33 @@ const ABI_SELF_HASH: usize = 10;
 
 // Signal that the contract finished execution
 #[derive(Debug)]
-struct ContractReturn;
+struct TrapContractReturn;
 
-impl core::fmt::Display for ContractReturn {
+impl core::fmt::Display for TrapContractReturn {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
+#[derive(Debug)]
 pub enum CallKind {
     Deploy,
     Call,
 }
 
-impl HostError for ContractReturn {}
+impl HostError for TrapContractReturn {}
 
-struct StackFrame<'a> {
+struct StackFrame {
     context: H256,
-    call_data: &'a mut [u8; CALL_DATA_SIZE],
+    call_data: [u8; CALL_DATA_SIZE],
     call_kind: CallKind,
     memory: MemoryRef,
 }
 
-impl<'a> StackFrame<'a> {
+impl StackFrame {
     fn new(
         context: H256,
-        call_data: &'a mut [u8; CALL_DATA_SIZE],
+        call_data: [u8; CALL_DATA_SIZE],
         call_kind: CallKind,
         memory: MemoryRef,
     ) -> Self {
@@ -62,11 +63,15 @@ impl<'a> StackFrame<'a> {
             memory,
         }
     }
+
+    fn into_call_data(self) -> [u8; CALL_DATA_SIZE] {
+        self.call_data
+    }
 }
 
 pub(crate) struct CallContext<'a> {
     state: &'a mut NetworkState,
-    stack: Vec<StackFrame<'a>>,
+    stack: Vec<StackFrame>,
 }
 
 impl<'a> CallContext<'a> {
@@ -80,9 +85,9 @@ impl<'a> CallContext<'a> {
     pub fn call(
         &mut self,
         target: H256,
-        call_data: &'a mut [u8; CALL_DATA_SIZE],
+        call_data: [u8; CALL_DATA_SIZE],
         kind: CallKind,
-    ) -> Result<(), Error> {
+    ) -> Result<[u8; CALL_DATA_SIZE], Error> {
         let imports =
             ImportsBuilder::new().with_resolver("env", &HostImportResolver);
 
@@ -104,17 +109,41 @@ impl<'a> CallContext<'a> {
             _ => bail!("no memory found"),
         }
 
+        let mut skip_call = false;
         let name = match self.top().call_kind {
-            CallKind::Deploy => "deploy",
+            CallKind::Deploy => {
+                match instance.export_by_name("deploy") {
+                    None => skip_call = true,
+                    _ => (),
+                };
+
+                "deploy"
+            }
             CallKind::Call => "call",
         };
 
-        instance.invoke_export(name, &[], self)?;
+        if !skip_call {
+            match instance.invoke_export(name, &[], self) {
+                Err(wasmi::Error::Trap(trap)) => {
+                    // Only host trap is CallReturn
+                    if trap.kind().is_host() {
+                        ()
+                    } else {
+                        return Err(wasmi::Error::Trap(trap).into());
+                    }
+                }
+                Err(e) => return Err(e.into()),
+                Ok(_) => (),
+            }
+        }
+
+        // return the call_data (now containing return value)
+        Ok(self.stack.pop().expect("Invalid stack").into_call_data())
     }
 
     fn data(&self) -> &[u8] {
         let top = self.top();
-        top.call_data
+        &top.call_data
     }
 
     fn memory(&self) -> &MemoryRef {
@@ -129,7 +158,7 @@ impl<'a> CallContext<'a> {
         &self.stack.last().expect("Empty stack")
     }
 
-    fn top_mut(&mut self) -> &mut StackFrame<'a> {
+    fn top_mut(&mut self) -> &mut StackFrame {
         self.stack.last_mut().expect("Empty stack")
     }
 
@@ -196,12 +225,6 @@ impl std::fmt::Display for ContractPanic {
     }
 }
 
-impl ContractPanic {
-    fn new(msg: &str) -> Self {
-        ContractPanic(msg.into())
-    }
-}
-
 impl HostError for ContractPanic {}
 
 impl<'a> Externals for CallContext<'a> {
@@ -211,13 +234,22 @@ impl<'a> Externals for CallContext<'a> {
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, Trap> {
         match index {
-            ABI_PANIC => self.top().memory.with_direct_access(|a| {
-                let slice = args_to_slice(a, 0, &args);
-                let str = std::str::from_utf8(slice).unwrap();
-                Err(Trap::new(TrapKind::Host(Box::new(ContractPanic::new(
-                    str,
-                )))))
-            }),
+            ABI_PANIC => {
+                let panic_ofs =
+                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
+                let panic_len =
+                    args.as_ref()[1].try_into::<u32>().unwrap() as usize;
+
+                self.top().memory.with_direct_access(|a| {
+                    let panic_msg = String::from_utf8(
+                        a[panic_ofs..panic_ofs + panic_len].to_vec(),
+                    )
+                    .unwrap();
+                    Err(Trap::new(TrapKind::Host(Box::new(ContractPanic(
+                        panic_msg,
+                    )))))
+                })
+            }
             ABI_SET_STORAGE => {
                 let key_ofs =
                     args.as_ref()[0].try_into::<u32>().unwrap() as usize;
@@ -261,7 +293,8 @@ impl<'a> Externals for CallContext<'a> {
                     Some(val) => {
                         let len = val.len();
                         self.top().memory.with_direct_access_mut(|a| {
-                            a[val_buf_ofs..].copy_from_slice(&val)
+                            a[val_buf_ofs..val_buf_ofs + len]
+                                .copy_from_slice(&val)
                         });
                         Ok(Some(RuntimeValue::I32(len as i32)))
                     }
@@ -339,20 +372,22 @@ impl<'a> Externals for CallContext<'a> {
                     args.as_ref()[0].try_into::<u32>().unwrap() as usize;
                 let amount_ofs =
                     args.as_ref()[1].try_into::<u32>().unwrap() as usize;
+                let data_ofs =
+                    args.as_ref()[2].try_into::<u32>().unwrap() as usize;
+                let data_len =
+                    args.as_ref()[3].try_into::<u32>().unwrap() as usize;
 
                 let mut call_buf = [0u8; CALL_DATA_SIZE];
                 let mut target = H256::zero();
                 let mut amount = u128::default();
-                let mut data_len = 0;
 
                 self.memory().with_direct_access(|a| {
                     target = encoding::decode(&a[target_ofs..target_ofs + 32])
                         .unwrap();
                     amount = encoding::decode(&a[amount_ofs..amount_ofs + 16])
                         .unwrap();
-                    let data = args_to_slice(a, 2, &args);
-                    data_len = data.len();
-                    call_buf[0..data_len].copy_from_slice(data);
+                    call_buf[0..data_len]
+                        .copy_from_slice(&a[data_ofs..data_ofs + data_len]);
                 });
                 // assure sufficient funds are available
                 if self.balance() >= amount {
@@ -366,10 +401,15 @@ impl<'a> Externals for CallContext<'a> {
                 }
 
                 if data_len > 0 {
-                    //self.state.call_from_contract(target, data);
-
-                    unimplemented!("{:?}", &call_buf[0..data_len]);
+                    let return_buf =
+                        self.call(target, call_buf, CallKind::Call).unwrap();
+                    // write the return data back into memory
+                    self.memory().with_direct_access_mut(|a| {
+                        a[data_ofs..data_ofs + CALL_DATA_SIZE]
+                            .copy_from_slice(&return_buf)
+                    })
                 }
+
                 Ok(None)
             }
             ABI_BALANCE => {
@@ -385,19 +425,23 @@ impl<'a> Externals for CallContext<'a> {
                 Ok(None)
             }
             ABI_RETURN => {
+                let buffer_ofs =
+                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
+
                 let StackFrame {
                     ref mut memory,
                     call_data,
                     ..
                 } = self.top_mut();
 
-                // copy from memory into call_data
+                // copy return value from memory into call_data
                 memory.with_direct_access_mut(|a| {
-                    let slice = args_to_slice(a, 0, &args);
-                    call_data.copy_from_slice(slice);
+                    call_data.copy_from_slice(
+                        &a[buffer_ofs..buffer_ofs + CALL_DATA_SIZE],
+                    );
                 });
 
-                Err(Trap::new(TrapKind::Host(Box::new(ContractReturn))))
+                Err(Trap::new(TrapKind::Host(Box::new(TrapContractReturn))))
             }
             _ => panic!("Unimplemented function at {}", index),
         }
@@ -459,7 +503,12 @@ impl ModuleImportResolver for HostImportResolver {
             )),
             "call_contract" => Ok(FuncInstance::alloc_host(
                 Signature::new(
-                    &[ValueType::I32, ValueType::I32, ValueType::I32][..],
+                    &[
+                        ValueType::I32,
+                        ValueType::I32,
+                        ValueType::I32,
+                        ValueType::I32,
+                    ][..],
                     None,
                 ),
                 ABI_CALL_CONTRACT,

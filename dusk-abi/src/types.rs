@@ -102,7 +102,7 @@ impl Serialize for Signature {
             // TODO: verify that this is optimised out on non-debug builds
             {
                 let mut buf = [0u8; 64];
-                fermion::encode(hack, &mut buf);
+                fermion::encode(hack, &mut buf).expect("Cannot fail");
 
                 for i in 0..64 {
                     debug_assert!(buf[i] == self.0[i])
