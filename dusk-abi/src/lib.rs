@@ -17,10 +17,15 @@ pub use types::{Signature, H256};
 // TODO: Extend this error type
 pub use fermion::Error;
 
+/// The maximum size of contract call arguments and return values
 pub const CALL_DATA_SIZE: usize = 1024 * 16;
+/// The maximum size of values in contract storage
 pub const STORAGE_VALUE_SIZE: usize = 1024 * 4;
+/// The size of keys for contract storage
 pub const STORAGE_KEY_SIZE: usize = 32;
+/// The maximum length of contract panic messages
 pub const PANIC_BUFFER_SIZE: usize = 1024 * 16;
+/// The maximum length of contract debug messages
 pub const DEBUG_BUFFER_SIZE: usize = 1024 * 16;
 
 // declare available host-calls

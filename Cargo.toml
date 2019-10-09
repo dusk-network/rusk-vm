@@ -12,7 +12,6 @@ signatory = "*"
 signatory-dalek = "*"
 blake2-rfc = "0.2"
 failure = "*"
-genesis = { path = "genesis" }
 dusk-abi = { path = "./dusk-abi" }
 serde = "*"
 
