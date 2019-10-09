@@ -17,7 +17,7 @@ pub fn call() {
         dusk_abi::ret(1);
     } else {
         dusk_abi::ret(
-            n * dusk_abi::call_contract(&self_hash, 0, &mut factorial(n - 1)),
+            n * dusk_abi::call_contract(&self_hash, 0, &factorial(n - 1)),
         );
     }
 }

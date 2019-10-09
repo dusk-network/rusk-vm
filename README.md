@@ -1,11 +1,17 @@
 # Rust WASM contracts
 
-Work in progreess.
+## Usage
 
-Uses the `wasmi` wasm-interpreter to run contracts.
+To compile and test the contracts, run
 
-For heavier loads, such as crypto, the host functions are directly invoked. They can be found in the module `host_fns`
+```
+$ ./test.sh default_account
+$ ./test.sh factorial
+```
 
-# Tests
+## Design
 
-To compile and test the contracts, run test.sh
+## Contract definition
+
+## Api usage
+

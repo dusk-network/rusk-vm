@@ -150,7 +150,7 @@ pub fn verify_ed25519_signature(
 pub fn call_contract<'de, R: 'de + Deserialize<'de>>(
     target: &H256,
     amount: u128,
-    call: &'de mut ContractCall<R>,
+    call: &'de ContractCall<R>,
 ) -> R {
     let mut target_buf = [0u8; 32];
     encoding::encode(&target, &mut target_buf).unwrap();
