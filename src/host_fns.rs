@@ -11,6 +11,7 @@ use wasmi::{
 };
 
 use crate::state::{NetworkState, Storage};
+use crate::VMError;
 
 const ABI_PANIC: usize = 0;
 const ABI_DEBUG: usize = 1;
@@ -208,24 +209,40 @@ fn args_to_slice<'a>(
     bytes: &'a [u8],
     args_ofs: usize,
     args: &RuntimeArgs,
-) -> &'a [u8] {
+) -> Result<&'a [u8], Trap> {
     let args = args.as_ref();
-    let ofs: u32 = args[args_ofs].try_into().unwrap();
-    let len: u32 = args[args_ofs + 1].try_into().unwrap();
-    unsafe { std::slice::from_raw_parts(&bytes[ofs as usize], len as usize) }
-}
-
-#[derive(Debug)]
-struct ContractPanic(String);
-
-// for some reason the derive does not work for Display in this case.
-impl std::fmt::Display for ContractPanic {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.fmt(f)
+    let ofs: u32 = args[args_ofs]
+        .try_into()
+        .ok_or(host_trap(VMError::MissingArgument))?;
+    let len: u32 = args[args_ofs + 1]
+        .try_into()
+        .ok_or(host_trap(VMError::MissingArgument))?;
+    unsafe {
+        Ok(std::slice::from_raw_parts(
+            &bytes[ofs as usize],
+            len as usize,
+        ))
     }
 }
 
-impl HostError for ContractPanic {}
+// Convenience function to construct host traps
+fn host_trap(host: VMError) -> Trap {
+    Trap::new(TrapKind::Host(Box::new(host)))
+}
+
+// Convenience trait to extract arguments
+trait ArgsExt {
+    fn get(&self, i: usize) -> Result<usize, Trap>;
+}
+
+impl ArgsExt for RuntimeArgs<'_> {
+    fn get(&self, i: usize) -> Result<usize, Trap> {
+        self.as_ref()[i]
+            .try_into::<i32>()
+            .ok_or(host_trap(VMError::MissingArgument))
+            .map(|i| i as usize)
+    }
+}
 
 impl<'a> Externals for CallContext<'a> {
     fn invoke_index(
@@ -235,28 +252,26 @@ impl<'a> Externals for CallContext<'a> {
     ) -> Result<Option<RuntimeValue>, Trap> {
         match index {
             ABI_PANIC => {
-                let panic_ofs =
-                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
-                let panic_len =
-                    args.as_ref()[1].try_into::<u32>().unwrap() as usize;
+                let panic_ofs = args.get(0)?;
+                let panic_len = args.get(1)?;
 
                 self.top().memory.with_direct_access(|a| {
-                    let panic_msg = String::from_utf8(
-                        a[panic_ofs..panic_ofs + panic_len].to_vec(),
+                    Err(
+                        match String::from_utf8(
+                            a[panic_ofs..panic_ofs + panic_len].to_vec(),
+                        ) {
+                            Ok(panic_msg) => {
+                                host_trap(VMError::ContractPanic(panic_msg))
+                            }
+                            Err(_) => host_trap(VMError::InvalidUtf8),
+                        },
                     )
-                    .unwrap();
-                    Err(Trap::new(TrapKind::Host(Box::new(ContractPanic(
-                        panic_msg,
-                    )))))
                 })
             }
             ABI_SET_STORAGE => {
-                let key_ofs =
-                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
-                let val_ofs =
-                    args.as_ref()[1].try_into::<u32>().unwrap() as usize;
-                let val_len =
-                    args.as_ref()[2].try_into::<u32>().unwrap() as usize;
+                let key_ofs = args.get(0)?;
+                let val_ofs = args.get(1)?;
+                let val_len = args.get(2)?;
 
                 let mut key_buf = [0u8; STORAGE_KEY_SIZE];
                 let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
@@ -276,10 +291,8 @@ impl<'a> Externals for CallContext<'a> {
             // Return value indicates if the key was found or not
             ABI_GET_STORAGE => {
                 // offset to where to write the value in memory
-                let key_buf_ofs =
-                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
-                let val_buf_ofs =
-                    args.as_ref()[1].try_into::<u32>().unwrap() as usize;
+                let key_buf_ofs = args.get(0)?;
+                let val_buf_ofs = args.get(1)?;
 
                 let mut key_buf = [0u8; STORAGE_KEY_SIZE];
 
@@ -301,17 +314,15 @@ impl<'a> Externals for CallContext<'a> {
                     None => Ok(Some(RuntimeValue::I32(0))),
                 }
             }
-            ABI_DEBUG => {
-                self.top().memory.with_direct_access(|a| {
-                    let slice = args_to_slice(a, 0, &args);
-                    let str = std::str::from_utf8(slice).unwrap();
-                    println!("CONTRACT DEBUG: {:?}", str);
-                });
+            ABI_DEBUG => self.top().memory.with_direct_access(|a| {
+                let slice = args_to_slice(a, 0, &args)?;
+                let str = std::str::from_utf8(slice)
+                    .map_err(|_| host_trap(VMError::InvalidUtf8))?;
+                println!("CONTRACT DEBUG: {:?}", str);
                 Ok(None)
-            }
+            }),
             ABI_CALLER => {
-                let args = args.as_ref();
-                let buffer_ofs = args[0].try_into::<u32>().unwrap() as usize;
+                let buffer_ofs = args.get(0)?;
 
                 self.top().memory.with_direct_access_mut(|a| {
                     a[buffer_ofs..buffer_ofs + 32]
@@ -320,8 +331,7 @@ impl<'a> Externals for CallContext<'a> {
                 Ok(None)
             }
             ABI_SELF_HASH => {
-                let args = args.as_ref();
-                let buffer_ofs = args[0].try_into::<u32>().unwrap() as usize;
+                let buffer_ofs = args.get(0)?;
 
                 self.top().memory.with_direct_access_mut(|a| {
                     a[buffer_ofs..buffer_ofs + 32]
@@ -330,8 +340,7 @@ impl<'a> Externals for CallContext<'a> {
                 Ok(None)
             }
             ABI_CALL_DATA => {
-                let call_data_ofs =
-                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
+                let call_data_ofs = args.get(0)?;
 
                 self.top().memory.with_direct_access_mut(|a| {
                     a[call_data_ofs..call_data_ofs + CALL_DATA_SIZE]
@@ -340,23 +349,21 @@ impl<'a> Externals for CallContext<'a> {
                 Ok(None)
             }
             ABI_VERIFY_ED25519_SIGNATURE => {
-                let key_ptr =
-                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
-                let sig_ptr =
-                    args.as_ref()[1].try_into::<u32>().unwrap() as usize;
+                let key_ptr = args.get(0)?;
+                let sig_ptr = args.get(1)?;
 
                 self.top().memory.with_direct_access_mut(|a| {
                     let pub_key = ed25519::PublicKey::from_bytes(
                         &a[key_ptr..key_ptr + 32],
                     )
-                    .unwrap();
+                    .ok_or(host_trap(VMError::InvalidEd25519PublicKey))?;
 
                     let signature = ed25519::Signature::from_bytes(
                         &a[sig_ptr..sig_ptr + 64],
                     )
-                    .unwrap();
+                    .map_err(|_| host_trap(VMError::InvalidEd25519Signature))?;
 
-                    let data_slice = args_to_slice(a, 2, &args);
+                    let data_slice = args_to_slice(a, 2, &args)?;
 
                     let verifier: signatory_dalek::Ed25519Verifier =
                         (&pub_key).into();
@@ -368,27 +375,32 @@ impl<'a> Externals for CallContext<'a> {
                 })
             }
             ABI_CALL_CONTRACT => {
-                let target_ofs =
-                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
-                let amount_ofs =
-                    args.as_ref()[1].try_into::<u32>().unwrap() as usize;
-                let data_ofs =
-                    args.as_ref()[2].try_into::<u32>().unwrap() as usize;
-                let data_len =
-                    args.as_ref()[3].try_into::<u32>().unwrap() as usize;
+                let target_ofs = args.get(0)?;
+                let amount_ofs = args.get(1)?;
+                let data_ofs = args.get(2)?;
+                let data_len = args.get(3)?;
 
                 let mut call_buf = [0u8; CALL_DATA_SIZE];
                 let mut target = H256::zero();
                 let mut amount = u128::default();
 
-                self.memory().with_direct_access(|a| {
-                    target = encoding::decode(&a[target_ofs..target_ofs + 32])
-                        .unwrap();
-                    amount = encoding::decode(&a[amount_ofs..amount_ofs + 16])
-                        .unwrap();
-                    call_buf[0..data_len]
-                        .copy_from_slice(&a[data_ofs..data_ofs + data_len]);
-                });
+                self.memory().with_direct_access::<Result<(), Trap>, _>(
+                    |a| {
+                        target =
+                            encoding::decode(&a[target_ofs..target_ofs + 32])
+                                .map_err(|_| {
+                                host_trap(VMError::SerializationError)
+                            })?;
+                        amount =
+                            encoding::decode(&a[amount_ofs..amount_ofs + 16])
+                                .map_err(|_| {
+                                host_trap(VMError::SerializationError)
+                            })?;
+                        call_buf[0..data_len]
+                            .copy_from_slice(&a[data_ofs..data_ofs + data_len]);
+                        Ok(())
+                    },
+                )?;
                 // assure sufficient funds are available
                 if self.balance() >= amount {
                     *self.balance_mut() -= amount;
@@ -401,8 +413,9 @@ impl<'a> Externals for CallContext<'a> {
                 }
 
                 if data_len > 0 {
-                    let return_buf =
-                        self.call(target, call_buf, CallKind::Call).unwrap();
+                    let return_buf = self
+                        .call(target, call_buf, CallKind::Call)
+                        .map_err(|e| host_trap(VMError::WASMError(e)))?;
                     // write the return data back into memory
                     self.memory().with_direct_access_mut(|a| {
                         a[data_ofs..data_ofs + CALL_DATA_SIZE]
@@ -414,19 +427,19 @@ impl<'a> Externals for CallContext<'a> {
             }
             ABI_BALANCE => {
                 // first argument is a pointer to a 16 byte buffer
-                let args = args.as_ref();
-                let buffer_ofs = args[0].try_into::<u32>().unwrap() as usize;
+                let buffer_ofs = args.get(0)?;
                 let balance = self.balance();
 
                 self.memory_mut().with_direct_access_mut(|a| {
-                    encoding::encode(&balance, &mut a[buffer_ofs..]).unwrap();
-                });
+                    encoding::encode(&balance, &mut a[buffer_ofs..])
+                        .map(|_| ()) // drop the borrow of encoded slice
+                        .map_err(|_| host_trap(VMError::SerializationError))
+                })?;
 
                 Ok(None)
             }
             ABI_RETURN => {
-                let buffer_ofs =
-                    args.as_ref()[0].try_into::<u32>().unwrap() as usize;
+                let buffer_ofs = args.get(0)?;
 
                 let StackFrame {
                     ref mut memory,

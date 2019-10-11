@@ -1,4 +1,7 @@
-#![feature(drain_filter)]
+use std::fmt;
+
+use failure::Fail;
+
 mod contract;
 mod digest;
 mod helpers;
@@ -11,6 +14,42 @@ pub use contract::ContractBuilder;
 pub use interfaces::DefaultAccount;
 pub use state::NetworkState;
 pub use wallet::Wallet;
+
+#[derive(Debug, Fail)]
+pub enum VMError {
+    MissingArgument,
+    ContractPanic(String),
+    InvalidUtf8,
+    InvalidEd25519PublicKey,
+    InvalidEd25519Signature,
+    ContractReturn,
+    SerializationError,
+    WASMError(failure::Error),
+}
+
+impl wasmi::HostError for VMError {}
+
+impl fmt::Display for VMError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            VMError::MissingArgument => write!(f, "Missing Argument")?,
+            VMError::ContractPanic(string) => {
+                write!(f, "Contract panic \"{}\"", string)?
+            }
+            VMError::InvalidUtf8 => write!(f, "Invalid UTF-8")?,
+            VMError::InvalidEd25519PublicKey => {
+                write!(f, "Invalid Ed25519 Public Key")?
+            }
+            VMError::InvalidEd25519Signature => {
+                write!(f, "Invalid Ed25519 Signature")?
+            }
+            VMError::ContractReturn => write!(f, "Contract Return")?,
+            VMError::SerializationError => write!(f, "Serialization Error")?,
+            VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
+        }
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {
