@@ -5,9 +5,9 @@ use failure::{bail, Error};
 use signatory::{ed25519, Signature as _, Verifier as _};
 
 use wasmi::{
-    ExternVal, Externals, FuncInstance, FuncRef, HostError, ImportsBuilder,
-    MemoryRef, ModuleImportResolver, ModuleInstance, RuntimeArgs, RuntimeValue,
-    Signature, Trap, TrapKind, ValueType,
+    ExternVal, Externals, FuncInstance, FuncRef, ImportsBuilder, MemoryRef,
+    ModuleImportResolver, ModuleInstance, RuntimeArgs, RuntimeValue, Signature,
+    Trap, TrapKind, ValueType,
 };
 
 use crate::state::{NetworkState, Storage};
@@ -25,23 +25,11 @@ const ABI_BALANCE: usize = 8;
 const ABI_RETURN: usize = 9;
 const ABI_SELF_HASH: usize = 10;
 
-// Signal that the contract finished execution
-#[derive(Debug)]
-struct TrapContractReturn;
-
-impl core::fmt::Display for TrapContractReturn {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 #[derive(Debug)]
 pub enum CallKind {
     Deploy,
     Call,
 }
-
-impl HostError for TrapContractReturn {}
 
 struct StackFrame {
     context: H256,
@@ -126,9 +114,18 @@ impl<'a> CallContext<'a> {
         if !skip_call {
             match instance.invoke_export(name, &[], self) {
                 Err(wasmi::Error::Trap(trap)) => {
-                    // Only host trap is CallReturn
-                    if trap.kind().is_host() {
-                        ()
+                    if let TrapKind::Host(t) = trap.kind() {
+                        if let Some(vm_error) = (**t).downcast_ref::<VMError>()
+                        {
+                            if let VMError::ContractReturn = vm_error {
+                                // Return is fine, pass it through
+                                ()
+                            } else {
+                                return Err(wasmi::Error::Trap(trap).into());
+                            }
+                        } else {
+                            return Err(wasmi::Error::Trap(trap).into());
+                        }
                     } else {
                         return Err(wasmi::Error::Trap(trap).into());
                     }
@@ -454,7 +451,7 @@ impl<'a> Externals for CallContext<'a> {
                     );
                 });
 
-                Err(Trap::new(TrapKind::Host(Box::new(TrapContractReturn))))
+                Err(host_trap(VMError::ContractReturn))
             }
             _ => panic!("Unimplemented function at {}", index),
         }

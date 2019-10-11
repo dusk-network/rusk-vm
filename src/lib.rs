@@ -162,4 +162,25 @@ mod tests {
             factorial_reference(n)
         );
     }
+
+    #[test]
+    #[should_panic]
+    fn panic_propagation() {
+        use dusk_abi::ContractCall;
+
+        let genesis_builder =
+            ContractBuilder::new(contract_code!("panic")).unwrap();
+
+        let genesis = genesis_builder.build().unwrap();
+
+        // New genesis network with initial value
+        let mut network =
+            NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+
+        let genesis_id = network.genesis_id().clone();
+
+        network
+            .call_contract::<()>(genesis_id, ContractCall::nil())
+            .unwrap();
+    }
 }
