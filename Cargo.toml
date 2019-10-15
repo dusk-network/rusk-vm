@@ -5,15 +5,14 @@ authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [dependencies]
-wasmi = { path = "../wasmi" }
+wasmi = "0.5"
 parity-wasm = "0.39"
-wabt = "*"
-signatory = "*"
-signatory-dalek = "*"
+signatory = "0.12"
+signatory-dalek = "0.12"
 blake2-rfc = "0.2"
-failure = "*"
+failure = "0.1"
 dusk-abi = { path = "./dusk-abi" }
-serde = "*"
+serde = "1.0"
 
 default_account = { path = "contracts/default_account" }
 
