@@ -48,7 +48,7 @@ impl HashState {
         let mut digest = H256::zero();
         digest
             .as_mut()
-            .write(self.0.finalize().as_bytes())
+            .write_all(self.0.finalize().as_bytes())
             .expect("in-memory write");
         digest
     }

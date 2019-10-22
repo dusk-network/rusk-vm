@@ -58,6 +58,10 @@ impl<R> ContractCall<R> {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn data(&self) -> &[u8; CALL_DATA_SIZE] {
         &self.data
     }

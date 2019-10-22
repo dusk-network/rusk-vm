@@ -80,10 +80,12 @@ impl NetworkState {
     pub fn deploy_contract(&mut self, contract: Contract) -> Result<(), Error> {
         let id = contract.digest();
 
-        let mut state =
-            self.contracts.entry(id).or_insert(ContractState::default());
+        let mut state = self
+            .contracts
+            .entry(id)
+            .or_insert_with(ContractState::default);
 
-        if state.contract.bytecode().len() == 0 {
+        if state.contract.bytecode().is_empty() {
             state.contract = contract
         }
         let deploy_buffer = [0u8; CALL_DATA_SIZE];
@@ -114,7 +116,7 @@ impl NetworkState {
     ) -> &mut ContractState {
         self.contracts
             .entry(*contract_id)
-            .or_insert(ContractState::default())
+            .or_insert_with(ContractState::default)
     }
 
     pub fn call_contract<R: for<'de> Deserialize<'de>>(

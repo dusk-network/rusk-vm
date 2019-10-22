@@ -75,7 +75,7 @@ mod tests {
         let mut network =
             NetworkState::genesis(genesis, 1_000_000_000).unwrap();
 
-        let genesis_id = network.genesis_id().clone();
+        let genesis_id = *network.genesis_id();
 
         // check balance of genesis account
         assert_eq!(
@@ -154,7 +154,7 @@ mod tests {
         let mut network =
             NetworkState::genesis(genesis, 1_000_000_000).unwrap();
 
-        let genesis_id = network.genesis_id().clone();
+        let genesis_id = *network.genesis_id();
 
         let n = 6;
         assert_eq!(
@@ -177,7 +177,7 @@ mod tests {
         let mut network =
             NetworkState::genesis(genesis, 1_000_000_000).unwrap();
 
-        let genesis_id = network.genesis_id().clone();
+        let genesis_id = *network.genesis_id();
 
         network
             .call_contract::<()>(genesis_id, ContractCall::nil())

@@ -7,10 +7,7 @@ pub struct BufWriter<'a> {
 
 impl<'a> BufWriter<'a> {
     pub fn new(buf: &'a mut [u8]) -> Self {
-        BufWriter {
-            buf: buf,
-            offset: 0,
-        }
+        BufWriter { buf, offset: 0 }
     }
 
     pub fn ofs(&self) -> usize {
