@@ -94,18 +94,16 @@ impl<'a> CallContext<'a> {
         match instance.export_by_name("memory") {
             Some(ExternVal::Memory(memref)) => self
                 .stack
-                .push(StackFrame::new(target, call_data, kind, memref.clone())),
+                .push(StackFrame::new(target, call_data, kind, memref)),
             _ => bail!("no memory found"),
         }
 
         let mut skip_call = false;
         let name = match self.top().call_kind {
             CallKind::Deploy => {
-                match instance.export_by_name("deploy") {
-                    None => skip_call = true,
-                    _ => (),
+                if instance.export_by_name("deploy").is_none() {
+                    skip_call = true
                 };
-
                 "deploy"
             }
             CallKind::Call => "call",
@@ -119,7 +117,7 @@ impl<'a> CallContext<'a> {
                         {
                             if let VMError::ContractReturn = vm_error {
                                 // Return is fine, pass it through
-                                ()
+                                // unit expression
                             } else {
                                 return Err(wasmi::Error::Trap(trap).into());
                             }
@@ -177,7 +175,7 @@ impl<'a> CallContext<'a> {
             .storage()
     }
     fn storage_mut(&mut self) -> &mut Storage {
-        let caller = self.caller().clone();
+        let caller = *self.caller();
         self.state
             .get_contract_state_mut(&caller)
             .expect("Invalid caller")
@@ -192,7 +190,7 @@ impl<'a> CallContext<'a> {
     }
 
     fn balance_mut(&mut self) -> &mut u128 {
-        let caller = self.caller().clone();
+        let caller = *self.caller();
         self.state
             .get_contract_state_mut(&caller)
             .expect("Invalid caller")
@@ -210,10 +208,10 @@ fn args_to_slice<'a>(
     let args = args.as_ref();
     let ofs: u32 = args[args_ofs]
         .try_into()
-        .ok_or(host_trap(VMError::MissingArgument))?;
+        .ok_or_else(|| host_trap(VMError::MissingArgument))?;
     let len: u32 = args[args_ofs + 1]
         .try_into()
-        .ok_or(host_trap(VMError::MissingArgument))?;
+        .ok_or_else(|| host_trap(VMError::MissingArgument))?;
     unsafe {
         Ok(std::slice::from_raw_parts(
             &bytes[ofs as usize],
@@ -236,7 +234,7 @@ impl ArgsExt for RuntimeArgs<'_> {
     fn get(&self, i: usize) -> Result<usize, Trap> {
         self.as_ref()[i]
             .try_into::<i32>()
-            .ok_or(host_trap(VMError::MissingArgument))
+            .ok_or_else(|| host_trap(VMError::MissingArgument))
             .map(|i| i as usize)
     }
 }
@@ -353,7 +351,9 @@ impl<'a> Externals for CallContext<'a> {
                     let pub_key = ed25519::PublicKey::from_bytes(
                         &a[key_ptr..key_ptr + 32],
                     )
-                    .ok_or(host_trap(VMError::InvalidEd25519PublicKey))?;
+                    .ok_or_else(|| {
+                        host_trap(VMError::InvalidEd25519PublicKey)
+                    })?;
 
                     let signature = ed25519::Signature::from_bytes(
                         &a[sig_ptr..sig_ptr + 64],

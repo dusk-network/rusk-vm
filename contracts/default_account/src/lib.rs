@@ -47,8 +47,8 @@ pub fn call() {
                 &signature,
                 encoded,
             ) {
-                let mut call = ContractCall::<()>::new_raw(call_data);
-                dusk_abi::call_contract(&to, amount, &mut call);
+                let call = ContractCall::<()>::new_raw(call_data);
+                dusk_abi::call_contract(&to, amount, &call);
                 dusk_abi::set_storage(&NONCE, current_nonce + 1);
             } else {
                 panic!("invalid signature!");
