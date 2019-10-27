@@ -10,6 +10,7 @@ use wasmi::{
     Trap, TrapKind, ValueType,
 };
 
+use crate::gas::GasMeter;
 use crate::state::{NetworkState, Storage};
 use crate::VMError;
 
@@ -24,6 +25,7 @@ const ABI_CALL_CONTRACT: usize = 7;
 const ABI_BALANCE: usize = 8;
 const ABI_RETURN: usize = 9;
 const ABI_SELF_HASH: usize = 10;
+const ABI_GAS: usize = 11;
 
 #[derive(Debug)]
 pub enum CallKind {
@@ -61,13 +63,25 @@ impl StackFrame {
 pub(crate) struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
+    gas_meter: Option<&'a mut GasMeter>,
 }
 
 impl<'a> CallContext<'a> {
+    pub fn with_limit(
+        state: &'a mut NetworkState,
+        gas_meter: &'a mut GasMeter,
+    ) -> Self {
+        CallContext {
+            stack: vec![],
+            state,
+            gas_meter: Some(gas_meter),
+        }
+    }
     pub fn new(state: &'a mut NetworkState) -> Self {
         CallContext {
             stack: vec![],
             state,
+            gas_meter: None,
         }
     }
 
@@ -453,6 +467,15 @@ impl<'a> Externals for CallContext<'a> {
 
                 Err(host_trap(VMError::ContractReturn))
             }
+            ABI_GAS => {
+                if let Some(ref mut meter) = self.gas_meter {
+                    let gas: u32 = args.nth_checked(0)?;
+                    if meter.charge(gas as u64).is_out_of_gas() {
+                        return Err(host_trap(VMError::OutOfGas));
+                    }
+                }
+                Ok(None)
+            }
             _ => panic!("Unimplemented function at {}", index),
         }
     }
@@ -530,6 +553,10 @@ impl ModuleImportResolver for HostImportResolver {
             "ret" => Ok(FuncInstance::alloc_host(
                 Signature::new(&[ValueType::I32][..], None),
                 ABI_RETURN,
+            )),
+            "gas" => Ok(FuncInstance::alloc_host(
+                Signature::new(&[ValueType::I32][..], None),
+                ABI_GAS,
             )),
             name => unimplemented!("{:?}", name),
         }

@@ -67,6 +67,9 @@ mod external {
             buffer_len: i32,
         ) -> bool;
         pub fn ret(data: &[u8; CALL_DATA_SIZE]) -> !;
+
+        pub fn gas(value: i32);
+
     }
 }
 
@@ -176,6 +179,10 @@ pub fn ret<T: Serialize>(ret: T) -> ! {
     let mut ret_buffer = [0u8; CALL_DATA_SIZE];
     encoding::encode(&ret, &mut ret_buffer).unwrap();
     unsafe { external::ret(&ret_buffer) }
+}
+
+pub fn gas(value: i32) {
+    unsafe { external::gas(value) }
 }
 
 #[doc(hidden)]
