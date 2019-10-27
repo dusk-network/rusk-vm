@@ -24,6 +24,7 @@ const ABI_CALL_CONTRACT: usize = 7;
 const ABI_BALANCE: usize = 8;
 const ABI_RETURN: usize = 9;
 const ABI_SELF_HASH: usize = 10;
+const ABI_GAS: usize = 11;
 
 #[derive(Debug)]
 pub enum CallKind {
@@ -453,6 +454,11 @@ impl<'a> Externals for CallContext<'a> {
 
                 Err(host_trap(VMError::ContractReturn))
             }
+            ABI_GAS => {
+                let gas: u32 = args.nth_checked(0)?;
+                println!("CONTRACT GAS: {}", gas);
+                Ok(None)
+            }
             _ => panic!("Unimplemented function at {}", index),
         }
     }
@@ -530,6 +536,10 @@ impl ModuleImportResolver for HostImportResolver {
             "ret" => Ok(FuncInstance::alloc_host(
                 Signature::new(&[ValueType::I32][..], None),
                 ABI_RETURN,
+            )),
+            "gas" => Ok(FuncInstance::alloc_host(
+                Signature::new(&[ValueType::I32][..], None),
+                ABI_GAS,
             )),
             name => unimplemented!("{:?}", name),
         }

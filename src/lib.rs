@@ -134,6 +134,28 @@ mod tests {
     }
 
     #[test]
+    fn add() {
+        use add::add;
+
+        let genesis_builder =
+            ContractBuilder::new(contract_code!("add")).unwrap();
+
+        let genesis = genesis_builder.build().unwrap();
+
+        // New genesis network with initial value
+        let mut network =
+            NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+
+        let genesis_id = *network.genesis_id();
+
+        let (a, b) = (12, 40);
+        assert_eq!(
+            network.call_contract(genesis_id, add(a, b)).unwrap(),
+            a + b
+        );
+    }
+
+    #[test]
     fn factorial() {
         use factorial::factorial;
 
