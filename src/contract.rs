@@ -1,3 +1,4 @@
+extern crate pwasm_utils as utils;
 use failure::{bail, Error};
 use parity_wasm::elements::{
     InitExpr, Instruction, Internal, Module, Serialize,
@@ -42,7 +43,10 @@ pub struct ContractBuilder(Module);
 
 impl ContractBuilder {
     pub fn new(bytecode: &[u8]) -> Result<Self, Error> {
-        Ok(ContractBuilder(parity_wasm::deserialize_buffer(bytecode)?))
+        let module: Module = parity_wasm::deserialize_buffer(bytecode).unwrap();
+        let result =
+            utils::inject_gas_counter(module, &Default::default()).unwrap();
+        Ok(ContractBuilder(result))
     }
 
     pub fn set_parameter<V: Copy + std::fmt::Debug + Sized>(
