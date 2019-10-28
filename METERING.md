@@ -1,6 +1,6 @@
-#Wasm and Metering
+# Wasm and Metering
 
-##Parity Substrate 
+## Parity Substrate 
 
 [Parity Substrate](https://www.parity.io/substrate/) is a framework for building blockchains, created by Gavin Wood ([Ethereum](https://ethereum.github.io/yellowpaper/paper.pdf).) 
 
@@ -18,4 +18,9 @@ Upon passing these verifications, the module is instrumented as following:
 * add [deterministic stack limiting](https://wiki.parity.io/WebAssembly-StackHeight) instrumentation. 
 
 The cost of various wasm/vm parameters is [configurable](https://github.com/paritytech/substrate/blob/master/srml/contracts/src/lib.rs#L893-L954). Both metering utilities (gas/stack-height) are available in the [pwasm_util](https://crates.io/crates/pwasm-utils) Rust crate.
+
+## Dusk.network
+
+* can any of the parity code be of use for the Dusk.network VM?
+* what are our requirements in term of performance?
 
