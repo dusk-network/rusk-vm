@@ -11,6 +11,5 @@ pub fn call() {
     let mut buffer = [0u8; CALL_DATA_SIZE];
     let (a, b): (u32, u32) = dusk_abi::call_data(&mut buffer);
     let _self_hash = dusk_abi::self_hash();
-    // dusk_abi::gas(123);
     dusk_abi::ret(a + b);
 }

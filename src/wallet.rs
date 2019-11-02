@@ -96,6 +96,7 @@ impl ManagedAccount {
     // }
 }
 
+#[derive(Default)]
 pub struct Wallet(HashMap<String, ManagedAccount>);
 
 impl Wallet {

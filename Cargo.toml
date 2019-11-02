@@ -5,6 +5,7 @@ authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [dependencies]
+num-traits = "0.2"
 wasmi = "0.5"
 parity-wasm = "0.40"
 pwasm-utils = "0.11"

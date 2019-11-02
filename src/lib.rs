@@ -4,6 +4,7 @@ use failure::Fail;
 
 mod contract;
 mod digest;
+mod gas;
 mod helpers;
 mod host_fns;
 mod interfaces;
@@ -24,6 +25,7 @@ pub enum VMError {
     InvalidEd25519Signature,
     ContractReturn,
     SerializationError,
+    OutOfGas,
     WASMError(failure::Error),
 }
 
@@ -45,6 +47,7 @@ impl fmt::Display for VMError {
             }
             VMError::ContractReturn => write!(f, "Contract Return")?,
             VMError::SerializationError => write!(f, "Serialization Error")?,
+            VMError::OutOfGas => write!(f, "Out of Gas Error")?,
             VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
         }
         Ok(())
@@ -148,10 +151,24 @@ mod tests {
 
         let genesis_id = *network.genesis_id();
 
+        let mut gas_meter = gas::GasMeter::with_limit(1_000);
+        println!(
+            "Before call: gas_meter={:?} (spent={})",
+            gas_meter,
+            gas_meter.spent()
+        );
+
         let (a, b) = (12, 40);
         assert_eq!(
-            network.call_contract(genesis_id, add(a, b)).unwrap(),
+            network
+                .call_contract_with_limit(genesis_id, add(a, b), &mut gas_meter)
+                .unwrap(),
             a + b
+        );
+        println!(
+            "After call: gas_meter={:?} (spent={})",
+            gas_meter,
+            gas_meter.spent()
         );
     }
 
@@ -182,6 +199,54 @@ mod tests {
         assert_eq!(
             network.call_contract(genesis_id, factorial(n)).unwrap(),
             factorial_reference(n)
+        );
+    }
+
+    #[test]
+    fn factorial_with_limit() {
+        use factorial::factorial;
+
+        fn factorial_reference(n: u64) -> u64 {
+            if n <= 1 {
+                1
+            } else {
+                n * factorial_reference(n - 1)
+            }
+        }
+
+        let genesis_builder =
+            ContractBuilder::new(contract_code!("factorial")).unwrap();
+
+        let genesis = genesis_builder.build().unwrap();
+
+        // New genesis network with initial value
+        let mut network =
+            NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+
+        let genesis_id = *network.genesis_id();
+        let mut gas_meter = gas::GasMeter::with_limit(1_000_000_000);
+        println!(
+            "Before call: gas_meter={:?} (spent={})",
+            gas_meter,
+            gas_meter.spent()
+        );
+
+        let n = 6;
+        assert_eq!(
+            network
+                .call_contract_with_limit(
+                    genesis_id,
+                    factorial(n),
+                    &mut gas_meter
+                )
+                .unwrap(),
+            factorial_reference(n)
+        );
+
+        println!(
+            "After call: gas_meter={:?} (spent={})",
+            gas_meter,
+            gas_meter.spent()
         );
     }
 
