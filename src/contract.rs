@@ -2,7 +2,10 @@ use crate::digest::{HashState, MakeDigest};
 use crate::traits::SaturatedConversion;
 use crate::Schedule;
 use failure::{bail, err_msg, Error};
-use parity_wasm::elements::{self, InitExpr, Instruction, Internal, Serialize};
+use parity_wasm::elements::{
+    self, InitExpr, Instruction, Internal, MemoryType, Serialize, Type,
+    ValueType,
+};
 use pwasm_utils;
 use pwasm_utils::rules;
 
@@ -98,6 +101,95 @@ impl<'a> ContractBuilder<'a> {
             module: contract_module,
             schedule: self.schedule,
         })
+    }
+
+    /// Ensures that module doesn't declare internal memories.
+    ///
+    /// In this runtime we only allow wasm module to import memory from the environment.
+    /// Memory section contains declarations of internal linear memories, so if we find one
+    /// we reject such a module.
+    fn ensure_no_internal_memory(&self) -> Result<(), failure::Error> {
+        if self
+            .module
+            .memory_section()
+            .map_or(false, |ms| !ms.entries().is_empty())
+        {
+            return Err(err_msg("module declares internal memory"));
+        }
+        Ok(())
+    }
+
+    /// Ensures that tables declared in the module are not too big.
+    fn ensure_table_size_limit(
+        &self,
+        limit: u32,
+    ) -> Result<(), failure::Error> {
+        if let Some(table_section) = self.module.table_section() {
+            // In Wasm MVP spec, there may be at most one table declared. Double check this
+            // explicitly just in case the Wasm version changes.
+            if table_section.entries().len() > 1 {
+                return Err(err_msg("multiple tables declared"));
+            }
+            if let Some(table_type) = table_section.entries().first() {
+                // Check the table's initial size as there is no instruction or environment function
+                // capable of growing the table.
+                if table_type.limits().initial() > limit {
+                    return Err(err_msg("table exceeds maximum size allowed"));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Ensures that no floating point types are in use.
+    fn ensure_no_floating_types(&self) -> Result<(), failure::Error> {
+        if let Some(global_section) = self.module.global_section() {
+            for global in global_section.entries() {
+                match global.global_type().content_type() {
+                    ValueType::F32 | ValueType::F64 => return Err(err_msg(
+                        "use of floating point type in globals is forbidden",
+                    )),
+                    _ => {}
+                }
+            }
+        }
+
+        if let Some(code_section) = self.module.code_section() {
+            for func_body in code_section.bodies() {
+                for local in func_body.locals() {
+                    match local.value_type() {
+                        ValueType::F32 | ValueType::F64 => return Err(
+                            err_msg("use of floating point type in locals is forbidden"),
+                        ),
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        if let Some(type_section) = self.module.type_section() {
+            for wasm_type in type_section.types() {
+                match wasm_type {
+                    Type::Function(func_type) => {
+                        let return_type = func_type.return_type();
+                        for value_type in
+                            func_type.params().iter().chain(return_type.iter())
+                        {
+                            match value_type {
+								ValueType::F32 | ValueType::F64 => {
+									return Err(
+										err_msg("use of floating point type in function types is forbidden"),
+									)
+								}
+								_ => {}
+							}
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn set_parameter<V: Copy + std::fmt::Debug + Sized>(
