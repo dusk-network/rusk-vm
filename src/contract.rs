@@ -1,12 +1,12 @@
-extern crate pwasm_utils as utils;
-use failure::{bail, Error};
-use parity_wasm::elements::{
-    InitExpr, Instruction, Internal, Module, Serialize,
-};
-use std::{mem, ptr};
-
 use crate::digest::{HashState, MakeDigest};
+use crate::traits::SaturatedConversion;
+use crate::Schedule;
+use failure::{bail, err_msg, Error};
+use parity_wasm::elements::{self, InitExpr, Instruction, Internal, Serialize};
+use pwasm_utils;
+use pwasm_utils::rules;
 
+use std::{mem, ptr};
 fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     let code = init_expr.code();
 
@@ -39,14 +39,65 @@ impl MakeDigest for Contract {
     }
 }
 
-pub struct ContractBuilder(Module);
+pub struct ContractBuilder<'a> {
+    module: elements::Module,
+    schedule: &'a Schedule,
+}
+impl<'a> ContractBuilder<'a> {
+    pub fn new(
+        original_code: &[u8],
+        schedule: &'a Schedule,
+    ) -> Result<Self, Error> {
+        use wasmi_validation::{validate_module, PlainValidator};
 
-impl ContractBuilder {
-    pub fn new(bytecode: &[u8]) -> Result<Self, Error> {
-        let module: Module = parity_wasm::deserialize_buffer(bytecode).unwrap();
-        let result =
-            utils::inject_gas_counter(module, &Default::default()).unwrap();
-        Ok(ContractBuilder(result))
+        let module = elements::deserialize_buffer(original_code)
+            .map_err(|_| err_msg("Can't decode wasm code"))?;
+
+        // Make sure that the module is valid.
+        validate_module::<PlainValidator>(&module)
+            .map_err(|_| err_msg("Module is not valid"))?;
+
+        let mut contract_module = ContractBuilder { module, schedule };
+
+        contract_module = contract_module
+            .inject_gas_metering()?
+            .inject_stack_height_metering()?;
+
+        // Return a `ContractModule` instance with
+        // __valid__ module.
+        Ok(ContractBuilder {
+            module: contract_module.module,
+            schedule,
+        })
+    }
+
+    fn inject_gas_metering(self) -> Result<Self, failure::Error> {
+        let gas_rules = rules::Set::new(
+            self.schedule.regular_op_cost.clone().saturated_into(),
+            Default::default(),
+        )
+        .with_grow_cost(self.schedule.grow_mem_cost.clone().saturated_into())
+        .with_forbidden_floats();
+
+        let contract_module =
+            pwasm_utils::inject_gas_counter(self.module, &gas_rules)
+                .map_err(|_| err_msg("gas instrumentation failed"))?;
+        Ok(ContractBuilder {
+            module: contract_module,
+            schedule: self.schedule,
+        })
+    }
+
+    fn inject_stack_height_metering(self) -> Result<Self, failure::Error> {
+        let contract_module = pwasm_utils::stack_height::inject_limiter(
+            self.module,
+            self.schedule.max_stack_height,
+        )
+        .map_err(|_| err_msg("stack height instrumentation failed"))?;
+        Ok(ContractBuilder {
+            module: contract_module,
+            schedule: self.schedule,
+        })
     }
 
     pub fn set_parameter<V: Copy + std::fmt::Debug + Sized>(
@@ -56,7 +107,7 @@ impl ContractBuilder {
     ) -> Result<(), Error> {
         // Find the global index of the Parameter
         let mut global_index = None;
-        if let Some(export) = self.0.export_section() {
+        if let Some(export) = self.module.export_section() {
             for e in export.entries() {
                 if e.field() == name {
                     if let Internal::Global(index) = e.internal() {
@@ -69,7 +120,7 @@ impl ContractBuilder {
         // Find the offset of the Parameter
         let mut offset = None;
         if let Some(index) = global_index {
-            if let Some(global_section) = self.0.global_section() {
+            if let Some(global_section) = self.module.global_section() {
                 let init_expr =
                     global_section.entries()[*index as usize].init_expr();
 
@@ -83,7 +134,7 @@ impl ContractBuilder {
 
         // Update the pointed-to value in the data section
         if let Some(mut data_offset) = offset {
-            if let Some(data) = self.0.data_section_mut() {
+            if let Some(data) = self.module.data_section_mut() {
                 let entries = data.entries_mut();
 
                 // Find the correct data section by offset.
@@ -148,7 +199,7 @@ impl ContractBuilder {
 
     pub fn build(self) -> Result<Contract, Error> {
         let mut vec = vec![];
-        self.0.serialize(&mut vec)?;
+        self.module.serialize(&mut vec)?;
         Ok(Contract(vec))
     }
 }
