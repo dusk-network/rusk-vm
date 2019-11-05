@@ -12,7 +12,7 @@ mod state;
 mod traits;
 mod wallet;
 
-pub use contract::ContractBuilder;
+pub use contract::ContractModule;
 pub use gas::Gas;
 pub use interfaces::DefaultAccount;
 pub use state::NetworkState;
@@ -154,7 +154,7 @@ mod tests {
 		let mut wallet = Wallet::new();
 		let schedule = Schedule::default();
 		let mut genesis_builder =
-			ContractBuilder::new(contract_code!("default_account"), &schedule)
+			ContractModule::new(contract_code!("default_account"), &schedule)
 				.unwrap();
 
 		let pub_key = wallet.default_account().public_key();
@@ -183,7 +183,7 @@ mod tests {
 		wallet.new_account("alice").unwrap();
 		let schedule = Schedule::default();
 		let mut account_builder =
-			ContractBuilder::new(contract_code!("default_account"), &schedule)
+			ContractModule::new(contract_code!("default_account"), &schedule)
 				.unwrap();
 
 		let alice_pub_key = wallet.get_account("alice").unwrap().public_key();
@@ -234,7 +234,7 @@ mod tests {
 		let schedule = Schedule::default();
 
 		let genesis_builder =
-			ContractBuilder::new(contract_code!("add"), &schedule).unwrap();
+			ContractModule::new(contract_code!("add"), &schedule).unwrap();
 
 		let genesis = genesis_builder.build().unwrap();
 
@@ -278,7 +278,7 @@ mod tests {
 		}
 		let schedule = Schedule::default();
 		let genesis_builder =
-			ContractBuilder::new(contract_code!("factorial"), &schedule)
+			ContractModule::new(contract_code!("factorial"), &schedule)
 				.unwrap();
 
 		let genesis = genesis_builder.build().unwrap();
@@ -309,7 +309,7 @@ mod tests {
 		}
 		let schedule = Schedule::default();
 		let genesis_builder =
-			ContractBuilder::new(contract_code!("factorial"), &schedule)
+			ContractModule::new(contract_code!("factorial"), &schedule)
 				.unwrap();
 
 		let genesis = genesis_builder.build().unwrap();
@@ -352,7 +352,7 @@ mod tests {
 
 		let schedule = Schedule::default();
 		let genesis_builder =
-			ContractBuilder::new(contract_code!("panic"), &schedule).unwrap();
+			ContractModule::new(contract_code!("panic"), &schedule).unwrap();
 
 		let genesis = genesis_builder.build().unwrap();
 

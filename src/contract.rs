@@ -42,11 +42,11 @@ impl MakeDigest for Contract {
     }
 }
 
-pub struct ContractBuilder<'a> {
+pub struct ContractModule<'a> {
     module: elements::Module,
     schedule: &'a Schedule,
 }
-impl<'a> ContractBuilder<'a> {
+impl<'a> ContractModule<'a> {
     pub fn new(
         original_code: &[u8],
         schedule: &'a Schedule,
@@ -60,7 +60,7 @@ impl<'a> ContractBuilder<'a> {
         validate_module::<PlainValidator>(&module)
             .map_err(|_| err_msg("Module is not valid"))?;
 
-        let mut contract_module = ContractBuilder { module, schedule };
+        let mut contract_module = ContractModule { module, schedule };
 
         contract_module = contract_module
             .inject_gas_metering()?
@@ -68,7 +68,7 @@ impl<'a> ContractBuilder<'a> {
 
         // Return a `ContractModule` instance with
         // __valid__ module.
-        Ok(ContractBuilder {
+        Ok(ContractModule {
             module: contract_module.module,
             schedule,
         })
@@ -85,7 +85,7 @@ impl<'a> ContractBuilder<'a> {
         let contract_module =
             pwasm_utils::inject_gas_counter(self.module, &gas_rules)
                 .map_err(|_| err_msg("gas instrumentation failed"))?;
-        Ok(ContractBuilder {
+        Ok(ContractModule {
             module: contract_module,
             schedule: self.schedule,
         })
@@ -97,7 +97,7 @@ impl<'a> ContractBuilder<'a> {
             self.schedule.max_stack_height,
         )
         .map_err(|_| err_msg("stack height instrumentation failed"))?;
-        Ok(ContractBuilder {
+        Ok(ContractModule {
             module: contract_module,
             schedule: self.schedule,
         })
