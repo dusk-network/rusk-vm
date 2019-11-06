@@ -22,10 +22,7 @@ pub use num_traits::{
     CheckedSub, One, Zero,
 };
 
-use rstd::{
-    self,
-    convert::{TryFrom, TryInto},
-};
+use std::convert::{TryFrom, TryInto};
 
 /// Just like `From` except that if the source value is too big to fit into the destination type
 /// then it'll saturate the destination.

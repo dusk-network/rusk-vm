@@ -10,7 +10,6 @@ wasmi = "0.6.0"
 wasmi-validation = "0.3"
 parity-wasm = "0.41"
 codec = { package = "parity-scale-codec", version = "1.0.0", default-features = false, features = ["derive"] }
-rstd = { package = "sr-std", path = "src/sr-std" }
 pwasm-utils = "0.12.0"
 integer-sqrt = "0.1.2"
 signatory = "0.12"
