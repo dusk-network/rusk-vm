@@ -9,7 +9,6 @@ mod helpers;
 mod host_fns;
 mod interfaces;
 mod state;
-mod traits;
 mod wallet;
 
 pub use contract::ContractModule;

@@ -1,5 +1,5 @@
 use crate::digest::{HashState, MakeDigest};
-use crate::traits::SaturatedConversion;
+
 use crate::Schedule;
 use failure::{bail, err_msg, Error};
 use parity_wasm::elements::{
@@ -76,10 +76,10 @@ impl<'a> ContractModule<'a> {
 
     fn inject_gas_metering(self) -> Result<Self, failure::Error> {
         let gas_rules = rules::Set::new(
-            self.schedule.regular_op_cost.clone().saturated_into(),
+            self.schedule.regular_op_cost as u32,
             Default::default(),
         )
-        .with_grow_cost(self.schedule.grow_mem_cost.clone().saturated_into())
+        .with_grow_cost(self.schedule.grow_mem_cost as u32)
         .with_forbidden_floats();
 
         let contract_module =
