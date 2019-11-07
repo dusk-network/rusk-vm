@@ -4,17 +4,18 @@ use failure::Fail;
 
 mod contract;
 mod digest;
+mod gas;
 mod helpers;
 mod host_fns;
 mod interfaces;
 mod state;
 mod wallet;
 
-pub use contract::ContractBuilder;
+pub use contract::ContractModule;
+pub use gas::Gas;
 pub use interfaces::DefaultAccount;
 pub use state::NetworkState;
 pub use wallet::Wallet;
-
 #[derive(Debug, Fail)]
 pub enum VMError {
     MissingArgument,
@@ -24,6 +25,7 @@ pub enum VMError {
     InvalidEd25519Signature,
     ContractReturn,
     SerializationError,
+    OutOfGas,
     WASMError(failure::Error),
 }
 
@@ -45,9 +47,98 @@ impl fmt::Display for VMError {
             }
             VMError::ContractReturn => write!(f, "Contract Return")?,
             VMError::SerializationError => write!(f, "Serialization Error")?,
+            VMError::OutOfGas => write!(f, "Out of Gas Error")?,
             VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
         }
         Ok(())
+    }
+}
+
+/// Definition of the cost schedule and other parameterizations for wasm vm.
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, PartialEq, Eq)]
+pub struct Schedule {
+    /// Version of the schedule.
+    pub version: u32,
+
+    /// Cost of putting a byte of code into storage.
+    pub put_code_per_byte_cost: Gas,
+
+    /// Gas cost of a growing memory by single page.
+    pub grow_mem_cost: Gas,
+
+    /// Gas cost of a regular operation.
+    pub regular_op_cost: Gas,
+
+    /// Gas cost per one byte returned.
+    pub return_data_per_byte_cost: Gas,
+
+    /// Gas cost to deposit an event; the per-byte portion.
+    pub event_data_per_byte_cost: Gas,
+
+    /// Gas cost to deposit an event; the cost per topic.
+    pub event_per_topic_cost: Gas,
+
+    /// Gas cost to deposit an event; the base.
+    pub event_base_cost: Gas,
+
+    /// Base gas cost to call into a contract.
+    pub call_base_cost: Gas,
+
+    /// Base gas cost to instantiate a contract.
+    pub instantiate_base_cost: Gas,
+
+    /// Gas cost per one byte read from the sandbox memory.
+    pub sandbox_data_read_cost: Gas,
+
+    /// Gas cost per one byte written to the sandbox memory.
+    pub sandbox_data_write_cost: Gas,
+
+    /// The maximum number of topics supported by an event.
+    pub max_event_topics: u32,
+
+    /// Maximum allowed stack height.
+    ///
+    /// See https://wiki.parity.io/WebAssembly-StackHeight to find out
+    /// how the stack frame cost is calculated.
+    pub max_stack_height: u32,
+
+    /// Maximum number of memory pages allowed for a contract.
+    pub max_memory_pages: u32,
+
+    /// Maximum allowed size of a declared table.
+    pub max_table_size: u32,
+
+    /// Whether the `ext_println` function is allowed to be used contracts.
+    /// MUST only be enabled for `dev` chains, NOT for production chains
+    pub enable_println: bool,
+
+    /// The maximum length of a subject used for PRNG generation.
+    pub max_subject_len: u32,
+}
+
+impl Default for Schedule {
+    fn default() -> Schedule {
+        Schedule {
+            version: 0,
+            put_code_per_byte_cost: 1,
+            grow_mem_cost: 1,
+            regular_op_cost: 1,
+            return_data_per_byte_cost: 1,
+            event_data_per_byte_cost: 1,
+            event_per_topic_cost: 1,
+            event_base_cost: 1,
+            call_base_cost: 135,
+            instantiate_base_cost: 175,
+            sandbox_data_read_cost: 1,
+            sandbox_data_write_cost: 1,
+            max_event_topics: 4,
+            max_stack_height: 64 * 1024,
+            max_memory_pages: 16,
+            max_table_size: 16 * 1024,
+            enable_println: false,
+            max_subject_len: 32,
+        }
     }
 }
 
@@ -60,9 +151,10 @@ mod tests {
     #[test]
     fn default_account() {
         let mut wallet = Wallet::new();
-
+        let schedule = Schedule::default();
         let mut genesis_builder =
-            ContractBuilder::new(contract_code!("default_account")).unwrap();
+            ContractModule::new(contract_code!("default_account"), &schedule)
+                .unwrap();
 
         let pub_key = wallet.default_account().public_key();
         genesis_builder
@@ -88,9 +180,10 @@ mod tests {
         // setup a secondary account
 
         wallet.new_account("alice").unwrap();
-
+        let schedule = Schedule::default();
         let mut account_builder =
-            ContractBuilder::new(contract_code!("default_account")).unwrap();
+            ContractModule::new(contract_code!("default_account"), &schedule)
+                .unwrap();
 
         let alice_pub_key = wallet.get_account("alice").unwrap().public_key();
         account_builder
@@ -134,6 +227,44 @@ mod tests {
     }
 
     #[test]
+    fn add() {
+        use add::add;
+
+        let schedule = Schedule::default();
+
+        let genesis_builder =
+            ContractModule::new(contract_code!("add"), &schedule).unwrap();
+
+        let genesis = genesis_builder.build().unwrap();
+
+        // New genesis network with initial value
+        let mut network =
+            NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+
+        let genesis_id = *network.genesis_id();
+
+        let mut gas_meter = gas::GasMeter::with_limit(1_000);
+        println!(
+            "Before call: gas_meter={:?} (spent={})",
+            gas_meter,
+            gas_meter.spent()
+        );
+
+        let (a, b) = (12, 40);
+        assert_eq!(
+            network
+                .call_contract_with_limit(genesis_id, add(a, b), &mut gas_meter)
+                .unwrap(),
+            a + b
+        );
+        println!(
+            "After call: gas_meter={:?} (spent={})",
+            gas_meter,
+            gas_meter.spent()
+        );
+    }
+
+    #[test]
     fn factorial() {
         use factorial::factorial;
 
@@ -144,9 +275,10 @@ mod tests {
                 n * factorial_reference(n - 1)
             }
         }
-
+        let schedule = Schedule::default();
         let genesis_builder =
-            ContractBuilder::new(contract_code!("factorial")).unwrap();
+            ContractModule::new(contract_code!("factorial"), &schedule)
+                .unwrap();
 
         let genesis = genesis_builder.build().unwrap();
 
@@ -164,12 +296,62 @@ mod tests {
     }
 
     #[test]
+    fn factorial_with_limit() {
+        use factorial::factorial;
+
+        fn factorial_reference(n: u64) -> u64 {
+            if n <= 1 {
+                1
+            } else {
+                n * factorial_reference(n - 1)
+            }
+        }
+        let schedule = Schedule::default();
+        let genesis_builder =
+            ContractModule::new(contract_code!("factorial"), &schedule)
+                .unwrap();
+
+        let genesis = genesis_builder.build().unwrap();
+
+        // New genesis network with initial value
+        let mut network =
+            NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+
+        let genesis_id = *network.genesis_id();
+        let mut gas_meter = gas::GasMeter::with_limit(1_000_000_000);
+        println!(
+            "Before call: gas_meter={:?} (spent={})",
+            gas_meter,
+            gas_meter.spent()
+        );
+
+        let n = 6;
+        assert_eq!(
+            network
+                .call_contract_with_limit(
+                    genesis_id,
+                    factorial(n),
+                    &mut gas_meter
+                )
+                .unwrap(),
+            factorial_reference(n)
+        );
+
+        println!(
+            "After call: gas_meter={:?} (spent={})",
+            gas_meter,
+            gas_meter.spent()
+        );
+    }
+
+    #[test]
     #[should_panic]
     fn panic_propagation() {
         use dusk_abi::ContractCall;
 
+        let schedule = Schedule::default();
         let genesis_builder =
-            ContractBuilder::new(contract_code!("panic")).unwrap();
+            ContractModule::new(contract_code!("panic"), &schedule).unwrap();
 
         let genesis = genesis_builder.build().unwrap();
 

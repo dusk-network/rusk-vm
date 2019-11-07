@@ -1,3 +1,4 @@
+use crate::gas::GasMeter;
 use std::collections::HashMap;
 
 use dusk_abi::{
@@ -125,6 +126,19 @@ impl NetworkState {
         call: ContractCall<R>,
     ) -> Result<R, Error> {
         let mut context = CallContext::new(self);
+        let data = call.into_data();
+        let data_return = context.call(target, data, CallKind::Call)?;
+        let decoded = encoding::decode(&data_return)?;
+        Ok(decoded)
+    }
+
+    pub fn call_contract_with_limit<R: for<'de> Deserialize<'de>>(
+        &mut self,
+        target: H256,
+        call: ContractCall<R>,
+        gas_meter: &mut GasMeter,
+    ) -> Result<R, Error> {
+        let mut context = CallContext::with_limit(self, gas_meter);
         let data = call.into_data();
         let data_return = context.call(target, data, CallKind::Call)?;
         let decoded = encoding::decode(&data_return)?;
