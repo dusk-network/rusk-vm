@@ -243,7 +243,7 @@ mod tests {
 
         let genesis_id = *network.genesis_id();
 
-        let mut gas_meter = gas::GasMeter::with_limit(1_000);
+        let mut gas_meter = gas::GasMeter::with_limit(393_588);
         println!(
             "Before call: gas_meter={:?} (spent={})",
             gas_meter,
