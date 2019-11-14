@@ -2,7 +2,9 @@ use std::io::{self, Write};
 
 use crate::VMError;
 use dusk_abi::{encoding, ContractCall, CALL_DATA_SIZE, H256};
-use kelvin::{ByteHash, Content, Map, Source, ValRef, ValRefMut};
+use kelvin::{
+    Blake2b, Compound, Content, Handle, Map, Sink, Source, ValRef, ValRefMut,
+};
 use serde::Deserialize;
 
 use crate::contract::Contract;
@@ -47,7 +49,7 @@ impl ContractState {
 
 // Clone is obviously relatively expensive in the mock implementation
 // but it will be using persistent datastructures in production
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Default)]
 pub struct NetworkState {
     genesis_id: H256,
     contracts: Map<H256, ContractState>,
@@ -158,22 +160,44 @@ impl NetworkState {
     }
 }
 
-impl<H: ByteHash> Content<H> for ContractState {
-    fn persist(&mut self, _sink: &mut dyn Write) -> io::Result<()> {
-        unimplemented!()
+impl Content<Blake2b> for ContractState {
+    fn persist(&mut self, sink: &mut Sink<Blake2b>) -> io::Result<()> {
+        self.balance.persist(sink)?;
+        self.contract.persist(sink)?;
+        self.storage.persist(sink)
     }
 
-    fn restore(_source: &mut Source<H>) -> io::Result<Self> {
-        unimplemented!()
+    fn restore(source: &mut Source<Blake2b>) -> io::Result<Self> {
+        Ok(ContractState {
+            balance: u128::restore(source)?,
+            contract: Contract::restore(source)?,
+            storage: Storage::restore(source)?,
+        })
     }
 }
 
-impl<H: ByteHash> Content<H> for NetworkState {
-    fn persist(&mut self, _sink: &mut dyn Write) -> io::Result<()> {
-        unimplemented!()
+impl Content<Blake2b> for NetworkState {
+    fn persist(&mut self, sink: &mut Sink<Blake2b>) -> io::Result<()> {
+        self.genesis_id.persist(sink)?;
+        self.contracts.persist(sink)
     }
 
-    fn restore(_source: &mut Source<H>) -> io::Result<Self> {
-        unimplemented!()
+    fn restore(source: &mut Source<Blake2b>) -> io::Result<Self> {
+        Ok(NetworkState {
+            genesis_id: H256::restore(source)?,
+            contracts: Map::restore(source)?,
+        })
+    }
+}
+
+impl Compound<Blake2b> for NetworkState {
+    type Leaf = ();
+
+    fn children_mut(&mut self) -> &mut [Handle<Self, Blake2b>] {
+        &mut []
+    }
+
+    fn children(&self) -> &[Handle<Self, Blake2b>] {
+        &[]
     }
 }

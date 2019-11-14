@@ -130,18 +130,22 @@ impl<'de> Deserialize<'de> for Signature {
 
 #[cfg(feature = "std")]
 mod content {
-    use kelvin::{ByteHash, Content, Source};
+    use std::io::Read;
+
+    use kelvin::{ByteHash, Content, Sink, Source};
 
     use super::H256;
     use std::io::{self, Write};
 
     impl<H: ByteHash> Content<H> for H256 {
-        fn persist(&mut self, sink: &mut dyn Write) -> io::Result<()> {
-            unimplemented!()
+        fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
+            sink.write_all(&self.0)
         }
 
         fn restore(source: &mut Source<H>) -> io::Result<Self> {
-            unimplemented!()
+            let mut h = H256::default();
+            source.read_exact(h.as_mut())?;
+            Ok(h)
         }
     }
 

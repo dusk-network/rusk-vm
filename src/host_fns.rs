@@ -96,7 +96,6 @@ impl<'a> CallContext<'a> {
             ImportsBuilder::new().with_resolver("env", &HostImportResolver);
 
         let mut skip_call = false;
-        let call_kind = self.top().call_kind;
 
         let (instance, name);
 
@@ -117,7 +116,7 @@ impl<'a> CallContext<'a> {
                     _ => return Err(VMError::MemoryNotFound),
                 }
 
-                name = match call_kind {
+                name = match kind {
                     CallKind::Deploy => {
                         if instance.export_by_name("deploy").is_none() {
                             skip_call = true
