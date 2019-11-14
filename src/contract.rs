@@ -22,7 +22,7 @@ fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Contract(Vec<u8>);
 
 impl Contract {

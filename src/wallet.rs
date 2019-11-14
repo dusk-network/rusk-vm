@@ -7,6 +7,7 @@ use signatory_dalek::Ed25519Signer as Signer;
 
 use crate::digest::Digest;
 use crate::state::{ContractState, NetworkState};
+use crate::VMError;
 
 pub struct ManagedAccount {
     /// The balance in Dusk
@@ -49,51 +50,6 @@ impl ManagedAccount {
     pub fn signer(&self) -> &Signer {
         &self.signer
     }
-
-    // pub fn call_contract(
-    //     &mut self,
-    //     contract_id: &H256,
-    //     value: u128,
-    //     data: &[u8],
-    // ) -> Result<Transaction, Error> {
-    //     if self.balance >= value {
-    //         self.nonce += 1;
-
-    //         let transaction = Transaction::call_contract(
-    //             self.id(),
-    //             contract_id.clone(),
-    //             self.nonce,
-    //             value,
-    //             data.into(),
-    //             &self.signer,
-    //         );
-    //         Ok(transaction)
-    //     } else {
-    //         bail!("Insufficient balance")
-    //     }
-    // }
-
-    // pub fn deploy_contract<B: Into<Vec<u8>> + AsRef<[u8]>>(
-    //     &mut self,
-    //     bytecode: B,
-    //     value: u128,
-    // ) -> Result<(Transaction, H256), ()> {
-    //     if self.balance >= value {
-    //         self.nonce += 1;
-
-    //         let (transaction, contract_id) = Transaction::deploy_contract(
-    //             self.id(),
-    //             value,
-    //             self.nonce,
-    //             bytecode.into(),
-    //             &self.signer,
-    //         );
-
-    //         Ok((transaction, contract_id))
-    //     } else {
-    //         Err(())
-    //     }
-    // }
 }
 
 #[derive(Default)]
@@ -137,13 +93,14 @@ impl Wallet {
         self.0.get_mut(name)
     }
 
-    pub fn sync(&mut self, state: &NetworkState) {
+    pub fn sync(&mut self, state: &NetworkState) -> Result<(), VMError> {
         for (_, contract_state) in self.0.iter_mut() {
             if let Some(account_state) =
-                state.get_contract_state(&contract_state.id())
+                state.get_contract_state(&contract_state.id())?
             {
-                contract_state.update(account_state);
+                contract_state.update(&*account_state);
             }
         }
+        Ok(())
     }
 }

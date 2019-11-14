@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, io};
 
 use failure::Fail;
 
@@ -12,21 +12,53 @@ mod state;
 mod wallet;
 
 pub use contract::ContractModule;
+pub use fermion::Error;
 pub use gas::Gas;
 pub use interfaces::DefaultAccount;
 pub use state::NetworkState;
 pub use wallet::Wallet;
+
 #[derive(Debug, Fail)]
 pub enum VMError {
     MissingArgument,
     ContractPanic(String),
+    MemoryNotFound,
+    InvalidApiCall,
     InvalidUtf8,
     InvalidEd25519PublicKey,
     InvalidEd25519Signature,
     ContractReturn,
-    SerializationError,
     OutOfGas,
+    UnknownContract,
     WASMError(failure::Error),
+    Trap(wasmi::Trap),
+    IOError(io::Error),
+    WasmiError(wasmi::Error),
+    SerializationError(fermion::Error),
+}
+
+impl From<io::Error> for VMError {
+    fn from(e: io::Error) -> Self {
+        VMError::IOError(e)
+    }
+}
+
+impl From<fermion::Error> for VMError {
+    fn from(e: fermion::Error) -> Self {
+        VMError::SerializationError(e)
+    }
+}
+
+impl From<wasmi::Error> for VMError {
+    fn from(e: wasmi::Error) -> Self {
+        VMError::WasmiError(e)
+    }
+}
+
+impl From<wasmi::Trap> for VMError {
+    fn from(e: wasmi::Trap) -> Self {
+        VMError::Trap(e)
+    }
 }
 
 impl wasmi::HostError for VMError {}
@@ -46,9 +78,17 @@ impl fmt::Display for VMError {
                 write!(f, "Invalid Ed25519 Signature")?
             }
             VMError::ContractReturn => write!(f, "Contract Return")?,
-            VMError::SerializationError => write!(f, "Serialization Error")?,
             VMError::OutOfGas => write!(f, "Out of Gas Error")?,
             VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
+            VMError::MemoryNotFound => write!(f, "Memory not found")?,
+            VMError::SerializationError(e) => {
+                write!(f, "Serialization Error ({:?})", e)?
+            }
+            VMError::InvalidApiCall => write!(f, "Invalid Api Call")?,
+            VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
+            VMError::Trap(_) => unreachable!(),
+            VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
+            VMError::UnknownContract => write!(f, "Unknown Contract")?,
         }
         Ok(())
     }

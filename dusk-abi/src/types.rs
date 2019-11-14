@@ -1,7 +1,8 @@
 use core::mem;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct H256([u8; 32]);
 
 impl H256 {
@@ -125,4 +126,23 @@ impl<'de> Deserialize<'de> for Signature {
             Ok(_self)
         }
     }
+}
+
+#[cfg(feature = "std")]
+mod content {
+    use kelvin::{ByteHash, Content, Source};
+
+    use super::H256;
+    use std::io::{self, Write};
+
+    impl<H: ByteHash> Content<H> for H256 {
+        fn persist(&mut self, sink: &mut dyn Write) -> io::Result<()> {
+            unimplemented!()
+        }
+
+        fn restore(source: &mut Source<H>) -> io::Result<Self> {
+            unimplemented!()
+        }
+    }
+
 }

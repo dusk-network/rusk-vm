@@ -18,6 +18,8 @@ blake2-rfc = "0.2"
 failure = "0.1"
 dusk-abi = { path = "./dusk-abi" }
 serde = "1.0"
+kelvin = { version = "0.2" }
+fermion = { version = "0.2" }
 
 default_account = { path = "contracts/default_account" }
 
