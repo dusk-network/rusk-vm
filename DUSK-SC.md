@@ -84,7 +84,7 @@ Here are two possible options for bringing smart contracts to dusk.network.
 * TODO1: how does that fit in the current implementation? As I understand it now, [dusk-blockchain](https://github.com/dusk-network/dusk-blockchain/tree/master/pkg/core/chain) primarily deals with UTXOs.
 * TODO2: assuming the point above is solved, the following still needs to be done on the existing codebase:
     * sandboxed execution: since smart contracts can be executed by any user on a public network, contracts should only be able to modify their _own_ storage. The sandbox should provide a rollback mechanism, in case the execution fails.
-    * deployment mechanism (with binaries stripped from fmt code)
+    * deployment mechanism (with binaries stripped from `fmt` code)
     * ...
 
 ### using substrate
@@ -107,8 +107,9 @@ The following needs to be done:
       * see [here](https://github.com/LayerXcom/zero-chain/tree/master/modules/zk-system) for an example
   * implement Dusk protocol as a module
       * Kris started work on the data structures required by Dmitry's paper
+      * We are looking into using something similar to [Utreexo](https://eprint.iacr.org/2019/611.pdf).
   * write smart contracts
-      * can start right away against a mock for the Dusk module.
+      * Can start right away against a mock for the Dusk module.
 
 Perhaps also, it may be possible to develop a facade adapting substrate backend to the existing UI.
 
