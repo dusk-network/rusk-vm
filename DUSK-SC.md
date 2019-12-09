@@ -18,7 +18,7 @@
 
 
 ### VM execution
-The following pseudo-code (adapted from [here](https://github.com/etclabscore/go-ethereum/blob/development/core/multivm_processor.go#L29-L202)) illustrate a VM execution:
+The following pseudo-code (adapted from [here](https://github.com/etclabscore/go-ethereum/blob/development/core/multivm_processor.go#L29-L202)) illustrate a _typical_ (e.g., [dusk-wasm-vm](https://github.com/dusk-network/dusk-wasm-vm)) VM execution.
 
 
 ```
