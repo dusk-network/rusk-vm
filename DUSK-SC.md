@@ -81,7 +81,7 @@ Here are two possible options for bringing smart contracts to dusk.network.
 
 * [dusk-wasm-vm](https://github.com/dusk-network/dusk-wasm-vm) was developed as a state transition function around an account based blockchain. 
 * its state transition function is: `APPLY(S, [TX,..]) -> S' or ERROR`
-* TODO1: how does that fit in the current implementation? As I understand it now, [dusk-blockchain](https://github.com/dusk-network/dusk-blockchain/tree/master/pkg/core/chain) primarily deals with UTXOs.
+* TODO1: how does that fit in the current implementation? As I understand it now, [dusk-blockchain](https://github.com/dusk-network/dusk-blockchain/tree/master/pkg/core/chain) primarily deals with UTXOs. Regardles
 * TODO2: assuming the point above is solved, the following still needs to be done on the existing codebase:
     * sandboxed execution: since smart contracts can be executed by any user on a public network, contracts should only be able to modify their _own_ storage. The sandbox should provide a rollback mechanism, in case the execution fails.
     * deployment mechanism (with binaries stripped from `fmt` code)
