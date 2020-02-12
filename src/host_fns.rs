@@ -1,7 +1,7 @@
 use dusk_abi::{
     encoding, CALL_DATA_SIZE, H256, STORAGE_KEY_SIZE, STORAGE_VALUE_SIZE,
 };
-use kelvin::{ValRef, ValRefMut};
+use kelvin::{Map, ValRef, ValRefMut};
 use signatory::{ed25519, Signature as _, Verifier as _};
 
 use wasmi::{

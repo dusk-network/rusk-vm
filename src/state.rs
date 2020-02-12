@@ -1,10 +1,9 @@
-use std::io::{self, Write};
+use std::io;
 
 use crate::VMError;
 use dusk_abi::{encoding, ContractCall, CALL_DATA_SIZE, H256};
-use kelvin::{
-    Blake2b, Compound, Content, Handle, Map, Sink, Source, ValRef, ValRefMut,
-};
+use kelvin::{Blake2b, Content, Map as _, Sink, Source, ValRef, ValRefMut};
+use kelvin_radix::DefaultRadixMap as RadixMap;
 use serde::Deserialize;
 
 use crate::contract::Contract;
@@ -12,9 +11,9 @@ use crate::digest::Digest;
 use crate::gas::GasMeter;
 use crate::host_fns::{CallContext, CallKind};
 
-pub type Storage = Map<H256, Vec<u8>>;
+pub type Storage = RadixMap<H256, Vec<u8>, Blake2b>;
 
-#[derive(Default, Clone, PartialEq, Eq)]
+#[derive(Default, Clone)]
 pub struct ContractState {
     balance: u128,
     contract: Contract,
@@ -49,16 +48,16 @@ impl ContractState {
 
 // Clone is obviously relatively expensive in the mock implementation
 // but it will be using persistent datastructures in production
-#[derive(Clone, PartialEq, Eq, Default)]
+#[derive(Clone, Default)]
 pub struct NetworkState {
     genesis_id: H256,
-    contracts: Map<H256, ContractState>,
+    contracts: RadixMap<H256, ContractState, Blake2b>,
 }
 
 impl NetworkState {
     pub fn genesis(contract: Contract, value: u128) -> Result<Self, VMError> {
         let genesis_id = contract.digest();
-        let mut contracts = Map::new();
+        let mut contracts = RadixMap::new();
         contracts.insert(
             genesis_id.clone(),
             ContractState {
@@ -185,19 +184,7 @@ impl Content<Blake2b> for NetworkState {
     fn restore(source: &mut Source<Blake2b>) -> io::Result<Self> {
         Ok(NetworkState {
             genesis_id: H256::restore(source)?,
-            contracts: Map::restore(source)?,
+            contracts: RadixMap::restore(source)?,
         })
-    }
-}
-
-impl Compound<Blake2b> for NetworkState {
-    type Leaf = ();
-
-    fn children_mut(&mut self) -> &mut [Handle<Self, Blake2b>] {
-        &mut []
-    }
-
-    fn children(&self) -> &[Handle<Self, Blake2b>] {
-        &[]
     }
 }

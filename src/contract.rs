@@ -1,7 +1,7 @@
 use std::io;
 
 use failure::{bail, err_msg, Error};
-use kelvin::{Blake2b, Content, Sink, Source};
+use kelvin::{ByteHash, Content, Sink, Source};
 use parity_wasm::elements::{
     self, InitExpr, Instruction, Internal, Serialize, Type, ValueType,
 };
@@ -283,12 +283,12 @@ impl<'a> ContractModule<'a> {
     }
 }
 
-impl Content<Blake2b> for Contract {
-    fn persist(&mut self, sink: &mut Sink<Blake2b>) -> io::Result<()> {
+impl<H: ByteHash> Content<H> for Contract {
+    fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
         self.0.persist(sink)
     }
 
-    fn restore(source: &mut Source<Blake2b>) -> io::Result<Self> {
+    fn restore(source: &mut Source<H>) -> io::Result<Self> {
         Ok(Self(Vec::restore(source)?))
     }
 }

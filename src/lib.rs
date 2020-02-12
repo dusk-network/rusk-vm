@@ -270,7 +270,7 @@ mod tests {
         // test snapshot/restore
 
         let dir = tempdir().unwrap();
-        let store = Store::<Blake2b>::new(&dir.path());
+        let store = Store::<Blake2b>::new(&dir.path()).unwrap();
 
         let snapshot = store.persist(&mut network).unwrap();
 

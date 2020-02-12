@@ -1,7 +1,8 @@
+use std::hash::Hasher;
 use std::io::Write;
 
-use blake2_rfc::blake2b::Blake2b;
 use dusk_abi::H256;
+use kelvin::{Blake2b, ByteHash, ByteHashState};
 
 pub trait MakeDigest {
     fn make_digest(&self, state: &mut HashState);
@@ -37,24 +38,24 @@ impl<'a> MakeDigest for &'a [u8] {
     }
 }
 
-pub struct HashState(Blake2b);
+pub struct HashState(<Blake2b as ByteHash>::State);
 
 impl HashState {
     fn new() -> Self {
-        HashState(Blake2b::new(32))
+        HashState(Blake2b::state())
     }
 
     pub fn fin(self) -> H256 {
         let mut digest = H256::zero();
         digest
             .as_mut()
-            .write_all(self.0.finalize().as_bytes())
+            .write(&self.0.fin())
             .expect("in-memory write");
         digest
     }
 
     pub fn update(&mut self, bytes: &[u8]) {
-        self.0.update(bytes);
+        self.0.write(bytes);
     }
 }
 

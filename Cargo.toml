@@ -13,11 +13,12 @@ signatory = "0.12"
 signatory-dalek = "0.12"
 blake2-rfc = "0.2"
 failure = "0.1"
-dusk-abi = { path = "./dusk-abi" }
 serde = "1.0"
-kelvin = { version = "0.3" }
-fermion = { version = "0.2" }
+kelvin = "0.9"
+kelvin-radix = "0.5"
+fermion = "0.2"
 
+dusk-abi = { path = "./dusk-abi" }
 default_account = { path = "contracts/default_account" }
 
 [dev-dependencies]
