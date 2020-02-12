@@ -1,7 +1,8 @@
 use core::mem;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct H256([u8; 32]);
 
 impl H256 {
@@ -125,4 +126,27 @@ impl<'de> Deserialize<'de> for Signature {
             Ok(_self)
         }
     }
+}
+
+#[cfg(feature = "std")]
+mod content {
+    use std::io::Read;
+
+    use kelvin::{ByteHash, Content, Sink, Source};
+
+    use super::H256;
+    use std::io::{self, Write};
+
+    impl<H: ByteHash> Content<H> for H256 {
+        fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
+            sink.write_all(&self.0)
+        }
+
+        fn restore(source: &mut Source<H>) -> io::Result<Self> {
+            let mut h = H256::default();
+            source.read_exact(h.as_mut())?;
+            Ok(h)
+        }
+    }
+
 }

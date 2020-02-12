@@ -1,12 +1,15 @@
-use crate::digest::{HashState, MakeDigest};
+use std::io;
 
-use crate::Schedule;
 use failure::{bail, err_msg, Error};
+use kelvin::{ByteHash, Content, Sink, Source};
 use parity_wasm::elements::{
     self, InitExpr, Instruction, Internal, Serialize, Type, ValueType,
 };
 use pwasm_utils;
 use pwasm_utils::rules;
+
+use crate::digest::{HashState, MakeDigest};
+use crate::Schedule;
 
 use std::{mem, ptr};
 fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
@@ -22,7 +25,7 @@ fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Contract(Vec<u8>);
 
 impl Contract {
@@ -277,5 +280,15 @@ impl<'a> ContractModule<'a> {
         let mut vec = vec![];
         self.module.serialize(&mut vec)?;
         Ok(Contract(vec))
+    }
+}
+
+impl<H: ByteHash> Content<H> for Contract {
+    fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
+        self.0.persist(sink)
+    }
+
+    fn restore(source: &mut Source<H>) -> io::Result<Self> {
+        Ok(Self(Vec::restore(source)?))
     }
 }

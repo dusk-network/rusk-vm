@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, io};
 
 use failure::Fail;
 
@@ -12,21 +12,53 @@ mod state;
 mod wallet;
 
 pub use contract::ContractModule;
+pub use fermion::Error;
 pub use gas::Gas;
 pub use interfaces::DefaultAccount;
 pub use state::NetworkState;
 pub use wallet::Wallet;
+
 #[derive(Debug, Fail)]
 pub enum VMError {
     MissingArgument,
     ContractPanic(String),
+    MemoryNotFound,
+    InvalidApiCall,
     InvalidUtf8,
     InvalidEd25519PublicKey,
     InvalidEd25519Signature,
     ContractReturn,
-    SerializationError,
     OutOfGas,
+    UnknownContract,
     WASMError(failure::Error),
+    Trap(wasmi::Trap),
+    IOError(io::Error),
+    WasmiError(wasmi::Error),
+    SerializationError(fermion::Error),
+}
+
+impl From<io::Error> for VMError {
+    fn from(e: io::Error) -> Self {
+        VMError::IOError(e)
+    }
+}
+
+impl From<fermion::Error> for VMError {
+    fn from(e: fermion::Error) -> Self {
+        VMError::SerializationError(e)
+    }
+}
+
+impl From<wasmi::Error> for VMError {
+    fn from(e: wasmi::Error) -> Self {
+        VMError::WasmiError(e)
+    }
+}
+
+impl From<wasmi::Trap> for VMError {
+    fn from(e: wasmi::Trap) -> Self {
+        VMError::Trap(e)
+    }
 }
 
 impl wasmi::HostError for VMError {}
@@ -46,9 +78,17 @@ impl fmt::Display for VMError {
                 write!(f, "Invalid Ed25519 Signature")?
             }
             VMError::ContractReturn => write!(f, "Contract Return")?,
-            VMError::SerializationError => write!(f, "Serialization Error")?,
             VMError::OutOfGas => write!(f, "Out of Gas Error")?,
             VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
+            VMError::MemoryNotFound => write!(f, "Memory not found")?,
+            VMError::SerializationError(e) => {
+                write!(f, "Serialization Error ({:?})", e)?
+            }
+            VMError::InvalidApiCall => write!(f, "Invalid Api Call")?,
+            VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
+            VMError::Trap(_) => unreachable!(),
+            VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
+            VMError::UnknownContract => write!(f, "Unknown Contract")?,
         }
         Ok(())
     }
@@ -147,6 +187,8 @@ mod tests {
     use super::*;
 
     use digest::Digest;
+    use kelvin::{Blake2b, Store};
+    use tempfile::tempdir;
 
     #[test]
     fn default_account() {
@@ -224,45 +266,72 @@ mod tests {
                 .unwrap(),
             1_000_000_000 - 1_000
         );
-    }
 
-    #[test]
-    fn add() {
-        use add::add;
+        // test snapshot/restore
 
-        let schedule = Schedule::default();
+        let dir = tempdir().unwrap();
+        let store = Store::<Blake2b>::new(&dir.path()).unwrap();
 
-        let genesis_builder =
-            ContractModule::new(contract_code!("add"), &schedule).unwrap();
+        let snapshot = store.persist(&mut network).unwrap();
 
-        let genesis = genesis_builder.build().unwrap();
+        // assert that snapshotted version still returns same balance
 
-        // New genesis network with initial value
-        let mut network =
-            NetworkState::genesis(genesis, 1_000_000_000).unwrap();
-
-        let genesis_id = *network.genesis_id();
-
-        let mut gas_meter = gas::GasMeter::with_limit(393_588);
-        println!(
-            "Before call: gas_meter={:?} (spent={})",
-            gas_meter,
-            gas_meter.spent()
-        );
-
-        let (a, b) = (12, 40);
         assert_eq!(
             network
-                .call_contract_with_limit(genesis_id, add(a, b), &mut gas_meter)
+                .call_contract(genesis_id, DefaultAccount::balance())
                 .unwrap(),
-            a + b
+            1_000_000_000 - 1_000
         );
-        println!(
-            "After call: gas_meter={:?} (spent={})",
-            gas_meter,
-            gas_meter.spent()
+
+        let mut restored = store.restore(&snapshot).unwrap();
+
+        // restored network gives same result
+
+        assert_eq!(
+            restored
+                .call_contract(genesis_id, DefaultAccount::balance())
+                .unwrap(),
+            1_000_000_000 - 1_000
         );
     }
+
+    // #[test]
+    // fn add() {
+    //     use add::add;
+
+    //     let schedule = Schedule::default();
+
+    //     let genesis_builder =
+    //         ContractModule::new(contract_code!("add"), &schedule).unwrap();
+
+    //     let genesis = genesis_builder.build().unwrap();
+
+    //     // New genesis network with initial value
+    //     let mut network =
+    //         NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+
+    //     let genesis_id = *network.genesis_id();
+
+    //     let mut gas_meter = gas::GasMeter::with_limit(393_588);
+    //     println!(
+    //         "Before call: gas_meter={:?} (spent={})",
+    //         gas_meter,
+    //         gas_meter.spent()
+    //     );
+
+    //     let (a, b) = (12, 40);
+    //     assert_eq!(
+    //         network
+    //             .call_contract_with_limit(genesis_id, add(a, b), &mut gas_meter)
+    //             .unwrap(),
+    //         a + b
+    //     );
+    //     println!(
+    //         "After call: gas_meter={:?} (spent={})",
+    //         gas_meter,
+    //         gas_meter.spent()
+    //     );
+    // }
 
     #[test]
     fn factorial() {

@@ -3,7 +3,7 @@ use dusk_abi::{self, ContractCall, CALL_DATA_SIZE};
 
 // Interface
 pub fn add(a: u32, b: u32) -> ContractCall<u32> {
-    ContractCall::new(&[a, b]).unwrap()
+    ContractCall::new(&(a, b)).unwrap()
 }
 
 #[no_mangle]

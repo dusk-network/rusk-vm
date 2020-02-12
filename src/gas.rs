@@ -1,6 +1,3 @@
-#[cfg(test)]
-use std::fmt::Debug;
-
 // Gas units are chosen to be represented by u64 so that gas metering instructions can operate on
 // them efficiently.
 pub type Gas = u64;

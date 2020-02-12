@@ -1,7 +1,7 @@
 use dusk_abi::{
     encoding, CALL_DATA_SIZE, H256, STORAGE_KEY_SIZE, STORAGE_VALUE_SIZE,
 };
-use failure::{bail, Error};
+use kelvin::{Map, ValRef, ValRefMut};
 use signatory::{ed25519, Signature as _, Verifier as _};
 
 use wasmi::{
@@ -27,7 +27,7 @@ const ABI_RETURN: usize = 9;
 const ABI_SELF_HASH: usize = 10;
 const ABI_GAS: usize = 11;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum CallKind {
     Deploy,
     Call,
@@ -77,6 +77,7 @@ impl<'a> CallContext<'a> {
             gas_meter: Some(gas_meter),
         }
     }
+
     pub fn new(state: &'a mut NetworkState) -> Self {
         CallContext {
             stack: vec![],
@@ -90,38 +91,42 @@ impl<'a> CallContext<'a> {
         target: H256,
         call_data: [u8; CALL_DATA_SIZE],
         kind: CallKind,
-    ) -> Result<[u8; CALL_DATA_SIZE], Error> {
+    ) -> Result<[u8; CALL_DATA_SIZE], VMError> {
         let imports =
             ImportsBuilder::new().with_resolver("env", &HostImportResolver);
 
-        let bytecode = self
-            .state
-            .get_contract_state(&target)
-            .expect("no such contract")
-            .contract()
-            .bytecode();
-        let module = wasmi::Module::from_buffer(bytecode)?;
-
-        let instance =
-            ModuleInstance::new(&module, &imports)?.assert_no_start();
-
-        match instance.export_by_name("memory") {
-            Some(ExternVal::Memory(memref)) => self
-                .stack
-                .push(StackFrame::new(target, call_data, kind, memref)),
-            _ => bail!("no memory found"),
-        }
-
         let mut skip_call = false;
-        let name = match self.top().call_kind {
-            CallKind::Deploy => {
-                if instance.export_by_name("deploy").is_none() {
-                    skip_call = true
+
+        let (instance, name);
+
+        match self.state.get_contract_state_mut(&target)? {
+            None => return Err(VMError::UnknownContract),
+            Some(contract_state) => {
+                let module = wasmi::Module::from_buffer(
+                    contract_state.contract().bytecode(),
+                )?;
+
+                instance =
+                    ModuleInstance::new(&module, &imports)?.assert_no_start();
+
+                match instance.export_by_name("memory") {
+                    Some(ExternVal::Memory(memref)) => self
+                        .stack
+                        .push(StackFrame::new(target, call_data, kind, memref)),
+                    _ => return Err(VMError::MemoryNotFound),
+                }
+
+                name = match kind {
+                    CallKind::Deploy => {
+                        if instance.export_by_name("deploy").is_none() {
+                            skip_call = true
+                        };
+                        "deploy"
+                    }
+                    CallKind::Call => "call",
                 };
-                "deploy"
             }
-            CallKind::Call => "call",
-        };
+        }
 
         if !skip_call {
             match instance.invoke_export(name, &[], self) {
@@ -131,7 +136,6 @@ impl<'a> CallContext<'a> {
                         {
                             if let VMError::ContractReturn = vm_error {
                                 // Return is fine, pass it through
-                                // unit expression
                             } else {
                                 return Err(wasmi::Error::Trap(trap).into());
                             }
@@ -182,33 +186,37 @@ impl<'a> CallContext<'a> {
         &self.top().context
     }
 
-    fn storage(&self) -> &Storage {
-        self.state
-            .get_contract_state(&self.caller())
-            .expect("Invalid caller")
-            .storage()
-    }
-    fn storage_mut(&mut self) -> &mut Storage {
-        let caller = *self.caller();
-        self.state
-            .get_contract_state_mut(&caller)
-            .expect("Invalid caller")
-            .storage_mut()
+    fn storage(&self) -> Result<impl ValRef<Storage>, VMError> {
+        match self.state.get_contract_state(&self.caller())? {
+            Some(state) => Ok(state.wrap(|state| state.storage())),
+            None => Err(VMError::UnknownContract),
+        }
     }
 
-    fn balance(&self) -> u128 {
-        self.state
-            .get_contract_state(&self.caller())
+    fn storage_mut(&mut self) -> Result<impl ValRefMut<Storage>, VMError> {
+        let caller = *self.caller();
+        Ok(self
+            .state
+            .get_contract_state_mut(&caller)?
             .expect("Invalid caller")
-            .balance()
+            .wrap_mut(|state| state.storage_mut()))
     }
 
-    fn balance_mut(&mut self) -> &mut u128 {
-        let caller = *self.caller();
-        self.state
-            .get_contract_state_mut(&caller)
+    fn balance(&self) -> Result<u128, VMError> {
+        Ok(self
+            .state
+            .get_contract_state(&self.caller())?
             .expect("Invalid caller")
-            .balance_mut()
+            .balance())
+    }
+
+    fn balance_mut(&mut self) -> Result<impl ValRefMut<u128>, VMError> {
+        let caller = *self.caller();
+        Ok(self
+            .state
+            .get_contract_state_mut(&caller)?
+            .expect("Invalid caller")
+            .wrap_mut(|state| state.balance_mut()))
     }
 }
 
@@ -253,230 +261,235 @@ impl ArgsExt for RuntimeArgs<'_> {
     }
 }
 
+fn error_handling_invoke_index(
+    context: &mut CallContext,
+    index: usize,
+    args: RuntimeArgs,
+) -> Result<Option<RuntimeValue>, VMError> {
+    match index {
+        ABI_PANIC => {
+            let panic_ofs = args.get(0)?;
+            let panic_len = args.get(1)?;
+
+            context.top().memory.with_direct_access(|a| {
+                Err(
+                    match String::from_utf8(
+                        a[panic_ofs..panic_ofs + panic_len].to_vec(),
+                    ) {
+                        Ok(panic_msg) => {
+                            host_trap(VMError::ContractPanic(panic_msg))
+                        }
+                        Err(_) => host_trap(VMError::InvalidUtf8),
+                    },
+                )
+            })?
+        }
+        ABI_SET_STORAGE => {
+            let key_ofs = args.get(0)?;
+            let val_ofs = args.get(1)?;
+            let val_len = args.get(2)?;
+
+            let mut key_buf = H256::default();
+            let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
+
+            context.top().memory.with_direct_access(|a| {
+                key_buf
+                    .as_mut()
+                    .copy_from_slice(&a[key_ofs..key_ofs + STORAGE_KEY_SIZE]);
+                val_buf[0..val_len]
+                    .copy_from_slice(&a[val_ofs..val_ofs + val_len]);
+            });
+            context
+                .storage_mut()?
+                .insert(key_buf, val_buf[0..val_len].into())?;
+
+            Ok(None)
+        }
+        // Return value indicates if the key was found or not
+        ABI_GET_STORAGE => {
+            // offset to where to write the value in memory
+            let key_buf_ofs = args.get(0)?;
+            let val_buf_ofs = args.get(1)?;
+
+            let mut key_buf = H256::default();
+
+            context.top().memory.with_direct_access(|a| {
+                key_buf.as_mut().copy_from_slice(
+                    &a[key_buf_ofs..key_buf_ofs + STORAGE_KEY_SIZE],
+                );
+            });
+
+            match context.storage()?.get(&key_buf)? {
+                Some(val) => {
+                    let len = val.len();
+                    context.top().memory.with_direct_access_mut(|a| {
+                        a[val_buf_ofs..val_buf_ofs + len].copy_from_slice(&val)
+                    });
+                    Ok(Some(RuntimeValue::I32(len as i32)))
+                }
+                None => Ok(Some(RuntimeValue::I32(0))),
+            }
+        }
+        ABI_DEBUG => context.top().memory.with_direct_access(|a| {
+            let slice = args_to_slice(a, 0, &args)?;
+            let str = std::str::from_utf8(slice)
+                .map_err(|_| host_trap(VMError::InvalidUtf8))?;
+            println!("CONTRACT DEBUG: {:?}", str);
+            Ok(None)
+        }),
+        ABI_CALLER => {
+            let buffer_ofs = args.get(0)?;
+
+            context.top().memory.with_direct_access_mut(|a| {
+                a[buffer_ofs..buffer_ofs + 32]
+                    .copy_from_slice(context.caller().as_ref())
+            });
+            Ok(None)
+        }
+        ABI_SELF_HASH => {
+            let buffer_ofs = args.get(0)?;
+
+            context.top().memory.with_direct_access_mut(|a| {
+                a[buffer_ofs..buffer_ofs + 32]
+                    .copy_from_slice(context.called().as_ref())
+            });
+            Ok(None)
+        }
+        ABI_CALL_DATA => {
+            let call_data_ofs = args.get(0)?;
+
+            context.top().memory.with_direct_access_mut(|a| {
+                a[call_data_ofs..call_data_ofs + CALL_DATA_SIZE]
+                    .copy_from_slice(context.data())
+            });
+            Ok(None)
+        }
+        ABI_VERIFY_ED25519_SIGNATURE => {
+            let key_ptr = args.get(0)?;
+            let sig_ptr = args.get(1)?;
+
+            context.top().memory.with_direct_access_mut(|a| {
+                let pub_key =
+                    ed25519::PublicKey::from_bytes(&a[key_ptr..key_ptr + 32])
+                        .ok_or_else(|| {
+                        host_trap(VMError::InvalidEd25519PublicKey)
+                    })?;
+
+                let signature = ed25519::Signature::from_bytes(
+                    &a[sig_ptr..sig_ptr + 64],
+                )
+                .map_err(|_| host_trap(VMError::InvalidEd25519Signature))?;
+
+                let data_slice = args_to_slice(a, 2, &args)?;
+
+                let verifier: signatory_dalek::Ed25519Verifier =
+                    (&pub_key).into();
+
+                match verifier.verify(data_slice, &signature) {
+                    Ok(_) => Ok(Some(RuntimeValue::I32(1))),
+                    Err(_) => Ok(Some(RuntimeValue::I32(0))),
+                }
+            })
+        }
+        ABI_CALL_CONTRACT => {
+            let target_ofs = args.get(0)?;
+            let amount_ofs = args.get(1)?;
+            let data_ofs = args.get(2)?;
+            let data_len = args.get(3)?;
+
+            let mut call_buf = [0u8; CALL_DATA_SIZE];
+            let mut target = H256::zero();
+            let mut amount = u128::default();
+
+            context
+                .memory()
+                .with_direct_access::<Result<(), VMError>, _>(|a| {
+                    target = encoding::decode(&a[target_ofs..target_ofs + 32])?;
+                    amount = encoding::decode(&a[amount_ofs..amount_ofs + 16])?;
+                    call_buf[0..data_len]
+                        .copy_from_slice(&a[data_ofs..data_ofs + data_len]);
+                    Ok(())
+                })?;
+            // assure sufficient funds are available
+            if context.balance()? >= amount {
+                *context.balance_mut()? -= amount;
+                *context
+                    .state
+                    .get_contract_state_mut_or_default(&target)?
+                    .balance_mut() += amount;
+            } else {
+                panic!("not enough funds")
+            }
+
+            if data_len > 0 {
+                let return_buf =
+                    context.call(target, call_buf, CallKind::Call)?;
+                // write the return data back into memory
+                context.memory().with_direct_access_mut(|a| {
+                    a[data_ofs..data_ofs + CALL_DATA_SIZE]
+                        .copy_from_slice(&return_buf)
+                })
+            }
+
+            Ok(None)
+        }
+        ABI_BALANCE => {
+            // first argument is a pointer to a 16 byte buffer
+            let buffer_ofs = args.get(0)?;
+            let balance = context.balance()?;
+
+            context.memory_mut().with_direct_access_mut(|a| {
+                encoding::encode(&balance, &mut a[buffer_ofs..]).map(|_| ())
+            })?;
+
+            Ok(None)
+        }
+        ABI_RETURN => {
+            let buffer_ofs = args.get(0)?;
+
+            let StackFrame {
+                ref mut memory,
+                call_data,
+                ..
+            } = context.top_mut();
+
+            // copy return value from memory into call_data
+            memory.with_direct_access_mut(|a| {
+                call_data.copy_from_slice(
+                    &a[buffer_ofs..buffer_ofs + CALL_DATA_SIZE],
+                );
+            });
+
+            Err(VMError::ContractReturn)
+        }
+        ABI_GAS => {
+            if let Some(ref mut meter) = context.gas_meter {
+                let gas: u32 = args.nth_checked(0)?;
+                if meter.charge(gas as u64).is_out_of_gas() {
+                    return Err(VMError::OutOfGas);
+                }
+            }
+            Ok(None)
+        }
+        _ => Err(VMError::InvalidApiCall),
+    }
+}
+
 impl<'a> Externals for CallContext<'a> {
     fn invoke_index(
         &mut self,
         index: usize,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, Trap> {
-        match index {
-            ABI_PANIC => {
-                let panic_ofs = args.get(0)?;
-                let panic_len = args.get(1)?;
-
-                self.top().memory.with_direct_access(|a| {
-                    Err(
-                        match String::from_utf8(
-                            a[panic_ofs..panic_ofs + panic_len].to_vec(),
-                        ) {
-                            Ok(panic_msg) => {
-                                host_trap(VMError::ContractPanic(panic_msg))
-                            }
-                            Err(_) => host_trap(VMError::InvalidUtf8),
-                        },
-                    )
-                })
-            }
-            ABI_SET_STORAGE => {
-                let key_ofs = args.get(0)?;
-                let val_ofs = args.get(1)?;
-                let val_len = args.get(2)?;
-
-                let mut key_buf = [0u8; STORAGE_KEY_SIZE];
-                let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
-
-                self.top().memory.with_direct_access(|a| {
-                    key_buf.copy_from_slice(
-                        &a[key_ofs..key_ofs + STORAGE_KEY_SIZE],
-                    );
-                    val_buf[0..val_len]
-                        .copy_from_slice(&a[val_ofs..val_ofs + val_len]);
-                });
-                self.storage_mut()
-                    .insert(key_buf, val_buf[0..val_len].into());
-
-                Ok(None)
-            }
-            // Return value indicates if the key was found or not
-            ABI_GET_STORAGE => {
-                // offset to where to write the value in memory
-                let key_buf_ofs = args.get(0)?;
-                let val_buf_ofs = args.get(1)?;
-
-                let mut key_buf = [0u8; STORAGE_KEY_SIZE];
-
-                self.top().memory.with_direct_access(|a| {
-                    key_buf.copy_from_slice(
-                        &a[key_buf_ofs..key_buf_ofs + STORAGE_KEY_SIZE],
-                    );
-                });
-
-                match self.storage().get(&key_buf) {
-                    Some(val) => {
-                        let len = val.len();
-                        self.top().memory.with_direct_access_mut(|a| {
-                            a[val_buf_ofs..val_buf_ofs + len]
-                                .copy_from_slice(&val)
-                        });
-                        Ok(Some(RuntimeValue::I32(len as i32)))
-                    }
-                    None => Ok(Some(RuntimeValue::I32(0))),
-                }
-            }
-            ABI_DEBUG => self.top().memory.with_direct_access(|a| {
-                let slice = args_to_slice(a, 0, &args)?;
-                let str = std::str::from_utf8(slice)
-                    .map_err(|_| host_trap(VMError::InvalidUtf8))?;
-                println!("CONTRACT DEBUG: {:?}", str);
-                Ok(None)
-            }),
-            ABI_CALLER => {
-                let buffer_ofs = args.get(0)?;
-
-                self.top().memory.with_direct_access_mut(|a| {
-                    a[buffer_ofs..buffer_ofs + 32]
-                        .copy_from_slice(self.caller().as_ref())
-                });
-                Ok(None)
-            }
-            ABI_SELF_HASH => {
-                let buffer_ofs = args.get(0)?;
-
-                self.top().memory.with_direct_access_mut(|a| {
-                    a[buffer_ofs..buffer_ofs + 32]
-                        .copy_from_slice(self.called().as_ref())
-                });
-                Ok(None)
-            }
-            ABI_CALL_DATA => {
-                let call_data_ofs = args.get(0)?;
-
-                self.top().memory.with_direct_access_mut(|a| {
-                    a[call_data_ofs..call_data_ofs + CALL_DATA_SIZE]
-                        .copy_from_slice(self.data())
-                });
-                Ok(None)
-            }
-            ABI_VERIFY_ED25519_SIGNATURE => {
-                let key_ptr = args.get(0)?;
-                let sig_ptr = args.get(1)?;
-
-                self.top().memory.with_direct_access_mut(|a| {
-                    let pub_key = ed25519::PublicKey::from_bytes(
-                        &a[key_ptr..key_ptr + 32],
-                    )
-                    .ok_or_else(|| {
-                        host_trap(VMError::InvalidEd25519PublicKey)
-                    })?;
-
-                    let signature = ed25519::Signature::from_bytes(
-                        &a[sig_ptr..sig_ptr + 64],
-                    )
-                    .map_err(|_| host_trap(VMError::InvalidEd25519Signature))?;
-
-                    let data_slice = args_to_slice(a, 2, &args)?;
-
-                    let verifier: signatory_dalek::Ed25519Verifier =
-                        (&pub_key).into();
-
-                    match verifier.verify(data_slice, &signature) {
-                        Ok(_) => Ok(Some(RuntimeValue::I32(1))),
-                        Err(_) => Ok(Some(RuntimeValue::I32(0))),
-                    }
-                })
-            }
-            ABI_CALL_CONTRACT => {
-                let target_ofs = args.get(0)?;
-                let amount_ofs = args.get(1)?;
-                let data_ofs = args.get(2)?;
-                let data_len = args.get(3)?;
-
-                let mut call_buf = [0u8; CALL_DATA_SIZE];
-                let mut target = H256::zero();
-                let mut amount = u128::default();
-
-                self.memory().with_direct_access::<Result<(), Trap>, _>(
-                    |a| {
-                        target =
-                            encoding::decode(&a[target_ofs..target_ofs + 32])
-                                .map_err(|_| {
-                                host_trap(VMError::SerializationError)
-                            })?;
-                        amount =
-                            encoding::decode(&a[amount_ofs..amount_ofs + 16])
-                                .map_err(|_| {
-                                host_trap(VMError::SerializationError)
-                            })?;
-                        call_buf[0..data_len]
-                            .copy_from_slice(&a[data_ofs..data_ofs + data_len]);
-                        Ok(())
-                    },
-                )?;
-                // assure sufficient funds are available
-                if self.balance() >= amount {
-                    *self.balance_mut() -= amount;
-                    *self
-                        .state
-                        .get_contract_state_mut_or_default(&target)
-                        .balance_mut() += amount;
+        match error_handling_invoke_index(self, index, args) {
+            Ok(ok) => Ok(ok),
+            Err(e) => {
+                if let VMError::Trap(t) = e {
+                    Err(t)
                 } else {
-                    panic!("not enough funds")
+                    Err(host_trap(e))
                 }
-
-                if data_len > 0 {
-                    let return_buf = self
-                        .call(target, call_buf, CallKind::Call)
-                        .map_err(|e| host_trap(VMError::WASMError(e)))?;
-                    // write the return data back into memory
-                    self.memory().with_direct_access_mut(|a| {
-                        a[data_ofs..data_ofs + CALL_DATA_SIZE]
-                            .copy_from_slice(&return_buf)
-                    })
-                }
-
-                Ok(None)
             }
-            ABI_BALANCE => {
-                // first argument is a pointer to a 16 byte buffer
-                let buffer_ofs = args.get(0)?;
-                let balance = self.balance();
-
-                self.memory_mut().with_direct_access_mut(|a| {
-                    encoding::encode(&balance, &mut a[buffer_ofs..])
-                        .map(|_| ()) // drop the borrow of encoded slice
-                        .map_err(|_| host_trap(VMError::SerializationError))
-                })?;
-
-                Ok(None)
-            }
-            ABI_RETURN => {
-                let buffer_ofs = args.get(0)?;
-
-                let StackFrame {
-                    ref mut memory,
-                    call_data,
-                    ..
-                } = self.top_mut();
-
-                // copy return value from memory into call_data
-                memory.with_direct_access_mut(|a| {
-                    call_data.copy_from_slice(
-                        &a[buffer_ofs..buffer_ofs + CALL_DATA_SIZE],
-                    );
-                });
-
-                Err(host_trap(VMError::ContractReturn))
-            }
-            ABI_GAS => {
-                if let Some(ref mut meter) = self.gas_meter {
-                    let gas: u32 = args.nth_checked(0)?;
-                    if meter.charge(gas as u64).is_out_of_gas() {
-                        return Err(host_trap(VMError::OutOfGas));
-                    }
-                }
-                Ok(None)
-            }
-            _ => panic!("Unimplemented function at {}", index),
         }
     }
 }
