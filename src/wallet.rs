@@ -2,7 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 use dusk_abi::H256;
-use signatory::{ed25519::Seed, PublicKeyed};
+use signatory::{ed25519::Seed, public_key::PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
 
 use crate::digest::Digest;

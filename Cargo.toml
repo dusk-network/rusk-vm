@@ -1,6 +1,6 @@
 [package]
-name = "vm"
-version = "0.1.0"
+name = "rusk-vm"
+version = "0.1.1"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
@@ -9,8 +9,8 @@ wasmi = "0.6.0"
 wasmi-validation = "0.3"
 parity-wasm = "0.41"
 pwasm-utils = "0.12.0"
-signatory = "0.12"
-signatory-dalek = "0.12"
+signatory = "0.18"
+signatory-dalek = "0.18"
 blake2-rfc = "0.2"
 failure = "0.1"
 serde = "1.0"

@@ -1,6 +1,6 @@
 use default_account::AccountCall;
 use dusk_abi::{encoding, ContractCall, Signature, H256};
-use signatory::{Signature as _, Signer as _};
+use signatory::signature::{Signature as _, Signer as _};
 use signatory_dalek::Ed25519Signer as Signer;
 
 pub struct DefaultAccount;
