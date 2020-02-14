@@ -113,44 +113,6 @@ fn default_account() {
     );
 }
 
-// #[test]
-// fn add() {
-//     use add::add;
-
-//     let schedule = Schedule::default();
-
-//     let genesis_builder =
-//         ContractModule::new(contract_code!("add"), &schedule).unwrap();
-
-//     let genesis = genesis_builder.build().unwrap();
-
-//     // New genesis network with initial value
-//     let mut network =
-//         NetworkState::genesis(genesis, 1_000_000_000).unwrap();
-
-//     let genesis_id = *network.genesis_id();
-
-//     let mut gas_meter = gas::GasMeter::with_limit(393_588);
-//     println!(
-//         "Before call: gas_meter={:?} (spent={})",
-//         gas_meter,
-//         gas_meter.spent()
-//     );
-
-//     let (a, b) = (12, 40);
-//     assert_eq!(
-//         network
-//             .call_contract_with_limit(genesis_id, add(a, b), &mut gas_meter)
-//             .unwrap(),
-//         a + b
-//     );
-//     println!(
-//         "After call: gas_meter={:?} (spent={})",
-//         gas_meter,
-//         gas_meter.spent()
-//     );
-// }
-
 #[test]
 fn factorial() {
     use factorial::factorial;
