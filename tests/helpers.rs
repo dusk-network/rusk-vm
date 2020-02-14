@@ -2,9 +2,9 @@
 macro_rules! contract_code {
     ($name:expr) => {
         include_bytes!(concat!(
-            "../contracts/",
+            "contracts/",
             $name,
-            "/target/wasm32-unknown-unknown/release/",
+            "/wasm/target/wasm32-unknown-unknown/release/",
             $name,
             ".wasm"
         ))

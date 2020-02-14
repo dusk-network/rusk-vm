@@ -1,12 +1,11 @@
 [package]
-name = "dusk-derive"
+name = "panic"
 version = "0.1.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [lib]
-proc-macro = true
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-quote = "*"
-signatory-dalek = "*"
+dusk-abi = { path = "../../../dusk-abi", default-features = false }

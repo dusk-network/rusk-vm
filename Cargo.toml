@@ -19,8 +19,8 @@ kelvin-radix = "0.5"
 fermion = "0.2"
 
 dusk-abi = { path = "./dusk-abi" }
-default_account = { path = "contracts/default_account" }
 
 [dev-dependencies]
-factorial = { path = "contracts/factorial" }
+default_account = { path = "tests/contracts/default_account/wasm" }
+factorial = { path = "tests/contracts/factorial/wasm" }
 tempfile = "*"
