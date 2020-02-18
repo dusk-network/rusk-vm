@@ -2,6 +2,7 @@ use std::{fmt, io};
 
 use failure::Fail;
 
+mod abi_call;
 mod contract;
 mod digest;
 mod gas;

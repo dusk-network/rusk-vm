@@ -102,7 +102,7 @@ impl NetworkState {
 
         let deploy_buffer = [0u8; CALL_DATA_SIZE];
 
-        let mut context = CallContext::new(self);
+        let mut context = CallContext::new(self, HostImportResolver::default());
         context.call(id, deploy_buffer, CallKind::Deploy)?;
 
         Ok(())
@@ -138,7 +138,7 @@ impl NetworkState {
         target: H256,
         call: ContractCall<R>,
     ) -> Result<R, VMError> {
-        let mut context = CallContext::new(self);
+        let mut context = CallContext::new(self, &DEFAULT_RESOLVER);
         let data = call.into_data();
         let data_return = context.call(target, data, CallKind::Call)?;
         let decoded = encoding::decode(&data_return)?;
@@ -151,7 +151,8 @@ impl NetworkState {
         call: ContractCall<R>,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError> {
-        let mut context = CallContext::with_limit(self, gas_meter);
+        let mut context =
+            CallContext::with_limit(self, gas_meter, &DEFAULT_RESOLVER);
         let data = call.into_data();
         let data_return = context.call(target, data, CallKind::Call)?;
         let decoded = encoding::decode(&data_return)?;

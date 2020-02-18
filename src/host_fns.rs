@@ -1,11 +1,45 @@
+use std::collections::HashMap;
+
 use dusk_abi::{
     encoding, CALL_DATA_SIZE, H256, STORAGE_KEY_SIZE, STORAGE_VALUE_SIZE,
 };
 use kelvin::{Map, ValRef, ValRefMut};
+use lazy_static::lazy_static;
 use signatory::{
     ed25519,
     signature::{Signature as _, Verifier},
 };
+
+use crate::abi_call;
+use crate::abi_call::ABICall;
+
+abi_call! {
+    Panic [ValueType::I32, ValueType::I32] |context, args| {
+        let panic_ofs = args.get(0)?;
+        let panic_len = args.get(1)?;
+
+        context.top().memory.with_direct_access(|a| {
+            Err(
+                match String::from_utf8(
+                    a[panic_ofs..panic_ofs + panic_len].to_vec(),
+                ) {
+                    Ok(panic_msg) => {
+                        host_trap(VMError::ContractPanic(panic_msg))
+                    }
+                    Err(_) => host_trap(VMError::InvalidUtf8),
+                },
+            )
+        })?
+    }
+}
+
+// lazy_static! {
+//     pub static ref DEFAULT_RESOLVER: HostImportResolver = {
+//         let mut resolver = HostImportResolver::default();
+//         resolver.add("panic", Panic);
+//         resolver
+//     };
+// }
 
 use wasmi::{
     ExternVal, Externals, FuncInstance, FuncRef, ImportsBuilder, MemoryRef,
@@ -23,12 +57,12 @@ const ABI_SET_STORAGE: usize = 2;
 const ABI_GET_STORAGE: usize = 3;
 const ABI_CALLER: usize = 4;
 const ABI_CALL_DATA: usize = 5;
-const ABI_VERIFY_ED25519_SIGNATURE: usize = 6;
 const ABI_CALL_CONTRACT: usize = 7;
 const ABI_BALANCE: usize = 8;
 const ABI_RETURN: usize = 9;
 const ABI_SELF_HASH: usize = 10;
 const ABI_GAS: usize = 11;
+const ABI_VERIFY_ED25519_SIGNATURE: usize = 10000;
 
 #[derive(Debug, Clone, Copy)]
 pub enum CallKind {
@@ -63,9 +97,10 @@ impl StackFrame {
     }
 }
 
-pub(crate) struct CallContext<'a> {
+pub struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
+    resolver: &'a HostImportResolver,
     gas_meter: Option<&'a mut GasMeter>,
 }
 
@@ -73,18 +108,24 @@ impl<'a> CallContext<'a> {
     pub fn with_limit(
         state: &'a mut NetworkState,
         gas_meter: &'a mut GasMeter,
+        resolver: &'a HostImportResolver,
     ) -> Self {
         CallContext {
             stack: vec![],
             state,
             gas_meter: Some(gas_meter),
+            resolver,
         }
     }
 
-    pub fn new(state: &'a mut NetworkState) -> Self {
+    pub fn new(
+        state: &'a mut NetworkState,
+        resolver: &'a HostImportResolver,
+    ) -> Self {
         CallContext {
             stack: vec![],
             state,
+            resolver,
             gas_meter: None,
         }
     }
@@ -95,8 +136,7 @@ impl<'a> CallContext<'a> {
         call_data: [u8; CALL_DATA_SIZE],
         kind: CallKind,
     ) -> Result<[u8; CALL_DATA_SIZE], VMError> {
-        let imports =
-            ImportsBuilder::new().with_resolver("env", &HostImportResolver);
+        let imports = ImportsBuilder::new().with_resolver("env", self.resolver);
 
         let mut skip_call = false;
 
@@ -223,7 +263,22 @@ impl<'a> CallContext<'a> {
     }
 }
 
-pub(crate) struct HostImportResolver;
+#[derive(Default)]
+pub struct HostImportResolver {
+    by_name: HashMap<&'static str, (usize, Box<dyn ABICall>)>,
+    by_id: Vec<Box<dyn ABICall>>,
+}
+
+impl HostImportResolver {
+    fn add<A: 'static + ABICall + Copy>(&mut self, name: &'static str, abi: A) {
+        let id = self.by_id.len();
+
+        println!("adding {:?} id {}", name, id);
+
+        self.by_id.push(Box::new(abi));
+        self.by_name.insert(name, (id, Box::new(abi)));
+    }
+}
 
 fn args_to_slice<'a>(
     bytes: &'a [u8],
@@ -269,6 +324,9 @@ fn error_handling_invoke_index(
     index: usize,
     args: RuntimeArgs,
 ) -> Result<Option<RuntimeValue>, VMError> {
+    if let Some(abi) = context.resolver.by_id.get(index) {
+        return abi.call(context, &args);
+    }
     match index {
         ABI_PANIC => {
             let panic_ofs = args.get(0)?;
@@ -503,78 +561,81 @@ impl ModuleImportResolver for HostImportResolver {
         field_name: &str,
         _signature: &Signature,
     ) -> Result<FuncRef, wasmi::Error> {
-        match field_name {
-            "panic" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32, ValueType::I32][..], None),
-                ABI_PANIC,
-            )),
-            "debug" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32, ValueType::I32][..], None),
-                ABI_DEBUG,
-            )),
-            "set_storage" => Ok(FuncInstance::alloc_host(
-                Signature::new(
-                    &[ValueType::I32, ValueType::I32, ValueType::I32][..],
-                    None,
-                ),
-                ABI_SET_STORAGE,
-            )),
-            "get_storage" => Ok(FuncInstance::alloc_host(
-                Signature::new(
-                    &[ValueType::I32, ValueType::I32][..],
-                    Some(ValueType::I32),
-                ),
-                ABI_GET_STORAGE,
-            )),
-            "caller" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32][..], None),
-                ABI_CALLER,
-            )),
-            "self_hash" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32][..], None),
-                ABI_SELF_HASH,
-            )),
-            "call_data" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32][..], None),
-                ABI_CALL_DATA,
-            )),
-            "verify_ed25519_signature" => Ok(FuncInstance::alloc_host(
-                Signature::new(
-                    &[
-                        ValueType::I32,
-                        ValueType::I32,
-                        ValueType::I32,
-                        ValueType::I32,
-                    ][..],
-                    Some(ValueType::I32),
-                ),
-                ABI_VERIFY_ED25519_SIGNATURE,
-            )),
-            "call_contract" => Ok(FuncInstance::alloc_host(
-                Signature::new(
-                    &[
-                        ValueType::I32,
-                        ValueType::I32,
-                        ValueType::I32,
-                        ValueType::I32,
-                    ][..],
-                    None,
-                ),
-                ABI_CALL_CONTRACT,
-            )),
-            "balance" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32][..], None),
-                ABI_BALANCE,
-            )),
-            "ret" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32][..], None),
-                ABI_RETURN,
-            )),
-            "gas" => Ok(FuncInstance::alloc_host(
-                Signature::new(&[ValueType::I32][..], None),
-                ABI_GAS,
-            )),
-            name => unimplemented!("{:?}", name),
+        if let Some((id, abi)) = self.by_name.get(field_name) {
+            Ok(FuncInstance::alloc_host(
+                Signature::new(abi.args(), abi.ret()),
+                *id,
+            ))
+        } else {
+            match field_name {
+                "debug" => Ok(FuncInstance::alloc_host(
+                    Signature::new(&[ValueType::I32, ValueType::I32][..], None),
+                    ABI_DEBUG,
+                )),
+                "set_storage" => Ok(FuncInstance::alloc_host(
+                    Signature::new(
+                        &[ValueType::I32, ValueType::I32, ValueType::I32][..],
+                        None,
+                    ),
+                    ABI_SET_STORAGE,
+                )),
+                "get_storage" => Ok(FuncInstance::alloc_host(
+                    Signature::new(
+                        &[ValueType::I32, ValueType::I32][..],
+                        Some(ValueType::I32),
+                    ),
+                    ABI_GET_STORAGE,
+                )),
+                "caller" => Ok(FuncInstance::alloc_host(
+                    Signature::new(&[ValueType::I32][..], None),
+                    ABI_CALLER,
+                )),
+                "self_hash" => Ok(FuncInstance::alloc_host(
+                    Signature::new(&[ValueType::I32][..], None),
+                    ABI_SELF_HASH,
+                )),
+                "call_data" => Ok(FuncInstance::alloc_host(
+                    Signature::new(&[ValueType::I32][..], None),
+                    ABI_CALL_DATA,
+                )),
+                "verify_ed25519_signature" => Ok(FuncInstance::alloc_host(
+                    Signature::new(
+                        &[
+                            ValueType::I32,
+                            ValueType::I32,
+                            ValueType::I32,
+                            ValueType::I32,
+                        ][..],
+                        Some(ValueType::I32),
+                    ),
+                    ABI_VERIFY_ED25519_SIGNATURE,
+                )),
+                "call_contract" => Ok(FuncInstance::alloc_host(
+                    Signature::new(
+                        &[
+                            ValueType::I32,
+                            ValueType::I32,
+                            ValueType::I32,
+                            ValueType::I32,
+                        ][..],
+                        None,
+                    ),
+                    ABI_CALL_CONTRACT,
+                )),
+                "balance" => Ok(FuncInstance::alloc_host(
+                    Signature::new(&[ValueType::I32][..], None),
+                    ABI_BALANCE,
+                )),
+                "ret" => Ok(FuncInstance::alloc_host(
+                    Signature::new(&[ValueType::I32][..], None),
+                    ABI_RETURN,
+                )),
+                "gas" => Ok(FuncInstance::alloc_host(
+                    Signature::new(&[ValueType::I32][..], None),
+                    ABI_GAS,
+                )),
+                name => unimplemented!("{:?}", name),
+            }
         }
     }
 }

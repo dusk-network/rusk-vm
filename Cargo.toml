@@ -17,8 +17,10 @@ serde = "1.0"
 kelvin = "0.9"
 kelvin-radix = "0.5"
 fermion = "0.2"
-
+phf = { version = "0.8", features = ["macros"] }
 dusk-abi = { path = "./dusk-abi" }
+lazy_static = "1.4"
+parking_lot = "0.10"
 
 [dev-dependencies]
 default_account = { path = "tests/contracts/default_account/wasm" }
