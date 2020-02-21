@@ -6,6 +6,7 @@ use signatory::{ed25519::Seed, public_key::PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
 
 use crate::digest::Digest;
+use crate::host_fns::DynamicResolver;
 use crate::state::{ContractState, NetworkState};
 use crate::VMError;
 
@@ -93,7 +94,10 @@ impl Wallet {
         self.0.get_mut(name)
     }
 
-    pub fn sync(&mut self, state: &NetworkState) -> Result<(), VMError> {
+    pub fn sync<S: DynamicResolver>(
+        &mut self,
+        state: &NetworkState<S>,
+    ) -> Result<(), VMError> {
         for (_, contract_state) in self.0.iter_mut() {
             if let Some(account_state) =
                 state.get_contract_state(&contract_state.id())?

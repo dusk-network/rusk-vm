@@ -9,7 +9,7 @@ use serde::Deserialize;
 use crate::contract::Contract;
 use crate::digest::Digest;
 use crate::gas::GasMeter;
-use crate::host_fns::{CallContext, CallKind};
+use crate::host_fns::{CallContext, CallKind, DynamicResolver};
 
 pub type Storage = RadixMap<H256, Vec<u8>, Blake2b>;
 
@@ -49,13 +49,18 @@ impl ContractState {
 // Clone is obviously relatively expensive in the mock implementation
 // but it will be using persistent datastructures in production
 #[derive(Clone, Default)]
-pub struct NetworkState {
+pub struct NetworkState<S> {
     genesis_id: H256,
     contracts: RadixMap<H256, ContractState, Blake2b>,
+    resolver: S,
 }
 
-impl NetworkState {
-    pub fn genesis(contract: Contract, value: u128) -> Result<Self, VMError> {
+impl<S: DynamicResolver> NetworkState<S> {
+    pub fn genesis(
+        contract: Contract,
+        value: u128,
+        resolver: &S,
+    ) -> Result<Self, VMError> {
         let genesis_id = contract.digest();
         let mut contracts = RadixMap::new();
         contracts.insert(
@@ -69,8 +74,9 @@ impl NetworkState {
         let mut state = NetworkState {
             genesis_id,
             contracts,
+            resolver: S::default(),
         };
-        state.deploy_contract(contract)?;
+        state.deploy_contract(contract, resolver)?;
         Ok(state)
     }
 
@@ -78,10 +84,15 @@ impl NetworkState {
         &self.genesis_id
     }
 
+    pub fn resolver(&self) -> &S {
+        &self.resolver
+    }
+
     // Deploys contract to the network state and runs the deploy function
     pub fn deploy_contract(
         &mut self,
         contract: Contract,
+        resolver: &S,
     ) -> Result<(), VMError> {
         let id = contract.digest();
 
@@ -102,7 +113,7 @@ impl NetworkState {
 
         let deploy_buffer = [0u8; CALL_DATA_SIZE];
 
-        let mut context = CallContext::new(self, HostImportResolver::default());
+        let mut context = CallContext::new(self, resolver);
         context.call(id, deploy_buffer, CallKind::Deploy)?;
 
         Ok(())
@@ -137,8 +148,9 @@ impl NetworkState {
         &mut self,
         target: H256,
         call: ContractCall<R>,
+        resolver: &S,
     ) -> Result<R, VMError> {
-        let mut context = CallContext::new(self, &DEFAULT_RESOLVER);
+        let mut context = CallContext::new(self, resolver);
         let data = call.into_data();
         let data_return = context.call(target, data, CallKind::Call)?;
         let decoded = encoding::decode(&data_return)?;
@@ -150,9 +162,9 @@ impl NetworkState {
         target: H256,
         call: ContractCall<R>,
         gas_meter: &mut GasMeter,
+        resolver: &S,
     ) -> Result<R, VMError> {
-        let mut context =
-            CallContext::with_limit(self, gas_meter, &DEFAULT_RESOLVER);
+        let mut context = CallContext::with_limit(self, gas_meter, resolver);
         let data = call.into_data();
         let data_return = context.call(target, data, CallKind::Call)?;
         let decoded = encoding::decode(&data_return)?;
@@ -176,7 +188,7 @@ impl Content<Blake2b> for ContractState {
     }
 }
 
-impl Content<Blake2b> for NetworkState {
+impl<S: 'static + DynamicResolver> Content<Blake2b> for NetworkState<S> {
     fn persist(&mut self, sink: &mut Sink<Blake2b>) -> io::Result<()> {
         self.genesis_id.persist(sink)?;
         self.contracts.persist(sink)
@@ -186,6 +198,7 @@ impl Content<Blake2b> for NetworkState {
         Ok(NetworkState {
             genesis_id: H256::restore(source)?,
             contracts: RadixMap::restore(source)?,
+            resolver: S::default(),
         })
     }
 }

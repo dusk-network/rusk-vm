@@ -4,7 +4,6 @@ use dusk_abi::{
     encoding, CALL_DATA_SIZE, H256, STORAGE_KEY_SIZE, STORAGE_VALUE_SIZE,
 };
 use kelvin::{Map, ValRef, ValRefMut};
-use lazy_static::lazy_static;
 use signatory::{
     ed25519,
     signature::{Signature as _, Verifier},
@@ -12,34 +11,6 @@ use signatory::{
 
 use crate::abi_call;
 use crate::abi_call::ABICall;
-
-abi_call! {
-    Panic [ValueType::I32, ValueType::I32] |context, args| {
-        let panic_ofs = args.get(0)?;
-        let panic_len = args.get(1)?;
-
-        context.top().memory.with_direct_access(|a| {
-            Err(
-                match String::from_utf8(
-                    a[panic_ofs..panic_ofs + panic_len].to_vec(),
-                ) {
-                    Ok(panic_msg) => {
-                        host_trap(VMError::ContractPanic(panic_msg))
-                    }
-                    Err(_) => host_trap(VMError::InvalidUtf8),
-                },
-            )
-        })?
-    }
-}
-
-// lazy_static! {
-//     pub static ref DEFAULT_RESOLVER: HostImportResolver = {
-//         let mut resolver = HostImportResolver::default();
-//         resolver.add("panic", Panic);
-//         resolver
-//     };
-// }
 
 use wasmi::{
     ExternVal, Externals, FuncInstance, FuncRef, ImportsBuilder, MemoryRef,
@@ -63,6 +34,51 @@ const ABI_RETURN: usize = 9;
 const ABI_SELF_HASH: usize = 10;
 const ABI_GAS: usize = 11;
 const ABI_VERIFY_ED25519_SIGNATURE: usize = 10000;
+
+pub trait DynamicResolver: ModuleImportResolver + Default + Clone {
+    fn by_id(&self, id: usize) -> &dyn ABICall<Self>;
+    fn by_name(&self, name: &str) -> &dyn ABICall<Self>;
+}
+
+#[derive(Clone)]
+pub struct StandardABI;
+
+impl ModuleImportResolver for StandardABI {}
+
+impl DynamicResolver for StandardABI {
+    fn by_id(&self, id: usize) -> &dyn ABICall<Self> {
+        unimplemented!()
+    }
+    fn by_name(&self, name: &str) -> &dyn ABICall<Self> {
+        unimplemented!()
+    }
+}
+
+impl Default for StandardABI {
+    fn default() -> Self {
+        StandardABI
+    }
+}
+
+abi_call! {
+    Panic [ValueType::I32, ValueType::I32] |context, args| {
+        let panic_ofs = args.get(0)?;
+        let panic_len = args.get(1)?;
+
+        context.top().memory.with_direct_access(|a| {
+            Err(
+                match String::from_utf8(
+                    a[panic_ofs..panic_ofs + panic_len].to_vec(),
+                ) {
+                    Ok(panic_msg) => {
+                        host_trap(VMError::ContractPanic(panic_msg))
+                    }
+                    Err(_) => host_trap(VMError::InvalidUtf8),
+                },
+            )
+        })?
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum CallKind {
@@ -97,18 +113,18 @@ impl StackFrame {
     }
 }
 
-pub struct CallContext<'a> {
-    state: &'a mut NetworkState,
+pub struct CallContext<'a, S> {
+    state: &'a mut NetworkState<S>,
     stack: Vec<StackFrame>,
-    resolver: &'a HostImportResolver,
     gas_meter: Option<&'a mut GasMeter>,
+    resolver: &'a S,
 }
 
-impl<'a> CallContext<'a> {
+impl<'a, S: DynamicResolver> CallContext<'a, S> {
     pub fn with_limit(
-        state: &'a mut NetworkState,
+        state: &'a mut NetworkState<S>,
         gas_meter: &'a mut GasMeter,
-        resolver: &'a HostImportResolver,
+        resolver: &'a S,
     ) -> Self {
         CallContext {
             stack: vec![],
@@ -118,15 +134,12 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn new(
-        state: &'a mut NetworkState,
-        resolver: &'a HostImportResolver,
-    ) -> Self {
+    pub fn new(state: &'a mut NetworkState<S>, resolver: &'a S) -> Self {
         CallContext {
             stack: vec![],
             state,
-            resolver,
             gas_meter: None,
+            resolver,
         }
     }
 
@@ -265,12 +278,16 @@ impl<'a> CallContext<'a> {
 
 #[derive(Default)]
 pub struct HostImportResolver {
-    by_name: HashMap<&'static str, (usize, Box<dyn ABICall>)>,
-    by_id: Vec<Box<dyn ABICall>>,
+    by_name: HashMap<&'static str, (usize, Box<dyn ABICall<Self>>)>,
+    by_id: Vec<Box<dyn ABICall<Self>>>,
 }
 
 impl HostImportResolver {
-    fn add<A: 'static + ABICall + Copy>(&mut self, name: &'static str, abi: A) {
+    fn add<A: 'static + ABICall<Self> + Copy>(
+        &mut self,
+        name: &'static str,
+        abi: A,
+    ) {
         let id = self.by_id.len();
 
         println!("adding {:?} id {}", name, id);
@@ -319,14 +336,15 @@ impl ArgsExt for RuntimeArgs<'_> {
     }
 }
 
-fn error_handling_invoke_index(
-    context: &mut CallContext,
+fn error_handling_invoke_index<S: DynamicResolver>(
+    context: &mut CallContext<S>,
     index: usize,
     args: RuntimeArgs,
 ) -> Result<Option<RuntimeValue>, VMError> {
-    if let Some(abi) = context.resolver.by_id.get(index) {
-        return abi.call(context, &args);
-    }
+    let abi = context.resolver.by_id(index);
+    return abi.call(context, &args);
+
+    unreachable!();
     match index {
         ABI_PANIC => {
             let panic_ofs = args.get(0)?;
@@ -536,7 +554,7 @@ fn error_handling_invoke_index(
     }
 }
 
-impl<'a> Externals for CallContext<'a> {
+impl<'a, S: DynamicResolver> Externals for CallContext<'a, S> {
     fn invoke_index(
         &mut self,
         index: usize,

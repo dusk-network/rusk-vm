@@ -14,6 +14,7 @@ pub use contract::ContractModule;
 pub use digest::Digest;
 pub use fermion::Error;
 pub use gas::{Gas, GasMeter};
+pub use host_fns::StandardABI;
 pub use state::NetworkState;
 pub use wallet::Wallet;
 

@@ -1,19 +1,16 @@
 use crate::host_fns::CallContext;
 use crate::VMError;
-use parking_lot::RwLock;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
-pub trait ABICall: Send + Sync {
+pub trait ABICall<S>: Send + Sync {
     fn call(
         &self,
-        context: &mut CallContext,
+        context: &mut CallContext<S>,
         args: &RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError>;
     fn args(&self) -> &'static [ValueType];
     fn ret(&self) -> Option<ValueType>;
 }
-
-const REGISTERED_ABI_CALLS: RwLock<Vec<Box<dyn ABICall>>> = Default::default();
 
 #[macro_export]
 macro_rules! abi_call {
@@ -21,10 +18,10 @@ macro_rules! abi_call {
         #[derive(Clone, Copy)]
         struct $name;
 
-        impl ABICall for $name {
+        impl<S: DynamicResolver> ABICall<S> for $name {
             fn call(
                 &self,
-                $context: &mut CallContext,
+                $context: &mut CallContext<S>,
                 $args: &RuntimeArgs,
             ) -> Result<Option<RuntimeValue>, VMError> {
                 $body

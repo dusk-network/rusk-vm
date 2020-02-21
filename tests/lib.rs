@@ -6,7 +6,8 @@ use kelvin::{Blake2b, Store};
 use tempfile::tempdir;
 
 use rusk_vm::{
-    ContractModule, Digest, GasMeter, NetworkState, Schedule, Wallet,
+    ContractModule, Digest, GasMeter, NetworkState, Schedule, StandardABI,
+    Wallet,
 };
 
 #[test]
@@ -23,16 +24,18 @@ fn default_account() {
         .unwrap();
 
     let genesis = genesis_builder.build().unwrap();
+    let resolver = StandardABI::default();
 
     // New genesis network with initial value
-    let mut network = NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+    let mut network =
+        NetworkState::genesis(genesis, 1_000_000_000, &resolver).unwrap();
 
     let genesis_id = *network.genesis_id();
 
     // check balance of genesis account
     assert_eq!(
         network
-            .call_contract(genesis_id, DefaultAccount::balance())
+            .call_contract(genesis_id, DefaultAccount::balance(), &resolver)
             .unwrap(),
         1_000_000_000
     );
@@ -63,24 +66,28 @@ fn default_account() {
         0,
     );
 
-    network.call_contract(genesis_id, call).unwrap();
+    network.call_contract(genesis_id, call, &resolver).unwrap();
 
     // deploy/reveal alices contract
 
-    network.deploy_contract(alice_account).unwrap();
+    network.deploy_contract(alice_account, &resolver).unwrap();
 
     // check balances
 
     assert_eq!(
         network
-            .call_contract(alice_account_id, DefaultAccount::balance())
+            .call_contract(
+                alice_account_id,
+                DefaultAccount::balance(),
+                &resolver
+            )
             .unwrap(),
         1_000,
     );
 
     assert_eq!(
         network
-            .call_contract(genesis_id, DefaultAccount::balance())
+            .call_contract(genesis_id, DefaultAccount::balance(), &resolver)
             .unwrap(),
         1_000_000_000 - 1_000
     );
@@ -96,7 +103,7 @@ fn default_account() {
 
     assert_eq!(
         network
-            .call_contract(genesis_id, DefaultAccount::balance())
+            .call_contract(genesis_id, DefaultAccount::balance(), &resolver)
             .unwrap(),
         1_000_000_000 - 1_000
     );
@@ -107,7 +114,7 @@ fn default_account() {
 
     assert_eq!(
         restored
-            .call_contract(genesis_id, DefaultAccount::balance())
+            .call_contract(genesis_id, DefaultAccount::balance(), &resolver)
             .unwrap(),
         1_000_000_000 - 1_000
     );
@@ -129,15 +136,19 @@ fn factorial() {
         ContractModule::new(contract_code!("factorial"), &schedule).unwrap();
 
     let genesis = genesis_builder.build().unwrap();
+    let resolver = StandardABI::default();
 
     // New genesis network with initial value
-    let mut network = NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+    let mut network =
+        NetworkState::genesis(genesis, 1_000_000_000, &resolver).unwrap();
 
     let genesis_id = *network.genesis_id();
 
     let n = 6;
     assert_eq!(
-        network.call_contract(genesis_id, factorial(n)).unwrap(),
+        network
+            .call_contract(genesis_id, factorial(n), &resolver)
+            .unwrap(),
         factorial_reference(n)
     );
 }
@@ -158,9 +169,11 @@ fn factorial_with_limit() {
         ContractModule::new(contract_code!("factorial"), &schedule).unwrap();
 
     let genesis = genesis_builder.build().unwrap();
+    let resolver = StandardABI::default();
 
     // New genesis network with initial value
-    let mut network = NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+    let mut network =
+        NetworkState::genesis(genesis, 1_000_000_000, &resolver).unwrap();
 
     let genesis_id = *network.genesis_id();
     let mut gas_meter = GasMeter::with_limit(1_000_000_000);
@@ -173,7 +186,12 @@ fn factorial_with_limit() {
     let n = 6;
     assert_eq!(
         network
-            .call_contract_with_limit(genesis_id, factorial(n), &mut gas_meter)
+            .call_contract_with_limit(
+                genesis_id,
+                factorial(n),
+                &mut gas_meter,
+                &resolver
+            )
             .unwrap(),
         factorial_reference(n)
     );
@@ -195,13 +213,15 @@ fn panic_propagation() {
         ContractModule::new(contract_code!("panic"), &schedule).unwrap();
 
     let genesis = genesis_builder.build().unwrap();
+    let resolver = StandardABI::default();
 
     // New genesis network with initial value
-    let mut network = NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+    let mut network =
+        NetworkState::genesis(genesis, 1_000_000_000, &resolver).unwrap();
 
     let genesis_id = *network.genesis_id();
 
     network
-        .call_contract::<()>(genesis_id, ContractCall::nil())
+        .call_contract::<()>(genesis_id, ContractCall::nil(), &resolver)
         .unwrap();
 }
