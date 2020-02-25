@@ -12,6 +12,8 @@ use rusk_vm::{
 
 #[test]
 fn default_account() {
+    let mut gas_meter = GasMeter::with_limit(1_000_000_000);
+
     let mut wallet = Wallet::new();
     let schedule = Schedule::default();
     let mut genesis_builder =
@@ -24,18 +26,21 @@ fn default_account() {
         .unwrap();
 
     let genesis = genesis_builder.build().unwrap();
-    let resolver = StandardABI::default();
 
     // New genesis network with initial value
     let mut network =
-        NetworkState::genesis(genesis, 1_000_000_000, &resolver).unwrap();
+        NetworkState::<StandardABI>::genesis(genesis, 1_000_000_000).unwrap();
 
     let genesis_id = *network.genesis_id();
 
     // check balance of genesis account
     assert_eq!(
         network
-            .call_contract(genesis_id, DefaultAccount::balance(), &resolver)
+            .call_contract(
+                genesis_id,
+                DefaultAccount::balance(),
+                &mut gas_meter
+            )
             .unwrap(),
         1_000_000_000
     );
@@ -66,11 +71,15 @@ fn default_account() {
         0,
     );
 
-    network.call_contract(genesis_id, call, &resolver).unwrap();
+    network
+        .call_contract(genesis_id, call, &mut gas_meter)
+        .unwrap();
 
     // deploy/reveal alices contract
 
-    network.deploy_contract(alice_account, &resolver).unwrap();
+    network
+        .deploy_contract(alice_account, &mut gas_meter)
+        .unwrap();
 
     // check balances
 
@@ -79,7 +88,7 @@ fn default_account() {
             .call_contract(
                 alice_account_id,
                 DefaultAccount::balance(),
-                &resolver
+                &mut gas_meter
             )
             .unwrap(),
         1_000,
@@ -87,7 +96,11 @@ fn default_account() {
 
     assert_eq!(
         network
-            .call_contract(genesis_id, DefaultAccount::balance(), &resolver)
+            .call_contract(
+                genesis_id,
+                DefaultAccount::balance(),
+                &mut gas_meter
+            )
             .unwrap(),
         1_000_000_000 - 1_000
     );
@@ -103,18 +116,25 @@ fn default_account() {
 
     assert_eq!(
         network
-            .call_contract(genesis_id, DefaultAccount::balance(), &resolver)
+            .call_contract(
+                genesis_id,
+                DefaultAccount::balance(),
+                &mut gas_meter
+            )
             .unwrap(),
         1_000_000_000 - 1_000
     );
 
     let mut restored = store.restore(&snapshot).unwrap();
-
     // restored network gives same result
 
     assert_eq!(
         restored
-            .call_contract(genesis_id, DefaultAccount::balance(), &resolver)
+            .call_contract(
+                genesis_id,
+                DefaultAccount::balance(),
+                &mut gas_meter
+            )
             .unwrap(),
         1_000_000_000 - 1_000
     );
@@ -122,6 +142,8 @@ fn default_account() {
 
 #[test]
 fn factorial() {
+    let mut gas_meter = GasMeter::with_limit(1_000_000_000);
+
     use factorial::factorial;
 
     fn factorial_reference(n: u64) -> u64 {
@@ -136,18 +158,17 @@ fn factorial() {
         ContractModule::new(contract_code!("factorial"), &schedule).unwrap();
 
     let genesis = genesis_builder.build().unwrap();
-    let resolver = StandardABI::default();
 
     // New genesis network with initial value
     let mut network =
-        NetworkState::genesis(genesis, 1_000_000_000, &resolver).unwrap();
+        NetworkState::<StandardABI>::genesis(genesis, 1_000_000_000).unwrap();
 
     let genesis_id = *network.genesis_id();
 
     let n = 6;
     assert_eq!(
         network
-            .call_contract(genesis_id, factorial(n), &resolver)
+            .call_contract(genesis_id, factorial(n), &mut gas_meter)
             .unwrap(),
         factorial_reference(n)
     );
@@ -155,6 +176,8 @@ fn factorial() {
 
 #[test]
 fn factorial_with_limit() {
+    let mut gas_meter = GasMeter::with_limit(1_000_000_000);
+
     use factorial::factorial;
 
     fn factorial_reference(n: u64) -> u64 {
@@ -169,14 +192,12 @@ fn factorial_with_limit() {
         ContractModule::new(contract_code!("factorial"), &schedule).unwrap();
 
     let genesis = genesis_builder.build().unwrap();
-    let resolver = StandardABI::default();
 
     // New genesis network with initial value
     let mut network =
-        NetworkState::genesis(genesis, 1_000_000_000, &resolver).unwrap();
+        NetworkState::<StandardABI>::genesis(genesis, 1_000_000_000).unwrap();
 
     let genesis_id = *network.genesis_id();
-    let mut gas_meter = GasMeter::with_limit(1_000_000_000);
     println!(
         "Before call: gas_meter={:?} (spent={})",
         gas_meter,
@@ -186,12 +207,7 @@ fn factorial_with_limit() {
     let n = 6;
     assert_eq!(
         network
-            .call_contract_with_limit(
-                genesis_id,
-                factorial(n),
-                &mut gas_meter,
-                &resolver
-            )
+            .call_contract(genesis_id, factorial(n), &mut gas_meter)
             .unwrap(),
         factorial_reference(n)
     );
@@ -217,11 +233,12 @@ fn panic_propagation() {
 
     // New genesis network with initial value
     let mut network =
-        NetworkState::genesis(genesis, 1_000_000_000, &resolver).unwrap();
+        NetworkState::<StandardABI>::genesis(genesis, 1_000_000_000).unwrap();
 
     let genesis_id = *network.genesis_id();
+    let mut gas_meter = GasMeter::with_limit(1_000_000_000);
 
     network
-        .call_contract::<()>(genesis_id, ContractCall::nil(), &resolver)
+        .call_contract::<()>(genesis_id, ContractCall::nil(), &mut gas_meter)
         .unwrap();
 }

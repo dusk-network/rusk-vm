@@ -56,11 +56,7 @@ pub struct NetworkState<S> {
 }
 
 impl<S: DynamicResolver> NetworkState<S> {
-    pub fn genesis(
-        contract: Contract,
-        value: u128,
-        resolver: &S,
-    ) -> Result<Self, VMError> {
+    pub fn genesis(contract: Contract, value: u128) -> Result<Self, VMError> {
         let genesis_id = contract.digest();
         let mut contracts = RadixMap::new();
         contracts.insert(
@@ -76,7 +72,10 @@ impl<S: DynamicResolver> NetworkState<S> {
             contracts,
             resolver: S::default(),
         };
-        state.deploy_contract(contract, resolver)?;
+        state.deploy_contract(
+            contract,
+            &mut GasMeter::with_limit(1_000_000_000),
+        )?;
         Ok(state)
     }
 
@@ -92,7 +91,7 @@ impl<S: DynamicResolver> NetworkState<S> {
     pub fn deploy_contract(
         &mut self,
         contract: Contract,
-        resolver: &S,
+        gas_meter: &mut GasMeter,
     ) -> Result<(), VMError> {
         let id = contract.digest();
 
@@ -113,7 +112,7 @@ impl<S: DynamicResolver> NetworkState<S> {
 
         let deploy_buffer = [0u8; CALL_DATA_SIZE];
 
-        let mut context = CallContext::new(self, resolver);
+        let mut context = CallContext::new(self, gas_meter);
         context.call(id, deploy_buffer, CallKind::Deploy)?;
 
         Ok(())
@@ -148,23 +147,9 @@ impl<S: DynamicResolver> NetworkState<S> {
         &mut self,
         target: H256,
         call: ContractCall<R>,
-        resolver: &S,
-    ) -> Result<R, VMError> {
-        let mut context = CallContext::new(self, resolver);
-        let data = call.into_data();
-        let data_return = context.call(target, data, CallKind::Call)?;
-        let decoded = encoding::decode(&data_return)?;
-        Ok(decoded)
-    }
-
-    pub fn call_contract_with_limit<R: for<'de> Deserialize<'de>>(
-        &mut self,
-        target: H256,
-        call: ContractCall<R>,
         gas_meter: &mut GasMeter,
-        resolver: &S,
     ) -> Result<R, VMError> {
-        let mut context = CallContext::with_limit(self, gas_meter, resolver);
+        let mut context = CallContext::new(self, gas_meter);
         let data = call.into_data();
         let data_return = context.call(target, data, CallKind::Call)?;
         let decoded = encoding::decode(&data_return)?;

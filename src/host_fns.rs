@@ -1,21 +1,11 @@
-use std::collections::HashMap;
+use std::marker::PhantomData;
 
-use dusk_abi::{
-    encoding, CALL_DATA_SIZE, H256, STORAGE_KEY_SIZE, STORAGE_VALUE_SIZE,
-};
-use kelvin::{Map, ValRef, ValRefMut};
-use signatory::{
-    ed25519,
-    signature::{Signature as _, Verifier},
-};
-
-use crate::abi_call;
-use crate::abi_call::ABICall;
+use dusk_abi::{CALL_DATA_SIZE, H256};
+use kelvin::{ValRef, ValRefMut};
 
 use wasmi::{
-    ExternVal, Externals, FuncInstance, FuncRef, ImportsBuilder, MemoryRef,
-    ModuleImportResolver, ModuleInstance, RuntimeArgs, RuntimeValue, Signature,
-    Trap, TrapKind, ValueType,
+    ExternVal, Externals, ImportsBuilder, MemoryRef, ModuleImportResolver,
+    ModuleInstance, RuntimeArgs, RuntimeValue, Trap, TrapKind,
 };
 
 use crate::gas::GasMeter;
@@ -35,50 +25,45 @@ const ABI_SELF_HASH: usize = 10;
 const ABI_GAS: usize = 11;
 const ABI_VERIFY_ED25519_SIGNATURE: usize = 10000;
 
-pub trait DynamicResolver: ModuleImportResolver + Default + Clone {
-    fn by_id(&self, id: usize) -> &dyn ABICall<Self>;
-    fn by_name(&self, name: &str) -> &dyn ABICall<Self>;
+pub trait DynamicResolver:
+    Invoke + ModuleImportResolver + Default + Clone
+{
 }
 
-#[derive(Clone)]
-pub struct StandardABI;
+pub use crate::resolver::CompoundResolver as StandardABI;
 
-impl ModuleImportResolver for StandardABI {}
+// #[derive(Clone)]
+// pub struct StandardABI;
 
-impl DynamicResolver for StandardABI {
-    fn by_id(&self, id: usize) -> &dyn ABICall<Self> {
-        unimplemented!()
-    }
-    fn by_name(&self, name: &str) -> &dyn ABICall<Self> {
-        unimplemented!()
-    }
-}
+// impl ModuleImportResolver for StandardABI {}
 
-impl Default for StandardABI {
-    fn default() -> Self {
-        StandardABI
-    }
-}
+// impl DynamicResolver for StandardABI {}
 
-abi_call! {
-    Panic [ValueType::I32, ValueType::I32] |context, args| {
-        let panic_ofs = args.get(0)?;
-        let panic_len = args.get(1)?;
+// impl Default for StandardABI {
+//     fn default() -> Self {
+//         StandardABI
+//     }
+// }
 
-        context.top().memory.with_direct_access(|a| {
-            Err(
-                match String::from_utf8(
-                    a[panic_ofs..panic_ofs + panic_len].to_vec(),
-                ) {
-                    Ok(panic_msg) => {
-                        host_trap(VMError::ContractPanic(panic_msg))
-                    }
-                    Err(_) => host_trap(VMError::InvalidUtf8),
-                },
-            )
-        })?
-    }
-}
+// abi_call! {
+//     Panic [ValueType::I32, ValueType::I32] |context, args| {
+//         let panic_ofs = args.get(0)?;
+//         let panic_len = args.get(1)?;
+
+//         context.top().memory.with_direct_access(|a| {
+//             Err(
+//                 match String::from_utf8(
+//                     a[panic_ofs..panic_ofs + panic_len].to_vec(),
+//                 ) {
+//                     Ok(panic_msg) => {
+//                         host_trap(VMError::ContractPanic(panic_msg))
+//                     }
+//                     Err(_) => host_trap(VMError::InvalidUtf8),
+//                 },
+//             )
+//         })?
+//     }
+// }
 
 #[derive(Debug, Clone, Copy)]
 pub enum CallKind {
@@ -86,7 +71,7 @@ pub enum CallKind {
     Call,
 }
 
-struct StackFrame {
+pub struct StackFrame {
     context: H256,
     call_data: [u8; CALL_DATA_SIZE],
     call_kind: CallKind,
@@ -113,33 +98,31 @@ impl StackFrame {
     }
 }
 
+pub trait Invoke: Sized {
+    fn invoke(
+        context: &mut CallContext<Self>,
+        index: usize,
+        args: RuntimeArgs,
+    ) -> Result<Option<RuntimeValue>, VMError>;
+}
+
 pub struct CallContext<'a, S> {
     state: &'a mut NetworkState<S>,
     stack: Vec<StackFrame>,
-    gas_meter: Option<&'a mut GasMeter>,
-    resolver: &'a S,
+    gas_meter: &'a mut GasMeter,
+    _marker: PhantomData<S>,
 }
 
 impl<'a, S: DynamicResolver> CallContext<'a, S> {
-    pub fn with_limit(
+    pub fn new(
         state: &'a mut NetworkState<S>,
         gas_meter: &'a mut GasMeter,
-        resolver: &'a S,
     ) -> Self {
         CallContext {
             stack: vec![],
             state,
-            gas_meter: Some(gas_meter),
-            resolver,
-        }
-    }
-
-    pub fn new(state: &'a mut NetworkState<S>, resolver: &'a S) -> Self {
-        CallContext {
-            stack: vec![],
-            state,
-            gas_meter: None,
-            resolver,
+            gas_meter,
+            _marker: PhantomData,
         }
     }
 
@@ -149,7 +132,8 @@ impl<'a, S: DynamicResolver> CallContext<'a, S> {
         call_data: [u8; CALL_DATA_SIZE],
         kind: CallKind,
     ) -> Result<[u8; CALL_DATA_SIZE], VMError> {
-        let imports = ImportsBuilder::new().with_resolver("env", self.resolver);
+        let resolver = S::default();
+        let imports = ImportsBuilder::new().with_resolver("env", &resolver);
 
         let mut skip_call = false;
 
@@ -211,45 +195,49 @@ impl<'a, S: DynamicResolver> CallContext<'a, S> {
         Ok(self.stack.pop().expect("Invalid stack").into_call_data())
     }
 
-    fn data(&self) -> &[u8] {
+    pub fn data(&self) -> &[u8] {
         let top = self.top();
         &top.call_data
     }
 
-    fn memory(&self) -> &MemoryRef {
+    pub fn memory(&self) -> &MemoryRef {
         &self.top().memory
     }
 
-    fn memory_mut(&mut self) -> &mut MemoryRef {
+    pub fn memory_mut(&mut self) -> &mut MemoryRef {
         &mut self.top_mut().memory
     }
 
-    fn top(&self) -> &StackFrame {
+    pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
+        self.gas_meter
+    }
+
+    pub fn top(&self) -> &StackFrame {
         &self.stack.last().expect("Empty stack")
     }
 
-    fn top_mut(&mut self) -> &mut StackFrame {
+    pub fn top_mut(&mut self) -> &mut StackFrame {
         self.stack.last_mut().expect("Empty stack")
     }
 
-    fn caller(&self) -> &H256 {
+    pub fn caller(&self) -> &H256 {
         // for top level, caller is the same as called.
         let i = self.stack.len().saturating_sub(1);
         &self.stack.get(i).expect("Empty stack").context
     }
 
-    fn called(&self) -> &H256 {
+    pub fn called(&self) -> &H256 {
         &self.top().context
     }
 
-    fn storage(&self) -> Result<impl ValRef<Storage>, VMError> {
+    pub fn storage(&self) -> Result<impl ValRef<Storage>, VMError> {
         match self.state.get_contract_state(&self.caller())? {
             Some(state) => Ok(state.wrap(|state| state.storage())),
             None => Err(VMError::UnknownContract),
         }
     }
 
-    fn storage_mut(&mut self) -> Result<impl ValRefMut<Storage>, VMError> {
+    pub fn storage_mut(&mut self) -> Result<impl ValRefMut<Storage>, VMError> {
         let caller = *self.caller();
         Ok(self
             .state
@@ -258,7 +246,15 @@ impl<'a, S: DynamicResolver> CallContext<'a, S> {
             .wrap_mut(|state| state.storage_mut()))
     }
 
-    fn balance(&self) -> Result<u128, VMError> {
+    pub fn state(&self) -> &NetworkState<S> {
+        &self.state
+    }
+
+    pub fn state_mut(&mut self) -> &mut NetworkState<S> {
+        &mut self.state
+    }
+
+    pub fn balance(&self) -> Result<u128, VMError> {
         Ok(self
             .state
             .get_contract_state(&self.caller())?
@@ -266,7 +262,7 @@ impl<'a, S: DynamicResolver> CallContext<'a, S> {
             .balance())
     }
 
-    fn balance_mut(&mut self) -> Result<impl ValRefMut<u128>, VMError> {
+    pub fn balance_mut(&mut self) -> Result<impl ValRefMut<u128>, VMError> {
         let caller = *self.caller();
         Ok(self
             .state
@@ -276,55 +272,15 @@ impl<'a, S: DynamicResolver> CallContext<'a, S> {
     }
 }
 
-#[derive(Default)]
-pub struct HostImportResolver {
-    by_name: HashMap<&'static str, (usize, Box<dyn ABICall<Self>>)>,
-    by_id: Vec<Box<dyn ABICall<Self>>>,
-}
-
-impl HostImportResolver {
-    fn add<A: 'static + ABICall<Self> + Copy>(
-        &mut self,
-        name: &'static str,
-        abi: A,
-    ) {
-        let id = self.by_id.len();
-
-        println!("adding {:?} id {}", name, id);
-
-        self.by_id.push(Box::new(abi));
-        self.by_name.insert(name, (id, Box::new(abi)));
-    }
-}
-
-fn args_to_slice<'a>(
-    bytes: &'a [u8],
-    args_ofs: usize,
-    args: &RuntimeArgs,
-) -> Result<&'a [u8], Trap> {
-    let args = args.as_ref();
-    let ofs: u32 = args[args_ofs]
-        .try_into()
-        .ok_or_else(|| host_trap(VMError::MissingArgument))?;
-    let len: u32 = args[args_ofs + 1]
-        .try_into()
-        .ok_or_else(|| host_trap(VMError::MissingArgument))?;
-    unsafe {
-        Ok(std::slice::from_raw_parts(
-            &bytes[ofs as usize],
-            len as usize,
-        ))
-    }
-}
-
-// Convenience function to construct host traps
-fn host_trap(host: VMError) -> Trap {
+/// Convenience function to construct host traps
+pub fn host_trap(host: VMError) -> Trap {
     Trap::new(TrapKind::Host(Box::new(host)))
 }
 
-// Convenience trait to extract arguments
-trait ArgsExt {
+/// Convenience trait to extract arguments
+pub trait ArgsExt {
     fn get(&self, i: usize) -> Result<usize, Trap>;
+    fn to_slice(&self, bytes: &[u8], args_ofs: usize) -> Result<&[u8], Trap>;
 }
 
 impl ArgsExt for RuntimeArgs<'_> {
@@ -334,225 +290,239 @@ impl ArgsExt for RuntimeArgs<'_> {
             .ok_or_else(|| host_trap(VMError::MissingArgument))
             .map(|i| i as usize)
     }
-}
 
-fn error_handling_invoke_index<S: DynamicResolver>(
-    context: &mut CallContext<S>,
-    index: usize,
-    args: RuntimeArgs,
-) -> Result<Option<RuntimeValue>, VMError> {
-    let abi = context.resolver.by_id(index);
-    return abi.call(context, &args);
-
-    unreachable!();
-    match index {
-        ABI_PANIC => {
-            let panic_ofs = args.get(0)?;
-            let panic_len = args.get(1)?;
-
-            context.top().memory.with_direct_access(|a| {
-                Err(
-                    match String::from_utf8(
-                        a[panic_ofs..panic_ofs + panic_len].to_vec(),
-                    ) {
-                        Ok(panic_msg) => {
-                            host_trap(VMError::ContractPanic(panic_msg))
-                        }
-                        Err(_) => host_trap(VMError::InvalidUtf8),
-                    },
-                )
-            })?
+    fn to_slice(&self, bytes: &[u8], args_ofs: usize) -> Result<&[u8], Trap> {
+        let args = self.as_ref();
+        let ofs: u32 = args[args_ofs]
+            .try_into()
+            .ok_or_else(|| host_trap(VMError::MissingArgument))?;
+        let len: u32 = args[args_ofs + 1]
+            .try_into()
+            .ok_or_else(|| host_trap(VMError::MissingArgument))?;
+        unsafe {
+            Ok(std::slice::from_raw_parts(
+                &bytes[ofs as usize],
+                len as usize,
+            ))
         }
-        ABI_SET_STORAGE => {
-            let key_ofs = args.get(0)?;
-            let val_ofs = args.get(1)?;
-            let val_len = args.get(2)?;
-
-            let mut key_buf = H256::default();
-            let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
-
-            context.top().memory.with_direct_access(|a| {
-                key_buf
-                    .as_mut()
-                    .copy_from_slice(&a[key_ofs..key_ofs + STORAGE_KEY_SIZE]);
-                val_buf[0..val_len]
-                    .copy_from_slice(&a[val_ofs..val_ofs + val_len]);
-            });
-            context
-                .storage_mut()?
-                .insert(key_buf, val_buf[0..val_len].into())?;
-
-            Ok(None)
-        }
-        // Return value indicates if the key was found or not
-        ABI_GET_STORAGE => {
-            // offset to where to write the value in memory
-            let key_buf_ofs = args.get(0)?;
-            let val_buf_ofs = args.get(1)?;
-
-            let mut key_buf = H256::default();
-
-            context.top().memory.with_direct_access(|a| {
-                key_buf.as_mut().copy_from_slice(
-                    &a[key_buf_ofs..key_buf_ofs + STORAGE_KEY_SIZE],
-                );
-            });
-
-            match context.storage()?.get(&key_buf)? {
-                Some(val) => {
-                    let len = val.len();
-                    context.top().memory.with_direct_access_mut(|a| {
-                        a[val_buf_ofs..val_buf_ofs + len].copy_from_slice(&val)
-                    });
-                    Ok(Some(RuntimeValue::I32(len as i32)))
-                }
-                None => Ok(Some(RuntimeValue::I32(0))),
-            }
-        }
-        ABI_DEBUG => context.top().memory.with_direct_access(|a| {
-            let slice = args_to_slice(a, 0, &args)?;
-            let str = std::str::from_utf8(slice)
-                .map_err(|_| host_trap(VMError::InvalidUtf8))?;
-            println!("CONTRACT DEBUG: {:?}", str);
-            Ok(None)
-        }),
-        ABI_CALLER => {
-            let buffer_ofs = args.get(0)?;
-
-            context.top().memory.with_direct_access_mut(|a| {
-                a[buffer_ofs..buffer_ofs + 32]
-                    .copy_from_slice(context.caller().as_ref())
-            });
-            Ok(None)
-        }
-        ABI_SELF_HASH => {
-            let buffer_ofs = args.get(0)?;
-
-            context.top().memory.with_direct_access_mut(|a| {
-                a[buffer_ofs..buffer_ofs + 32]
-                    .copy_from_slice(context.called().as_ref())
-            });
-            Ok(None)
-        }
-        ABI_CALL_DATA => {
-            let call_data_ofs = args.get(0)?;
-
-            context.top().memory.with_direct_access_mut(|a| {
-                a[call_data_ofs..call_data_ofs + CALL_DATA_SIZE]
-                    .copy_from_slice(context.data())
-            });
-            Ok(None)
-        }
-        ABI_VERIFY_ED25519_SIGNATURE => {
-            let key_ptr = args.get(0)?;
-            let sig_ptr = args.get(1)?;
-
-            context.top().memory.with_direct_access_mut(|a| {
-                let pub_key =
-                    ed25519::PublicKey::from_bytes(&a[key_ptr..key_ptr + 32])
-                        .ok_or_else(|| {
-                        host_trap(VMError::InvalidEd25519PublicKey)
-                    })?;
-
-                let signature = ed25519::Signature::from_bytes(
-                    &a[sig_ptr..sig_ptr + 64],
-                )
-                .map_err(|_| host_trap(VMError::InvalidEd25519Signature))?;
-
-                let data_slice = args_to_slice(a, 2, &args)?;
-
-                let verifier: signatory_dalek::Ed25519Verifier =
-                    (&pub_key).into();
-
-                match verifier.verify(data_slice, &signature) {
-                    Ok(_) => Ok(Some(RuntimeValue::I32(1))),
-                    Err(_) => Ok(Some(RuntimeValue::I32(0))),
-                }
-            })
-        }
-        ABI_CALL_CONTRACT => {
-            let target_ofs = args.get(0)?;
-            let amount_ofs = args.get(1)?;
-            let data_ofs = args.get(2)?;
-            let data_len = args.get(3)?;
-
-            let mut call_buf = [0u8; CALL_DATA_SIZE];
-            let mut target = H256::zero();
-            let mut amount = u128::default();
-
-            context
-                .memory()
-                .with_direct_access::<Result<(), VMError>, _>(|a| {
-                    target = encoding::decode(&a[target_ofs..target_ofs + 32])?;
-                    amount = encoding::decode(&a[amount_ofs..amount_ofs + 16])?;
-                    call_buf[0..data_len]
-                        .copy_from_slice(&a[data_ofs..data_ofs + data_len]);
-                    Ok(())
-                })?;
-            // assure sufficient funds are available
-            if context.balance()? >= amount {
-                *context.balance_mut()? -= amount;
-                *context
-                    .state
-                    .get_contract_state_mut_or_default(&target)?
-                    .balance_mut() += amount;
-            } else {
-                panic!("not enough funds")
-            }
-
-            if data_len > 0 {
-                let return_buf =
-                    context.call(target, call_buf, CallKind::Call)?;
-                // write the return data back into memory
-                context.memory().with_direct_access_mut(|a| {
-                    a[data_ofs..data_ofs + CALL_DATA_SIZE]
-                        .copy_from_slice(&return_buf)
-                })
-            }
-
-            Ok(None)
-        }
-        ABI_BALANCE => {
-            // first argument is a pointer to a 16 byte buffer
-            let buffer_ofs = args.get(0)?;
-            let balance = context.balance()?;
-
-            context.memory_mut().with_direct_access_mut(|a| {
-                encoding::encode(&balance, &mut a[buffer_ofs..]).map(|_| ())
-            })?;
-
-            Ok(None)
-        }
-        ABI_RETURN => {
-            let buffer_ofs = args.get(0)?;
-
-            let StackFrame {
-                ref mut memory,
-                call_data,
-                ..
-            } = context.top_mut();
-
-            // copy return value from memory into call_data
-            memory.with_direct_access_mut(|a| {
-                call_data.copy_from_slice(
-                    &a[buffer_ofs..buffer_ofs + CALL_DATA_SIZE],
-                );
-            });
-
-            Err(VMError::ContractReturn)
-        }
-        ABI_GAS => {
-            if let Some(ref mut meter) = context.gas_meter {
-                let gas: u32 = args.nth_checked(0)?;
-                if meter.charge(gas as u64).is_out_of_gas() {
-                    return Err(VMError::OutOfGas);
-                }
-            }
-            Ok(None)
-        }
-        _ => Err(VMError::InvalidApiCall),
     }
 }
+
+// fn error_handling_invoke_index<S: DynamicResolver>(
+//     context: &mut CallContext<S>,
+//     index: usize,
+//     args: RuntimeArgs,
+// ) -> Result<Option<RuntimeValue>, VMError> {
+//     let resolver = S::default();
+//     match index {
+//         ABI_PANIC => {
+//             let panic_ofs = args.get(0)?;
+//             let panic_len = args.get(1)?;
+
+//             context.top().memory.with_direct_access(|a| {
+//                 Err(
+//                     match String::from_utf8(
+//                         a[panic_ofs..panic_ofs + panic_len].to_vec(),
+//                     ) {
+//                         Ok(panic_msg) => {
+//                             host_trap(VMError::ContractPanic(panic_msg))
+//                         }
+//                         Err(_) => host_trap(VMError::InvalidUtf8),
+//                     },
+//                 )
+//             })?
+//         }
+//         ABI_SET_STORAGE => {
+//             let key_ofs = args.get(0)?;
+//             let val_ofs = args.get(1)?;
+//             let val_len = args.get(2)?;
+
+//             let mut key_buf = H256::default();
+//             let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
+
+//             context.top().memory.with_direct_access(|a| {
+//                 key_buf
+//                     .as_mut()
+//                     .copy_from_slice(&a[key_ofs..key_ofs + STORAGE_KEY_SIZE]);
+//                 val_buf[0..val_len]
+//                     .copy_from_slice(&a[val_ofs..val_ofs + val_len]);
+//             });
+//             context
+//                 .storage_mut()?
+//                 .insert(key_buf, val_buf[0..val_len].into())?;
+
+//             Ok(None)
+//         }
+//         // Return value indicates if the key was found or not
+//         ABI_GET_STORAGE => {
+//             // offset to where to write the value in memory
+//             let key_buf_ofs = args.get(0)?;
+//             let val_buf_ofs = args.get(1)?;
+
+//             let mut key_buf = H256::default();
+
+//             context.top().memory.with_direct_access(|a| {
+//                 key_buf.as_mut().copy_from_slice(
+//                     &a[key_buf_ofs..key_buf_ofs + STORAGE_KEY_SIZE],
+//                 );
+//             });
+
+//             match context.storage()?.get(&key_buf)? {
+//                 Some(val) => {
+//                     let len = val.len();
+//                     context.top().memory.with_direct_access_mut(|a| {
+//                         a[val_buf_ofs..val_buf_ofs + len].copy_from_slice(&val)
+//                     });
+//                     Ok(Some(RuntimeValue::I32(len as i32)))
+//                 }
+//                 None => Ok(Some(RuntimeValue::I32(0))),
+//             }
+//         }
+//         ABI_DEBUG => context.top().memory.with_direct_access(|a| {
+//             let slice = args.to_slice(a, 0)?;
+//             let str = std::str::from_utf8(slice)
+//                 .map_err(|_| host_trap(VMError::InvalidUtf8))?;
+//             println!("CONTRACT DEBUG: {:?}", str);
+//             Ok(None)
+//         }),
+//         ABI_CALLER => {
+//             let buffer_ofs = args.get(0)?;
+
+//             context.top().memory.with_direct_access_mut(|a| {
+//                 a[buffer_ofs..buffer_ofs + 32]
+//                     .copy_from_slice(context.caller().as_ref())
+//             });
+//             Ok(None)
+//         }
+//         ABI_SELF_HASH => {
+//             let buffer_ofs = args.get(0)?;
+
+//             context.top().memory.with_direct_access_mut(|a| {
+//                 a[buffer_ofs..buffer_ofs + 32]
+//                     .copy_from_slice(context.called().as_ref())
+//             });
+//             Ok(None)
+//         }
+//         ABI_CALL_DATA => {
+//             let call_data_ofs = args.get(0)?;
+
+//             context.top().memory.with_direct_access_mut(|a| {
+//                 a[call_data_ofs..call_data_ofs + CALL_DATA_SIZE]
+//                     .copy_from_slice(context.data())
+//             });
+//             Ok(None)
+//         }
+//         ABI_VERIFY_ED25519_SIGNATURE => {
+//             let key_ptr = args.get(0)?;
+//             let sig_ptr = args.get(1)?;
+
+//             context.top().memory.with_direct_access_mut(|a| {
+//                 let pub_key =
+//                     ed25519::PublicKey::from_bytes(&a[key_ptr..key_ptr + 32])
+//                         .ok_or_else(|| {
+//                         host_trap(VMError::InvalidEd25519PublicKey)
+//                     })?;
+
+//                 let signature = ed25519::Signature::from_bytes(
+//                     &a[sig_ptr..sig_ptr + 64],
+//                 )
+//                 .map_err(|_| host_trap(VMError::InvalidEd25519Signature))?;
+
+//                 let data_slice = args.to_slice(a, 2)?;
+
+//                 let verifier: signatory_dalek::Ed25519Verifier =
+//                     (&pub_key).into();
+
+//                 match verifier.verify(data_slice, &signature) {
+//                     Ok(_) => Ok(Some(RuntimeValue::I32(1))),
+//                     Err(_) => Ok(Some(RuntimeValue::I32(0))),
+//                 }
+//             })
+//         }
+//         ABI_CALL_CONTRACT => {
+//             let target_ofs = args.get(0)?;
+//             let amount_ofs = args.get(1)?;
+//             let data_ofs = args.get(2)?;
+//             let data_len = args.get(3)?;
+
+//             let mut call_buf = [0u8; CALL_DATA_SIZE];
+//             let mut target = H256::zero();
+//             let mut amount = u128::default();
+
+//             context
+//                 .memory()
+//                 .with_direct_access::<Result<(), VMError>, _>(|a| {
+//                     target = encoding::decode(&a[target_ofs..target_ofs + 32])?;
+//                     amount = encoding::decode(&a[amount_ofs..amount_ofs + 16])?;
+//                     call_buf[0..data_len]
+//                         .copy_from_slice(&a[data_ofs..data_ofs + data_len]);
+//                     Ok(())
+//                 })?;
+//             // assure sufficient funds are available
+//             if context.balance()? >= amount {
+//                 *context.balance_mut()? -= amount;
+//                 *context
+//                     .state
+//                     .get_contract_state_mut_or_default(&target)?
+//                     .balance_mut() += amount;
+//             } else {
+//                 panic!("not enough funds")
+//             }
+
+//             if data_len > 0 {
+//                 let return_buf =
+//                     context.call(target, call_buf, CallKind::Call)?;
+//                 // write the return data back into memory
+//                 context.memory().with_direct_access_mut(|a| {
+//                     a[data_ofs..data_ofs + CALL_DATA_SIZE]
+//                         .copy_from_slice(&return_buf)
+//                 })
+//             }
+
+//             Ok(None)
+//         }
+//         ABI_BALANCE => {
+//             // first argument is a pointer to a 16 byte buffer
+//             let buffer_ofs = args.get(0)?;
+//             let balance = context.balance()?;
+
+//             context.memory_mut().with_direct_access_mut(|a| {
+//                 encoding::encode(&balance, &mut a[buffer_ofs..]).map(|_| ())
+//             })?;
+
+//             Ok(None)
+//         }
+//         ABI_RETURN => {
+//             let buffer_ofs = args.get(0)?;
+
+//             let StackFrame {
+//                 ref mut memory,
+//                 call_data,
+//                 ..
+//             } = context.top_mut();
+
+//             // copy return value from memory into call_data
+//             memory.with_direct_access_mut(|a| {
+//                 call_data.copy_from_slice(
+//                     &a[buffer_ofs..buffer_ofs + CALL_DATA_SIZE],
+//                 );
+//             });
+
+//             Err(VMError::ContractReturn)
+//         }
+//         ABI_GAS => {
+//             unimplemented!("A")
+//             // if let Some(ref mut meter) = context.gas_meter {
+//             //     let gas: u32 = args.nth_checked(0)?;
+//             //     if meter.charge(gas as u64).is_out_of_gas() {
+//             //         return Err(VMError::OutOfGas);
+//             //     }
+//             // }
+//             // Ok(None)
+//         }
+//         _ => Err(VMError::InvalidApiCall),
+//     }
+// }
 
 impl<'a, S: DynamicResolver> Externals for CallContext<'a, S> {
     fn invoke_index(
@@ -560,7 +530,7 @@ impl<'a, S: DynamicResolver> Externals for CallContext<'a, S> {
         index: usize,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, Trap> {
-        match error_handling_invoke_index(self, index, args) {
+        match S::invoke(self, index, args) {
             Ok(ok) => Ok(ok),
             Err(e) => {
                 if let VMError::Trap(t) = e {
@@ -573,87 +543,87 @@ impl<'a, S: DynamicResolver> Externals for CallContext<'a, S> {
     }
 }
 
-impl ModuleImportResolver for HostImportResolver {
-    fn resolve_func(
-        &self,
-        field_name: &str,
-        _signature: &Signature,
-    ) -> Result<FuncRef, wasmi::Error> {
-        if let Some((id, abi)) = self.by_name.get(field_name) {
-            Ok(FuncInstance::alloc_host(
-                Signature::new(abi.args(), abi.ret()),
-                *id,
-            ))
-        } else {
-            match field_name {
-                "debug" => Ok(FuncInstance::alloc_host(
-                    Signature::new(&[ValueType::I32, ValueType::I32][..], None),
-                    ABI_DEBUG,
-                )),
-                "set_storage" => Ok(FuncInstance::alloc_host(
-                    Signature::new(
-                        &[ValueType::I32, ValueType::I32, ValueType::I32][..],
-                        None,
-                    ),
-                    ABI_SET_STORAGE,
-                )),
-                "get_storage" => Ok(FuncInstance::alloc_host(
-                    Signature::new(
-                        &[ValueType::I32, ValueType::I32][..],
-                        Some(ValueType::I32),
-                    ),
-                    ABI_GET_STORAGE,
-                )),
-                "caller" => Ok(FuncInstance::alloc_host(
-                    Signature::new(&[ValueType::I32][..], None),
-                    ABI_CALLER,
-                )),
-                "self_hash" => Ok(FuncInstance::alloc_host(
-                    Signature::new(&[ValueType::I32][..], None),
-                    ABI_SELF_HASH,
-                )),
-                "call_data" => Ok(FuncInstance::alloc_host(
-                    Signature::new(&[ValueType::I32][..], None),
-                    ABI_CALL_DATA,
-                )),
-                "verify_ed25519_signature" => Ok(FuncInstance::alloc_host(
-                    Signature::new(
-                        &[
-                            ValueType::I32,
-                            ValueType::I32,
-                            ValueType::I32,
-                            ValueType::I32,
-                        ][..],
-                        Some(ValueType::I32),
-                    ),
-                    ABI_VERIFY_ED25519_SIGNATURE,
-                )),
-                "call_contract" => Ok(FuncInstance::alloc_host(
-                    Signature::new(
-                        &[
-                            ValueType::I32,
-                            ValueType::I32,
-                            ValueType::I32,
-                            ValueType::I32,
-                        ][..],
-                        None,
-                    ),
-                    ABI_CALL_CONTRACT,
-                )),
-                "balance" => Ok(FuncInstance::alloc_host(
-                    Signature::new(&[ValueType::I32][..], None),
-                    ABI_BALANCE,
-                )),
-                "ret" => Ok(FuncInstance::alloc_host(
-                    Signature::new(&[ValueType::I32][..], None),
-                    ABI_RETURN,
-                )),
-                "gas" => Ok(FuncInstance::alloc_host(
-                    Signature::new(&[ValueType::I32][..], None),
-                    ABI_GAS,
-                )),
-                name => unimplemented!("{:?}", name),
-            }
-        }
-    }
-}
+// impl ModuleImportResolver for HostImportResolver {
+//     fn resolve_func(
+//         &self,
+//         field_name: &str,
+//         _signature: &Signature,
+//     ) -> Result<FuncRef, wasmi::Error> {
+//         if let Some((id, abi)) = self.by_name.get(field_name) {
+//             Ok(FuncInstance::alloc_host(
+//                 Signature::new(abi.args(), abi.ret()),
+//                 *id,
+//             ))
+//         } else {
+//             match field_name {
+//                 "debug" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(&[ValueType::I32, ValueType::I32][..], None),
+//                     ABI_DEBUG,
+//                 )),
+//                 "set_storage" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(
+//                         &[ValueType::I32, ValueType::I32, ValueType::I32][..],
+//                         None,
+//                     ),
+//                     ABI_SET_STORAGE,
+//                 )),
+//                 "get_storage" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(
+//                         &[ValueType::I32, ValueType::I32][..],
+//                         Some(ValueType::I32),
+//                     ),
+//                     ABI_GET_STORAGE,
+//                 )),
+//                 "caller" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(&[ValueType::I32][..], None),
+//                     ABI_CALLER,
+//                 )),
+//                 "self_hash" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(&[ValueType::I32][..], None),
+//                     ABI_SELF_HASH,
+//                 )),
+//                 "call_data" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(&[ValueType::I32][..], None),
+//                     ABI_CALL_DATA,
+//                 )),
+//                 "verify_ed25519_signature" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(
+//                         &[
+//                             ValueType::I32,
+//                             ValueType::I32,
+//                             ValueType::I32,
+//                             ValueType::I32,
+//                         ][..],
+//                         Some(ValueType::I32),
+//                     ),
+//                     ABI_VERIFY_ED25519_SIGNATURE,
+//                 )),
+//                 "call_contract" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(
+//                         &[
+//                             ValueType::I32,
+//                             ValueType::I32,
+//                             ValueType::I32,
+//                             ValueType::I32,
+//                         ][..],
+//                         None,
+//                     ),
+//                     ABI_CALL_CONTRACT,
+//                 )),
+//                 "balance" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(&[ValueType::I32][..], None),
+//                     ABI_BALANCE,
+//                 )),
+//                 "ret" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(&[ValueType::I32][..], None),
+//                     ABI_RETURN,
+//                 )),
+//                 "gas" => Ok(FuncInstance::alloc_host(
+//                     Signature::new(&[ValueType::I32][..], None),
+//                     ABI_GAS,
+//                 )),
+//                 name => unimplemented!("{:?}", name),
+//             }
+//         }
+//     }
+// }

@@ -2,11 +2,12 @@ use std::{fmt, io};
 
 use failure::Fail;
 
-mod abi_call;
 mod contract;
 mod digest;
 mod gas;
 mod host_fns;
+mod ops;
+mod resolver;
 mod state;
 mod wallet;
 
