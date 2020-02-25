@@ -18,7 +18,7 @@ macro_rules! abi_call {
         #[derive(Clone, Copy)]
         struct $name;
 
-        impl<S: DynamicResolver> ABICall<S> for $name {
+        impl<S: Resolver> ABICall<S> for $name {
             fn call(
                 &self,
                 $context: &mut CallContext<S>,

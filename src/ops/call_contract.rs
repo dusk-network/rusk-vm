@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{ArgsExt, CallContext, CallKind, DynamicResolver};
+use crate::host_fns::{ArgsExt, CallContext, CallKind, Resolver};
 use crate::VMError;
 
 use dusk_abi::{encoding, CALL_DATA_SIZE, H256};
@@ -8,7 +8,7 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct CallContract;
 
-impl<S: DynamicResolver> AbiCall<S> for CallContract {
+impl<S: Resolver> AbiCall<S> for CallContract {
     const NAME: &'static str = "call_contract";
     const ARGUMENTS: &'static [ValueType] = &[
         ValueType::I32,

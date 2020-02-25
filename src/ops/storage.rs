@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{ArgsExt, CallContext, DynamicResolver};
+use crate::host_fns::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use dusk_abi::{H256, STORAGE_KEY_SIZE, STORAGE_VALUE_SIZE};
@@ -9,7 +9,7 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct SetStorage;
 
-impl<S: DynamicResolver> AbiCall<S> for SetStorage {
+impl<S: Resolver> AbiCall<S> for SetStorage {
     const NAME: &'static str = "set_storage";
     const ARGUMENTS: &'static [ValueType] =
         &[ValueType::I32, ValueType::I32, ValueType::I32];
@@ -42,7 +42,7 @@ impl<S: DynamicResolver> AbiCall<S> for SetStorage {
 
 pub struct GetStorage;
 
-impl<S: DynamicResolver> AbiCall<S> for GetStorage {
+impl<S: Resolver> AbiCall<S> for GetStorage {
     const NAME: &'static str = "get_storage";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = Some(ValueType::I32);

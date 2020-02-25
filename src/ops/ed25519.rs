@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{host_trap, ArgsExt, CallContext, DynamicResolver};
+use crate::host_fns::{host_trap, ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
@@ -11,7 +11,7 @@ use signatory::{
 
 pub struct Ed25519;
 
-impl<S: DynamicResolver> AbiCall<S> for Ed25519 {
+impl<S: Resolver> AbiCall<S> for Ed25519 {
     const NAME: &'static str = "verify_ed25519_signature";
     const ARGUMENTS: &'static [ValueType] = &[
         ValueType::I32,

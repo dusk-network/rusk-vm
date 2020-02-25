@@ -6,7 +6,7 @@ use signatory::{ed25519::Seed, public_key::PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
 
 use crate::digest::Digest;
-use crate::host_fns::DynamicResolver;
+use crate::host_fns::Resolver;
 use crate::state::{ContractState, NetworkState};
 use crate::VMError;
 
@@ -94,7 +94,7 @@ impl Wallet {
         self.0.get_mut(name)
     }
 
-    pub fn sync<S: DynamicResolver>(
+    pub fn sync<S: Resolver>(
         &mut self,
         state: &NetworkState<S>,
     ) -> Result<(), VMError> {

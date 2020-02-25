@@ -1,4 +1,4 @@
-use crate::host_fns::DynamicResolver;
+use crate::host_fns::Resolver;
 use crate::ops::*;
 use crate::VMError;
 
@@ -55,7 +55,7 @@ macro_rules! abi_resolver {
             }
         }
 
-        impl DynamicResolver for $name {}
+        impl Resolver for $name {}
     };
 }
 

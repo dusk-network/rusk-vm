@@ -1,12 +1,12 @@
 use super::AbiCall;
-use crate::host_fns::{host_trap, ArgsExt, CallContext, DynamicResolver};
+use crate::host_fns::{host_trap, ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Return;
 
-impl<S: DynamicResolver> AbiCall<S> for Return {
+impl<S: Resolver> AbiCall<S> for Return {
     const NAME: &'static str = "ret";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;

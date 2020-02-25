@@ -1,12 +1,12 @@
 use super::AbiCall;
-use crate::host_fns::{ArgsExt, CallContext, DynamicResolver};
+use crate::host_fns::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct SelfHash;
 
-impl<S: DynamicResolver> AbiCall<S> for SelfHash {
+impl<S: Resolver> AbiCall<S> for SelfHash {
     const NAME: &'static str = "self_hash";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;

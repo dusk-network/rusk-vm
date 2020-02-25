@@ -87,7 +87,7 @@ impl fmt::Display for VMError {
             }
             VMError::InvalidApiCall => write!(f, "Invalid Api Call")?,
             VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
-            VMError::Trap(_) => unreachable!(),
+            VMError::Trap(e) => write!(f, "Trap ({:?})", e)?,
             VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
         }

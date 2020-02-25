@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{ArgsExt, CallContext, DynamicResolver};
+use crate::host_fns::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use dusk_abi::encoding;
@@ -7,7 +7,7 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Balance;
 
-impl<S: DynamicResolver> AbiCall<S> for Balance {
+impl<S: Resolver> AbiCall<S> for Balance {
     const NAME: &'static str = "balance";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;

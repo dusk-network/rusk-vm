@@ -1,12 +1,12 @@
 use super::AbiCall;
-use crate::host_fns::{CallContext, DynamicResolver};
+use crate::host_fns::{CallContext, Resolver};
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Gas;
 
-impl<S: DynamicResolver> AbiCall<S> for Gas {
+impl<S: Resolver> AbiCall<S> for Gas {
     const NAME: &'static str = "gas";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;

@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{ArgsExt, CallContext, DynamicResolver};
+use crate::host_fns::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use dusk_abi::CALL_DATA_SIZE;
@@ -8,7 +8,7 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct CallData;
 
-impl<S: DynamicResolver> AbiCall<S> for CallData {
+impl<S: Resolver> AbiCall<S> for CallData {
     const NAME: &'static str = "call_data";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;

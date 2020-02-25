@@ -9,7 +9,7 @@ use serde::Deserialize;
 use crate::contract::Contract;
 use crate::digest::Digest;
 use crate::gas::GasMeter;
-use crate::host_fns::{CallContext, CallKind, DynamicResolver};
+use crate::host_fns::{CallContext, CallKind, Resolver};
 
 pub type Storage = RadixMap<H256, Vec<u8>, Blake2b>;
 
@@ -55,7 +55,7 @@ pub struct NetworkState<S> {
     resolver: S,
 }
 
-impl<S: DynamicResolver> NetworkState<S> {
+impl<S: Resolver> NetworkState<S> {
     pub fn genesis(contract: Contract, value: u128) -> Result<Self, VMError> {
         let genesis_id = contract.digest();
         let mut contracts = RadixMap::new();
@@ -173,7 +173,7 @@ impl Content<Blake2b> for ContractState {
     }
 }
 
-impl<S: 'static + DynamicResolver> Content<Blake2b> for NetworkState<S> {
+impl<S: 'static + Resolver> Content<Blake2b> for NetworkState<S> {
     fn persist(&mut self, sink: &mut Sink<Blake2b>) -> io::Result<()> {
         self.genesis_id.persist(sink)?;
         self.contracts.persist(sink)

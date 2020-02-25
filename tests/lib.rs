@@ -229,7 +229,6 @@ fn panic_propagation() {
         ContractModule::new(contract_code!("panic"), &schedule).unwrap();
 
     let genesis = genesis_builder.build().unwrap();
-    let resolver = StandardABI::default();
 
     // New genesis network with initial value
     let mut network =
