@@ -12,7 +12,6 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 pub struct Ed25519;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Ed25519 {
-    const NAME: &'static str = "verify_ed25519_signature";
     const ARGUMENTS: &'static [ValueType] = &[
         ValueType::I32,
         ValueType::I32,

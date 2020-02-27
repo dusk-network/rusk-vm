@@ -17,7 +17,6 @@ pub mod self_hash;
 pub mod storage;
 
 pub trait AbiCall<S, H: ByteHash> {
-    const NAME: &'static str;
     const ARGUMENTS: &'static [ValueType];
     const RETURN: Option<ValueType>;
 

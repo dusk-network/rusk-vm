@@ -9,7 +9,6 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 pub struct Balance;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Balance {
-    const NAME: &'static str = "balance";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 

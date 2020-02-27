@@ -13,7 +13,7 @@ use wasmi::{
 use crate::host_fns::{CallContext, Invoke};
 
 macro_rules! abi_resolver {
-    ( $visibility:vis $name:ident < $h:ident > { $( $id:expr => $op:path ),* } ) => {
+    ( $visibility:vis $name:ident < $h:ident > { $( $id:expr, $op_name:expr => $op:path ),* } ) => {
 
         #[derive(Clone, Default)]
         $visibility struct $name<$h> (PhantomData<$h>);
@@ -26,7 +26,7 @@ macro_rules! abi_resolver {
             {
                 match field_name {
                     $(
-                        <$op as AbiCall<Self, $h>>::NAME => Ok(FuncInstance::alloc_host(
+                        $op_name => Ok(FuncInstance::alloc_host(
                             Signature::new(<$op as AbiCall<Self, $h>>::ARGUMENTS,
                                            <$op as AbiCall<Self, $h>>::RETURN),
                             $id,
@@ -64,16 +64,16 @@ macro_rules! abi_resolver {
 
 abi_resolver! {
     pub CompoundResolver<H> {
-        0 => panic::Panic,
-        1 => debug::Debug,
-        2 => storage::SetStorage,
-        3 => storage::GetStorage,
-        5 => call_data::CallData,
-        7 => call_contract::CallContract,
-        9 => balance::Balance,
-        9 => ret::Return,
-        10 => self_hash::SelfHash,
-        11 => gas::Gas,
-        10_000 => ed25519::Ed25519
+        0, "panic" => panic::Panic,
+        1, "debug" => debug::Debug,
+        2, "set_storage" => storage::SetStorage,
+        3, "get_storage" => storage::GetStorage,
+        4, "call_data" => call_data::CallData,
+        5, "call_contract" => call_contract::CallContract,
+        6, "balance" => balance::Balance,
+        7, "return" => ret::Return,
+        8, "self_hash" => self_hash::SelfHash,
+        9, "gas" => gas::Gas,
+        10_000, "verify_ed25519_signature" => ed25519::Ed25519
     }
 }

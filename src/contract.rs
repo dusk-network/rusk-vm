@@ -8,7 +8,6 @@ use parity_wasm::elements::{
 use pwasm_utils;
 use pwasm_utils::rules;
 
-use crate::digest::{HashState, MakeDigest};
 use crate::{Schedule, VMError};
 
 use std::{mem, ptr};

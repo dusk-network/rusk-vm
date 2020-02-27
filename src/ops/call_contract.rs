@@ -9,7 +9,6 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 pub struct CallContract;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for CallContract {
-    const NAME: &'static str = "call_contract";
     const ARGUMENTS: &'static [ValueType] = &[
         ValueType::I32,
         ValueType::I32,

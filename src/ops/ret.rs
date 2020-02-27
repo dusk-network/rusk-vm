@@ -8,7 +8,6 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 pub struct Return;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Return {
-    const NAME: &'static str = "ret";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
@@ -24,7 +23,9 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Return {
                 match String::from_utf8(
                     a[panic_ofs..panic_ofs + panic_len].to_vec(),
                 ) {
-                    Ok(panic_msg) => host_trap(VMError::ContractReturn),
+                    Ok(panic_msg) => {
+                        host_trap(VMError::ContractPanic(panic_msg))
+                    }
                     Err(_) => host_trap(VMError::InvalidUtf8),
                 },
             )

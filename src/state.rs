@@ -2,13 +2,12 @@ use std::io;
 use std::marker::PhantomData;
 
 use crate::VMError;
-use dusk_abi::{encoding, ContractCall, CALL_DATA_SIZE, H256};
+use dusk_abi::{encoding, ContractCall, H256};
 use kelvin::{ByteHash, Content, Map as _, Sink, Source, ValRef, ValRefMut};
 use kelvin_radix::DefaultRadixMap as RadixMap;
 use serde::Deserialize;
 
 use crate::contract::MeteredContract;
-use crate::digest::Digest;
 use crate::gas::GasMeter;
 use crate::host_fns::{CallContext, CallKind, Resolver};
 
@@ -68,8 +67,8 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
     // Deploys contract to the network state and runs the deploy function
     pub fn deploy_contract(
         &mut self,
-        contract: MeteredContract,
-        gas_meter: &mut GasMeter,
+        _contract: MeteredContract,
+        _gas_meter: &mut GasMeter,
     ) -> Result<(), VMError> {
         unimplemented!()
 

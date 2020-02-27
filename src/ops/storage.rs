@@ -10,7 +10,6 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 pub struct SetStorage;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for SetStorage {
-    const NAME: &'static str = "set_storage";
     const ARGUMENTS: &'static [ValueType] =
         &[ValueType::I32, ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = None;
@@ -43,7 +42,6 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for SetStorage {
 pub struct GetStorage;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for GetStorage {
-    const NAME: &'static str = "get_storage";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = Some(ValueType::I32);
 

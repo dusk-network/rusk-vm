@@ -8,7 +8,6 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 pub struct Gas;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Gas {
-    const NAME: &'static str = "gas";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 

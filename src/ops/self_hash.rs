@@ -8,7 +8,6 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 pub struct SelfHash;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for SelfHash {
-    const NAME: &'static str = "self_hash";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
