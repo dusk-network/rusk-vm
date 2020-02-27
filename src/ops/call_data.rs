@@ -4,17 +4,18 @@ use crate::VMError;
 
 use dusk_abi::CALL_DATA_SIZE;
 
+use kelvin::ByteHash;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct CallData;
 
-impl<S: Resolver> AbiCall<S> for CallData {
+impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for CallData {
     const NAME: &'static str = "call_data";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
         let call_data_ofs = args.get(0)?;

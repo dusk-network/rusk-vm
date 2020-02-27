@@ -1,7 +1,9 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use dusk_abi::H256;
+use kelvin::ByteHash;
 use signatory::{ed25519::Seed, public_key::PublicKeyed};
 use signatory_dalek::Ed25519Signer as Signer;
 
@@ -10,15 +12,16 @@ use crate::host_fns::Resolver;
 use crate::state::{ContractState, NetworkState};
 use crate::VMError;
 
-pub struct ManagedAccount {
+pub struct ManagedAccount<H> {
     /// The balance in Dusk
     balance: u128,
     #[allow(unused)]
     nonce: u128,
     signer: Signer,
+    _marker: PhantomData<H>,
 }
 
-impl Default for ManagedAccount {
+impl<H: ByteHash> Default for ManagedAccount<H> {
     fn default() -> Self {
         let seed = Seed::generate();
         let signer = Signer::from(&seed);
@@ -27,16 +30,17 @@ impl Default for ManagedAccount {
             balance: 0,
             nonce: 0,
             signer,
+            _marker: PhantomData,
         }
     }
 }
 
-impl ManagedAccount {
+impl<H: ByteHash> ManagedAccount<H> {
     pub fn id(&self) -> H256 {
         self.signer.public_key().expect("cannot fail").digest()
     }
 
-    pub fn update(&mut self, state: &ContractState) {
+    pub fn update(&mut self, state: &ContractState<H>) {
         self.balance = state.balance();
     }
 
@@ -54,20 +58,20 @@ impl ManagedAccount {
 }
 
 #[derive(Default)]
-pub struct Wallet(HashMap<String, ManagedAccount>);
+pub struct Wallet<H>(HashMap<String, ManagedAccount<H>>);
 
-impl Wallet {
+impl<H: ByteHash> Wallet<H> {
     pub fn new() -> Self {
         let mut w = Wallet(HashMap::new());
         w.new_account("default").expect("conflict in empty hashmap");
         w
     }
 
-    pub fn default_account(&self) -> &ManagedAccount {
+    pub fn default_account(&self) -> &ManagedAccount<H> {
         self.0.get("default").expect("No default account")
     }
 
-    pub fn default_account_mut(&mut self) -> &mut ManagedAccount {
+    pub fn default_account_mut(&mut self) -> &mut ManagedAccount<H> {
         self.0.get_mut("default").expect("No default account")
     }
 
@@ -76,27 +80,27 @@ impl Wallet {
     pub fn new_account<S: Into<String>>(
         &mut self,
         name: S,
-    ) -> Result<&mut ManagedAccount, ()> {
+    ) -> Result<&mut ManagedAccount<H>, ()> {
         match self.0.entry(name.into()) {
             Entry::Vacant(v) => Ok(v.insert(ManagedAccount::default())),
             _ => Err(()),
         }
     }
 
-    pub fn get_account(&self, name: &str) -> Option<&ManagedAccount> {
+    pub fn get_account(&self, name: &str) -> Option<&ManagedAccount<H>> {
         self.0.get(name)
     }
 
     pub fn get_account_mut(
         &mut self,
         name: &str,
-    ) -> Option<&mut ManagedAccount> {
+    ) -> Option<&mut ManagedAccount<H>> {
         self.0.get_mut(name)
     }
 
-    pub fn sync<S: Resolver>(
+    pub fn sync<S: Resolver<H>>(
         &mut self,
-        state: &NetworkState<S>,
+        state: &NetworkState<S, H>,
     ) -> Result<(), VMError> {
         for (_, contract_state) in self.0.iter_mut() {
             if let Some(account_state) =

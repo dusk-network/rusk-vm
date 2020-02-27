@@ -5,7 +5,7 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 pub trait ABICall<S>: Send + Sync {
     fn call(
         &self,
-        context: &mut CallContext<S>,
+        context: &mut CallContext<S, H>,
         args: &RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError>;
     fn args(&self) -> &'static [ValueType];
@@ -21,7 +21,7 @@ macro_rules! abi_call {
         impl<S: Resolver> ABICall<S> for $name {
             fn call(
                 &self,
-                $context: &mut CallContext<S>,
+                $context: &mut CallContext<S, H>,
                 $args: &RuntimeArgs,
             ) -> Result<Option<RuntimeValue>, VMError> {
                 $body

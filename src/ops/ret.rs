@@ -2,17 +2,18 @@ use super::AbiCall;
 use crate::host_fns::{host_trap, ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
+use kelvin::ByteHash;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Return;
 
-impl<S: Resolver> AbiCall<S> for Return {
+impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Return {
     const NAME: &'static str = "ret";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
         let panic_ofs = args.get(0)?;

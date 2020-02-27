@@ -9,9 +9,11 @@ use pwasm_utils;
 use pwasm_utils::rules;
 
 use crate::digest::{HashState, MakeDigest};
-use crate::Schedule;
+use crate::{Schedule, VMError};
 
 use std::{mem, ptr};
+
+/// read out the
 fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     let code = init_expr.code();
 
@@ -25,29 +27,26 @@ fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct Contract(Vec<u8>);
+#[derive(Clone, Default)]
+pub struct MeteredContract(Vec<u8>);
 
-impl Contract {
+impl MeteredContract {
+    pub fn new(code: &[u8]) -> Result<Self, VMError> {
+        // FIXME
+        // for now we don't instrumentalize
+        Ok(MeteredContract(Vec::from(code)))
+    }
+
     pub fn bytecode(&self) -> &[u8] {
         &self.0
     }
-
-    pub fn into_bytecode(self) -> Vec<u8> {
-        self.0
-    }
 }
 
-impl MakeDigest for Contract {
-    fn make_digest(&self, state: &mut HashState) {
-        state.update(&self.0);
-    }
-}
-
-pub struct ContractModule<'a> {
+struct ContractModule<'a> {
     module: elements::Module,
     schedule: &'a Schedule,
 }
+
 impl<'a> ContractModule<'a> {
     pub fn new(
         original_code: &[u8],
@@ -276,14 +275,14 @@ impl<'a> ContractModule<'a> {
         }
     }
 
-    pub fn build(self) -> Result<Contract, Error> {
+    pub fn build(self) -> Result<MeteredContract, Error> {
         let mut vec = vec![];
         self.module.serialize(&mut vec)?;
-        Ok(Contract(vec))
+        Ok(MeteredContract(vec))
     }
 }
 
-impl<H: ByteHash> Content<H> for Contract {
+impl<H: ByteHash> Content<H> for MeteredContract {
     fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
         self.0.persist(sink)
     }

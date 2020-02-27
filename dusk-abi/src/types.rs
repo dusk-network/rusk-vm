@@ -9,6 +9,13 @@ impl H256 {
     pub fn zero() -> Self {
         H256(Default::default())
     }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        assert!(bytes.len() == 32);
+        let mut new = H256::zero();
+        new.as_mut().copy_from_slice(bytes);
+        new
+    }
 }
 
 impl AsRef<[u8]> for H256 {
@@ -148,5 +155,4 @@ mod content {
             Ok(h)
         }
     }
-
 }

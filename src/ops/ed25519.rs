@@ -2,16 +2,16 @@ use super::AbiCall;
 use crate::host_fns::{host_trap, ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
-
+use kelvin::ByteHash;
 use signatory::{
     ed25519,
     signature::{Signature as _, Verifier},
 };
+use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Ed25519;
 
-impl<S: Resolver> AbiCall<S> for Ed25519 {
+impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Ed25519 {
     const NAME: &'static str = "verify_ed25519_signature";
     const ARGUMENTS: &'static [ValueType] = &[
         ValueType::I32,
@@ -22,7 +22,7 @@ impl<S: Resolver> AbiCall<S> for Ed25519 {
     const RETURN: Option<ValueType> = Some(ValueType::I32);
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
         let key_ptr = args.get(0)?;

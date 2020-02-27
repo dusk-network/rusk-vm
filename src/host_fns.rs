@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use dusk_abi::{CALL_DATA_SIZE, H256};
-use kelvin::{ValRef, ValRefMut};
+use kelvin::{ByteHash, ValRef, ValRefMut};
 
 use wasmi::{
     ExternVal, Externals, ImportsBuilder, MemoryRef, ModuleImportResolver,
@@ -12,7 +12,10 @@ use crate::gas::GasMeter;
 use crate::state::{NetworkState, Storage};
 use crate::VMError;
 
-pub trait Resolver: Invoke + ModuleImportResolver + Default + Clone {}
+pub trait Resolver<H: ByteHash>:
+    Invoke<H> + ModuleImportResolver + Default + Clone
+{
+}
 
 pub use crate::resolver::CompoundResolver as StandardABI;
 
@@ -49,24 +52,24 @@ impl StackFrame {
     }
 }
 
-pub trait Invoke: Sized {
+pub trait Invoke<H: ByteHash>: Sized {
     fn invoke(
-        context: &mut CallContext<Self>,
+        context: &mut CallContext<Self, H>,
         index: usize,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError>;
 }
 
-pub struct CallContext<'a, S> {
-    state: &'a mut NetworkState<S>,
+pub struct CallContext<'a, S, H: ByteHash> {
+    state: &'a mut NetworkState<S, H>,
     stack: Vec<StackFrame>,
     gas_meter: &'a mut GasMeter,
     _marker: PhantomData<S>,
 }
 
-impl<'a, S: Resolver> CallContext<'a, S> {
+impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
     pub fn new(
-        state: &'a mut NetworkState<S>,
+        state: &'a mut NetworkState<S, H>,
         gas_meter: &'a mut GasMeter,
     ) -> Self {
         CallContext {
@@ -181,14 +184,16 @@ impl<'a, S: Resolver> CallContext<'a, S> {
         &self.top().context
     }
 
-    pub fn storage(&self) -> Result<impl ValRef<Storage>, VMError> {
+    pub fn storage(&self) -> Result<impl ValRef<Storage<H>>, VMError> {
         match self.state.get_contract_state(&self.caller())? {
             Some(state) => Ok(state.wrap(|state| state.storage())),
             None => Err(VMError::UnknownContract),
         }
     }
 
-    pub fn storage_mut(&mut self) -> Result<impl ValRefMut<Storage>, VMError> {
+    pub fn storage_mut(
+        &mut self,
+    ) -> Result<impl ValRefMut<Storage<H>>, VMError> {
         let caller = *self.caller();
         Ok(self
             .state
@@ -197,11 +202,11 @@ impl<'a, S: Resolver> CallContext<'a, S> {
             .wrap_mut(|state| state.storage_mut()))
     }
 
-    pub fn state(&self) -> &NetworkState<S> {
+    pub fn state(&self) -> &NetworkState<S, H> {
         &self.state
     }
 
-    pub fn state_mut(&mut self) -> &mut NetworkState<S> {
+    pub fn state_mut(&mut self) -> &mut NetworkState<S, H> {
         &mut self.state
     }
 
@@ -259,7 +264,7 @@ impl ArgsExt for RuntimeArgs<'_> {
     }
 }
 
-impl<'a, S: Resolver> Externals for CallContext<'a, S> {
+impl<'a, S: Resolver<H>, H: ByteHash> Externals for CallContext<'a, S, H> {
     fn invoke_index(
         &mut self,
         index: usize,

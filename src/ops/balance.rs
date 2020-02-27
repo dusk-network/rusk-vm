@@ -3,17 +3,18 @@ use crate::host_fns::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use dusk_abi::encoding;
+use kelvin::ByteHash;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Balance;
 
-impl<S: Resolver> AbiCall<S> for Balance {
+impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Balance {
     const NAME: &'static str = "balance";
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
         let buffer_ofs = args.get(0)?;

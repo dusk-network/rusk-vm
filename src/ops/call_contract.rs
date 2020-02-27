@@ -3,12 +3,12 @@ use crate::host_fns::{ArgsExt, CallContext, CallKind, Resolver};
 use crate::VMError;
 
 use dusk_abi::{encoding, CALL_DATA_SIZE, H256};
-
+use kelvin::ByteHash;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct CallContract;
 
-impl<S: Resolver> AbiCall<S> for CallContract {
+impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for CallContract {
     const NAME: &'static str = "call_contract";
     const ARGUMENTS: &'static [ValueType] = &[
         ValueType::I32,
@@ -19,7 +19,7 @@ impl<S: Resolver> AbiCall<S> for CallContract {
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
         let target_ofs = args.get(0)?;
