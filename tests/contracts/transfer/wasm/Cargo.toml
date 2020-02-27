@@ -9,4 +9,6 @@ edition = "2018"
 
 [dependencies]
  dusk-abi = { path = "../../../../dusk-abi", default-features = false }
+ phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
+ phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "disk" }
  serde = { version = "*", default-features = false, features = ["derive"] }

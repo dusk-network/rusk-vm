@@ -1,7 +1,7 @@
 #![no_std]
 use dusk_abi::{self, ContractCall, CALL_DATA_SIZE, H256};
+use phoenix::MAX_NOTES_PER_TRANSACTION;
 use phoenix_abi::{Item, Proof, ITEM_SIZE};
-use phoenix_lib::MAX_NOTES_PER_TRANSACTION;
 
 // Interface
 pub fn transfer(notes: &[Item], proof: Proof) -> ContractCall<&[Item], Proof> {

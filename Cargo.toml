@@ -19,8 +19,8 @@ kelvin-radix = "0.5"
 fermion = "0.2"
 phf = { version = "0.8", features = ["macros"] }
 
-phoenix-lib = { path = "../phoenix" }
-phoenix-abi = { path = "../phoenix-abi" }
+phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "disk" }
+phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
 dusk-abi = { path = "./dusk-abi" }
 lazy_static = "1.4"
 parking_lot = "0.10"
