@@ -55,3 +55,29 @@ fn hello_world() {
         .call_contract(&contract_id, ContractCall::<()>::nil(), &mut gas)
         .unwrap();
 }
+
+/*
+#[test]
+fn transfer() {
+    use transfer::transfer;
+
+    let schedule = Schedule::default();
+    let genesis_builder =
+        ContractModule::new(contract_code!("transfer"), &schedule).unwrap();
+
+    let genesis = genesis_builder.build().unwrap();
+
+    // New genesis network with initial value
+    let mut network = NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+
+    let genesis_id = *network.genesis_id();
+
+    // Generate some items
+
+    network
+        .call_contract::<()>(genesis_id, transfer())
+        .unwrap();
+
+    fs::remove_dir_all(DB_PATH).unwrap();
+}
+*/

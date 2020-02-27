@@ -20,7 +20,7 @@ fermion = "0.2"
 phf = { version = "0.8", features = ["macros"] }
 
 phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "disk" }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
+phoenix-abi = { path = "../phoenix-abi" }
 dusk-abi = { path = "./dusk-abi" }
 lazy_static = "1.4"
 parking_lot = "0.10"

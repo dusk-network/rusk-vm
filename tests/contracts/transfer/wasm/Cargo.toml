@@ -5,10 +5,9 @@ authors = ["Jules de Smit <jules@dusk.network>"]
 edition = "2018"
 
 [lib]
- crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
- dusk-abi = { path = "../../../../dusk-abi", default-features = false }
- phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
- phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "disk" }
- serde = { version = "*", default-features = false, features = ["derive"] }
+dusk-abi = { path = "../../../../dusk-abi", default-features = false }
+phoenix-abi = { path = "../../../../../phoenix-abi", default-features = false }
+serde = { version = "*", default-features = false, features = ["derive"] }
