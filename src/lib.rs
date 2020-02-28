@@ -11,6 +11,7 @@ mod resolver;
 mod state;
 mod wallet;
 
+pub use contract::Contract;
 pub use digest::Digest;
 pub use fermion::Error;
 pub use gas::{Gas, GasMeter};

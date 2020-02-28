@@ -1,15 +1,17 @@
 mod contracts;
 mod helpers;
 
-use contracts::default_account::DefaultAccount;
 use kelvin::{Blake2b, Store};
 use tempfile::tempdir;
 
-use rusk_vm::{Digest, GasMeter, NetworkState, Schedule, StandardABI, Wallet};
+use dusk_abi::ContractCall;
+use rusk_vm::{
+    Contract, Digest, GasMeter, NetworkState, Schedule, StandardABI, Wallet,
+};
 
 #[test]
 fn factorial() {
-    use factorial::factorial;
+    //    use factorial::factorial;
 
     fn factorial_reference(n: u64) -> u64 {
         if n <= 1 {
@@ -30,4 +32,28 @@ fn factorial() {
     //         .unwrap(),
     //     factorial_reference(n)
     // );
+}
+
+#[test]
+fn hello_world() {
+    fn factorial_reference(n: u64) -> u64 {
+        if n <= 1 {
+            1
+        } else {
+            n * factorial_reference(n - 1)
+        }
+    }
+
+    let code = contract_code!("hello");
+
+    let schedule = Schedule::default();
+    let contract = Contract::new(code, &schedule).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network.call_contract(&contract_id, ContractCall::<()>::nil(), &mut gas);
 }

@@ -7,9 +7,9 @@ use kelvin::{ByteHash, Content, Map as _, Sink, Source, ValRef, ValRefMut};
 use kelvin_radix::DefaultRadixMap as RadixMap;
 use serde::Deserialize;
 
-use crate::contract::MeteredContract;
+use crate::contract::{Contract, MeteredContract};
 use crate::gas::GasMeter;
-use crate::host_fns::{CallContext, CallKind, Resolver};
+use crate::host_fns::{CallContext, Resolver};
 
 pub type Storage<H> = RadixMap<H256, Vec<u8>, H>;
 
@@ -50,51 +50,20 @@ pub struct NetworkState<S, H: ByteHash> {
 }
 
 impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
-    pub fn deploy(&mut self, code: &[u8]) -> Result<H256, VMError> {
-        let metered = MeteredContract::new(code)?;
+    pub fn deploy(&mut self, contract: Contract) -> Result<H256, VMError> {
+        let metered = contract.build()?;
 
-        let code_hash = H256::from_bytes(H::hash(&metered.bytecode()).as_ref());
+        let code = metered.bytecode();
 
-        let contract = ContractState {
+        let code_hash = H256::from_bytes(H::hash(&code).as_ref());
+
+        let state = ContractState {
             code: metered,
             ..Default::default()
         };
 
-        self.contracts.insert(code_hash.clone(), contract)?;
+        self.contracts.insert(code_hash.clone(), state)?;
         Ok(code_hash)
-    }
-
-    // Deploys contract to the network state and runs the deploy function
-    pub fn deploy_contract(
-        &mut self,
-        _contract: MeteredContract,
-        _gas_meter: &mut GasMeter,
-    ) -> Result<(), VMError> {
-        unimplemented!()
-
-        // let id = contract.digest();
-
-        // if self.contracts.get(&id)?.is_none() {
-        //     self.contracts.insert(id, ContractState::default())?;
-        // }
-
-        // {
-        //     let mut state = self
-        //         .contracts
-        //         .get_mut(&id)?
-        //         .expect("Assured populated above");
-
-        //     if state.contract.bytecode().is_empty() {
-        //         state.contract = contract
-        //     }
-        // }
-
-        // let deploy_buffer = [0u8; CALL_DATA_SIZE];
-
-        // let mut context = CallContext::new(self, gas_meter);
-        // context.call(id, deploy_buffer, CallKind::Deploy)?;
-
-        // Ok(())
     }
 
     pub fn get_contract_state(
@@ -124,13 +93,13 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
 
     pub fn call_contract<R: for<'de> Deserialize<'de>>(
         &mut self,
-        target: H256,
+        target: &H256,
         call: ContractCall<R>,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError> {
         let mut context = CallContext::new(self, gas_meter);
         let data = call.into_data();
-        let data_return = context.call(target, data, CallKind::Call)?;
+        let data_return = context.call(target, data)?;
         let decoded = encoding::decode(&data_return)?;
         Ok(decoded)
     }

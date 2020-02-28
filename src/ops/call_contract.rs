@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{ArgsExt, CallContext, CallKind, Resolver};
+use crate::host_fns::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use dusk_abi::{encoding, CALL_DATA_SIZE, H256};
@@ -51,7 +51,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for CallContract {
         }
 
         if data_len > 0 {
-            let return_buf = context.call(target, call_buf, CallKind::Call)?;
+            let return_buf = context.call(&target, call_buf)?;
             // write the return data back into memory
             context.memory().with_direct_access_mut(|a| {
                 a[data_ofs..data_ofs + CALL_DATA_SIZE]

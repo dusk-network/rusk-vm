@@ -19,16 +19,9 @@ pub trait Resolver<H: ByteHash>:
 
 pub use crate::resolver::CompoundResolver as StandardABI;
 
-#[derive(Debug, Clone, Copy)]
-pub enum CallKind {
-    Deploy,
-    Call,
-}
-
 pub struct StackFrame {
     context: H256,
     call_data: [u8; CALL_DATA_SIZE],
-    call_kind: CallKind,
     memory: MemoryRef,
 }
 
@@ -36,13 +29,11 @@ impl StackFrame {
     fn new(
         context: H256,
         call_data: [u8; CALL_DATA_SIZE],
-        call_kind: CallKind,
         memory: MemoryRef,
     ) -> Self {
         StackFrame {
             context,
             call_data,
-            call_kind,
             memory,
         }
     }
@@ -82,16 +73,13 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
 
     pub fn call(
         &mut self,
-        target: H256,
+        target: &H256,
         call_data: [u8; CALL_DATA_SIZE],
-        kind: CallKind,
     ) -> Result<[u8; CALL_DATA_SIZE], VMError> {
         let resolver = S::default();
         let imports = ImportsBuilder::new().with_resolver("env", &resolver);
 
-        let mut skip_call = false;
-
-        let (instance, name);
+        let instance;
 
         match self.state.get_contract_state_mut(&target)? {
             None => return Err(VMError::UnknownContract),
@@ -104,45 +92,32 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
                     ModuleInstance::new(&module, &imports)?.assert_no_start();
 
                 match instance.export_by_name("memory") {
-                    Some(ExternVal::Memory(memref)) => self
-                        .stack
-                        .push(StackFrame::new(target, call_data, kind, memref)),
+                    Some(ExternVal::Memory(memref)) => self.stack.push(
+                        StackFrame::new(target.clone(), call_data, memref),
+                    ),
                     _ => return Err(VMError::MemoryNotFound),
                 }
-
-                name = match kind {
-                    CallKind::Deploy => {
-                        if instance.export_by_name("deploy").is_none() {
-                            skip_call = true
-                        };
-                        "deploy"
-                    }
-                    CallKind::Call => "call",
-                };
             }
         }
 
-        if !skip_call {
-            match instance.invoke_export(name, &[], self) {
-                Err(wasmi::Error::Trap(trap)) => {
-                    if let TrapKind::Host(t) = trap.kind() {
-                        if let Some(vm_error) = (**t).downcast_ref::<VMError>()
-                        {
-                            if let VMError::ContractReturn = vm_error {
-                                // Return is fine, pass it through
-                            } else {
-                                return Err(wasmi::Error::Trap(trap).into());
-                            }
+        match instance.invoke_export("call", &[], self) {
+            Err(wasmi::Error::Trap(trap)) => {
+                if let TrapKind::Host(t) = trap.kind() {
+                    if let Some(vm_error) = (**t).downcast_ref::<VMError>() {
+                        if let VMError::ContractReturn = vm_error {
+                            // Return is fine, pass it through
                         } else {
                             return Err(wasmi::Error::Trap(trap).into());
                         }
                     } else {
                         return Err(wasmi::Error::Trap(trap).into());
                     }
+                } else {
+                    return Err(wasmi::Error::Trap(trap).into());
                 }
-                Err(e) => return Err(e.into()),
-                Ok(_) => (),
             }
+            Err(e) => return Err(e.into()),
+            Ok(_) => (),
         }
 
         // return the call_data (now containing return value)
