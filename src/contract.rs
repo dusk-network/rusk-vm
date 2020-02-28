@@ -31,9 +31,9 @@ pub struct MeteredContract(Vec<u8>);
 
 impl MeteredContract {
     pub fn new(code: &[u8]) -> Result<Self, VMError> {
-        // FIXME
-        // for now we don't instrumentalize
-        Ok(MeteredContract(Vec::from(code)))
+        let schedule = Schedule::default();
+        let module = ContractModule::new(code, &schedule)?;
+        module.build()
     }
 
     pub fn bytecode(&self) -> &[u8] {
@@ -50,22 +50,30 @@ impl<'a> ContractModule<'a> {
     pub fn new(
         original_code: &[u8],
         schedule: &'a Schedule,
-    ) -> Result<Self, Error> {
-        use wasmi_validation::{validate_module, PlainValidator};
+    ) -> Result<Self, VMError> {
+        use wasmi_validation::{self, PlainValidator};
 
         let module = elements::deserialize_buffer(original_code)
-            .map_err(|_| err_msg("Can't decode wasm code"))?;
+            .map_err(|_| VMError::InvalidWASMModule)?;
 
         // Make sure that the module is valid.
-        validate_module::<PlainValidator>(&module)
-            .map_err(|_| err_msg("Module is not valid"))?;
+        wasmi_validation::validate_module::<PlainValidator>(&module)
+            .map_err(|_| VMError::InvalidWASMModule)?;
 
         let mut contract_module = ContractModule { module, schedule };
-        contract_module.ensure_table_size_limit(schedule.max_table_size)?;
-        contract_module.ensure_no_floating_types()?;
+
+        contract_module
+            .ensure_table_size_limit(schedule.max_table_size)
+            .map_err(|_| VMError::InvalidWASMModule)?;
+        contract_module
+            .ensure_no_floating_types()
+            .map_err(|_| VMError::InvalidWASMModule)?;
+
         contract_module = contract_module
-            .inject_gas_metering()?
-            .inject_stack_height_metering()?;
+            .inject_gas_metering()
+            .map_err(|_| VMError::InvalidWASMModule)?
+            .inject_stack_height_metering()
+            .map_err(|_| VMError::InvalidWASMModule)?;
 
         // Return a `ContractModule` instance with
         // __valid__ module.
@@ -274,9 +282,11 @@ impl<'a> ContractModule<'a> {
         }
     }
 
-    pub fn build(self) -> Result<MeteredContract, Error> {
+    pub fn build(self) -> Result<MeteredContract, VMError> {
         let mut vec = vec![];
-        self.module.serialize(&mut vec)?;
+        self.module
+            .serialize(&mut vec)
+            .map_err(|_| VMError::InvalidWASMModule)?;
         Ok(MeteredContract(vec))
     }
 }

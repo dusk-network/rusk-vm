@@ -35,6 +35,7 @@ pub enum VMError {
     IOError(io::Error),
     WasmiError(wasmi::Error),
     SerializationError(fermion::Error),
+    InvalidWASMModule,
 }
 
 impl From<io::Error> for VMError {
@@ -89,6 +90,7 @@ impl fmt::Display for VMError {
             VMError::Trap(e) => write!(f, "Trap ({:?})", e)?,
             VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
+            VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
         }
         Ok(())
     }
