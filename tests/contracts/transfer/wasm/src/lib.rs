@@ -15,8 +15,7 @@ pub fn call() {
 
     // assert!(notes.len() <= MAX_NOTES_PER_TRANSACTION);
     let mut notes_buf = [0u8; MAX_NOTES_PER_TRANSACTION * ITEM_SIZE];
-    let encoded =
-        encoding::encode(&notes, &mut notes_buf).expect("buffer insufficient");
-    phoenix_abi::store(&notes_buf, 0);
+    encoding::encode(&notes, &mut notes_buf).expect("buffer insufficient");
+    phoenix_abi::store(&notes_buf);
     dusk_abi::ret(true);
 }
