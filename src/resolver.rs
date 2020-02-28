@@ -71,7 +71,7 @@ abi_resolver! {
         4, "call_data" => call_data::CallData,
         5, "call_contract" => call_contract::CallContract,
         6, "balance" => balance::Balance,
-        7, "return" => ret::Return,
+        7, "ret" => ret::Return,
         8, "self_hash" => self_hash::SelfHash,
         9, "gas" => gas::Gas,
         10_000, "verify_ed25519_signature" => ed25519::Ed25519

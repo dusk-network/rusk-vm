@@ -20,9 +20,9 @@ pub trait Resolver<H: ByteHash>:
 pub use crate::resolver::CompoundResolver as StandardABI;
 
 pub struct StackFrame {
-    context: H256,
-    call_data: [u8; CALL_DATA_SIZE],
-    memory: MemoryRef,
+    pub context: H256,
+    pub call_data: [u8; CALL_DATA_SIZE],
+    pub memory: MemoryRef,
 }
 
 impl StackFrame {

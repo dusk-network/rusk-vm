@@ -2,7 +2,6 @@ mod contracts;
 mod helpers;
 
 use kelvin::{Blake2b, Store};
-use tempfile::tempdir;
 
 use dusk_abi::ContractCall;
 use rusk_vm::{
@@ -11,7 +10,7 @@ use rusk_vm::{
 
 #[test]
 fn factorial() {
-    //    use factorial::factorial;
+    use factorial::factorial;
 
     fn factorial_reference(n: u64) -> u64 {
         if n <= 1 {
@@ -23,27 +22,26 @@ fn factorial() {
 
     let code = contract_code!("factorial");
 
-    // let contract_id = network.deploy(code);
+    let schedule = Schedule::default();
+    let contract = Contract::new(code, &schedule).unwrap();
 
-    // let n = 6;
-    // assert_eq!(
-    //     network
-    //         .call_contract(genesis_id, factorial(n), &mut gas_meter)
-    //         .unwrap(),
-    //     factorial_reference(n)
-    // );
+    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let n = 6;
+    assert_eq!(
+        network
+            .call_contract(&contract_id, factorial(n), &mut gas)
+            .unwrap(),
+        factorial_reference(n)
+    );
 }
 
 #[test]
 fn hello_world() {
-    fn factorial_reference(n: u64) -> u64 {
-        if n <= 1 {
-            1
-        } else {
-            n * factorial_reference(n - 1)
-        }
-    }
-
     let code = contract_code!("hello");
 
     let schedule = Schedule::default();
@@ -55,5 +53,7 @@ fn hello_world() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network.call_contract(&contract_id, ContractCall::<()>::nil(), &mut gas);
+    network
+        .call_contract(&contract_id, ContractCall::<()>::nil(), &mut gas)
+        .unwrap();
 }
