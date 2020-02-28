@@ -1,4 +1,5 @@
 use std::io;
+use std::rc::Rc;
 
 use failure::{bail, err_msg, Error};
 use kelvin::{ByteHash, Content, Sink, Source};
@@ -7,6 +8,7 @@ use parity_wasm::elements::{
 };
 use pwasm_utils;
 use pwasm_utils::rules;
+use wasmi::Module as WasmiModule;
 
 use crate::{Schedule, VMError};
 
@@ -26,12 +28,40 @@ fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     }
 }
 
-#[derive(Clone, Default)]
-pub struct MeteredContract(Vec<u8>);
+#[derive(Clone)]
+pub enum MeteredContract {
+    Code(Vec<u8>),
+    Module {
+        module: Rc<WasmiModule>,
+        code: Vec<u8>,
+    },
+}
 
 impl MeteredContract {
     pub fn bytecode(&self) -> &[u8] {
-        &self.0
+        match self {
+            MeteredContract::Code(code)
+            | MeteredContract::Module { code, .. } => &code,
+        }
+    }
+
+    pub fn empty() -> Self {
+        MeteredContract::Code(vec![])
+    }
+
+    pub fn ensure_compiled(&mut self) -> Result<(), VMError> {
+        if let MeteredContract::Code(_) = self {
+            if let MeteredContract::Code(code) =
+                mem::replace(self, MeteredContract::Code(vec![]))
+            {
+                println!("cOMPILING");
+                *self = MeteredContract::Module {
+                    module: Rc::new(wasmi::Module::from_buffer(&code)?),
+                    code,
+                };
+            }
+        }
+        Ok(())
     }
 }
 
@@ -277,20 +307,23 @@ impl<'a> Contract<'a> {
     }
 
     pub fn build(self) -> Result<MeteredContract, VMError> {
-        let mut vec = vec![];
+        let mut code = vec![];
         self.module
-            .serialize(&mut vec)
+            .serialize(&mut code)
             .map_err(|_| VMError::InvalidWASMModule)?;
-        Ok(MeteredContract(vec))
+        Ok(MeteredContract::Code(code))
     }
 }
 
 impl<H: ByteHash> Content<H> for MeteredContract {
     fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
-        self.0.persist(sink)
+        match self {
+            MeteredContract::Code(code)
+            | MeteredContract::Module { code, .. } => code.persist(sink),
+        }
     }
 
     fn restore(source: &mut Source<H>) -> io::Result<Self> {
-        Ok(Self(Vec::restore(source)?))
+        Ok(MeteredContract::Code(Vec::restore(source)?))
     }
 }

@@ -4,10 +4,12 @@ use dusk_abi::{CALL_DATA_SIZE, H256};
 use kelvin::{ByteHash, ValRef, ValRefMut};
 
 use wasmi::{
-    ExternVal, Externals, ImportsBuilder, MemoryRef, ModuleImportResolver,
-    ModuleInstance, RuntimeArgs, RuntimeValue, Trap, TrapKind,
+    ExternVal, Externals, ImportsBuilder, MemoryRef, Module,
+    ModuleImportResolver, ModuleInstance, RuntimeArgs, RuntimeValue, Trap,
+    TrapKind,
 };
 
+use crate::contract::MeteredContract;
 use crate::gas::GasMeter;
 use crate::state::{NetworkState, Storage};
 use crate::VMError;
@@ -83,13 +85,16 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
 
         match self.state.get_contract_state_mut(&target)? {
             None => return Err(VMError::UnknownContract),
-            Some(contract_state) => {
-                let module = wasmi::Module::from_buffer(
-                    contract_state.contract().bytecode(),
-                )?;
+            Some(mut contract_state) => {
+                contract_state.contract_mut().ensure_compiled();
+
+                let module = match contract_state.contract() {
+                    MeteredContract::Module { ref module, .. } => module,
+                    _ => unreachable!(),
+                };
 
                 instance =
-                    ModuleInstance::new(&module, &imports)?.assert_no_start();
+                    ModuleInstance::new(&*module, &imports)?.assert_no_start();
 
                 match instance.export_by_name("memory") {
                     Some(ExternVal::Memory(memref)) => self.stack.push(

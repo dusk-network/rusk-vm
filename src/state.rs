@@ -13,7 +13,7 @@ use crate::host_fns::{CallContext, Resolver};
 
 pub type Storage<H> = RadixMap<H256, Vec<u8>, H>;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct ContractState<H: ByteHash> {
     balance: u128,
     code: MeteredContract,
@@ -22,6 +22,15 @@ pub struct ContractState<H: ByteHash> {
 }
 
 impl<H: ByteHash> ContractState<H> {
+    pub fn empty() -> Self {
+        ContractState {
+            code: MeteredContract::empty(),
+            balance: 0,
+            nonce: 0,
+            storage: Default::default(),
+        }
+    }
+
     pub fn balance(&self) -> u128 {
         self.balance
     }
@@ -41,6 +50,10 @@ impl<H: ByteHash> ContractState<H> {
     pub fn contract(&self) -> &MeteredContract {
         &self.code
     }
+
+    pub fn contract_mut(&mut self) -> &mut MeteredContract {
+        &mut self.code
+    }
 }
 
 #[derive(Clone, Default)]
@@ -59,7 +72,9 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
 
         let state = ContractState {
             code: metered,
-            ..Default::default()
+            balance: 0,
+            nonce: 0,
+            storage: Default::default(),
         };
 
         self.contracts.insert(code_hash.clone(), state)?;
@@ -85,7 +100,7 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
         id: &H256,
     ) -> Result<impl ValRefMut<ContractState<H>>, VMError> {
         if self.contracts.get(id)?.is_none() {
-            self.contracts.insert(*id, ContractState::default())?;
+            self.contracts.insert(*id, ContractState::empty())?;
         }
 
         Ok(self.contracts.get_mut(id)?.expect("Assured above"))
