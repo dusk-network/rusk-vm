@@ -241,7 +241,7 @@ macro_rules! impl_serde {
                         &self,
                         formatter: &mut ::core::fmt::Formatter,
                     ) -> ::core::fmt::Result {
-                        formatter.write_str("64 bytes")
+                        formatter.write_fmt(format_args!("{} bytes", $len))
                     }
 
                     fn visit_seq<A>(self, mut seq: A) -> Result<$arr, A::Error>
@@ -253,7 +253,8 @@ macro_rules! impl_serde {
                             bytes[i] = seq.next_element()?.ok_or(
                                 serde::de::Error::invalid_length(
                                     i,
-                                    &"expected 64 bytes",
+                                    &format!("expected {} bytes", $len)
+                                        .as_str(),
                                 ),
                             )?;
                         }
