@@ -66,7 +66,7 @@ impl AsMut<[u8]> for Signature {
     }
 }
 
-impl_serde!(Signature);
+impl_serde!(Signature, SIGNATURE_BYTES);
 
 impl core::fmt::Debug for Signature {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
