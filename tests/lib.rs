@@ -1,12 +1,10 @@
 mod contracts;
 mod helpers;
 
-use kelvin::{Blake2b, Store};
+use kelvin::Blake2b;
 
 use dusk_abi::ContractCall;
-use rusk_vm::{
-    Contract, Digest, GasMeter, NetworkState, Schedule, StandardABI, Wallet,
-};
+use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
 #[test]
 fn factorial() {

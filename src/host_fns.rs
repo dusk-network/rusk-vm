@@ -4,9 +4,8 @@ use dusk_abi::{CALL_DATA_SIZE, H256};
 use kelvin::{ByteHash, ValRef, ValRefMut};
 
 use wasmi::{
-    ExternVal, Externals, ImportsBuilder, MemoryRef, Module,
-    ModuleImportResolver, ModuleInstance, RuntimeArgs, RuntimeValue, Trap,
-    TrapKind,
+    ExternVal, Externals, ImportsBuilder, MemoryRef, ModuleImportResolver,
+    ModuleInstance, RuntimeArgs, RuntimeValue, Trap, TrapKind,
 };
 
 use crate::contract::MeteredContract;
@@ -86,7 +85,7 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
         match self.state.get_contract_state_mut(&target)? {
             None => return Err(VMError::UnknownContract),
             Some(mut contract_state) => {
-                contract_state.contract_mut().ensure_compiled();
+                contract_state.contract_mut().ensure_compiled()?;
 
                 let module = match contract_state.contract() {
                     MeteredContract::Module { ref module, .. } => module,
