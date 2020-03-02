@@ -1,6 +1,4 @@
-use super::impl_serde;
-
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use super::impl_serde_for_array;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct H256([u8; 32]);
@@ -66,7 +64,7 @@ impl AsMut<[u8]> for Signature {
     }
 }
 
-impl_serde!(Signature, SIGNATURE_BYTES);
+impl_serde_for_array!(Signature, SIGNATURE_BYTES);
 
 impl core::fmt::Debug for Signature {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
