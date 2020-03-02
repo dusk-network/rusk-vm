@@ -47,8 +47,7 @@ macro_rules! impl_serde_for_array {
                             bytes[i] = seq.next_element()?.ok_or(
                                 serde::de::Error::invalid_length(
                                     i,
-                                    &format!("expected {} bytes", $len)
-                                        .as_str(),
+                                    &"invalid length",
                                 ),
                             )?;
                         }
