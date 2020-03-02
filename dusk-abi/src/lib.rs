@@ -7,6 +7,11 @@ pub use serde::{Deserialize, Serialize};
 pub mod bufwriter;
 mod contract_call;
 pub mod encoding;
+mod impl_serde;
+
+#[cfg(test)]
+mod tests;
+
 #[cfg(not(feature = "std"))]
 mod panic;
 mod types;
