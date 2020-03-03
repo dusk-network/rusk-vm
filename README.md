@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/dusk-network/rusk-vm.svg?branch=master)](https://travis-ci.com/dusk-network/rusk-vm)
+
 # Rust WASM contracts
 
 ## Usage
