@@ -1,4 +1,5 @@
 use std::io;
+use std::rc::Rc;
 
 use failure::{bail, err_msg, Error};
 use kelvin::{ByteHash, Content, Sink, Source};
@@ -7,11 +8,13 @@ use parity_wasm::elements::{
 };
 use pwasm_utils;
 use pwasm_utils::rules;
+use wasmi::Module as WasmiModule;
 
-use crate::digest::{HashState, MakeDigest};
-use crate::Schedule;
+use crate::{Schedule, VMError};
 
 use std::{mem, ptr};
+
+/// read out the
 fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     let code = init_expr.code();
 
@@ -25,53 +28,80 @@ fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct Contract(Vec<u8>);
+#[derive(Clone)]
+pub enum MeteredContract {
+    Code(Vec<u8>),
+    Module {
+        module: Rc<WasmiModule>,
+        code: Vec<u8>,
+    },
+}
 
-impl Contract {
+impl MeteredContract {
     pub fn bytecode(&self) -> &[u8] {
-        &self.0
+        match self {
+            MeteredContract::Code(code)
+            | MeteredContract::Module { code, .. } => &code,
+        }
     }
 
-    pub fn into_bytecode(self) -> Vec<u8> {
-        self.0
+    pub fn empty() -> Self {
+        MeteredContract::Code(vec![])
+    }
+
+    pub fn ensure_compiled(&mut self) -> Result<(), VMError> {
+        if let MeteredContract::Code(_) = self {
+            if let MeteredContract::Code(code) =
+                mem::replace(self, MeteredContract::Code(vec![]))
+            {
+                println!("cOMPILING");
+                *self = MeteredContract::Module {
+                    module: Rc::new(wasmi::Module::from_buffer(&code)?),
+                    code,
+                };
+            }
+        }
+        Ok(())
     }
 }
 
-impl MakeDigest for Contract {
-    fn make_digest(&self, state: &mut HashState) {
-        state.update(&self.0);
-    }
-}
-
-pub struct ContractModule<'a> {
+pub struct Contract<'a> {
     module: elements::Module,
     schedule: &'a Schedule,
 }
-impl<'a> ContractModule<'a> {
+
+impl<'a> Contract<'a> {
     pub fn new(
         original_code: &[u8],
         schedule: &'a Schedule,
-    ) -> Result<Self, Error> {
-        use wasmi_validation::{validate_module, PlainValidator};
+    ) -> Result<Self, VMError> {
+        use wasmi_validation::PlainValidator;
 
         let module = elements::deserialize_buffer(original_code)
-            .map_err(|_| err_msg("Can't decode wasm code"))?;
+            .map_err(|_| VMError::InvalidWASMModule)?;
 
         // Make sure that the module is valid.
-        validate_module::<PlainValidator>(&module)
-            .map_err(|_| err_msg("Module is not valid"))?;
+        wasmi_validation::validate_module::<PlainValidator>(&module)
+            .map_err(|_| VMError::InvalidWASMModule)?;
 
-        let mut contract_module = ContractModule { module, schedule };
-        contract_module.ensure_table_size_limit(schedule.max_table_size)?;
-        contract_module.ensure_no_floating_types()?;
+        let mut contract_module = Contract { module, schedule };
+
+        contract_module
+            .ensure_no_floating_types()
+            .map_err(|_| VMError::InvalidWASMModule)?;
+        contract_module
+            .ensure_table_size_limit(&schedule)
+            .map_err(|_| VMError::InvalidWASMModule)?;
+
         contract_module = contract_module
-            .inject_gas_metering()?
-            .inject_stack_height_metering()?;
+            .inject_gas_metering()
+            .map_err(|_| VMError::InvalidWASMModule)?
+            .inject_stack_height_metering()
+            .map_err(|_| VMError::InvalidWASMModule)?;
 
-        // Return a `ContractModule` instance with
+        // Return a `Contract` instance with
         // __valid__ module.
-        Ok(ContractModule {
+        Ok(Contract {
             module: contract_module.module,
             schedule,
         })
@@ -88,7 +118,7 @@ impl<'a> ContractModule<'a> {
         let contract_module =
             pwasm_utils::inject_gas_counter(self.module, &gas_rules)
                 .map_err(|_| err_msg("gas instrumentation failed"))?;
-        Ok(ContractModule {
+        Ok(Contract {
             module: contract_module,
             schedule: self.schedule,
         })
@@ -100,7 +130,7 @@ impl<'a> ContractModule<'a> {
             self.schedule.max_stack_height,
         )
         .map_err(|_| err_msg("stack height instrumentation failed"))?;
-        Ok(ContractModule {
+        Ok(Contract {
             module: contract_module,
             schedule: self.schedule,
         })
@@ -109,7 +139,7 @@ impl<'a> ContractModule<'a> {
     /// Ensures that tables declared in the module are not too big.
     fn ensure_table_size_limit(
         &self,
-        limit: u32,
+        schedule: &Schedule,
     ) -> Result<(), failure::Error> {
         if let Some(table_section) = self.module.table_section() {
             // In Wasm MVP spec, there may be at most one table declared. Double check this
@@ -120,7 +150,7 @@ impl<'a> ContractModule<'a> {
             if let Some(table_type) = table_section.entries().first() {
                 // Check the table's initial size as there is no instruction or environment function
                 // capable of growing the table.
-                if table_type.limits().initial() > limit {
+                if table_type.limits().initial() > schedule.max_table_size {
                     return Err(err_msg("table exceeds maximum size allowed"));
                 }
             }
@@ -276,19 +306,24 @@ impl<'a> ContractModule<'a> {
         }
     }
 
-    pub fn build(self) -> Result<Contract, Error> {
-        let mut vec = vec![];
-        self.module.serialize(&mut vec)?;
-        Ok(Contract(vec))
+    pub fn build(self) -> Result<MeteredContract, VMError> {
+        let mut code = vec![];
+        self.module
+            .serialize(&mut code)
+            .map_err(|_| VMError::InvalidWASMModule)?;
+        Ok(MeteredContract::Code(code))
     }
 }
 
-impl<H: ByteHash> Content<H> for Contract {
+impl<H: ByteHash> Content<H> for MeteredContract {
     fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
-        self.0.persist(sink)
+        match self {
+            MeteredContract::Code(code)
+            | MeteredContract::Module { code, .. } => code.persist(sink),
+        }
     }
 
     fn restore(source: &mut Source<H>) -> io::Result<Self> {
-        Ok(Self(Vec::restore(source)?))
+        Ok(MeteredContract::Code(Vec::restore(source)?))
     }
 }

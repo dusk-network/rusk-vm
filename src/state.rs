@@ -1,26 +1,36 @@
 use std::io;
+use std::marker::PhantomData;
 
 use crate::VMError;
-use dusk_abi::{encoding, ContractCall, CALL_DATA_SIZE, H256};
-use kelvin::{Blake2b, Content, Map as _, Sink, Source, ValRef, ValRefMut};
+use dusk_abi::{encoding, ContractCall, H256};
+use kelvin::{ByteHash, Content, Map as _, Sink, Source, ValRef, ValRefMut};
 use kelvin_radix::DefaultRadixMap as RadixMap;
 use serde::Deserialize;
 
-use crate::contract::Contract;
-use crate::digest::Digest;
+use crate::contract::{Contract, MeteredContract};
 use crate::gas::GasMeter;
-use crate::host_fns::{CallContext, CallKind};
+use crate::host_fns::{CallContext, Resolver};
 
-pub type Storage = RadixMap<H256, Vec<u8>, Blake2b>;
+pub type Storage<H> = RadixMap<H256, Vec<u8>, H>;
 
-#[derive(Default, Clone)]
-pub struct ContractState {
+#[derive(Clone)]
+pub struct ContractState<H: ByteHash> {
     balance: u128,
-    contract: Contract,
-    storage: Storage,
+    code: MeteredContract,
+    nonce: u64,
+    storage: Storage<H>,
 }
 
-impl ContractState {
+impl<H: ByteHash> ContractState<H> {
+    pub fn empty() -> Self {
+        ContractState {
+            code: MeteredContract::empty(),
+            balance: 0,
+            nonce: 0,
+            storage: Default::default(),
+        }
+    }
+
     pub fn balance(&self) -> u128 {
         self.balance
     }
@@ -29,105 +39,68 @@ impl ContractState {
         &mut self.balance
     }
 
-    pub fn storage(&self) -> &Storage {
+    pub fn storage(&self) -> &Storage<H> {
         &self.storage
     }
 
-    pub fn storage_mut(&mut self) -> &mut Storage {
+    pub fn storage_mut(&mut self) -> &mut Storage<H> {
         &mut self.storage
     }
 
-    pub fn contract(&self) -> &Contract {
-        &self.contract
+    pub fn contract(&self) -> &MeteredContract {
+        &self.code
     }
 
-    pub fn contract_mut(&mut self) -> &mut Contract {
-        &mut self.contract
+    pub fn contract_mut(&mut self) -> &mut MeteredContract {
+        &mut self.code
     }
 }
 
-// Clone is obviously relatively expensive in the mock implementation
-// but it will be using persistent datastructures in production
 #[derive(Clone, Default)]
-pub struct NetworkState {
-    genesis_id: H256,
-    contracts: RadixMap<H256, ContractState, Blake2b>,
+pub struct NetworkState<S, H: ByteHash> {
+    contracts: RadixMap<H256, ContractState<H>, H>,
+    _marker: PhantomData<S>,
 }
 
-impl NetworkState {
-    pub fn genesis(contract: Contract, value: u128) -> Result<Self, VMError> {
-        let genesis_id = contract.digest();
-        let mut contracts = RadixMap::new();
-        contracts.insert(
-            genesis_id.clone(),
-            ContractState {
-                balance: value,
-                ..Default::default()
-            },
-        )?;
+impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
+    pub fn deploy(&mut self, contract: Contract) -> Result<H256, VMError> {
+        let metered = contract.build()?;
 
-        let mut state = NetworkState {
-            genesis_id,
-            contracts,
+        let code = metered.bytecode();
+
+        let code_hash = H256::from_bytes(H::hash(&code).as_ref());
+
+        let state = ContractState {
+            code: metered,
+            balance: 0,
+            nonce: 0,
+            storage: Default::default(),
         };
-        state.deploy_contract(contract)?;
-        Ok(state)
-    }
 
-    pub fn genesis_id(&self) -> &H256 {
-        &self.genesis_id
-    }
-
-    // Deploys contract to the network state and runs the deploy function
-    pub fn deploy_contract(
-        &mut self,
-        contract: Contract,
-    ) -> Result<(), VMError> {
-        let id = contract.digest();
-
-        if self.contracts.get(&id)?.is_none() {
-            self.contracts.insert(id, ContractState::default())?;
-        }
-
-        {
-            let mut state = self
-                .contracts
-                .get_mut(&id)?
-                .expect("Assured populated above");
-
-            if state.contract.bytecode().is_empty() {
-                state.contract = contract
-            }
-        }
-
-        let deploy_buffer = [0u8; CALL_DATA_SIZE];
-
-        let mut context = CallContext::new(self);
-        context.call(id, deploy_buffer, CallKind::Deploy)?;
-
-        Ok(())
+        self.contracts.insert(code_hash.clone(), state)?;
+        Ok(code_hash)
     }
 
     pub fn get_contract_state(
         &self,
         contract_id: &H256,
-    ) -> Result<Option<impl ValRef<ContractState>>, VMError> {
+    ) -> Result<Option<impl ValRef<ContractState<H>>>, VMError> {
         self.contracts.get(contract_id).map_err(Into::into)
     }
 
     pub fn get_contract_state_mut(
         &mut self,
         contract_id: &H256,
-    ) -> Result<Option<impl ValRefMut<ContractState>>, VMError> {
+    ) -> Result<Option<impl ValRefMut<ContractState<H>>>, VMError> {
         self.contracts.get_mut(contract_id).map_err(Into::into)
     }
 
     pub fn get_contract_state_mut_or_default(
         &mut self,
         id: &H256,
-    ) -> Result<impl ValRefMut<ContractState>, VMError> {
+    ) -> Result<impl ValRefMut<ContractState<H>>, VMError> {
         if self.contracts.get(id)?.is_none() {
-            self.contracts.insert(*id, ContractState::default())?;
+            self.contracts.insert(*id, ContractState::empty())?;
         }
 
         Ok(self.contracts.get_mut(id)?.expect("Assured above"))
@@ -135,56 +108,45 @@ impl NetworkState {
 
     pub fn call_contract<R: for<'de> Deserialize<'de>>(
         &mut self,
-        target: H256,
-        call: ContractCall<R>,
-    ) -> Result<R, VMError> {
-        let mut context = CallContext::new(self);
-        let data = call.into_data();
-        let data_return = context.call(target, data, CallKind::Call)?;
-        let decoded = encoding::decode(&data_return)?;
-        Ok(decoded)
-    }
-
-    pub fn call_contract_with_limit<R: for<'de> Deserialize<'de>>(
-        &mut self,
-        target: H256,
+        target: &H256,
         call: ContractCall<R>,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError> {
-        let mut context = CallContext::with_limit(self, gas_meter);
+        let mut context = CallContext::new(self, gas_meter);
         let data = call.into_data();
-        let data_return = context.call(target, data, CallKind::Call)?;
+        let data_return = context.call(target, data)?;
         let decoded = encoding::decode(&data_return)?;
         Ok(decoded)
     }
 }
 
-impl Content<Blake2b> for ContractState {
-    fn persist(&mut self, sink: &mut Sink<Blake2b>) -> io::Result<()> {
+impl<H: ByteHash> Content<H> for ContractState<H> {
+    fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
         self.balance.persist(sink)?;
-        self.contract.persist(sink)?;
+        self.nonce.persist(sink)?;
+        self.code.persist(sink)?;
         self.storage.persist(sink)
     }
 
-    fn restore(source: &mut Source<Blake2b>) -> io::Result<Self> {
+    fn restore(source: &mut Source<H>) -> io::Result<Self> {
         Ok(ContractState {
             balance: u128::restore(source)?,
-            contract: Contract::restore(source)?,
+            nonce: u64::restore(source)?,
+            code: MeteredContract::restore(source)?,
             storage: Storage::restore(source)?,
         })
     }
 }
 
-impl Content<Blake2b> for NetworkState {
-    fn persist(&mut self, sink: &mut Sink<Blake2b>) -> io::Result<()> {
-        self.genesis_id.persist(sink)?;
+impl<S: 'static + Resolver<H>, H: ByteHash> Content<H> for NetworkState<S, H> {
+    fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
         self.contracts.persist(sink)
     }
 
-    fn restore(source: &mut Source<Blake2b>) -> io::Result<Self> {
+    fn restore(source: &mut Source<H>) -> io::Result<Self> {
         Ok(NetworkState {
-            genesis_id: H256::restore(source)?,
             contracts: RadixMap::restore(source)?,
+            _marker: PhantomData,
         })
     }
 }

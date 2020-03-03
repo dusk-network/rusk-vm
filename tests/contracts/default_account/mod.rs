@@ -1,3 +1,5 @@
+use core::mem;
+
 use default_account::AccountCall;
 use dusk_abi::{encoding, ContractCall, Signature, H256};
 use signatory::signature::{Signature as _, Signer as _};
@@ -12,7 +14,9 @@ impl DefaultAccount {
         amount: u128,
         nonce: u64,
     ) -> ContractCall<()> {
-        let mut buf = [0u8; 32 + 16 + 8];
+        let mut buf = [0u8; mem::size_of::<H256>()
+            + mem::size_of::<u128>()
+            + mem::size_of::<u64>()];
         let encoded = encoding::encode(&(to, amount, nonce), &mut buf)
             .expect("static buffer too small");
         let signature = signer.sign(encoded);

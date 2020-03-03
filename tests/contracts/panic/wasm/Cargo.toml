@@ -8,4 +8,4 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-dusk-abi = { path = "../../dusk-abi", default-features = false }
+dusk-abi = { path = "../../../../dusk-abi", default-features = false }
