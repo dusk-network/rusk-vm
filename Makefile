@@ -1,4 +1,5 @@
 test: hello factorial
+	rustup target add wasm32-unknown-unknown
 	cargo test
 
 hello: tests/contracts/hello/wasm/src/lib.rs
