@@ -26,3 +26,9 @@ parking_lot = "0.10"
 default_account = { path = "tests/contracts/default_account/wasm" }
 factorial = { path = "tests/contracts/factorial/wasm" }
 tempfile = "*"
+criterion = "0.3"
+
+[[bench]]
+sample_size = 10
+name = "factorial"
+harness = false
