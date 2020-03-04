@@ -60,21 +60,23 @@ fn hello_world() {
 fn transfer() {
     use transfer::transfer;
 
+    let code = contract_code!("transfer");
+
     let schedule = Schedule::default();
-    let genesis_builder =
-        ContractModule::new(contract_code!("transfer"), &schedule).unwrap();
+    let contract = Contract::new(code, &schedule).unwrap();
 
-    let genesis = genesis_builder.build().unwrap();
+    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
 
-    // New genesis network with initial value
-    let mut network = NetworkState::genesis(genesis, 1_000_000_000).unwrap();
+    let contract_id = network.deploy(contract).unwrap();
 
-    let genesis_id = *network.genesis_id();
+    let mut gas = GasMeter::with_limit(1_000_000_000);
 
     // Generate some items
     let item = Item::default();
 
-    network.call_contract(genesis_id, transfer(item)).unwrap();
+    network
+        .call_contract(&contract_id, transfer(item), &mut gas)
+        .unwrap();
 
     // NOTE: not removing the temp dir here, as i currently want to check
     // if the info is actually written to disk.
