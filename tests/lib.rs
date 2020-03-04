@@ -56,7 +56,6 @@ fn hello_world() {
         .unwrap();
 }
 
-/*
 #[test]
 fn transfer() {
     use transfer::transfer;
@@ -73,11 +72,10 @@ fn transfer() {
     let genesis_id = *network.genesis_id();
 
     // Generate some items
+    let item = Item::default();
 
-    network
-        .call_contract::<()>(genesis_id, transfer())
-        .unwrap();
+    network.call_contract(genesis_id, transfer(item)).unwrap();
 
-    fs::remove_dir_all(DB_PATH).unwrap();
+    // NOTE: not removing the temp dir here, as i currently want to check
+    // if the info is actually written to disk.
 }
-*/

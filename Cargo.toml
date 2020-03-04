@@ -28,4 +28,5 @@ parking_lot = "0.10"
 [dev-dependencies]
 default_account = { path = "tests/contracts/default_account/wasm" }
 factorial = { path = "tests/contracts/factorial/wasm" }
+transfer = { path = "tests/contracts/transfer/wasm" }
 tempfile = "*"
