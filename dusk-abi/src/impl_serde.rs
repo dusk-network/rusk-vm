@@ -1,17 +1,18 @@
+use serde::de::Visitor;
+use serde::ser::SerializeTuple;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 /// Easy way to implement Serialize/Deserialize for types which hold
 /// a fixed-size array that's larger than 32 bytes.
 /// Takes the type itself, and the length of the contained array as arguments.
 #[macro_export]
 macro_rules! impl_serde_for_array {
     ($arr:ident, $len:expr) => {
-        use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
         impl Serialize for $arr {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
                 S: Serializer,
             {
-                use serde::ser::SerializeTuple;
                 let mut seq = serializer.serialize_tuple($len)?;
                 for byte in self.0.iter() {
                     seq.serialize_element(byte)?;
@@ -25,7 +26,6 @@ macro_rules! impl_serde_for_array {
             where
                 D: Deserializer<'de>,
             {
-                use serde::de::Visitor;
                 struct DummyVisitor;
 
                 impl<'de> Visitor<'de> for DummyVisitor {
