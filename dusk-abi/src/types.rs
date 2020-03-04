@@ -1,4 +1,7 @@
 use super::impl_serde_for_array;
+use serde::de::Visitor;
+use serde::ser::SerializeTuple;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct H256([u8; 32]);
