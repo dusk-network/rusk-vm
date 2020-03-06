@@ -63,3 +63,47 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
             )
     }
 }
+
+pub struct PhoenixVerify;
+
+impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
+    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
+    const RETURN: Option<ValueType> = None;
+
+    fn call(
+        context: &mut CallContext<S, H>,
+        args: RuntimeArgs,
+    ) -> Result<Option<RuntimeValue>, VMError> {
+        let items_ptr = args.get(0)?;
+
+        context
+            .top()
+            .memory
+            .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
+                |a| {
+                    let items_buf = &a[items_ptr
+                        ..items_ptr + (MAX_NOTES_PER_TRANSACTION * ITEM_SIZE)];
+
+                    let items: Result<Vec<TransactionItem>, fermion::Error> =
+                        items_buf
+                            .chunks(ITEM_SIZE)
+                            .map(|bytes| {
+                                let item: Item = encoding::decode(bytes)?;
+                                Ok(TransactionItem::from(item))
+                            })
+                            .collect();
+
+                    let mut tx = Transaction::default();
+
+                    for item in items.unwrap() {
+                        tx.push(item);
+                    }
+
+                    match tx.verify() {
+                        Ok(_) => Ok(None),
+                        Err(_) => Err(VMError::InvalidItem),
+                    }
+                },
+            )
+    }
+}
