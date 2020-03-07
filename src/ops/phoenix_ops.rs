@@ -5,7 +5,13 @@ use crate::VMError;
 use dusk_abi::encoding;
 use kelvin::ByteHash;
 use phoenix::{db, Transaction, TransactionItem};
-use phoenix_abi::{Item, ITEM_SIZE, MAX_NOTES_PER_TRANSACTION};
+use phoenix_abi::{
+    types::{
+        MAX_NOTES_PER_TRANSACTION, MAX_NULLIFIERS_PER_TRANSACTION, NOTE_SIZE,
+        NULLIFIER_SIZE,
+    },
+    Note, Nullifier,
+};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub const DB_PATH: &'static str = "/tmp/rusk-vm-demo";
@@ -13,31 +19,51 @@ pub const DB_PATH: &'static str = "/tmp/rusk-vm-demo";
 pub struct PhoenixStore;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
-    const RETURN: Option<ValueType> = None;
+    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
+    const RETURN: Option<ValueType> = Some(ValueType::I32);
 
     fn call(
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        let items_ptr = args.get(0)?;
+        let nullifiers_ptr = args.get(0)?;
+        let notes_ptr = args.get(1)?;
 
         context
             .top()
             .memory
             .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
                 |a| {
-                    let items_buf = &a[items_ptr
-                        ..items_ptr + (MAX_NOTES_PER_TRANSACTION * ITEM_SIZE)];
+                    let nullifiers_buf = &a[nullifiers_ptr
+                        ..nullifiers_ptr
+                            + (MAX_NULLIFIERS_PER_TRANSACTION
+                                * NULLIFIER_SIZE)];
+                    let nullifiers: Result<
+                        Vec<TransactionItem>,
+                        fermion::Error,
+                    > = nullifiers_buf
+                        .chunks(NULLIFIER_SIZE)
+                        .map(|bytes| {
+                            let nullifier: Nullifier = encoding::decode(bytes)?;
+                            let mut item = TransactionItem::default();
+                            item.set_nullifier(nullifier.into());
+                            Ok(item)
+                        })
+                        .collect();
+                    let mut nullifiers = nullifiers.unwrap();
 
-                    let items: Result<Vec<TransactionItem>, fermion::Error> =
-                        items_buf
-                            .chunks(ITEM_SIZE)
+                    let notes_buf = &a[notes_ptr
+                        ..notes_ptr + (MAX_NOTES_PER_TRANSACTION * NOTE_SIZE)];
+
+                    let notes: Result<Vec<TransactionItem>, fermion::Error> =
+                        notes_buf
+                            .chunks(NOTE_SIZE)
                             .map(|bytes| {
-                                let item: Item = encoding::decode(bytes)?;
-                                Ok(TransactionItem::from(item))
+                                let note: Note = encoding::decode(bytes)?;
+                                Ok(TransactionItem::from(note))
                             })
                             .collect();
+                    let mut notes = notes.unwrap();
 
                     // let mut proof_buf = [0u8; PROOF_SIZE];
                     // proof_buf
@@ -45,16 +71,16 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
 
                     // match R1CSProof::from_bytes(&proof_buf[..]) {
                     //     Ok(proof) => {
+                    let items = nullifiers.drain(..).chain(notes.drain(..));
+
                     let mut tx = Transaction::default();
                     // tx.set_r1cs(proof);
 
-                    for item in items.unwrap() {
-                        tx.push(item);
-                    }
+                    items.for_each(|item| tx.push(item));
 
                     match db::store(DB_PATH, &tx) {
-                        Ok(_) => Ok(None),
-                        Err(_) => Err(VMError::InvalidItem),
+                        Ok(_) => Ok(Some(RuntimeValue::I32(1))),
+                        Err(_) => Ok(Some(RuntimeValue::I32(0))),
                     }
                     //     }
                     //     Err(_) => Err(VMError::InvalidProof),
@@ -67,41 +93,61 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
 pub struct PhoenixVerify;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
-    const RETURN: Option<ValueType> = None;
+    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
+    const RETURN: Option<ValueType> = Some(ValueType::I32);
 
     fn call(
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        let items_ptr = args.get(0)?;
+        let nullifiers_ptr = args.get(0)?;
+        let notes_ptr = args.get(1)?;
 
         context
             .top()
             .memory
             .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
                 |a| {
-                    let items_buf = &a[items_ptr
-                        ..items_ptr + (MAX_NOTES_PER_TRANSACTION * ITEM_SIZE)];
+                    let nullifiers_buf = &a[nullifiers_ptr
+                        ..nullifiers_ptr
+                            + (MAX_NULLIFIERS_PER_TRANSACTION
+                                * NULLIFIER_SIZE)];
+                    let nullifiers: Result<
+                        Vec<TransactionItem>,
+                        fermion::Error,
+                    > = nullifiers_buf
+                        .chunks(NULLIFIER_SIZE)
+                        .map(|bytes| {
+                            let nullifier: Nullifier = encoding::decode(bytes)?;
+                            let mut item = TransactionItem::default();
+                            item.set_nullifier(nullifier.into());
+                            Ok(item)
+                        })
+                        .collect();
+                    let mut nullifiers = nullifiers.unwrap();
 
-                    let items: Result<Vec<TransactionItem>, fermion::Error> =
-                        items_buf
-                            .chunks(ITEM_SIZE)
+                    let notes_buf = &a[notes_ptr
+                        ..notes_ptr + (MAX_NOTES_PER_TRANSACTION * NOTE_SIZE)];
+
+                    let notes: Result<Vec<TransactionItem>, fermion::Error> =
+                        notes_buf
+                            .chunks(NOTE_SIZE)
                             .map(|bytes| {
-                                let item: Item = encoding::decode(bytes)?;
-                                Ok(TransactionItem::from(item))
+                                let note: Note = encoding::decode(bytes)?;
+                                Ok(TransactionItem::from(note))
                             })
                             .collect();
+                    let mut notes = notes.unwrap();
+
+                    let items = nullifiers.drain(..).chain(notes.drain(..));
 
                     let mut tx = Transaction::default();
 
-                    for item in items.unwrap() {
-                        tx.push(item);
-                    }
+                    items.for_each(|item| tx.push(item));
 
                     match tx.verify() {
-                        Ok(_) => Ok(None),
-                        Err(_) => Err(VMError::InvalidItem),
+                        Ok(_) => Ok(Some(RuntimeValue::I32(1))),
+                        Err(_) => Ok(Some(RuntimeValue::I32(0))),
                     }
                 },
             )
