@@ -10,18 +10,23 @@ use phoenix_abi::{
 use serde::{Deserialize, Serialize};
 
 // Interface
-pub fn transfer<'a>(
-    nullifiers: &'a [Nullifier],
-    notes: &'a [Note],
-) -> ContractCall<(&'a [Nullifier], &'a [Note])> {
+pub fn transfer(
+    nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TRANSACTION],
+    notes: [Note; MAX_NOTES_PER_TRANSACTION],
+) -> ContractCall<(
+    [Nullifier; MAX_NULLIFIERS_PER_TRANSACTION],
+    [Note; MAX_NOTES_PER_TRANSACTION],
+)> {
     ContractCall::new((nullifiers, notes)).unwrap()
 }
 
 #[no_mangle]
 pub fn call() {
     let mut buffer = [0u8; CALL_DATA_SIZE];
-    let (nullifiers, notes): (&[Nullifier], &[Note]) =
-        dusk_abi::call_data(&mut buffer);
+    let (nullifiers, notes): (
+        [Nullifier; MAX_NULLIFIERS_PER_TRANSACTION],
+        [Note; MAX_NOTES_PER_TRANSACTION],
+    ) = dusk_abi::call_data(&mut buffer);
 
     let mut nullifiers_buf =
         [0u8; MAX_NULLIFIERS_PER_TRANSACTION * NULLIFIER_SIZE];
