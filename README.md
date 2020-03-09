@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/dusk-network/rusk-vm.svg?branch=master)](https://travis-ci.com/dusk-network/rusk-vm)
+[![Build Status](https://travis-ci.com/dusk-network/rusk-vm.svg?token=h3rscYNqTnqYVQKspVPT&branch=master)](https://travis-ci.com/dusk-network/rusk-vm)
 
 # Rust WASM contracts
 
@@ -23,6 +23,7 @@ For the balance, i chose `u128`, the idea being to move away from Ethereum style
 
 ### Constants (to be discussed)
 
+```rust
 /// The maximum size of contract call arguments and return values
 pub const CALL_DATA_SIZE: usize = 1024 * 16;
 /// The maximum size of values in contract storage
@@ -33,6 +34,7 @@ pub const STORAGE_KEY_SIZE: usize = 32;
 pub const PANIC_BUFFER_SIZE: usize = 1024 * 16;
 /// The maximum length of contract debug messages
 pub const DEBUG_BUFFER_SIZE: usize = 1024 * 16;
+```
 
 ### Interaction
 
