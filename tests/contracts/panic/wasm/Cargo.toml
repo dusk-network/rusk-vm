@@ -9,3 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 dusk-abi = { path = "../../../../dusk-abi", default-features = false }
+
+[profile.release]
+lto = true
+codegen-units = 1
