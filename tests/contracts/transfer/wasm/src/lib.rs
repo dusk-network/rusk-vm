@@ -13,10 +13,7 @@ use serde::{Deserialize, Serialize};
 pub fn transfer(
     nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TRANSACTION],
     notes: [Note; MAX_NOTES_PER_TRANSACTION],
-) -> ContractCall<(
-    [Nullifier; MAX_NULLIFIERS_PER_TRANSACTION],
-    [Note; MAX_NOTES_PER_TRANSACTION],
-)> {
+) -> ContractCall<bool> {
     ContractCall::new((nullifiers, notes)).unwrap()
 }
 
