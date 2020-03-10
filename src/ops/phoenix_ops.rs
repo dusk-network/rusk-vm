@@ -65,16 +65,11 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                             .collect();
                     let mut notes = notes.unwrap();
 
-                    // let mut proof_buf = [0u8; PROOF_SIZE];
-                    // proof_buf
-                    //     .copy_from_slice(&a[proof_ptr..proof_ptr + PROOF_SIZE]);
-
-                    // match R1CSProof::from_bytes(&proof_buf[..]) {
-                    //     Ok(proof) => {
                     let items = nullifiers.drain(..).chain(notes.drain(..));
 
+                    // TODO: decode proof and include it in the tx
+
                     let mut tx = Transaction::default();
-                    // tx.set_r1cs(proof);
 
                     items.for_each(|item| tx.push(item));
 
@@ -82,9 +77,6 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                         Ok(_) => Ok(Some(RuntimeValue::I32(1))),
                         Err(_) => Ok(Some(RuntimeValue::I32(0))),
                     }
-                    //     }
-                    //     Err(_) => Err(VMError::InvalidProof),
-                    // }
                 },
             )
     }
@@ -140,6 +132,8 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                     let mut notes = notes.unwrap();
 
                     let items = nullifiers.drain(..).chain(notes.drain(..));
+
+                    // TODO: decode proof and include it in the tx
 
                     let mut tx = Transaction::default();
 
