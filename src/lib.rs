@@ -28,8 +28,6 @@ pub enum VMError {
     InvalidUtf8,
     InvalidEd25519PublicKey,
     InvalidEd25519Signature,
-    InvalidItem,
-    InvalidProof,
     ContractReturn,
     OutOfGas,
     UnknownContract,
@@ -81,8 +79,6 @@ impl fmt::Display for VMError {
             VMError::InvalidEd25519Signature => {
                 write!(f, "Invalid Ed25519 Signature")?
             }
-            VMError::InvalidItem => write!(f, "Invalid Phoenix Item")?,
-            VMError::InvalidProof => write!(f, "Invalid PLONK Proof")?,
             VMError::ContractReturn => write!(f, "Contract Return")?,
             VMError::OutOfGas => write!(f, "Out of Gas Error")?,
             VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
