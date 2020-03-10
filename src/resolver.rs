@@ -74,6 +74,8 @@ abi_resolver! {
         7, "ret" => ret::Return,
         8, "self_hash" => self_hash::SelfHash,
         9, "gas" => gas::Gas,
+        10, "phoenix_store" => phoenix_ops::PhoenixStore,
+        11, "phoenix_verify" => phoenix_ops::PhoenixVerify,
         10_000, "verify_ed25519_signature" => ed25519::Ed25519
     }
 }

@@ -6,6 +6,19 @@ use kelvin::Blake2b;
 use dusk_abi::ContractCall;
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
+use kelvin::{Blake2b, Store};
+use std::fs;
+use tempfile::tempdir;
+
+use dusk_abi::ContractCall;
+use phoenix_abi::{
+    types::{MAX_NOTES_PER_TRANSACTION, MAX_NULLIFIERS_PER_TRANSACTION},
+    Note, Nullifier,
+};
+use rusk_vm::{
+    Contract, Digest, GasMeter, NetworkState, Schedule, StandardABI, Wallet,
+};
+/*
 #[test]
 fn factorial() {
     use factorial::factorial;
@@ -54,4 +67,38 @@ fn hello_world() {
     network
         .call_contract(&contract_id, ContractCall::<()>::nil(), &mut gas)
         .unwrap();
+}
+*/
+#[test]
+fn transfer() {
+    use transfer::transfer;
+
+    let code = contract_code!("transfer");
+
+    let schedule = Schedule::default();
+    let contract = Contract::new(code, &schedule).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    // Generate some items
+    let nullifiers = [Nullifier::default(); MAX_NULLIFIERS_PER_TRANSACTION];
+    let notes = [Note::default(); MAX_NOTES_PER_TRANSACTION];
+
+    let succeeded = network
+        .call_contract(&contract_id, transfer(nullifiers, notes), &mut gas)
+        .unwrap();
+
+    if !succeeded {
+        panic!("contract execution failed");
+    }
+
+    // Ensure data was written
+    fs::metadata("/tmp/rusk-vm-demo/data").unwrap();
+
+    // Clean up
+    fs::remove_dir_all("/tmp/rusk-vm-demo").unwrap();
 }
