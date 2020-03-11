@@ -54,7 +54,6 @@ impl MeteredContract {
             if let MeteredContract::Code(code) =
                 mem::replace(self, MeteredContract::Code(vec![]))
             {
-                println!("cOMPILING");
                 *self = MeteredContract::Module {
                     module: Rc::new(wasmi::Module::from_buffer(&code)?),
                     code,

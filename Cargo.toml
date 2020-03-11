@@ -29,7 +29,14 @@ lazy_static = "1.4"
 parking_lot = "0.10"
 
 [dev-dependencies]
+tempfile = "*"
+criterion = "0.3"
+
 default_account = { path = "tests/contracts/default_account/wasm" }
 factorial = { path = "tests/contracts/factorial/wasm" }
 transfer = { path = "tests/contracts/transfer/wasm" }
-tempfile = "*"
+
+[[bench]]
+sample_size = 10
+name = "factorial"
+harness = false
