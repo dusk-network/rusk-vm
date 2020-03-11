@@ -10,3 +10,7 @@ edition = "2018"
 [dependencies]
  dusk-abi = { path = "../../../../dusk-abi", default-features = false }
  serde = { version = "*", default-features = false, features = ["derive"] }
+
+[profile.release]
+lto = true
+codegen-units = 1

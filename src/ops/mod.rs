@@ -10,6 +10,7 @@ pub mod debug;
 pub mod ed25519;
 pub mod gas;
 pub mod panic;
+pub mod phoenix_ops;
 pub mod ret;
 use kelvin::ByteHash;
 

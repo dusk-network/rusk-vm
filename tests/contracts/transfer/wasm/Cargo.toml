@@ -1,7 +1,7 @@
 [package]
-name = "default_account"
+name = "transfer"
 version = "0.1.0"
-authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+authors = ["Jules de Smit <jules@dusk.network>"]
 edition = "2018"
 
 [lib]
@@ -9,8 +9,5 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 dusk-abi = { path = "../../../../dusk-abi", default-features = false }
+phoenix-abi = { path = "../../../../../phoenix-abi", default-features = false }
 serde = { version = "*", default-features = false, features = ["derive"] }
-
-[profile.release]
-lto = true
-codegen-units = 1
