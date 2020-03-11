@@ -1,15 +1,18 @@
 use core::fmt;
 
+/// A small struct that can `Write` to a buffer
 pub struct BufWriter<'a> {
     buf: &'a mut [u8],
     offset: usize,
 }
 
 impl<'a> BufWriter<'a> {
+    /// Creates a new `BufWriter`
     pub fn new(buf: &'a mut [u8]) -> Self {
         BufWriter { buf, offset: 0 }
     }
 
+    /// Returns the offset of the `BufWriter`
     pub fn ofs(&self) -> usize {
         self.offset
     }

@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{host_trap, ArgsExt, CallContext, Resolver};
+use crate::call_context::{host_trap, ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use kelvin::ByteHash;

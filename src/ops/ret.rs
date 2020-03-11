@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{ArgsExt, CallContext, Resolver, StackFrame};
+use crate::call_context::{ArgsExt, CallContext, Resolver, StackFrame};
 use crate::VMError;
 
 use dusk_abi::CALL_DATA_SIZE;

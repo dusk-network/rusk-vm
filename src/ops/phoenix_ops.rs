@@ -1,5 +1,5 @@
 use super::AbiCall;
-use crate::host_fns::{ArgsExt, CallContext, Resolver};
+use crate::call_context::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use dusk_abi::encoding;

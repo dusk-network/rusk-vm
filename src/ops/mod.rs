@@ -1,4 +1,4 @@
-use crate::host_fns::CallContext;
+use crate::call_context::CallContext;
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};

@@ -1,16 +1,19 @@
 use super::impl_serde_for_array;
-use serde::de::Visitor;
-use serde::ser::SerializeTuple;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+// use serde::de::Visitor;
+// use serde::ser::SerializeTuple;
+use serde::{Deserialize, Serialize};
 
+/// The standard hash type of 32 bytes
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct H256([u8; 32]);
 
 impl H256 {
+    /// Return a zero-hash
     pub fn zero() -> Self {
         H256(Default::default())
     }
 
+    /// Create a H256 from a byte slice
     pub fn from_bytes(bytes: &[u8]) -> Self {
         assert!(bytes.len() == 32);
         let mut new = H256::zero();
@@ -43,21 +46,20 @@ impl core::fmt::Debug for H256 {
 
 const SIGNATURE_BYTES: usize = 64;
 
+/// Standard 64 byte signature type
 #[repr(C)]
 pub struct Signature([u8; SIGNATURE_BYTES]);
 
 impl Signature {
-    pub fn new() -> Self {
-        Signature([42u8; SIGNATURE_BYTES])
-    }
-
+    /// Create a new signature from a byte slice
     pub fn from_slice(slice: &[u8]) -> Self {
         let mut buf = [0u8; 64];
         buf.copy_from_slice(slice);
         Signature(buf)
     }
 
-    pub fn as_array(&self) -> &[u8; 64] {
+    /// Returns a reference to the internal byte array
+    pub fn as_array_ref(&self) -> &[u8; 64] {
         &self.0
     }
 }

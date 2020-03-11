@@ -14,7 +14,7 @@ use crate::{Schedule, VMError};
 
 use std::{mem, ptr};
 
-/// read out the
+/// read out the i32 const in a WASM `InitExpr`
 fn get_i32_const(init_expr: &InitExpr) -> Option<i32> {
     let code = init_expr.code();
 
@@ -64,12 +64,15 @@ impl MeteredContract {
     }
 }
 
+/// A parsed contract module, not metered, can still be parameterized with the
+/// `set_parameter` call
 pub struct Contract<'a> {
     module: elements::Module,
     schedule: &'a Schedule,
 }
 
 impl<'a> Contract<'a> {
+    /// Creates a new Contract from provided code and Schedule.
     pub fn new(
         original_code: &[u8],
         schedule: &'a Schedule,
@@ -106,6 +109,7 @@ impl<'a> Contract<'a> {
         })
     }
 
+    /// Injects gas metering into the contract
     fn inject_gas_metering(self) -> Result<Self, failure::Error> {
         let gas_rules = rules::Set::new(
             self.schedule.regular_op_cost as u32,
@@ -123,6 +127,7 @@ impl<'a> Contract<'a> {
         })
     }
 
+    /// Injects stack height metering
     fn inject_stack_height_metering(self) -> Result<Self, failure::Error> {
         let contract_module = pwasm_utils::stack_height::inject_limiter(
             self.module,
@@ -208,6 +213,7 @@ impl<'a> Contract<'a> {
         Ok(())
     }
 
+    /// Modifies a parameter in the contract body
     pub fn set_parameter<V: Copy + std::fmt::Debug + Sized>(
         &mut self,
         name: &str,
@@ -305,6 +311,7 @@ impl<'a> Contract<'a> {
         }
     }
 
+    /// Builds a `MeteredContract` from the `Contract`
     pub fn build(self) -> Result<MeteredContract, VMError> {
         let mut code = vec![];
         self.module
