@@ -19,7 +19,6 @@ pub enum AccountCall<'a> {
     Balance,
 }
 
-#[no_mangle]
 pub fn call() {
     let mut buffer = [0u8; CALL_DATA_SIZE];
     let data: AccountCall = dusk_abi::call_data(&mut buffer);
@@ -62,7 +61,6 @@ pub fn call() {
     }
 }
 
-#[no_mangle]
 pub fn deploy() {
     // Set the initial nonce to zero
     dusk_abi::set_storage(&NONCE, 0u64)

@@ -16,7 +16,6 @@ pub fn transfer(
     ContractCall::new((nullifiers, notes)).unwrap()
 }
 
-#[no_mangle]
 pub fn call() {
     let mut buffer = [0u8; CALL_DATA_SIZE];
     let (nullifiers, notes): (
