@@ -1,41 +1,59 @@
+//! #Rusk-VM
+//!
+//! The main engine for executing WASM on the network state
+#![warn(missing_docs)]
+
 use std::{fmt, io};
 
 use failure::Fail;
 
+mod call_context;
 mod contract;
-mod digest;
 mod gas;
-mod host_fns;
 mod ops;
 mod resolver;
 mod state;
-mod wallet;
 
+pub use call_context::StandardABI;
 pub use contract::Contract;
-pub use digest::Digest;
 pub use fermion::Error;
 pub use gas::{Gas, GasMeter};
-pub use host_fns::StandardABI;
 pub use state::NetworkState;
-pub use wallet::Wallet;
 
 #[derive(Debug, Fail)]
+/// The errors that can happen while executing the VM
 pub enum VMError {
+    /// An argument in `RuntimeArgs` is missing
     MissingArgument,
+    /// The contract panicked with message in `String`
     ContractPanic(String),
+    /// Could not find WASM memory
     MemoryNotFound,
-    InvalidApiCall,
+    /// Invalid ABI Call
+    InvalidABICall,
+    /// Invalid Utf8
     InvalidUtf8,
+    /// Invalid Public key
     InvalidEd25519PublicKey,
+    /// Invalid Signature
     InvalidEd25519Signature,
+    /// Contract returned, not an error per se, this is how contracts return.
     ContractReturn,
+    /// Contract execution ran out of gas
     OutOfGas,
+    /// Contract could not be found in the state
     UnknownContract,
+    /// WASM threw an error
     WASMError(failure::Error),
+    /// wasmi trap triggered
     Trap(wasmi::Trap),
-    IOError(io::Error),
+    /// Wasmi threw an error
     WasmiError(wasmi::Error),
+    /// Input output error
+    IOError(io::Error),
+    /// Serialization failed
     SerializationError(fermion::Error),
+    /// Invalid WASM Module
     InvalidWASMModule,
 }
 
@@ -86,7 +104,7 @@ impl fmt::Display for VMError {
             VMError::SerializationError(e) => {
                 write!(f, "Serialization Error ({:?})", e)?
             }
-            VMError::InvalidApiCall => write!(f, "Invalid Api Call")?,
+            VMError::InvalidABICall => write!(f, "Invalid ABI Call")?,
             VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
             VMError::Trap(e) => write!(f, "Trap ({:?})", e)?,
             VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,

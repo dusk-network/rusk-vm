@@ -1,11 +1,19 @@
+//! #Dusk ABI
+//!
+//! ABI functionality for communicating with the host
+
+#![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(lang_items)]
 #![feature(panic_info_message)]
 
 pub use serde::{Deserialize, Serialize};
 
-pub mod bufwriter;
+#[cfg(not(feature = "std"))]
+mod bufwriter;
 mod contract_call;
+
+/// Module for encoding/decoding values for ABI compability
 pub mod encoding;
 mod impl_serde;
 
@@ -14,6 +22,7 @@ mod tests;
 
 #[cfg(not(feature = "std"))]
 mod panic;
+
 mod types;
 
 pub use contract_call::{ContractCall, ContractReturn};
@@ -78,6 +87,7 @@ mod external {
     }
 }
 
+/// Set a contract storage key value
 pub fn set_storage<K, V>(key: K, val: V)
 where
     K: AsRef<[u8]>,
@@ -96,6 +106,7 @@ where
     }
 }
 
+/// Get a contract storage key value
 pub fn get_storage<K, V>(key: &K) -> Option<V>
 where
     K: AsRef<[u8]> + ?Sized,
@@ -118,24 +129,28 @@ where
     }
 }
 
+/// Returns the caller of the contract
 pub fn caller() -> H256 {
     let mut buffer = [0u8; 32];
     unsafe { external::caller(&mut buffer) }
     encoding::decode(&buffer[..]).unwrap()
 }
 
+/// Returns the hash of the currently executing contract
 pub fn self_hash() -> H256 {
     let mut buffer = [0u8; 32];
     unsafe { external::self_hash(&mut buffer) }
     encoding::decode(&buffer[..]).unwrap()
 }
 
+/// Returns the currently executing contracts balance
 pub fn balance() -> u128 {
     let mut buffer = [0u8; 16];
     unsafe { external::balance(&mut buffer) }
     encoding::decode(&buffer[..]).unwrap()
 }
 
+/// Returns the data the contract was called with
 pub fn call_data<'de, D>(buffer: &'de mut [u8; CALL_DATA_SIZE]) -> D
 where
     D: Deserialize<'de>,
@@ -144,6 +159,7 @@ where
     encoding::decode(buffer).unwrap()
 }
 
+/// Verifies an ed25519_signature, returns true if successful
 pub fn verify_ed25519_signature(
     pub_key: &[u8; 32],
     signature: &Signature,
@@ -153,13 +169,14 @@ pub fn verify_ed25519_signature(
         let len = buffer.len() as i32;
         external::verify_ed25519_signature(
             pub_key,
-            signature.as_array(),
+            signature.as_array_ref(),
             &buffer[0],
             len,
         )
     }
 }
 
+/// Call another contract at address `target`
 pub fn call_contract<'de, R: 'de + Deserialize<'de>>(
     target: &H256,
     amount: u128,
@@ -180,12 +197,14 @@ pub fn call_contract<'de, R: 'de + Deserialize<'de>>(
     encoding::decode(call.data()).unwrap()
 }
 
+/// Returns a value and halts execution of the contract
 pub fn ret<T: Serialize>(ret: T) -> ! {
     let mut ret_buffer = [0u8; CALL_DATA_SIZE];
     encoding::encode(&ret, &mut ret_buffer).unwrap();
     unsafe { external::ret(&ret_buffer) }
 }
 
+/// Deduct a specified amount of gas from the call
 pub fn gas(value: i32) {
     unsafe { external::gas(value) }
 }
@@ -196,6 +215,7 @@ pub fn _debug(buf: &[u8]) {
     unsafe { external::debug(&buf[0], len) }
 }
 
+/// Macro to format and send debug output to the host
 #[macro_export]
 macro_rules! debug {
     ($($tt:tt)*) => {

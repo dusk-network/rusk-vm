@@ -1,5 +1,7 @@
 // Gas units are chosen to be represented by u64 so that gas metering instructions can operate on
 // them efficiently.
+
+/// Type alias for gas
 pub type Gas = u64;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -18,6 +20,7 @@ impl GasMeterResult {
 }
 
 #[derive(Debug)]
+/// Struct to keep track of gas usage
 pub struct GasMeter {
     limit: Gas,
     /// Amount of gas left from initial gas limit. Can reach zero.
@@ -25,6 +28,7 @@ pub struct GasMeter {
 }
 
 impl GasMeter {
+    /// Creates a new `GasMeter` with given gas limits
     pub fn with_limit(gas_limit: Gas) -> GasMeter {
         GasMeter {
             limit: gas_limit,
@@ -32,6 +36,7 @@ impl GasMeter {
         }
     }
 
+    /// Deduct specified amount of gas from the meter
     pub fn charge(&mut self, amount: Gas) -> GasMeterResult {
         let new_value = match self.gas_left.checked_sub(amount) {
             None => None,

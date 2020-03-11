@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::host_fns::Resolver;
+use crate::call_context::Resolver;
 use crate::ops::*;
 use crate::VMError;
 
@@ -10,11 +10,12 @@ use wasmi::{
     RuntimeValue, Signature,
 };
 
-use crate::host_fns::{CallContext, Invoke};
+use crate::call_context::{CallContext, Invoke};
 
 macro_rules! abi_resolver {
     ( $visibility:vis $name:ident < $h:ident > { $( $id:expr, $op_name:expr => $op:path ),* } ) => {
 
+        #[doc(hidden)]
         #[derive(Clone, Default)]
         $visibility struct $name<$h> (PhantomData<$h>);
 

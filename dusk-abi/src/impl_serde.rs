@@ -3,56 +3,68 @@
 /// Takes the type itself, and the length of the contained array as arguments.
 #[macro_export]
 macro_rules! impl_serde_for_array {
-    ($arr:ident, $len:expr) => {
-        impl Serialize for $arr {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: Serializer,
-            {
-                let mut seq = serializer.serialize_tuple($len)?;
-                for byte in self.0.iter() {
-                    seq.serialize_element(byte)?;
-                }
-                seq.end()
-            }
-        }
+    ($arr:ident, $len:ident) => {
+        mod serialize {
+            use super::$arr;
+            use super::$len;
 
-        impl<'de> Deserialize<'de> for $arr {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: Deserializer<'de>,
-            {
-                struct DummyVisitor;
+            use serde::de::Visitor;
+            use serde::ser::SerializeTuple;
+            use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-                impl<'de> Visitor<'de> for DummyVisitor {
-                    type Value = $arr;
-
-                    fn expecting(
-                        &self,
-                        formatter: &mut ::core::fmt::Formatter,
-                    ) -> ::core::fmt::Result {
-                        formatter.write_fmt(format_args!("{} bytes", $len))
+            impl Serialize for $arr {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: Serializer,
+                {
+                    let mut seq = serializer.serialize_tuple($len)?;
+                    for byte in self.0.iter() {
+                        seq.serialize_element(byte)?;
                     }
+                    seq.end()
+                }
+            }
 
-                    fn visit_seq<A>(self, mut seq: A) -> Result<$arr, A::Error>
-                    where
-                        A: serde::de::SeqAccess<'de>,
-                    {
-                        let mut bytes = [0u8; $len];
-                        for i in 0..$len {
-                            bytes[i] = seq.next_element()?.ok_or(
-                                serde::de::Error::invalid_length(
-                                    i,
-                                    &"invalid length",
-                                ),
-                            )?;
+            impl<'de> Deserialize<'de> for $arr {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    struct DummyVisitor;
+
+                    impl<'de> Visitor<'de> for DummyVisitor {
+                        type Value = $arr;
+
+                        fn expecting(
+                            &self,
+                            formatter: &mut ::core::fmt::Formatter,
+                        ) -> ::core::fmt::Result {
+                            formatter.write_fmt(format_args!("{} bytes", $len))
                         }
 
-                        Ok($arr(bytes))
-                    }
-                }
+                        fn visit_seq<A>(
+                            self,
+                            mut seq: A,
+                        ) -> Result<$arr, A::Error>
+                        where
+                            A: serde::de::SeqAccess<'de>,
+                        {
+                            let mut bytes = [0u8; $len];
+                            for i in 0..$len {
+                                bytes[i] = seq.next_element()?.ok_or(
+                                    serde::de::Error::invalid_length(
+                                        i,
+                                        &"invalid length",
+                                    ),
+                                )?;
+                            }
 
-                deserializer.deserialize_tuple($len, DummyVisitor)
+                            Ok($arr(bytes))
+                        }
+                    }
+
+                    deserializer.deserialize_tuple($len, DummyVisitor)
+                }
             }
         }
     };

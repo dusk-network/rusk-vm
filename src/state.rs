@@ -7,9 +7,9 @@ use kelvin::{ByteHash, Content, Map as _, Sink, Source, ValRef, ValRefMut};
 use kelvin_radix::DefaultRadixMap as RadixMap;
 use serde::Deserialize;
 
+use crate::call_context::{CallContext, Resolver};
 use crate::contract::{Contract, MeteredContract};
 use crate::gas::GasMeter;
-use crate::host_fns::{CallContext, Resolver};
 
 pub type Storage<H> = RadixMap<H256, Vec<u8>, H>;
 
@@ -56,6 +56,7 @@ impl<H: ByteHash> ContractState<H> {
     }
 }
 
+/// The main network state, includes the full state of contracts.
 #[derive(Clone, Default)]
 pub struct NetworkState<S, H: ByteHash> {
     contracts: RadixMap<H256, ContractState<H>, H>,
@@ -63,6 +64,8 @@ pub struct NetworkState<S, H: ByteHash> {
 }
 
 impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
+    /// Deploys a contract to the state, returns the address of the created contract
+    /// or an error
     pub fn deploy(&mut self, contract: Contract) -> Result<H256, VMError> {
         let metered = contract.build()?;
 
@@ -81,6 +84,7 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
         Ok(code_hash)
     }
 
+    /// Returns a reference to the specified contracts state
     pub fn get_contract_state(
         &self,
         contract_id: &H256,
@@ -88,6 +92,7 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
         self.contracts.get(contract_id).map_err(Into::into)
     }
 
+    /// Returns a mutable reference to the specified contracts state
     pub fn get_contract_state_mut(
         &mut self,
         contract_id: &H256,
@@ -95,6 +100,8 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
         self.contracts.get_mut(contract_id).map_err(Into::into)
     }
 
+    /// Returns a mutable reference to the specified contracts state, or to a newly created
+    /// contract
     pub fn get_contract_state_mut_or_default(
         &mut self,
         id: &H256,
@@ -106,6 +113,7 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
         Ok(self.contracts.get_mut(id)?.expect("Assured above"))
     }
 
+    /// Call the contract at address `target`
     pub fn call_contract<R: for<'de> Deserialize<'de>>(
         &mut self,
         target: &H256,
