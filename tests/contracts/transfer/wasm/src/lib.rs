@@ -1,13 +1,12 @@
 #![no_std]
-use dusk_abi::{self, encoding, ContractCall, CALL_DATA_SIZE, H256};
+use dusk_abi::{self, encoding, ContractCall, CALL_DATA_SIZE};
 use phoenix_abi::{
     types::{
         MAX_NOTES_PER_TRANSACTION, MAX_NULLIFIERS_PER_TRANSACTION, NOTE_SIZE,
         NULLIFIER_SIZE,
     },
-    Note, NotesBuffer, Nullifier, NullifiersBuffer,
+    Note, Nullifier,
 };
-use serde::{Deserialize, Serialize};
 
 // Interface
 pub fn transfer(

@@ -1,7 +1,3 @@
-use serde::de::Visitor;
-use serde::ser::SerializeTuple;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
 /// Easy way to implement Serialize/Deserialize for types which hold
 /// a fixed-size array that's larger than 32 bytes.
 /// Takes the type itself, and the length of the contained array as arguments.

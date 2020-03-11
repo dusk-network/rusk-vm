@@ -2,54 +2,46 @@ mod contracts;
 mod helpers;
 
 use kelvin::Blake2b;
-
-use dusk_abi::ContractCall;
-use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
-
-use kelvin::{Blake2b, Store};
 use std::fs;
-use tempfile::tempdir;
 
 use dusk_abi::ContractCall;
 use phoenix_abi::{
     types::{MAX_NOTES_PER_TRANSACTION, MAX_NULLIFIERS_PER_TRANSACTION},
     Note, Nullifier,
 };
-use rusk_vm::{
-    Contract, Digest, GasMeter, NetworkState, Schedule, StandardABI, Wallet,
-};
-/*
-#[test]
-fn factorial() {
-    use factorial::factorial;
+use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
-    fn factorial_reference(n: u64) -> u64 {
-        if n <= 1 {
-            1
-        } else {
-            n * factorial_reference(n - 1)
-        }
-    }
+// #[test]
+// fn factorial() {
+//     use factorial::factorial;
 
-    let code = contract_code!("factorial");
+//     fn factorial_reference(n: u64) -> u64 {
+//         if n <= 1 {
+//             1
+//         } else {
+//             n * factorial_reference(n - 1)
+//         }
+//     }
 
-    let schedule = Schedule::default();
-    let contract = Contract::new(code, &schedule).unwrap();
+//     let code = contract_code!("factorial");
 
-    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+//     let schedule = Schedule::default();
+//     let contract = Contract::new(code, &schedule).unwrap();
 
-    let contract_id = network.deploy(contract).unwrap();
+//     let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+//     let contract_id = network.deploy(contract).unwrap();
 
-    let n = 6;
-    assert_eq!(
-        network
-            .call_contract(&contract_id, factorial(n), &mut gas)
-            .unwrap(),
-        factorial_reference(n)
-    );
-}
+//     let mut gas = GasMeter::with_limit(1_000_000_000);
+
+//     let n = 6;
+//     assert_eq!(
+//         network
+//             .call_contract(&contract_id, factorial(n), &mut gas)
+//             .unwrap(),
+//         factorial_reference(n)
+//     );
+// }
 
 #[test]
 fn hello_world() {
@@ -68,7 +60,7 @@ fn hello_world() {
         .call_contract(&contract_id, ContractCall::<()>::nil(), &mut gas)
         .unwrap();
 }
-*/
+
 #[test]
 fn transfer() {
     use transfer::transfer;

@@ -17,12 +17,8 @@ serde = "1.0"
 kelvin = "0.9"
 kelvin-radix = "0.5"
 fermion = "0.2"
-phf = { version = "0.8", features = ["macros"] }
-# Explicitly set quote to 1.0.2, as 1.0.3 breaks the build
-# See: https://users.rust-lang.org/t/failure-derive-compilation-error/39062
-quote = "=1.0.2"
 
-phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
+phoenix = { path = "../phoenix" }
 phoenix-abi = { path = "../phoenix-abi" }
 dusk-abi = { path = "./dusk-abi" }
 lazy_static = "1.4"
