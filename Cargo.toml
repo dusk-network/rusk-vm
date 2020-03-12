@@ -33,6 +33,5 @@ factorial = { path = "tests/contracts/factorial/wasm" }
 transfer = { path = "tests/contracts/transfer/wasm" }
 
 [[bench]]
-sample_size = 10
 name = "factorial"
 harness = false

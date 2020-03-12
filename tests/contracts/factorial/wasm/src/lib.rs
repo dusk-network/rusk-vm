@@ -6,7 +6,6 @@ pub fn factorial(of: u64) -> ContractCall<u64> {
     ContractCall::new(of).unwrap()
 }
 
-#[no_mangle]
 pub fn call() {
     let mut buffer = [0u8; CALL_DATA_SIZE];
     let n: u64 = dusk_abi::call_data(&mut buffer);
