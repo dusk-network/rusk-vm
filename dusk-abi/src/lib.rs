@@ -7,6 +7,7 @@
 #![feature(lang_items)]
 #![feature(panic_info_message)]
 
+use serde::de::DeserializeOwned;
 pub use serde::{Deserialize, Serialize};
 
 #[cfg(not(feature = "std"))]
@@ -157,6 +158,18 @@ where
 {
     unsafe { external::call_data(buffer) }
     encoding::decode(buffer).unwrap()
+}
+
+/// Returns the arguments the contract was called with.
+/// It's a helper function that wraps `call_data` handling the buffer for
+/// deserialization internally
+pub fn args<T>() -> T
+where
+    T: DeserializeOwned,
+{
+    let mut buffer = [0u8; CALL_DATA_SIZE];
+    unsafe { external::call_data(&mut buffer) }
+    encoding::decode(&buffer).unwrap()
 }
 
 /// Verifies an ed25519_signature, returns true if successful

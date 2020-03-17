@@ -1,12 +1,12 @@
 use std::io;
 use std::rc::Rc;
+use std::time::Instant;
 
 use failure::{bail, err_msg, Error};
 use kelvin::{ByteHash, Content, Sink, Source};
 use parity_wasm::elements::{
     self, InitExpr, Instruction, Internal, Serialize, Type, ValueType,
 };
-use pwasm_utils;
 use pwasm_utils::rules;
 use wasmi::Module as WasmiModule;
 
@@ -54,10 +54,13 @@ impl MeteredContract {
             if let MeteredContract::Code(code) =
                 mem::replace(self, MeteredContract::Code(vec![]))
             {
+                let start = Instant::now();
                 *self = MeteredContract::Module {
                     module: Rc::new(wasmi::Module::from_buffer(&code)?),
                     code,
                 };
+
+                println!("Compiled Contract in {:?}", start.elapsed());
             }
         }
         Ok(())

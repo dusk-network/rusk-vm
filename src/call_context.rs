@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::time::Instant;
 
 use dusk_abi::{CALL_DATA_SIZE, H256};
 use kelvin::{ByteHash, ValRef, ValRefMut};
@@ -104,6 +105,7 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
             }
         }
 
+        let start = Instant::now();
         match instance.invoke_export("call", &[], self) {
             Err(wasmi::Error::Trap(trap)) => {
                 if let TrapKind::Host(t) = trap.kind() {
@@ -123,6 +125,8 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
             Err(e) => return Err(e.into()),
             Ok(_) => (),
         }
+
+        println!("Contract's call took {:?}", start.elapsed());
 
         // return the call_data (now containing return value)
         Ok(self.stack.pop().expect("Invalid stack").into_call_data())

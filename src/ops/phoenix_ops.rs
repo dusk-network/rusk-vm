@@ -5,16 +5,10 @@ use crate::VMError;
 use dusk_abi::encoding;
 use kelvin::ByteHash;
 use phoenix::{db, Transaction, TransactionItem};
-use phoenix_abi::{
-    types::{
-        MAX_NOTES_PER_TRANSACTION, MAX_NULLIFIERS_PER_TRANSACTION, NOTE_SIZE,
-        NULLIFIER_SIZE,
-    },
-    Note, Nullifier,
-};
+use phoenix_abi::{Note, Nullifier};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
-pub const DB_PATH: &'static str = "/tmp/rusk-vm-demo";
+pub const DB_PATH: &str = "/tmp/rusk-vm-demo";
 
 pub struct PhoenixStore;
 
@@ -35,14 +29,12 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
             .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
                 |a| {
                     let nullifiers_buf = &a[nullifiers_ptr
-                        ..nullifiers_ptr
-                            + (MAX_NULLIFIERS_PER_TRANSACTION
-                                * NULLIFIER_SIZE)];
+                        ..nullifiers_ptr + (Nullifier::MAX * Nullifier::SIZE)];
                     let nullifiers: Result<
                         Vec<TransactionItem>,
                         fermion::Error,
                     > = nullifiers_buf
-                        .chunks(NULLIFIER_SIZE)
+                        .chunks(Nullifier::SIZE)
                         .map(|bytes| {
                             let nullifier: Nullifier = encoding::decode(bytes)?;
                             let mut item = TransactionItem::default();
@@ -52,12 +44,12 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                         .collect();
                     let mut nullifiers = nullifiers.unwrap();
 
-                    let notes_buf = &a[notes_ptr
-                        ..notes_ptr + (MAX_NOTES_PER_TRANSACTION * NOTE_SIZE)];
+                    let notes_buf =
+                        &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
 
                     let notes: Result<Vec<TransactionItem>, fermion::Error> =
                         notes_buf
-                            .chunks(NOTE_SIZE)
+                            .chunks(Note::SIZE)
                             .map(|bytes| {
                                 let note: Note = encoding::decode(bytes)?;
                                 Ok(TransactionItem::from(note))
@@ -101,14 +93,12 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
             .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
                 |a| {
                     let nullifiers_buf = &a[nullifiers_ptr
-                        ..nullifiers_ptr
-                            + (MAX_NULLIFIERS_PER_TRANSACTION
-                                * NULLIFIER_SIZE)];
+                        ..nullifiers_ptr + (Nullifier::MAX * Nullifier::SIZE)];
                     let nullifiers: Result<
                         Vec<TransactionItem>,
                         fermion::Error,
                     > = nullifiers_buf
-                        .chunks(NULLIFIER_SIZE)
+                        .chunks(Nullifier::SIZE)
                         .map(|bytes| {
                             let nullifier: Nullifier = encoding::decode(bytes)?;
                             let mut item = TransactionItem::default();
@@ -118,12 +108,12 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                         .collect();
                     let mut nullifiers = nullifiers.unwrap();
 
-                    let notes_buf = &a[notes_ptr
-                        ..notes_ptr + (MAX_NOTES_PER_TRANSACTION * NOTE_SIZE)];
+                    let notes_buf =
+                        &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
 
                     let notes: Result<Vec<TransactionItem>, fermion::Error> =
                         notes_buf
-                            .chunks(NOTE_SIZE)
+                            .chunks(Note::SIZE)
                             .map(|bytes| {
                                 let note: Note = encoding::decode(bytes)?;
                                 Ok(TransactionItem::from(note))
