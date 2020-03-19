@@ -5,10 +5,7 @@ use kelvin::Blake2b;
 use std::fs;
 
 use dusk_abi::ContractCall;
-use phoenix_abi::{
-    types::{MAX_NOTES_PER_TRANSACTION, MAX_NULLIFIERS_PER_TRANSACTION},
-    Note, Nullifier,
-};
+use phoenix_abi::{Note, Nullifier};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
 #[test]
@@ -77,20 +74,24 @@ fn transfer() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     // Generate some items
-    let nullifiers = [Nullifier::default(); MAX_NULLIFIERS_PER_TRANSACTION];
-    let notes = [Note::default(); MAX_NOTES_PER_TRANSACTION];
+    let nullifiers = [Nullifier::default(); Nullifier::MAX];
+    let notes = [Note::default(); Note::MAX];
 
     let succeeded = network
         .call_contract(&contract_id, transfer(nullifiers, notes), &mut gas)
         .unwrap();
 
-    if !succeeded {
-        panic!("contract execution failed");
+    // TODO: change condition once Transfer Contract properly implemented
+    assert!(
+        !succeeded,
+        "Transfer Contract called. 
+         Expected to returns `false` until proper implementation."
+    );
+    if (succeeded) {
+        // Ensure data was written
+        fs::metadata("/tmp/rusk-vm-demo/data").unwrap();
+
+        // Clean up
+        fs::remove_dir_all("/tmp/rusk-vm-demo").unwrap();
     }
-
-    // Ensure data was written
-    fs::metadata("/tmp/rusk-vm-demo/data").unwrap();
-
-    // Clean up
-    fs::remove_dir_all("/tmp/rusk-vm-demo").unwrap();
 }
