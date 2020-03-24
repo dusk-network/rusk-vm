@@ -23,7 +23,6 @@ pub enum FeeCall {
     },
 }
 
-// TODO: can I just use the dusk_abi storage directly, or is it global?
 #[no_mangle]
 pub fn call() {
     let mut buffer = [0u8; CALL_DATA_SIZE];
