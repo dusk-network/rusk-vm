@@ -1,0 +1,16 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+authors = ["Jules de Smit <julesdesmit@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dusk-abi = { path = "../../../../dusk-abi", default-features = false }
+phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", default-features = false }
+serde = { version = "*", default-features = false, features = ["derive"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
