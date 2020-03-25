@@ -4,7 +4,10 @@ use crate::VMError;
 
 use dusk_abi::encoding;
 use kelvin::ByteHash;
-use phoenix::{db, Transaction, TransactionItem};
+use phoenix::{
+    db, CompressedRistretto, NoteGenerator, NoteVariant, PublicKey,
+    Transaction, TransactionItem, TransparentNote,
+};
 use phoenix_abi::{Note, Nullifier};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
@@ -156,12 +159,23 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixCredit {
             .memory
             .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
                 |a| {
-                    let pk = &a[pk_ptr..pk_ptr + 32];
+                    let pk_bytes = &a[pk_ptr..pk_ptr + 64];
+                    let pk = PublicKey::new(
+                        CompressedRistretto::from_slice(&pk_bytes[0..32])
+                            .decompress()
+                            .unwrap(),
+                        CompressedRistretto::from_slice(&pk_bytes[32..64])
+                            .decompress()
+                            .unwrap(),
+                    );
 
-                    let (output, _) = TransparentNote::output(, reward);
+                    let (output, _) =
+                        TransparentNote::output(&pk, reward as u64);
 
                     let mut tx = Transaction::default();
-                    tx.push(output);
+                    let mut item = TransactionItem::default();
+                    item.set_note(NoteVariant::Transparent(output));
+                    tx.push(item);
 
                     match db::store(DB_PATH, &tx) {
                         Ok(_) => Ok(Some(RuntimeValue::I32(1))),

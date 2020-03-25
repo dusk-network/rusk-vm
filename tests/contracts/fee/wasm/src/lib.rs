@@ -1,5 +1,6 @@
 #![no_std]
 use dusk_abi::{self, encoding, Provisioners, Signature, CALL_DATA_SIZE, H256};
+use phoenix_abi::types::PublicKey;
 use serde::{Deserialize, Serialize};
 
 const TRANSFER_CONTRACT: [u8; 1] = [0u8];
@@ -10,12 +11,12 @@ pub enum FeeCall {
         sig: Signature,
         address: [u8; 32],
         value: u64,
-        pk: [u8; 32],
+        pk: PublicKey,
     },
     Distribute {
         total_reward: u64,
         addresses: Provisioners,
-        pk: [u8; 32],
+        pk: PublicKey,
     },
     GetBalanceAndNonce {
         address: [u8; 32],
@@ -25,8 +26,7 @@ pub enum FeeCall {
 // TODO: phoenix works with u64, but it would be more advisable to work with u128.
 #[no_mangle]
 pub fn call() {
-    let mut buffer = [0u8; CALL_DATA_SIZE];
-    let data: FeeCall = dusk_abi::call_data(&mut buffer);
+    let data: FeeCall = dusk_abi::args();
     match data {
         FeeCall::Withdraw {
             sig,
@@ -68,7 +68,7 @@ pub fn call() {
             // TODO: Check that calling tx is a coinbase
 
             // TODO: implement formula for bg reward derivation
-            let block_gen_reward = total_reward / 10;
+            let block_gen_reward = total_reward / 2;
 
             if !phoenix_abi::credit(block_gen_reward, &pk) {
                 panic!("could not credit block generator")
@@ -88,8 +88,11 @@ pub fn call() {
             };
 
             // Allocate leftover rewards equally to all provisioners
-            let reward = (total_reward - block_gen_reward) / provisioners_count;
-            allocate_provisioner_rewards(reward, addresses);
+            if provisioners_count > 0 {
+                let reward =
+                    (total_reward - block_gen_reward) / provisioners_count;
+                allocate_provisioner_rewards(reward, addresses);
+            }
         }
         FeeCall::GetBalanceAndNonce { address } => {
             dusk_abi::ret(
@@ -103,10 +106,12 @@ pub fn call() {
 // in `addresses` by `reward`.
 fn allocate_provisioner_rewards(reward: u64, addresses: Provisioners) {
     addresses.0.chunks(32).for_each(|a| {
-        let (nonce, current_reward) =
-            dusk_abi::get_storage(a).unwrap_or((0 as u32, 0 as u64));
-        let new_reward = current_reward + reward;
-        dusk_abi::set_storage(a, (nonce, new_reward));
+        if a != [0u8; 32] {
+            let (nonce, current_reward) =
+                dusk_abi::get_storage(a).unwrap_or((0 as u32, 0 as u64));
+            let new_reward = current_reward + reward;
+            dusk_abi::set_storage(a, (nonce, new_reward));
+        }
     });
 }
 
