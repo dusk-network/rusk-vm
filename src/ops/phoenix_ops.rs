@@ -137,3 +137,37 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
             )
     }
 }
+
+pub struct PhoenixCredit;
+
+impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixCredit {
+    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
+    const RETURN: Option<ValueType> = Some(ValueType::I32);
+
+    fn call(
+        context: &mut CallContext<S, H>,
+        args: RuntimeArgs,
+    ) -> Result<Option<RuntimeValue>, VMError> {
+        let reward = args.get(0)?;
+        let pk_ptr = args.get(1)?;
+
+        context
+            .top()
+            .memory
+            .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
+                |a| {
+                    let pk = &a[pk_ptr..pk_ptr + 32];
+
+                    let (output, _) = TransparentNote::output(, reward);
+
+                    let mut tx = Transaction::default();
+                    tx.push(output);
+
+                    match db::store(DB_PATH, &tx) {
+                        Ok(_) => Ok(Some(RuntimeValue::I32(1))),
+                        Err(_) => Ok(Some(RuntimeValue::I32(0))),
+                    }
+                },
+            )
+    }
+}

@@ -26,7 +26,10 @@ mod panic;
 
 mod types;
 
+mod provisioners;
+
 pub use contract_call::{ContractCall, ContractReturn};
+pub use provisioners::Provisioners;
 pub use types::{Signature, H256};
 
 // TODO: Extend this error type
