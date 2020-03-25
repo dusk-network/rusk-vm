@@ -4,8 +4,8 @@ mod helpers;
 use kelvin::Blake2b;
 use std::fs;
 
-use dusk_abi::ContractCall;
-use phoenix_abi::{Note, Nullifier};
+use dusk_abi::{ContractCall, Provisioners};
+use phoenix_abi::{Note, Nullifier, PublicKey};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
 #[test]
@@ -94,4 +94,32 @@ fn transfer() {
         // Clean up
         fs::remove_dir_all("/tmp/rusk-vm-demo").unwrap();
     }
+}
+
+#[test]
+fn fee() {
+    use fee;
+
+    let code = contract_code!("fee");
+
+    let schedule = Schedule::default();
+    let contract = Contract::new(code, &schedule).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let mut addresses = Provisioners::default();
+    addresses.0[0] = 1u8;
+
+    let call: ContractCall<()> = ContractCall::new(fee::FeeCall::Distribute {
+        total_reward: 100,
+        addresses: addresses,
+        pk: PublicKey::default(),
+    })
+    .unwrap();
+
+    network.call_contract(&contract_id, call, &mut gas).unwrap();
 }
