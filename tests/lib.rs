@@ -4,7 +4,7 @@ mod helpers;
 use kelvin::Blake2b;
 use std::fs;
 
-use dusk_abi::{ContractCall, Provisioners};
+use dusk_abi::{ContractCall, Provisioners, Signature};
 use phoenix_abi::{Note, Nullifier, PublicKey};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
@@ -120,6 +120,21 @@ fn fee() {
         pk: PublicKey::default(),
     })
     .unwrap();
+
+    network.call_contract(&contract_id, call, &mut gas).unwrap();
+
+    let mut address = [0u8; 32];
+    address[0] = 1u8;
+
+    let call: ContractCall<()> = ContractCall::new(fee::FeeCall::Withdraw {
+        sig: Signature::from_slice(&[0u8; 64]),
+        address: address,
+        value: 50,
+        pk: PublicKey::default(),
+    })
+    .unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network.call_contract(&contract_id, call, &mut gas).unwrap();
 }
