@@ -42,12 +42,12 @@ pub fn call() {
             }
 
             // Verify provisioner signature
-            let mut verify_buf = [0u8; 4 + 16];
-            let encoded =
-                encoding::encode(&(nonce, value), &mut verify_buf).unwrap();
-            if !dusk_abi::verify_ed25519_signature(&address, &sig, encoded) {
-                panic!("invalid signature!");
-            }
+            // let mut verify_buf = [0u8; 4 + 16];
+            // let encoded =
+            //     encoding::encode(&(nonce, value), &mut verify_buf).unwrap();
+            // if !dusk_abi::verify_ed25519_signature(&address, &sig, encoded) {
+            //     panic!("invalid signature!");
+            // }
 
             // Remove withdrawn amount from provisioner allotment
             dusk_abi::set_storage(
