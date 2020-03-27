@@ -1,6 +1,8 @@
 use super::impl_serde_for_array;
 // use serde::de::Visitor;
 // use serde::ser::SerializeTuple;
+use super::Provisioners;
+use phoenix_abi::types::PublicKey;
 use serde::{Deserialize, Serialize};
 
 /// The standard hash type of 32 bytes
@@ -86,6 +88,24 @@ impl core::fmt::Debug for Signature {
         }
         Ok(())
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum FeeCall {
+    Withdraw {
+        sig: Signature,
+        address: [u8; 32],
+        value: u64,
+        pk: PublicKey,
+    },
+    Distribute {
+        total_reward: u64,
+        addresses: Provisioners,
+        pk: PublicKey,
+    },
+    GetBalanceAndNonce {
+        address: [u8; 32],
+    },
 }
 
 #[cfg(feature = "std")]

@@ -4,7 +4,7 @@ mod helpers;
 use kelvin::Blake2b;
 use std::fs;
 
-use dusk_abi::{ContractCall, Provisioners, Signature};
+use dusk_abi::{ContractCall, FeeCall, Provisioners, Signature};
 use phoenix_abi::{Note, Nullifier, PublicKey};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
@@ -114,7 +114,7 @@ fn fee() {
     let mut addresses = Provisioners::default();
     addresses.0[0] = 1u8;
 
-    let call: ContractCall<()> = ContractCall::new(fee::FeeCall::Distribute {
+    let call: ContractCall<()> = ContractCall::new(FeeCall::Distribute {
         total_reward: 100,
         addresses: addresses,
         pk: PublicKey::default(),
@@ -126,7 +126,7 @@ fn fee() {
     let mut address = [0u8; 32];
     address[0] = 1u8;
 
-    let call: ContractCall<()> = ContractCall::new(fee::FeeCall::Withdraw {
+    let call: ContractCall<()> = ContractCall::new(FeeCall::Withdraw {
         sig: Signature::from_slice(&[0u8; 64]),
         address: address,
         value: 50,

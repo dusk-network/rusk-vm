@@ -1,27 +1,11 @@
 #![no_std]
-use dusk_abi::{self, encoding, Provisioners, Signature, CALL_DATA_SIZE, H256};
+use dusk_abi::{
+    self, encoding, FeeCall, Provisioners, Signature, CALL_DATA_SIZE, H256,
+};
 use phoenix_abi::types::PublicKey;
 use serde::{Deserialize, Serialize};
 
 const TRANSFER_CONTRACT: [u8; 1] = [0u8];
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum FeeCall {
-    Withdraw {
-        sig: Signature,
-        address: [u8; 32],
-        value: u64,
-        pk: PublicKey,
-    },
-    Distribute {
-        total_reward: u64,
-        addresses: Provisioners,
-        pk: PublicKey,
-    },
-    GetBalanceAndNonce {
-        address: [u8; 32],
-    },
-}
 
 // TODO: phoenix works with u64, but it would be more advisable to work with u128.
 #[no_mangle]
