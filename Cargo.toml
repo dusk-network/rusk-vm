@@ -21,8 +21,8 @@ lazy_static = "1.4"
 parking_lot = "0.10"
 
 dusk-abi = { path = "./dusk-abi" }
-phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
+phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "fix-proto" }
+phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", branch = "demo" }
 
 # UNCOMMENT for local development
 # phoenix-abi = { path="../phoenix-abi" }
