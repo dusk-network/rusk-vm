@@ -19,14 +19,15 @@ kelvin-radix = "0.5"
 fermion = "0.2"
 lazy_static = "1.4"
 parking_lot = "0.10"
+threshold_crypto_ce = "0.4"
 
 dusk-abi = { path = "./dusk-abi" }
-phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
+#phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
+#phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
 
 # UNCOMMENT for local development
-# phoenix-abi = { path="../phoenix-abi" }
-# phoenix = { path="../phoenix" }
+phoenix-abi = { path="../phoenix-abi" }
+phoenix = { path="../phoenix" }
 
 [dev-dependencies]
 tempfile = "*"
