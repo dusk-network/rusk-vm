@@ -1,6 +1,6 @@
 #![no_std]
 use dusk_abi::{self, ContractCall, Signature};
-use phoenix_abi::{Note, Nullifier};
+use phoenix_abi::{Note, Nullifier, PublicKey};
 
 const TRANSFER_CONTRACT: [u8; 1] = [0u8];
 
@@ -60,6 +60,11 @@ pub fn call() {
 
             // Since the notes are transparent, we can easily verify
             // if they are being sent to the right address
+            // TODO: missing parameter, public key of the contract needs to be
+            // devised somehow
+            if !phoenix_abi::is_addressed_to(notes) {
+                panic!("notes are not addressed to the staking contract");
+            }
 
             // Transfer the given notes to the staking contract
             let call: ContractCall<(
