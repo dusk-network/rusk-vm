@@ -10,7 +10,7 @@ pub enum StakingCall {
         notes: Note,
         proof: Proof,
         pk: [u8; 32],
-        pk_bls: [u8; 129],
+        pk_bls: [u8; 32],
         expiration: u64,
     },
     Withdraw {
@@ -23,8 +23,8 @@ pub enum StakingCall {
         pk: [u8; 32],
         height: u64,
         step: u8,
-        sig1: [u8; 33],
-        sig2: [u8; 33],
+        sig1: [u8; 64],
+        sig2: [u8; 64],
         msg1: [u8; 32],
         msg2: [u8; 32],
     },
@@ -54,7 +54,9 @@ pub fn call() {
                 panic!("the stake expiry height is too low");
             }
 
-            // check that notes are transparent
+            if !phoenix_abi::is_transparent(notes) {
+                panic!("transaction contains obfuscated notes");
+            }
 
             // check that notes are meant for this contract
 
@@ -116,8 +118,7 @@ pub fn call() {
             let encoded =
                 encoding::encode(&(msg1, height, step), &mut verify_buf)
                     .unwrap();
-            // TODO: needs to be BLS verification
-            if !dusk_abi::verify_ed25519_signature(&pk_bls, &sig1, encoded) {
+            if !dusk_abi::bls_verify(&pk_bls, &sig1, encoded) {
                 panic!("invalid sig1");
             }
 
@@ -125,12 +126,11 @@ pub fn call() {
             let encoded =
                 encoding::encode(&(msg2, height, step), &mut verify_buf)
                     .unwrap();
-            // TODO: needs to be BLS verification
-            if !dusk_abi::verify_ed25519_signature(&pk_bls, &sig2, encoded) {
+            if !dusk_abi::bls_verify(&pk_bls, &sig2, encoded) {
                 panic!("invalid sig2");
             }
 
-            dusk_abi::set_storage(pk, (0, [0u8; 129], 0, 0));
+            dusk_abi::set_storage(pk, (0, [0u8; 32], 0, 0));
             dusk_abi::ret(true);
         }
     }
