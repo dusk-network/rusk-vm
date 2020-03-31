@@ -1,7 +1,9 @@
-use crate::{encoding, Error, CALL_DATA_SIZE};
 use core::marker::PhantomData;
-use core::ops::Deref;
-use serde::{Deserialize, Serialize};
+use core::mem;
+
+use dataview::Pod;
+
+use crate::CALL_DATA_SIZE;
 
 /// Type describing a contract call, includes
 /// the `R` parameter to specify return type
@@ -25,16 +27,17 @@ impl<R> Clone for ContractCall<R> {
 
 impl<R> ContractCall<R> {
     /// Create a new ContractCall with given arguments `C`
-    pub fn new<C: Serialize + core::fmt::Debug>(
-        call: C,
-    ) -> Result<Self, Error> {
+    pub fn new<C: Pod>(call: C) -> Self {
         let mut data = [0u8; CALL_DATA_SIZE];
-        let len = encoding::encode(&call, &mut data)?.len();
-        Ok(ContractCall {
+
+        data[0..].copy_from_slice(call.as_bytes());
+
+        let len = mem::size_of::<C>();
+        ContractCall {
             data,
             len,
             _marker: PhantomData,
-        })
+        }
     }
 
     /// Create a ContractCall from raw bytes
@@ -81,31 +84,5 @@ impl<R> ContractCall<R> {
     /// Consume the `ContractCall` and return the call data
     pub fn into_data(self) -> [u8; CALL_DATA_SIZE] {
         self.data
-    }
-}
-
-/// A struct representing the return of a contract
-pub struct ContractReturn<R> {
-    #[allow(unused)]
-    data: [u8; CALL_DATA_SIZE],
-    val: R,
-}
-
-impl<R> From<ContractCall<R>> for ContractReturn<R>
-where
-    R: for<'de> Deserialize<'de>,
-{
-    fn from(from: ContractCall<R>) -> Self {
-        let data = from.data;
-        let val = encoding::decode(&data).unwrap();
-
-        ContractReturn { data, val }
-    }
-}
-
-impl<R> Deref for ContractReturn<R> {
-    type Target = R;
-    fn deref(&self) -> &Self::Target {
-        &self.val
     }
 }

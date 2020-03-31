@@ -51,6 +51,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for GetStorage {
     ) -> Result<Option<RuntimeValue>, VMError> {
         // offset to where to write the value in memory
         let key_buf_ofs = args.get(0)?;
+        let key_buf_len = args.get(1)?;
         let val_buf_ofs = args.get(1)?;
 
         let mut key_buf = H256::default();
@@ -71,7 +72,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for GetStorage {
                 });
                 Ok(Some(RuntimeValue::I32(len as i32)))
             }
-            None => Ok(Some(RuntimeValue::I32(0))),
+            None => Ok(Some(RuntimeValue::I32(-1))),
         }
     }
 }

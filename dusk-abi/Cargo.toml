@@ -5,11 +5,9 @@ authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [dependencies]
-serde = { version = "*", default-features = false }
-fermion = { version = "0.2", default-features = false }
-kelvin = { version = "0.11.2", optional = true }
-phoenix-abi = { git = "https://github.com/dusk-network/phoenix-abi", default-features = false }
+kelvin = { version = "0.9", optional = true }
+dataview = { version = "0.1" }
 
 [features]
 default = ["std"]
-std = ["fermion/std", "kelvin"]
+std = ["kelvin"]

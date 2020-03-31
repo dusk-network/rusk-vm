@@ -1,24 +1,16 @@
-use super::impl_serde_for_array;
-// use serde::de::Visitor;
-// use serde::ser::SerializeTuple;
-use super::Provisioners;
-use phoenix_abi::types::{Input, Note, Proof, PublicKey};
-use serde::{Deserialize, Serialize};
+use dataview::Pod;
 
 /// The standard hash type of 32 bytes
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub struct H256([u8; 32]);
+#[derive(Pod, Clone, Copy, Default, PartialEq, Eq)]
+pub struct H256 {
+    bytes: [u8; 32],
+}
 
 impl H256 {
-    /// Return a zero-hash
-    pub fn zero() -> Self {
-        H256(Default::default())
-    }
-
     /// Create a H256 from a byte slice
     pub fn from_bytes(bytes: &[u8]) -> Self {
         assert!(bytes.len() == 32);
-        let mut new = H256::zero();
+        let mut new = H256::default();
         new.as_mut().copy_from_slice(bytes);
         new
     }
@@ -26,13 +18,13 @@ impl H256 {
 
 impl AsRef<[u8]> for H256 {
     fn as_ref(&self) -> &[u8] {
-        &self.0
+        &self.bytes
     }
 }
 
 impl AsMut<[u8]> for H256 {
     fn as_mut(&mut self) -> &mut [u8] {
-        &mut self.0
+        &mut self.bytes
     }
 }
 
@@ -40,53 +32,9 @@ impl core::fmt::Debug for H256 {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "Digest(")?;
         for i in 0..32 {
-            write!(f, "{:02x}", self.0[i])?;
+            write!(f, "{:02x}", self.bytes[i])?;
         }
         write!(f, ")")
-    }
-}
-
-const SIGNATURE_BYTES: usize = 64;
-
-/// Standard 64 byte signature type
-#[repr(C)]
-pub struct Signature([u8; SIGNATURE_BYTES]);
-
-impl Signature {
-    /// Create a new signature from a byte slice
-    pub fn from_slice(slice: &[u8]) -> Self {
-        let mut buf = [0u8; 64];
-        buf.copy_from_slice(slice);
-        Signature(buf)
-    }
-
-    /// Returns a reference to the internal byte array
-    pub fn as_array_ref(&self) -> &[u8; 64] {
-        &self.0
-    }
-}
-
-impl AsRef<[u8]> for Signature {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl AsMut<[u8]> for Signature {
-    fn as_mut(&mut self) -> &mut [u8] {
-        &mut self.0
-    }
-}
-
-impl_serde_for_array!(Signature, SIGNATURE_BYTES);
-
-impl core::fmt::Debug for Signature {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "Signature(")?;
-        for i in 0..64 {
-            write!(f, "{:02x}", self.0[i])?;
-        }
-        Ok(())
     }
 }
 
@@ -170,7 +118,7 @@ mod content {
 
     impl<H: ByteHash> Content<H> for H256 {
         fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
-            sink.write_all(&self.0)
+            sink.write_all(&self.bytes)
         }
 
         fn restore(source: &mut Source<H>) -> io::Result<Self> {

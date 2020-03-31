@@ -1,21 +1,21 @@
 use std::io;
 use std::marker::PhantomData;
 
-use crate::VMError;
-use dusk_abi::{encoding, ContractCall, H256};
-use kelvin::{ByteHash, Content, Map as _, Sink, Source, ValRef, ValRefMut};
+use dataview::Pod;
+use dusk_abi::{ContractCall, H256};
+use kelvin::{ByteHash, Content, Map, Sink, Source, ValRef, ValRefMut};
 use kelvin_radix::DefaultRadixMap as RadixMap;
-use serde::Deserialize;
 
 use crate::call_context::{CallContext, Resolver};
 use crate::contract::{Contract, MeteredContract};
 use crate::gas::GasMeter;
+use crate::VMError;
 
 pub type Storage<H> = RadixMap<H256, Vec<u8>, H>;
 
 #[derive(Clone)]
 pub struct ContractState<H: ByteHash> {
-    balance: u128,
+    balance: u64,
     code: MeteredContract,
     nonce: u64,
     storage: Storage<H>,
@@ -31,11 +31,11 @@ impl<H: ByteHash> ContractState<H> {
         }
     }
 
-    pub fn balance(&self) -> u128 {
+    pub fn balance(&self) -> u64 {
         self.balance
     }
 
-    pub fn balance_mut(&mut self) -> &mut u128 {
+    pub fn balance_mut(&mut self) -> &mut u64 {
         &mut self.balance
     }
 
@@ -114,7 +114,7 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
     }
 
     /// Call the contract at address `target`
-    pub fn call_contract<R: for<'de> Deserialize<'de>>(
+    pub fn call_contract<R: Pod>(
         &mut self,
         target: &H256,
         call: ContractCall<R>,
@@ -122,9 +122,8 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
     ) -> Result<R, VMError> {
         let mut context = CallContext::new(self, gas_meter);
         let data = call.into_data();
-        let data_return = context.call(target, data)?;
-        let decoded = encoding::decode(&data_return)?;
-        Ok(decoded)
+        let r = context.call(target, data)?;
+        Ok(r)
     }
 }
 
@@ -138,7 +137,7 @@ impl<H: ByteHash> Content<H> for ContractState<H> {
 
     fn restore(source: &mut Source<H>) -> io::Result<Self> {
         Ok(ContractState {
-            balance: u128::restore(source)?,
+            balance: u64::restore(source)?,
             nonce: u64::restore(source)?,
             code: MeteredContract::restore(source)?,
             storage: Storage::restore(source)?,
