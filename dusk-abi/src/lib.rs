@@ -81,6 +81,12 @@ mod external {
             buffer: &u8,
             buffer_len: i32,
         ) -> bool;
+        pub fn bls_verify(
+            pub_key: &[u8; 32],
+            signature: &[u8; 64],
+            buffer: &u8,
+            buffer_len: i32,
+        ) -> bool;
         pub fn ret(data: &[u8; CALL_DATA_SIZE]) -> !;
 
         pub fn gas(value: i32);
@@ -186,6 +192,18 @@ pub fn verify_ed25519_signature(
             &buffer[0],
             len,
         )
+    }
+}
+
+/// Verifies a BLS signature, returns true if successful
+pub fn bls_verify(
+    pub_key: &[u8; 32],
+    signature: &Signature,
+    buffer: &[u8],
+) -> bool {
+    unsafe {
+        let len = buffer.len() as i32;
+        external::bls_verify(pub_key, signature.as_array_ref(), &buffer[0], len)
     }
 }
 
