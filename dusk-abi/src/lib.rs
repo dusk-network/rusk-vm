@@ -7,33 +7,20 @@
 #![feature(lang_items)]
 #![feature(panic_info_message)]
 
-use serde::de::DeserializeOwned;
-pub use serde::{Deserialize, Serialize};
+use core::mem;
 
 #[cfg(not(feature = "std"))]
 mod bufwriter;
 mod contract_call;
 
-/// Module for encoding/decoding values for ABI compability
-pub mod encoding;
-mod impl_serde;
-
-#[cfg(test)]
-mod tests;
-
 #[cfg(not(feature = "std"))]
 mod panic;
-
 mod types;
 
-mod provisioners;
+use dataview::Pod;
 
-pub use contract_call::{ContractCall, ContractReturn};
-pub use provisioners::Provisioners;
-pub use types::{FeeCall, Signature, TransferCall, H256};
-
-// TODO: Extend this error type
-pub use fermion::Error;
+pub use contract_call::ContractCall;
+pub use types::H256;
 
 /// The maximum size of contract call arguments and return values
 pub const CALL_DATA_SIZE: usize = 1024 * 16;
@@ -50,7 +37,7 @@ pub const DEBUG_BUFFER_SIZE: usize = 1024 * 16;
 mod external {
     use super::*;
     extern "C" {
-        pub fn balance(buffer: &mut [u8; 16]);
+        pub fn balance(buffer: &mut u8);
 
         pub fn set_storage(
             key: &[u8; 32],
@@ -59,41 +46,24 @@ mod external {
         );
         // `get_storage` returns the length of the value
         // 0 is equivalent to no value
-        pub fn get_storage(
-            key: &[u8; STORAGE_KEY_SIZE],
-            value: &mut [u8; STORAGE_VALUE_SIZE],
-        ) -> i32;
-        pub fn caller(buffer: &mut [u8; 32]);
-        pub fn self_hash(buffer: &mut [u8; 32]);
+        pub fn get_storage(key: &u8, key_len: i32, value: &mut u8) -> i32;
+        pub fn caller(buffer: &mut u8);
+        pub fn self_hash(buffer: &mut u8);
 
         #[allow(unused)]
         pub fn panic(msg: &u8, len: i32) -> !;
 
         pub fn debug(msg: &u8, len: i32);
 
-        pub fn call_data(buffer: &mut [u8; CALL_DATA_SIZE]);
+        pub fn call_data(buffer: &mut u8);
         pub fn call_contract(
-            target: &[u8; 32],
-            amount: &[u8; 16],
+            target: &u8,
+            amount: u64,
             data: &[u8; CALL_DATA_SIZE],
             data_len: i32,
+            ret_pointer: &u8,
         );
-        pub fn verify_ed25519_signature(
-            pub_key: &[u8; 32],
-            signature: &[u8; 64],
-            buffer: &u8,
-            buffer_len: i32,
-        ) -> bool;
-        pub fn bls_verify(
-            pub_key: &[u8; 32],
-            signature: &[u8; 64],
-            buffer: &u8,
-            buffer_len: i32,
-        ) -> bool;
-        pub fn ret(data: &[u8; CALL_DATA_SIZE]) -> !;
-
         pub fn gas(value: i32);
-
     }
 }
 
@@ -101,7 +71,7 @@ mod external {
 pub fn set_storage<K, V>(key: K, val: V)
 where
     K: AsRef<[u8]>,
-    V: Serialize,
+    V: Pod,
 {
     assert!(key.as_ref().len() <= STORAGE_KEY_SIZE);
     let key_slice = key.as_ref();
@@ -109,8 +79,8 @@ where
     key_buf[0..key_slice.len()].copy_from_slice(key.as_ref());
     unsafe {
         let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
-
-        let len = encoding::encode(&val, &mut val_buf).unwrap().len();
+        let len = mem::size_of::<V>();
+        val_buf[0..len].copy_from_slice(val.as_bytes());
 
         external::set_storage(&key_buf, &val_buf, len as i32);
     }
@@ -119,83 +89,53 @@ where
 /// Get a contract storage key value
 pub fn get_storage<K, V>(key: &K) -> Option<V>
 where
-    K: AsRef<[u8]> + ?Sized,
-    V: for<'de> Deserialize<'de>,
+    K: Pod,
+    V: Pod,
 {
-    let slice = key.as_ref();
-    let len = slice.len();
-    assert!(len <= STORAGE_KEY_SIZE);
-    let mut key_buf = [0u8; STORAGE_KEY_SIZE];
-    key_buf[0..len].copy_from_slice(key.as_ref());
-
-    let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
-    unsafe {
-        let len = external::get_storage(&key_buf, &mut val_buf) as usize;
-        if len > 0 {
-            Some(encoding::decode(&val_buf[0..len]).unwrap())
-        } else {
-            None
-        }
+    let mut result = V::zeroed();
+    let code: i32 = unsafe {
+        external::get_storage(
+            &key.as_bytes()[0],
+            mem::size_of::<K>() as i32,
+            &mut result.as_bytes_mut()[0],
+        )
+    };
+    if code != -1 {
+        Some(result)
+    } else {
+        None
     }
 }
 
 /// Returns the caller of the contract
 pub fn caller() -> H256 {
-    let mut buffer = [0u8; 32];
-    unsafe { external::caller(&mut buffer) }
-    encoding::decode(&buffer[..]).unwrap()
+    let mut result = H256::zeroed();
+    unsafe { external::caller(&mut result.as_bytes_mut()[0]) }
+    result
 }
 
 /// Returns the hash of the currently executing contract
 pub fn self_hash() -> H256 {
-    let mut buffer = [0u8; 32];
-    unsafe { external::self_hash(&mut buffer) }
-    encoding::decode(&buffer[..]).unwrap()
+    let mut result = H256::zeroed();
+    unsafe { external::self_hash(&mut result.as_bytes_mut()[0]) }
+    result
 }
 
 /// Returns the currently executing contracts balance
-pub fn balance() -> u128 {
-    let mut buffer = [0u8; 16];
-    unsafe { external::balance(&mut buffer) }
-    encoding::decode(&buffer[..]).unwrap()
+pub fn balance() -> u64 {
+    let mut result = u64::zeroed();
+    unsafe { external::balance(&mut result.as_bytes_mut()[0]) }
+    result
 }
 
 /// Returns the data the contract was called with
-pub fn call_data<'de, D>(buffer: &'de mut [u8; CALL_DATA_SIZE]) -> D
+pub fn call_data<D>() -> D
 where
-    D: Deserialize<'de>,
+    D: Pod,
 {
-    unsafe { external::call_data(buffer) }
-    encoding::decode(buffer).unwrap()
-}
-
-/// Returns the arguments the contract was called with.
-/// It's a helper function that wraps `call_data` handling the buffer for
-/// deserialization internally
-pub fn args<T>() -> T
-where
-    T: DeserializeOwned,
-{
-    let mut buffer = [0u8; CALL_DATA_SIZE];
-    unsafe { external::call_data(&mut buffer) }
-    encoding::decode(&buffer).unwrap()
-}
-
-/// Verifies an ed25519_signature, returns true if successful
-pub fn verify_ed25519_signature(
-    pub_key: &[u8; 32],
-    signature: &Signature,
-    buffer: &[u8],
-) -> bool {
-    unsafe {
-        let len = buffer.len() as i32;
-        external::verify_ed25519_signature(
-            pub_key,
-            signature.as_array_ref(),
-            &buffer[0],
-            len,
-        )
-    }
+    let mut result = D::zeroed();
+    unsafe { external::call_data(&mut result.as_bytes_mut()[0]) }
+    result
 }
 
 /// Verifies a BLS signature, returns true if successful
@@ -211,31 +151,27 @@ pub fn bls_verify(
 }
 
 /// Call another contract at address `target`
-pub fn call_contract<'de, R: 'de + Deserialize<'de>>(
+pub fn call_contract<R: Pod>(
     target: &H256,
-    amount: u128,
-    call: &'de ContractCall<R>,
+    amount: u64,
+    call: &ContractCall<R>,
 ) -> R {
-    let mut target_buf = [0u8; 32];
-    encoding::encode(&target, &mut target_buf).unwrap();
-    let mut amount_buf = [0u8; 16];
-    encoding::encode(&amount, &mut amount_buf).unwrap();
+    let mut result = R::zeroed();
     unsafe {
         external::call_contract(
-            &target_buf,
-            &amount_buf,
+            &target.as_bytes()[0],
+            amount,
             call.data(),
             call.len() as i32,
+            &mut result.as_bytes_mut()[0],
         )
     }
-    encoding::decode(call.data()).unwrap()
+    result
 }
 
 /// Returns a value and halts execution of the contract
-pub fn ret<T: Serialize>(ret: T) -> ! {
-    let mut ret_buffer = [0u8; CALL_DATA_SIZE];
-    encoding::encode(&ret, &mut ret_buffer).unwrap();
-    unsafe { external::ret(&ret_buffer) }
+pub fn ret<R: Pod>(ret: R) -> ! {
+    unsafe { external::ret(&ret.as_bytes()[0]) }
 }
 
 /// Deduct a specified amount of gas from the call

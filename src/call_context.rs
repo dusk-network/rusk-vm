@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
-use std::time::Instant;
+use std::mem;
 
+use dataview::Pod;
 use dusk_abi::{CALL_DATA_SIZE, H256};
 use kelvin::{ByteHash, ValRef, ValRefMut};
 
@@ -73,11 +74,11 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
         }
     }
 
-    pub fn call(
+    pub fn call<R: Pod>(
         &mut self,
         target: &H256,
         call_data: [u8; CALL_DATA_SIZE],
-    ) -> Result<[u8; CALL_DATA_SIZE], VMError> {
+    ) -> Result<R, VMError> {
         let resolver = S::default();
         let imports = ImportsBuilder::new().with_resolver("env", &resolver);
 
@@ -105,7 +106,6 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
             }
         }
 
-        let start = Instant::now();
         match instance.invoke_export("call", &[], self) {
             Err(wasmi::Error::Trap(trap)) => {
                 if let TrapKind::Host(t) = trap.kind() {
@@ -126,10 +126,13 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
             Ok(_) => (),
         }
 
-        println!("Contract's call took {:?}", start.elapsed());
+        let data = self.stack.pop().expect("Invalid stack").into_call_data();
 
-        // return the call_data (now containing return value)
-        Ok(self.stack.pop().expect("Invalid stack").into_call_data())
+        let mut r = R::zeroed();
+        r.as_bytes_mut()
+            .copy_from_slice(&data[0..mem::size_of::<R>()]);
+
+        Ok(r)
     }
 
     pub fn data(&self) -> &[u8] {
@@ -193,7 +196,7 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
         &mut self.state
     }
 
-    pub fn balance(&self) -> Result<u128, VMError> {
+    pub fn balance(&self) -> Result<u64, VMError> {
         Ok(self
             .state
             .get_contract_state(&self.caller())?
@@ -201,7 +204,7 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
             .balance())
     }
 
-    pub fn balance_mut(&mut self) -> Result<impl ValRefMut<u128>, VMError> {
+    pub fn balance_mut(&mut self) -> Result<impl ValRefMut<u64>, VMError> {
         let caller = *self.caller();
         Ok(self
             .state

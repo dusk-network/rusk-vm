@@ -79,6 +79,5 @@ abi_resolver! {
         11, "phoenix_verify" => phoenix_ops::PhoenixVerify,
         12, "phoenix_credit" => phoenix_ops::PhoenixCredit,
         13, "bls_verify" => bls::BLS,
-        10_000, "verify_ed25519_signature" => ed25519::Ed25519
     }
 }

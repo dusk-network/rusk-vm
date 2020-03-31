@@ -3,13 +3,12 @@ use dusk_abi::{self, ContractCall, CALL_DATA_SIZE};
 
 // Interface
 pub fn factorial(of: u64) -> ContractCall<u64> {
-    ContractCall::new(of).unwrap()
+    ContractCall::new(of)
 }
 
 #[no_mangle]
 pub fn call() {
-    let mut buffer = [0u8; CALL_DATA_SIZE];
-    let n: u64 = dusk_abi::call_data(&mut buffer);
+    let n: u64 = dusk_abi::call_data();
 
     let self_hash = dusk_abi::self_hash();
 
