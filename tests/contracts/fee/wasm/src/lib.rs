@@ -5,8 +5,6 @@ use dusk_abi::{
 use phoenix_abi::types::PublicKey;
 use serde::{Deserialize, Serialize};
 
-const TRANSFER_CONTRACT: [u8; 1] = [0u8];
-
 // TODO: phoenix works with u64, but it would be more advisable to work with u128.
 #[no_mangle]
 pub fn call() {
@@ -97,9 +95,4 @@ fn allocate_provisioner_rewards(reward: u64, addresses: Provisioners) {
             dusk_abi::set_storage(a, (nonce, new_reward));
         }
     });
-}
-
-pub fn deploy(address: H256) {
-    // Set transfer contract address, for later reference.
-    dusk_abi::set_storage(&TRANSFER_CONTRACT, address);
 }
