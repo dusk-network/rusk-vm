@@ -58,8 +58,10 @@ pub fn call() {
                 panic!("transaction contains obfuscated notes");
             }
 
-            // check that notes are meant for this contract
+            // Since the notes are transparent, we can easily verify
+            // if they are being sent to the right address
 
+            // Transfer the given notes to the staking contract
             let call: ContractCall<(
                 [Nullifier; Nullifier::MAX],
                 [Note; Note::MAX],
@@ -69,6 +71,7 @@ pub fn call() {
                 panic!("could not transfer notes");
             }
 
+            // Add the staker to the list
             dusk_abi::set_storage(
                 identity,
                 (note.value, pk_bls, current_height, expiration),
@@ -114,6 +117,10 @@ pub fn call() {
                 panic!("trying to slash a non-existant staker");
             }
 
+            // Ensure the messages and signatures are correct
+            // TODO: bls_verify is not actually using a BLS signature scheme.
+            // This should be properly updated when Rusk integrates with
+            // dusk-blockchain.
             let mut verify_buf = [0u8; 32 + 8 + 1];
             let encoded =
                 encoding::encode(&(msg1, height, step), &mut verify_buf)
@@ -130,6 +137,10 @@ pub fn call() {
                 panic!("invalid sig2");
             }
 
+            // Remove staker from the list.
+            // TODO: the funds are simply locked up right now, but
+            // something should happen with them. This should be
+            // adjusted once a proper procedure has been devised.
             dusk_abi::set_storage(pk, (0, [0u8; 32], 0, 0));
             dusk_abi::ret(true);
         }
