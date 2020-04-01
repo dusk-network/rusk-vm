@@ -95,6 +95,8 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
             .memory
             .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
                 |a| {
+                    Ok(Some(RuntimeValue::I32(1)))
+                    /*
                     let nullifiers_buf = &a[nullifiers_ptr
                         ..nullifiers_ptr + (Nullifier::MAX * Nullifier::SIZE)];
                     let nullifiers: Result<
@@ -136,48 +138,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                         Ok(_) => Ok(Some(RuntimeValue::I32(1))),
                         Err(_) => Ok(Some(RuntimeValue::I32(0))),
                     }
-                },
-            )
-    }
-}
-
-pub struct PhoenixIsTransparent;
-
-impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixIsTransparent {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
-    const RETURN: Option<ValueType> = Some(ValueType::I32);
-
-    fn call(
-        context: &mut CallContext<S, H>,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        let notes_ptr = args.get(0)?;
-
-        context
-            .top()
-            .memory
-            .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
-                |a| {
-                    let notes_buf =
-                        &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
-
-                    let notes: Result<Vec<TransactionItem>, fermion::Error> =
-                        notes_buf
-                            .chunks(Note::SIZE)
-                            .map(|bytes| {
-                                let note: Note = encoding::decode(bytes)?;
-                                Ok(TransactionItem::from(note))
-                            })
-                            .collect();
-                    let mut notes = notes.unwrap();
-
-                    for note in notes {
-                        if note.note_type() == NoteType::Obfuscated {
-                            return Ok(Some(RuntimeValue::I32(0)));
-                        }
-                    }
-
-                    Ok(Some(RuntimeValue::I32(1)))
+                    */
                 },
             )
     }
