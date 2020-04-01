@@ -24,14 +24,6 @@ pub enum TransferCall {
     },
 }
 
-// Interface
-pub fn transfer(
-    nullifiers: [Nullifier; Nullifier::MAX],
-    notes: [Note; Note::MAX],
-) -> ContractCall<bool> {
-    ContractCall::new((nullifiers, notes)).unwrap()
-}
-
 #[no_mangle]
 pub fn call() {
     let data: TransferCall = dusk_abi::args();
