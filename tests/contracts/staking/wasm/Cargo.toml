@@ -1,5 +1,5 @@
 [package]
-name = "wasm"
+name = "staking"
 version = "0.1.0"
 authors = ["Jules de Smit <julesdesmit@gmail.com>"]
 edition = "2018"

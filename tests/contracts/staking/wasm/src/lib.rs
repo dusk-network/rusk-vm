@@ -26,18 +26,14 @@ pub fn call() {
             value,
             current_height,
         } => {
-            let (_value, _pk_bls, _deposit_height, expiry_height): (
-                u64,
-                [u8; 32],
-                u64,
-                u64,
-            ) = dusk_abi::get_storage(&pk).unwrap();
-            if expiry_height > current_height {
+            let values: Option<(u64, [u8; 32], u64, u64)> =
+                dusk_abi::get_storage(&pk.as_bytes()[0..32]);
+            if values.is_some() {
                 panic!("already an active stake for this identity");
             }
 
             // TODO: add stake maturity rate to current height
-            if expiration > current_height {
+            if expiration < current_height {
                 panic!("the stake expiry height is too low");
             }
 
@@ -59,7 +55,7 @@ pub fn call() {
 
             // Add the staker to the list
             dusk_abi::set_storage(
-                pk,
+                &pk.as_bytes()[0..32],
                 (value, pk_bls, current_height, expiration),
             );
             dusk_abi::ret(true);
@@ -76,7 +72,7 @@ pub fn call() {
                 [u8; 32],
                 u64,
                 u64,
-            ) = dusk_abi::get_storage(&pk).unwrap();
+            ) = dusk_abi::get_storage(&pk.as_bytes()[0..32]).unwrap();
             if expiry_height > current_height {
                 panic!("stake is still active for this identity");
             }
@@ -121,7 +117,7 @@ pub fn call() {
                 [u8; 32],
                 u64,
                 u64,
-            ) = dusk_abi::get_storage(&pk).unwrap();
+            ) = dusk_abi::get_storage(&pk.as_bytes()[0..32]).unwrap();
             if value == 0 {
                 panic!("trying to slash a non-existant staker");
             }
@@ -150,12 +146,12 @@ pub fn call() {
             // TODO: the funds are simply locked up right now, but
             // something should happen with them. This should be
             // adjusted once a proper procedure has been devised.
-            dusk_abi::set_storage(pk, (0, [0u8; 32], 0, 0));
+            dusk_abi::set_storage(&pk.as_bytes()[0..32], (0, [0u8; 32], 0, 0));
             dusk_abi::ret(true);
         }
         StakingCall::GetStake { pk } => {
             let values: (u64, [u8; 32], u64, u64) =
-                dusk_abi::get_storage(&pk).unwrap();
+                dusk_abi::get_storage(&pk.as_bytes()[0..32]).unwrap();
             dusk_abi::ret(values);
         }
     }
