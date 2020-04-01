@@ -1,5 +1,5 @@
 #![no_std]
-use dusk_abi::{self, ContractCall, TransferCall};
+use dusk_abi::{self, TransferCall};
 
 // TODO: obfuscated approve and transferfrom
 // TODO: proof verification
@@ -25,7 +25,7 @@ pub fn call() {
             }
 
             phoenix_abi::store(&nullifiers, &notes);
-            dusk_abi::set_storage(pk, value);
+            dusk_abi::set_storage(&pk, value);
             dusk_abi::ret(1);
         }
         TransferCall::TransferFrom {
@@ -33,13 +33,13 @@ pub fn call() {
             recipient,
             value,
         } => {
-            let approved_value = dusk_abi::get_storage(pk).unwrap();
+            let approved_value = dusk_abi::get_storage(&sender).unwrap();
             if value > approved_value {
                 dusk_abi::ret(0);
             }
 
-            dusk_abi::set_storage(pk, approved_value - value);
-            phoenix_abi::credit(value, recipient);
+            dusk_abi::set_storage(&sender, approved_value - value);
+            phoenix_abi::credit(value, &recipient);
             dusk_abi::ret(1);
         }
     }
