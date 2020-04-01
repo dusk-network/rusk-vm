@@ -131,29 +131,38 @@ pub enum FeeCall {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum StakingCall {
+    Init {
+        address: H256,
+        pk: PublicKey,
+    },
     Stake {
         nullifiers: [Nullifier; Nullifier::MAX],
-        notes: Note,
+        notes: [Note; Note::MAX],
         // proof: Proof,
-        pk: [u8; 32],
+        pk: PublicKey,
         pk_bls: [u8; 32],
         expiration: u64,
         value: u64,
+        current_height: u64,
     },
     Withdraw {
         note: Note,
         // proof: Proof,
-        pk: [u8; 32],
-        sig: [u8; 32],
+        pk: PublicKey,
+        sig: Signature,
+        current_height: u64,
     },
     Slash {
-        pk: [u8; 32],
+        pk: PublicKey,
         height: u64,
         step: u8,
         sig1: Signature,
         sig2: Signature,
         msg1: [u8; 32],
         msg2: [u8; 32],
+    },
+    GetStake {
+        pk: PublicKey,
     },
 }
 
