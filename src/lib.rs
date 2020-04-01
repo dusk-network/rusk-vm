@@ -14,7 +14,7 @@ mod ops;
 mod resolver;
 mod state;
 
-pub mod dusk_abi;
+pub use dusk_abi;
 
 pub use call_context::StandardABI;
 pub use contract::Contract;
