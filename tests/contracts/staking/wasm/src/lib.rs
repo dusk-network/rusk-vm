@@ -4,6 +4,7 @@ use phoenix_abi::{Note, Nullifier, PublicKey};
 
 const TRANSFER_CONTRACT: [u8; 1] = [0u8];
 
+#[derive(Serialize, Deserialize, Debug)]
 pub enum StakingCall {
     Stake {
         nullifiers: [Nullifier; Nullifier::MAX],

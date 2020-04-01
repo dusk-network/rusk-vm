@@ -4,6 +4,7 @@ use phoenix_abi::{Note, Nullifier, PublicKey};
 
 // TODO: obfuscated approve and transferfrom
 // TODO: proof verification
+#[derive(Serialize, Deserialize, Debug)]
 pub enum TransferCall {
     Transfer {
         nullifiers: [Nullifier; Nullifier::MAX],
@@ -53,7 +54,7 @@ pub fn call() {
             recipient,
             value,
         } => {
-            let approved_value = dusk_abi::get_storage(pk);
+            let approved_value = dusk_abi::get_storage(pk).unwrap();
             if value > approved_value {
                 dusk_abi::ret(0);
             }
