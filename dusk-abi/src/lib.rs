@@ -26,8 +26,11 @@ mod panic;
 
 mod types;
 
+mod provisioners;
+
 pub use contract_call::{ContractCall, ContractReturn};
-pub use types::{Signature, H256};
+pub use provisioners::Provisioners;
+pub use types::{FeeCall, Signature, H256};
 
 // TODO: Extend this error type
 pub use fermion::Error;

@@ -77,9 +77,10 @@ abi_resolver! {
         9, "gas" => gas::Gas,
         10, "phoenix_store" => phoenix_ops::PhoenixStore,
         11, "phoenix_verify" => phoenix_ops::PhoenixVerify,
-        12, "phoenix_is_transparent" => phoenix_ops::PhoenixIsTransparent,
-        13, "phoenix_is_addressed_to" => phoenix_ops::PhoenixIsAddressedTo,
-        14, "bls_verify" => bls::BLS,
+        12, "phoenix_credit" => phoenix_ops::PhoenixCredit,
+        13, "phoenix_is_transparent" => phoenix_ops::PhoenixIsTransparent,
+        14, "phoenix_is_addressed_to" => phoenix_ops::PhoenixIsAddressedTo,
+        15, "bls_verify" => bls::BLS,
         10_000, "verify_ed25519_signature" => ed25519::Ed25519
     }
 }
