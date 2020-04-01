@@ -1,5 +1,5 @@
 #![no_std]
-use dusk_abi::{self, ContractCall, Signature, StakingCall};
+use dusk_abi::{self, ContractCall, Signature, StakingCall, TransferCall};
 use phoenix_abi::{Note, Nullifier, PublicKey};
 
 const TRANSFER_CONTRACT: [u8; 1] = [0u8];
@@ -16,6 +16,7 @@ pub fn call() {
             pk,
             pk_bls,
             expiration,
+            value,
         } => {
             (_value, _pk_bls, _deposit_height, expiry_height) =
                 dusk_abi::get_storage(identity);
@@ -28,23 +29,9 @@ pub fn call() {
                 panic!("the stake expiry height is too low");
             }
 
-            if !phoenix_abi::is_transparent(notes) {
-                panic!("transaction contains obfuscated notes");
-            }
-
-            // Since the notes are transparent, we can easily verify
-            // if they are being sent to the right address
-            // TODO: missing parameter, public key of the contract needs to be
-            // devised somehow
-            if !phoenix_abi::is_addressed_to(notes) {
-                panic!("notes are not addressed to the staking contract");
-            }
-
             // Transfer the given notes to the staking contract
-            let call: ContractCall<(
-                [Nullifier; Nullifier::MAX],
-                [Note; Note::MAX],
-            )> = ContractCall::new(nullifiers, notes);
+            // TODO: devise contract pk
+            let call = TransferCall::Approve(nullifiers, notes, pk, value);
             let address: H256 = dusk_abi::get_storage(&TRANSFER_CONTRACT);
             if !dusk_abi::call_contract(&address, 0, &call) {
                 panic!("could not transfer notes");
@@ -52,8 +39,8 @@ pub fn call() {
 
             // Add the staker to the list
             dusk_abi::set_storage(
-                identity,
-                (note.value, pk_bls, current_height, expiration),
+                pk,
+                (value, pk_bls, current_height, expiration),
             );
             dusk_abi::ret(true);
         }
@@ -63,7 +50,7 @@ pub fn call() {
             pk,
             sig,
         } => {
-            (_value, _pk_bls, deposit_height, expiry_height) =
+            (value, _pk_bls, deposit_height, expiry_height) =
                 dusk_abi::get_storage(identity);
             if expiry_height > current_height {
                 panic!("stake is still active for this identity");
@@ -78,6 +65,12 @@ pub fn call() {
             }
 
             // call transferfrom
+            // TODO: devise contract pk
+            let call = TransferCall::TransferFrom(pk, value);
+            let address: H256 = dusk_abi::get_storage(&TRANSFER_CONTRACT);
+            if !dusk_abi::call_contract(&address, 0, &call) {
+                panic!("could not refund stake");
+            }
 
             dusk_abi::ret(true);
         }

@@ -183,57 +183,6 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixIsTransparent {
     }
 }
 
-pub struct PhoenixIsAddressedTo;
-
-impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixIsAddressedTo {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
-    const RETURN: Option<ValueType> = Some(ValueType::I32);
-
-    fn call(
-        context: &mut CallContext<S, H>,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        let notes_ptr = args.get(0)?;
-        let pk_ptr = args.get(1)?;
-
-        context
-            .top()
-            .memory
-            .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
-                |a| {
-                    let notes_buf =
-                        &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
-
-                    let notes: Result<Vec<TransactionItem>, fermion::Error> =
-                        notes_buf
-                            .chunks(Note::SIZE)
-                            .map(|bytes| {
-                                let note: Note = encoding::decode(bytes)?;
-                                Ok(TransactionItem::from(note))
-                            })
-                            .collect();
-                    let mut notes = notes.unwrap();
-
-                    let pk_buf = &a[pk_ptr..pk_ptr + 64];
-                    let a_g = CompressedRistretto::from_slice(&pk_buf[0..32]);
-                    let b_g = CompressedRistretto::from_slice(&pk_buf[32..64]);
-                    let pk = PublicKey::new(
-                        a_g.decompress().unwrap(),
-                        b_g.decompress().unwrap(),
-                    );
-
-                    for note in notes {
-                        if *note.pk() == pk {
-                            return Ok(Some(RuntimeValue::I32(0)));
-                        }
-                    }
-
-                    Ok(Some(RuntimeValue::I32(1)))
-                },
-            )
-    }
-}
-
 pub struct PhoenixCredit;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixCredit {

@@ -138,6 +138,7 @@ pub enum StakingCall {
         pk: [u8; 32],
         pk_bls: [u8; 32],
         expiration: u64,
+        value: u64,
     },
     Withdraw {
         note: Note,
