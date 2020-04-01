@@ -161,8 +161,11 @@ pub fn call() {
     }
 }
 
+// TODO: can we deploy with parameters like this?
+/*
 #[no_mangle]
 pub fn deploy(address: H256, pk: PublicKey) {
     // Set transfer contract address, for later reference.
     dusk_abi::set_storage(&TRANSFER_CONTRACT, address);
 }
+*/
