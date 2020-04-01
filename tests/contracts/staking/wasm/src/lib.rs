@@ -26,10 +26,14 @@ pub fn call() {
             value,
             current_height,
         } => {
-            let values: Option<(u64, [u8; 32], u64, u64)> =
-                dusk_abi::get_storage(&pk.as_bytes()[0..32]);
-            if values.is_some() {
-                panic!("already an active stake for this identity");
+            let values: (u64, [u8; 32], u64, u64) =
+                dusk_abi::get_storage(&pk.as_bytes()[0..32])
+                    .unwrap_or((0, [0u8; 32], 0, 0));
+
+            // Check that staker has withdrawn, been slashed, or has not yet
+            // participated.
+            if values != (0, [0u8; 32], 0, 0) {
+                panic!("a stake is still active for this provisioner");
             }
 
             // TODO: add stake maturity rate to current height
@@ -61,10 +65,9 @@ pub fn call() {
             dusk_abi::ret(true);
         }
         StakingCall::Withdraw {
-            note,
             // proof,
             pk,
-            sig,
+            // sig,
             current_height,
         } => {
             let (value, _pk_bls, deposit_height, expiry_height): (
@@ -101,6 +104,11 @@ pub fn call() {
                 panic!("could not refund stake");
             }
 
+            dusk_abi::set_storage(
+                &pk.as_bytes()[0..32],
+                (0 as u64, [0u8; 32], 0 as u64, 0 as u64),
+            );
+
             dusk_abi::ret(true);
         }
         StakingCall::Slash {
@@ -126,32 +134,36 @@ pub fn call() {
             // TODO: bls_verify is not actually using a BLS signature scheme.
             // This should be properly updated when Rusk integrates with
             // dusk-blockchain.
-            let mut verify_buf = [0u8; 32 + 8 + 1];
-            let encoded =
-                encoding::encode(&(msg1, height, step), &mut verify_buf)
-                    .unwrap();
-            if !dusk_abi::bls_verify(&pk_bls, &sig1, encoded) {
-                panic!("invalid sig1");
-            }
+            // let mut verify_buf = [0u8; 32 + 8 + 1];
+            // let encoded =
+            //     encoding::encode(&(msg1, height, step), &mut verify_buf)
+            //         .unwrap();
+            // if !dusk_abi::bls_verify(&pk_bls, &sig1, encoded) {
+            //     panic!("invalid sig1");
+            // }
 
-            let mut verify_buf = [0u8; 32 + 8 + 1];
-            let encoded =
-                encoding::encode(&(msg2, height, step), &mut verify_buf)
-                    .unwrap();
-            if !dusk_abi::bls_verify(&pk_bls, &sig2, encoded) {
-                panic!("invalid sig2");
-            }
+            // let mut verify_buf = [0u8; 32 + 8 + 1];
+            // let encoded =
+            //     encoding::encode(&(msg2, height, step), &mut verify_buf)
+            //         .unwrap();
+            // if !dusk_abi::bls_verify(&pk_bls, &sig2, encoded) {
+            //     panic!("invalid sig2");
+            // }
 
             // Remove staker from the list.
             // TODO: the funds are simply locked up right now, but
             // something should happen with them. This should be
             // adjusted once a proper procedure has been devised.
-            dusk_abi::set_storage(&pk.as_bytes()[0..32], (0, [0u8; 32], 0, 0));
+            dusk_abi::set_storage(
+                &pk.as_bytes()[0..32],
+                (0 as u64, [0u8; 32], 0 as u64, 0 as u64),
+            );
             dusk_abi::ret(true);
         }
         StakingCall::GetStake { pk } => {
             let values: (u64, [u8; 32], u64, u64) =
-                dusk_abi::get_storage(&pk.as_bytes()[0..32]).unwrap();
+                dusk_abi::get_storage(&pk.as_bytes()[0..32])
+                    .unwrap_or((0, [0u8; 32], 0, 0));
             dusk_abi::ret(values);
         }
     }

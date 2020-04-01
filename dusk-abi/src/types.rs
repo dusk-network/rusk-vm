@@ -146,10 +146,9 @@ pub enum StakingCall {
         current_height: u64,
     },
     Withdraw {
-        note: Note,
         // proof: Proof,
         pk: PublicKey,
-        sig: Signature,
+        // sig: Signature,
         current_height: u64,
     },
     Slash {
