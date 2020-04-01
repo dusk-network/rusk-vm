@@ -1,35 +1,8 @@
 #![no_std]
-use dusk_abi::{self, ContractCall, Signature};
+use dusk_abi::{self, ContractCall, Signature, StakingCall};
 use phoenix_abi::{Note, Nullifier, PublicKey};
 
 const TRANSFER_CONTRACT: [u8; 1] = [0u8];
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum StakingCall {
-    Stake {
-        nullifiers: [Nullifier; Nullifier::MAX],
-        notes: Note,
-        proof: Proof,
-        pk: [u8; 32],
-        pk_bls: [u8; 32],
-        expiration: u64,
-    },
-    Withdraw {
-        note: Note,
-        proof: Proof,
-        pk: [u8; 32],
-        sig: [u8; 32],
-    },
-    Slash {
-        pk: [u8; 32],
-        height: u64,
-        step: u8,
-        sig1: Signature,
-        sig2: Signature,
-        msg1: [u8; 32],
-        msg2: [u8; 32],
-    },
-}
 
 #[no_mangle]
 pub fn call() {
@@ -39,7 +12,7 @@ pub fn call() {
         StakingCall::Stake {
             nullifiers,
             notes,
-            proof,
+            // proof,
             pk,
             pk_bls,
             expiration,
@@ -86,7 +59,7 @@ pub fn call() {
         }
         StakingCall::Withdraw {
             note,
-            proof,
+            // proof,
             pk,
             sig,
         } => {

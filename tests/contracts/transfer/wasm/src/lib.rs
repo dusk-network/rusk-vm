@@ -1,29 +1,8 @@
 #![no_std]
-use dusk_abi::{self, ContractCall};
-use phoenix_abi::{Note, Nullifier, PublicKey};
+use dusk_abi::{self, ContractCall, TransferCall};
 
 // TODO: obfuscated approve and transferfrom
 // TODO: proof verification
-#[derive(Serialize, Deserialize, Debug)]
-pub enum TransferCall {
-    Transfer {
-        nullifiers: [Nullifier; Nullifier::MAX],
-        notes: [Note; Note::MAX],
-        // proof
-    },
-    Approve {
-        nullifiers: [Nullifier; Nullifier::MAX],
-        notes: [Note; Note::MAX],
-        pk: PublicKey,
-        value: u64,
-        // proof
-    },
-    TransferFrom {
-        sender: PublicKey,
-        recipient: PublicKey,
-        value: u64,
-    },
-}
 
 #[no_mangle]
 pub fn call() {

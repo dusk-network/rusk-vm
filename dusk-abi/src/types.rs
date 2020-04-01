@@ -2,7 +2,7 @@ use super::impl_serde_for_array;
 // use serde::de::Visitor;
 // use serde::ser::SerializeTuple;
 use super::Provisioners;
-use phoenix_abi::types::PublicKey;
+use phoenix_abi::types::{Note, Nullifier, PublicKey};
 use serde::{Deserialize, Serialize};
 
 /// The standard hash type of 32 bytes
@@ -91,6 +91,27 @@ impl core::fmt::Debug for Signature {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub enum TransferCall {
+    Transfer {
+        nullifiers: [Nullifier; Nullifier::MAX],
+        notes: [Note; Note::MAX],
+        // proof
+    },
+    Approve {
+        nullifiers: [Nullifier; Nullifier::MAX],
+        notes: [Note; Note::MAX],
+        pk: PublicKey,
+        value: u64,
+        // proof
+    },
+    TransferFrom {
+        sender: PublicKey,
+        recipient: PublicKey,
+        value: u64,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum FeeCall {
     Withdraw {
         sig: Signature,
@@ -105,6 +126,33 @@ pub enum FeeCall {
     },
     GetBalanceAndNonce {
         address: [u8; 32],
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum StakingCall {
+    Stake {
+        nullifiers: [Nullifier; Nullifier::MAX],
+        notes: Note,
+        // proof: Proof,
+        pk: [u8; 32],
+        pk_bls: [u8; 32],
+        expiration: u64,
+    },
+    Withdraw {
+        note: Note,
+        // proof: Proof,
+        pk: [u8; 32],
+        sig: [u8; 32],
+    },
+    Slash {
+        pk: [u8; 32],
+        height: u64,
+        step: u8,
+        sig1: Signature,
+        sig2: Signature,
+        msg1: [u8; 32],
+        msg2: [u8; 32],
     },
 }
 
