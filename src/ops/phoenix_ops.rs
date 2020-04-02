@@ -5,8 +5,9 @@ use crate::VMError;
 use dusk_abi::encoding;
 use kelvin::ByteHash;
 use phoenix::{
-    db, CompressedRistretto, NoteGenerator, NoteType, NoteVariant, PublicKey,
-    Transaction, TransactionItem, TransparentNote,
+    db, CompressedRistretto, Note as PhoenixNote, NoteGenerator, NoteType,
+    NoteUtxoType, NoteVariant, PublicKey, SecretKey, Transaction,
+    TransactionItem, TransparentNote,
 };
 use phoenix_abi::{Note, Nullifier};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
@@ -40,7 +41,8 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                         .chunks(Nullifier::SIZE)
                         .map(|bytes| {
                             let nullifier: Nullifier = encoding::decode(bytes)?;
-                            let mut item = TransactionItem::default();
+                            let mut item = TransparentNote::default()
+                                .to_transaction_input(SecretKey::default());
                             item.set_nullifier(nullifier.into());
                             Ok(item)
                         })
