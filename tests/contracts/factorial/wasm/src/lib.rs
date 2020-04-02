@@ -1,5 +1,5 @@
 #![no_std]
-use dusk_abi::{self, ContractCall, CALL_DATA_SIZE};
+use dusk_abi::ContractCall;
 
 // Interface
 pub fn factorial(of: u64) -> ContractCall<u64> {

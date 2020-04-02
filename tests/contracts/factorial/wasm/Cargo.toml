@@ -9,8 +9,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 dusk-abi = { path = "../../../../dusk-abi", default-features = false }
-serde = { version = "*", default-features = false, features = ["derive"] }
 
 [profile.release]
+opt-level = 'z'
 lto = true
 codegen-units = 1
+panic = 'abort'
