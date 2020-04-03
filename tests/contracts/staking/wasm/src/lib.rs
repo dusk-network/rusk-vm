@@ -67,7 +67,7 @@ pub fn call() {
         StakingCall::Withdraw {
             // proof,
             pk,
-            // sig,
+            sig,
             current_height,
         } => {
             let (value, _pk_bls, deposit_height, expiry_height): (
@@ -80,14 +80,13 @@ pub fn call() {
                 panic!("stake is still active for this identity");
             }
 
-            // TODO: actually implement this
-            // let mut verify_buf = [0u8; 32 + 8];
-            // let encoded =
-            //     encoding::encode(&(pk, deposit_height), &mut verify_buf)
-            //         .unwrap();
-            // if !dusk_abi::verify_ed25519_signature(&pk, &sig, encoded) {
-            //     panic!("invalid signature");
-            // }
+            let mut verify_buf = [0u8; 32 + 8];
+            let encoded =
+                encoding::encode(&(pk, deposit_height), &mut verify_buf)
+                    .unwrap();
+            if !dusk_abi::verify_ed25519_signature(&pk, &sig, encoded) {
+                panic!("invalid signature");
+            }
 
             // call transferfrom
             let contract_pk = dusk_abi::get_storage(&PUBLIC_KEY).unwrap();
@@ -134,21 +133,21 @@ pub fn call() {
             // TODO: bls_verify is not actually using a BLS signature scheme.
             // This should be properly updated when Rusk integrates with
             // dusk-blockchain.
-            // let mut verify_buf = [0u8; 32 + 8 + 1];
-            // let encoded =
-            //     encoding::encode(&(msg1, height, step), &mut verify_buf)
-            //         .unwrap();
-            // if !dusk_abi::bls_verify(&pk_bls, &sig1, encoded) {
-            //     panic!("invalid sig1");
-            // }
+            let mut verify_buf = [0u8; 32 + 8 + 1];
+            let encoded =
+                encoding::encode(&(msg1, height, step), &mut verify_buf)
+                    .unwrap();
+            if !dusk_abi::bls_verify(&pk_bls, &sig1, encoded) {
+                panic!("invalid sig1");
+            }
 
-            // let mut verify_buf = [0u8; 32 + 8 + 1];
-            // let encoded =
-            //     encoding::encode(&(msg2, height, step), &mut verify_buf)
-            //         .unwrap();
-            // if !dusk_abi::bls_verify(&pk_bls, &sig2, encoded) {
-            //     panic!("invalid sig2");
-            // }
+            let mut verify_buf = [0u8; 32 + 8 + 1];
+            let encoded =
+                encoding::encode(&(msg2, height, step), &mut verify_buf)
+                    .unwrap();
+            if !dusk_abi::bls_verify(&pk_bls, &sig2, encoded) {
+                panic!("invalid sig2");
+            }
 
             // Remove staker from the list.
             // TODO: the funds are simply locked up right now, but
