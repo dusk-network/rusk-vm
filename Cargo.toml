@@ -22,8 +22,8 @@ parking_lot = "0.10"
 threshold_crypto_ce = "0.4"
 
 dusk-abi = { path = "./dusk-abi" }
-phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "demo" }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", branch = "demo" }
+phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
+phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
 
 # UNCOMMENT for local development
 # phoenix-abi = { path="../phoenix-abi" }
