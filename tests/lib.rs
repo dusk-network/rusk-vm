@@ -8,7 +8,7 @@ use dusk_abi::{
     ContractCall, FeeCall, Provisioners, Signature, StakingCall, TransferCall,
 };
 use phoenix::PublicKey as PhoenixPK;
-use phoenix_abi::{Note, Nullifier, PublicKey};
+use phoenix_abi::{Note, Nullifier, Proof, PublicKey};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
 #[test]
@@ -77,12 +77,17 @@ fn transfer() {
     // Generate some items
     let nullifiers = [Nullifier::default(); Nullifier::MAX];
     let notes = [Note::default(); Note::MAX];
+    let proof = Proof::default();
 
     let succeeded: bool = network
         .call_contract(
             &contract_id,
-            ContractCall::new(TransferCall::Transfer { nullifiers, notes })
-                .unwrap(),
+            ContractCall::new(TransferCall::Transfer {
+                nullifiers,
+                notes,
+                proof,
+            })
+            .unwrap(),
             &mut gas,
         )
         .unwrap();
