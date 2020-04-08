@@ -3,12 +3,12 @@ use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
+pub mod argument;
 pub mod balance;
 pub mod bls;
 pub mod call_contract;
-pub mod call_data;
 pub mod debug;
-pub mod ed25519;
+// pub mod ed25519;
 pub mod gas;
 pub mod panic;
 // pub mod phoenix_ops;

@@ -8,7 +8,7 @@ use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
 #[test]
 fn factorial() {
-    use factorial::factorial;
+    // use factorial::factorial;
 
     fn factorial_reference(n: u64) -> u64 {
         if n <= 1 {
@@ -29,10 +29,11 @@ fn factorial() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let n = 6;
+    let n: u64 = 6;
+
     assert_eq!(
         network
-            .call_contract(&contract_id, factorial(n), &mut gas)
+            .call_contract::<u64, u64>(contract_id, n, &mut gas)
             .unwrap(),
         factorial_reference(n)
     );

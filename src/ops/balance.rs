@@ -2,7 +2,6 @@ use crate::call_context::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
 use super::AbiCall;
-use dataview::Pod;
 use kelvin::ByteHash;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
@@ -16,12 +15,10 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Balance {
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        let buffer_ofs = args.get(0)?;
+        let value_ofs = args.get(0)?;
         let balance = context.balance()?;
 
-        context.memory_mut().with_direct_access_mut(|a| {
-            a[buffer_ofs..].copy_from_slice(balance.as_bytes())
-        });
+        context.write_at(value_ofs as usize, &balance);
 
         Ok(None)
     }

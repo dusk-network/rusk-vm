@@ -17,9 +17,9 @@ kelvin = "0.9"
 kelvin-radix = "0.5"
 lazy_static = "1.4"
 parking_lot = "0.10"
-dataview = "0.1"
 
 dusk-abi = { path = "./dusk-abi" }
+dataview = { git = "ssh://git@github.com/dusk-network/dataview.git" }
 
 # phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
 # phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
@@ -33,7 +33,6 @@ tempfile = "*"
 criterion = "0.3"
 
 [[bench]]
-sample_size = 10
 name = "factorial"
 harness = false
 

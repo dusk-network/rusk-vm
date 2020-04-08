@@ -2,7 +2,7 @@ use std::io;
 use std::marker::PhantomData;
 
 use dataview::Pod;
-use dusk_abi::{ContractCall, H256};
+use dusk_abi::H256;
 use kelvin::{ByteHash, Content, Map, Sink, Source, ValRef, ValRefMut};
 use kelvin_radix::DefaultRadixMap as RadixMap;
 
@@ -15,7 +15,7 @@ pub type Storage<H> = RadixMap<H256, Vec<u8>, H>;
 
 #[derive(Clone)]
 pub struct ContractState<H: ByteHash> {
-    balance: u64,
+    balance: u128,
     code: MeteredContract,
     nonce: u64,
     storage: Storage<H>,
@@ -31,11 +31,11 @@ impl<H: ByteHash> ContractState<H> {
         }
     }
 
-    pub fn balance(&self) -> u64 {
+    pub fn balance(&self) -> u128 {
         self.balance
     }
 
-    pub fn balance_mut(&mut self) -> &mut u64 {
+    pub fn balance_mut(&mut self) -> &mut u128 {
         &mut self.balance
     }
 
@@ -114,16 +114,17 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
     }
 
     /// Call the contract at address `target`
-    pub fn call_contract<R: Pod>(
+    pub fn call_contract<A: Pod, R: Pod>(
         &mut self,
-        target: &H256,
-        call: ContractCall<R>,
+        target: H256,
+        argument: A,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError> {
-        let mut context = CallContext::new(self, gas_meter);
-        let data = call.into_data();
-        let r = context.call(target, data)?;
-        Ok(r)
+        let mut ret = R::zeroed();
+        let mut context =
+            CallContext::new(self, gas_meter, &argument, &mut ret);
+        context.call(target, 0, 0, 0, 0)?;
+        Ok(ret)
     }
 }
 
@@ -137,7 +138,7 @@ impl<H: ByteHash> Content<H> for ContractState<H> {
 
     fn restore(source: &mut Source<H>) -> io::Result<Self> {
         Ok(ContractState {
-            balance: u64::restore(source)?,
+            balance: u128::restore(source)?,
             nonce: u64::restore(source)?,
             code: MeteredContract::restore(source)?,
             storage: Storage::restore(source)?,

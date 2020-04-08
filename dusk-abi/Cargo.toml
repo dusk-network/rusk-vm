@@ -6,8 +6,9 @@ edition = "2018"
 
 [dependencies]
 kelvin = { version = "0.9", optional = true }
-dataview = { version = "0.1" }
+dataview = { git = "ssh://git@github.com/dusk-network/dataview.git" }
 
 [features]
-default = ["std"]
+default = ["std", "debug"]
+debug = []
 std = ["kelvin"]
