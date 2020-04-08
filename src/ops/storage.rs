@@ -18,14 +18,14 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for SetStorage {
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        let key_ofs = args.get(0)?;
-        let val_ofs = args.get(1)?;
-        let val_len = args.get(2)?;
+        let key_ofs = args.get(0)? as usize;
+        let val_ofs = args.get(1)? as usize;
+        let val_len = args.get(2)? as usize;
 
         let mut key_buf = H256::default();
         let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
 
-        context.memory().with_direct_access(|a| {
+        context.memory(|a| {
             key_buf
                 .as_mut()
                 .copy_from_slice(&a[key_ofs..key_ofs + STORAGE_KEY_SIZE]);
@@ -50,13 +50,13 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for GetStorage {
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
         // offset to where to write the value in memory
-        let key_buf_ofs = args.get(0)?;
-        let key_buf_len = args.get(1)?;
-        let val_buf_ofs = args.get(1)?;
+        let key_buf_ofs = args.get(0)? as usize;
+        let _key_buf_len = args.get(1)? as usize;
+        let val_buf_ofs = args.get(1)? as usize;
 
         let mut key_buf = H256::default();
 
-        context.memory().with_direct_access(|a| {
+        context.memory(|a| {
             key_buf.as_mut().copy_from_slice(
                 &a[key_buf_ofs..key_buf_ofs + STORAGE_KEY_SIZE],
             );
@@ -67,7 +67,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for GetStorage {
         match val {
             Some(val) => {
                 let len = val.len();
-                context.memory_mut().with_direct_access_mut(|a| {
+                context.memory_mut(|a| {
                     a[val_buf_ofs..val_buf_ofs + len].copy_from_slice(&val)
                 });
                 Ok(Some(RuntimeValue::I32(len as i32)))

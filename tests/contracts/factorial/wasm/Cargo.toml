@@ -14,4 +14,4 @@ dusk-abi = { path = "../../../../dusk-abi", default-features = false }
 opt-level = 'z'
 lto = true
 codegen-units = 1
-panic = 'abort'
+panic = "abort"

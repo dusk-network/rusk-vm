@@ -15,10 +15,10 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Panic {
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        let panic_ofs = args.get(0)?;
-        let panic_len = args.get(1)?;
+        let panic_ofs = args.get(0)? as usize;
+        let panic_len = args.get(1)? as usize;
 
-        context.memory().with_direct_access(|a| {
+        context.memory(|a| {
             Err(
                 match String::from_utf8(
                     a[panic_ofs..panic_ofs + panic_len].to_vec(),

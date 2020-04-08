@@ -1,7 +1,6 @@
 //! #Dusk ABI
 //!
 //! ABI functionality for communicating with the host
-
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(lang_items)]
@@ -9,21 +8,19 @@
 
 use core::mem;
 
-#[cfg(not(feature = "std"))]
-mod bufwriter;
-mod contract_call;
+/// Simple buffered write implementation
+pub mod bufwriter;
 
+mod helpers;
 #[cfg(not(feature = "std"))]
 mod panic;
 mod types;
 
 use dataview::Pod;
+pub use helpers::PodExt;
 
-pub use contract_call::ContractCall;
 pub use types::H256;
 
-/// The maximum size of contract call arguments and return values
-pub const CALL_DATA_SIZE: usize = 1024 * 16;
 /// The maximum size of values in contract storage
 pub const STORAGE_VALUE_SIZE: usize = 1024 * 4;
 /// The size of keys for contract storage
@@ -55,14 +52,17 @@ mod external {
 
         pub fn debug(msg: &u8, len: i32);
 
-        pub fn call_data(buffer: &mut u8);
+        pub fn argument(ptr: &mut u8, len: i32);
         pub fn call_contract(
             target: &u8,
-            amount: u64,
-            data: &[u8; CALL_DATA_SIZE],
-            data_len: i32,
-            ret_pointer: &u8,
+            amount: &u8,
+            argument: &u8,
+            argument_len: i32,
+            ret: &mut u8,
+            ret_len: i32,
         );
+        pub fn ret(data: &u8, len: i32) -> !;
+
         pub fn gas(value: i32);
     }
 }
@@ -95,9 +95,9 @@ where
     let mut result = V::zeroed();
     let code: i32 = unsafe {
         external::get_storage(
-            &key.as_bytes()[0],
+            key.as_byte_ptr(),
             mem::size_of::<K>() as i32,
-            &mut result.as_bytes_mut()[0],
+            result.as_byte_ptr_mut(),
         )
     };
     if code != -1 {
@@ -110,31 +110,33 @@ where
 /// Returns the caller of the contract
 pub fn caller() -> H256 {
     let mut result = H256::zeroed();
-    unsafe { external::caller(&mut result.as_bytes_mut()[0]) }
+    unsafe { external::caller(result.as_byte_ptr_mut()) }
     result
 }
 
 /// Returns the hash of the currently executing contract
 pub fn self_hash() -> H256 {
     let mut result = H256::zeroed();
-    unsafe { external::self_hash(&mut result.as_bytes_mut()[0]) }
+    unsafe { external::self_hash(result.as_byte_ptr_mut()) }
     result
 }
 
 /// Returns the currently executing contracts balance
-pub fn balance() -> u64 {
-    let mut result = u64::zeroed();
-    unsafe { external::balance(&mut result.as_bytes_mut()[0]) }
+pub fn balance() -> u128 {
+    let mut result = u128::zeroed();
+    unsafe { external::balance(result.as_byte_ptr_mut()) }
     result
 }
 
 /// Returns the data the contract was called with
-pub fn call_data<D>() -> D
+pub fn argument<A>() -> A
 where
-    D: Pod,
+    A: Pod,
 {
-    let mut result = D::zeroed();
-    unsafe { external::call_data(&mut result.as_bytes_mut()[0]) }
+    let mut result = A::zeroed();
+    unsafe {
+        external::argument(result.as_byte_ptr_mut(), mem::size_of::<A>() as i32)
+    }
     result
 }
 
@@ -151,19 +153,20 @@ pub fn bls_verify(
 }
 
 /// Call another contract at address `target`
-pub fn call_contract<R: Pod>(
+pub fn call_contract<A: Pod, R: Pod + core::fmt::Display>(
     target: &H256,
-    amount: u64,
-    call: &ContractCall<R>,
+    amount: u128,
+    argument: A,
 ) -> R {
     let mut result = R::zeroed();
     unsafe {
         external::call_contract(
-            &target.as_bytes()[0],
-            amount,
-            call.data(),
-            call.len() as i32,
-            &mut result.as_bytes_mut()[0],
+            target.as_byte_ptr(),
+            amount.as_byte_ptr(),
+            argument.as_byte_ptr(),
+            mem::size_of::<A>() as i32,
+            result.as_byte_ptr_mut(),
+            mem::size_of::<R>() as i32,
         )
     }
     result
@@ -171,7 +174,7 @@ pub fn call_contract<R: Pod>(
 
 /// Returns a value and halts execution of the contract
 pub fn ret<R: Pod>(ret: R) -> ! {
-    unsafe { external::ret(&ret.as_bytes()[0]) }
+    unsafe { external::ret(ret.as_byte_ptr(), mem::size_of::<R>() as i32) }
 }
 
 /// Deduct a specified amount of gas from the call

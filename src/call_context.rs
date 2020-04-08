@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::mem;
 
 use dataview::Pod;
-use dusk_abi::{CALL_DATA_SIZE, H256};
+use dusk_abi::H256;
 use kelvin::{ByteHash, ValRef, ValRefMut};
 
 use wasmi::{
@@ -23,26 +23,49 @@ pub trait Resolver<H: ByteHash>:
 pub use crate::resolver::CompoundResolver as StandardABI;
 
 pub struct StackFrame {
-    pub context: H256,
-    pub call_data: [u8; CALL_DATA_SIZE],
-    pub memory: MemoryRef,
+    callee: H256,
+    argument_ptr: usize,
+    argument_len: usize,
+    return_ptr: usize,
+    return_len: usize,
+    memory: MemoryRef,
+}
+
+impl std::fmt::Debug for StackFrame {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "(arg: {} return: {})",
+            self.argument_ptr, self.return_ptr
+        )
+    }
 }
 
 impl StackFrame {
     fn new(
-        context: H256,
-        call_data: [u8; CALL_DATA_SIZE],
+        callee: H256,
         memory: MemoryRef,
+        argument_ptr: usize,
+        argument_len: usize,
+        return_ptr: usize,
+        return_len: usize,
     ) -> Self {
         StackFrame {
-            context,
-            call_data,
+            callee,
             memory,
+            argument_ptr,
+            argument_len,
+            return_ptr,
+            return_len,
         }
     }
 
-    fn into_call_data(self) -> [u8; CALL_DATA_SIZE] {
-        self.call_data
+    fn memory<R, C: FnOnce(&[u8]) -> R>(&self, closure: C) -> R {
+        self.memory.with_direct_access(closure)
+    }
+
+    fn memory_mut<R, C: FnOnce(&mut [u8]) -> R>(&self, closure: C) -> R {
+        self.memory.with_direct_access_mut(closure)
     }
 }
 
@@ -58,27 +81,40 @@ pub struct CallContext<'a, S, H: ByteHash> {
     state: &'a mut NetworkState<S, H>,
     stack: Vec<StackFrame>,
     gas_meter: &'a mut GasMeter,
+    top_argument: &'a [u8],
+    top_return: &'a mut [u8],
     _marker: PhantomData<S>,
 }
 
-impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
-    pub fn new(
+impl<'a, S, H> CallContext<'a, S, H>
+where
+    S: Resolver<H>,
+    H: ByteHash,
+{
+    pub fn new<A: Pod, R: Pod>(
         state: &'a mut NetworkState<S, H>,
         gas_meter: &'a mut GasMeter,
+        top_argument: &'a A,
+        top_return: &'a mut R,
     ) -> Self {
         CallContext {
-            stack: vec![],
             state,
+            stack: vec![],
             gas_meter,
+            top_argument: top_argument.as_bytes(),
+            top_return: top_return.as_bytes_mut(),
             _marker: PhantomData,
         }
     }
 
-    pub fn call<R: Pod>(
+    pub fn call(
         &mut self,
-        target: &H256,
-        call_data: [u8; CALL_DATA_SIZE],
-    ) -> Result<R, VMError> {
+        target: H256,
+        argument_ptr: usize,
+        argument_len: usize,
+        return_ptr: usize,
+        return_len: usize,
+    ) -> Result<Option<RuntimeValue>, VMError> {
         let resolver = S::default();
         let imports = ImportsBuilder::new().with_resolver("env", &resolver);
 
@@ -98,9 +134,16 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
                     ModuleInstance::new(&*module, &imports)?.assert_no_start();
 
                 match instance.export_by_name("memory") {
-                    Some(ExternVal::Memory(memref)) => self.stack.push(
-                        StackFrame::new(target.clone(), call_data, memref),
-                    ),
+                    Some(ExternVal::Memory(memref)) => {
+                        self.stack.push(StackFrame::new(
+                            target,
+                            memref,
+                            argument_ptr,
+                            argument_len,
+                            return_ptr,
+                            return_len,
+                        ))
+                    }
                     _ => return Err(VMError::MemoryNotFound),
                 }
             }
@@ -110,42 +153,86 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
             Err(wasmi::Error::Trap(trap)) => {
                 if let TrapKind::Host(t) = trap.kind() {
                     if let Some(vm_error) = (**t).downcast_ref::<VMError>() {
-                        if let VMError::ContractReturn = vm_error {
-                            // Return is fine, pass it through
+                        if let VMError::ContractReturn(ofs, len) = vm_error {
+                            // copy the return value to return pointer
+                            self.copy_return(*ofs, *len);
+                            self.stack.pop();
+                            Ok(None)
                         } else {
-                            return Err(wasmi::Error::Trap(trap).into());
+                            Err(wasmi::Error::Trap(trap).into())
                         }
                     } else {
-                        return Err(wasmi::Error::Trap(trap).into());
+                        Err(wasmi::Error::Trap(trap).into())
                     }
                 } else {
-                    return Err(wasmi::Error::Trap(trap).into());
+                    Err(wasmi::Error::Trap(trap).into())
                 }
             }
-            Err(e) => return Err(e.into()),
-            Ok(_) => (),
+            Err(e) => Err(e.into()),
+            Ok(r) => Ok(r),
         }
-
-        let data = self.stack.pop().expect("Invalid stack").into_call_data();
-
-        let mut r = R::zeroed();
-        r.as_bytes_mut()
-            .copy_from_slice(&data[0..mem::size_of::<R>()]);
-
-        Ok(r)
     }
 
-    pub fn data(&self) -> &[u8] {
-        let top = self.top();
-        &top.call_data
+    pub fn copy_return(&mut self, source_ptr: usize, len: usize) {
+        if self.stack.len() > 1 {
+            let (copy_from, rest) =
+                self.stack.split_last_mut().expect("len > 1");
+            let copy_to = rest.last().expect("len > 1");
+
+            let dest_ptr = copy_from.return_ptr;
+            let dest_len = copy_from.return_len;
+
+            assert_eq!(dest_len, dest_len);
+
+            copy_from.memory(|source| {
+                copy_to.memory_mut(|dest| {
+                    dest[dest_ptr..dest_ptr + len]
+                        .copy_from_slice(&source[source_ptr..source_ptr + len])
+                })
+            })
+        } else {
+            let CallContext {
+                ref stack,
+                ref mut top_return,
+                ..
+            } = self;
+
+            stack.last().expect("invalid stack").memory(|m| {
+                top_return.copy_from_slice(&m[source_ptr..source_ptr + len]);
+            })
+        }
     }
 
-    pub fn memory(&self) -> &MemoryRef {
-        &self.top().memory
-    }
+    /// Copies the arguments from the previous stack frame into current memory
+    pub fn copy_argument(&mut self, dest_ptr: usize, len: usize) {
+        if self.stack.len() > 1 {
+            //panic!("{:?}", self.stack);
 
-    pub fn memory_mut(&mut self) -> &mut MemoryRef {
-        &mut self.top_mut().memory
+            let (copy_to, rest) = self.stack.split_last_mut().expect("len > 1");
+            let copy_from = rest.last().expect("len > 1");
+
+            let source_ptr = copy_to.argument_ptr;
+            let source_len = copy_to.argument_len;
+
+            assert_eq!(source_len, len);
+
+            copy_from.memory(|source| {
+                copy_to.memory_mut(|dest| {
+                    dest[dest_ptr..dest_ptr + len]
+                        .copy_from_slice(&source[source_ptr..source_ptr + len])
+                })
+            })
+        } else {
+            let CallContext {
+                ref mut stack,
+                ref top_argument,
+                ..
+            } = self;
+
+            stack.last_mut().expect("invalid stack").memory_mut(|m| {
+                m[dest_ptr..dest_ptr + len].copy_from_slice(top_argument)
+            })
+        }
     }
 
     pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
@@ -153,25 +240,35 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
     }
 
     pub fn top(&self) -> &StackFrame {
-        &self.stack.last().expect("Empty stack")
+        self.stack.last().expect("Invalid stack")
     }
 
-    pub fn top_mut(&mut self) -> &mut StackFrame {
-        self.stack.last_mut().expect("Empty stack")
+    pub fn callee(&self) -> H256 {
+        self.top().callee
     }
 
-    pub fn caller(&self) -> &H256 {
-        // for top level, caller is the same as called.
-        let i = self.stack.len().saturating_sub(1);
-        &self.stack.get(i).expect("Empty stack").context
+    pub fn memory<R, C: FnOnce(&[u8]) -> R>(&self, closure: C) -> R {
+        self.top().memory(closure)
     }
 
-    pub fn called(&self) -> &H256 {
-        &self.top().context
+    pub fn memory_mut<R, C: FnOnce(&mut [u8]) -> R>(
+        &mut self,
+        closure: C,
+    ) -> R {
+        self.stack
+            .last_mut()
+            .expect("Invalid stack")
+            .memory_mut(closure)
+    }
+
+    pub fn write_at<V: Pod>(&mut self, ofs: usize, value: &V) {
+        self.memory_mut(|m| {
+            m[ofs..ofs + mem::size_of::<V>()].copy_from_slice(value.as_bytes());
+        });
     }
 
     pub fn storage(&self) -> Result<impl ValRef<Storage<H>>, VMError> {
-        match self.state.get_contract_state(&self.caller())? {
+        match self.state.get_contract_state(&self.callee())? {
             Some(state) => Ok(state.wrap(|state| state.storage())),
             None => Err(VMError::UnknownContract),
         }
@@ -180,11 +277,11 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
     pub fn storage_mut(
         &mut self,
     ) -> Result<impl ValRefMut<Storage<H>>, VMError> {
-        let caller = *self.caller();
+        let callee = self.callee();
         Ok(self
             .state
-            .get_contract_state_mut(&caller)?
-            .expect("Invalid caller")
+            .get_contract_state_mut(&callee)?
+            .expect("Invalid callee")
             .wrap_mut(|state| state.storage_mut()))
     }
 
@@ -196,20 +293,20 @@ impl<'a, S: Resolver<H>, H: ByteHash> CallContext<'a, S, H> {
         &mut self.state
     }
 
-    pub fn balance(&self) -> Result<u64, VMError> {
+    pub fn balance(&self) -> Result<u128, VMError> {
         Ok(self
             .state
-            .get_contract_state(&self.caller())?
-            .expect("Invalid caller")
+            .get_contract_state(&self.callee())?
+            .expect("Invalid callee")
             .balance())
     }
 
-    pub fn balance_mut(&mut self) -> Result<impl ValRefMut<u64>, VMError> {
-        let caller = *self.caller();
+    pub fn balance_mut(&mut self) -> Result<impl ValRefMut<u128>, VMError> {
+        let callee = self.callee();
         Ok(self
             .state
-            .get_contract_state_mut(&caller)?
-            .expect("Invalid caller")
+            .get_contract_state_mut(&callee)?
+            .expect("Invalid callee")
             .wrap_mut(|state| state.balance_mut()))
     }
 }
@@ -221,36 +318,22 @@ pub fn host_trap(host: VMError) -> Trap {
 
 /// Convenience trait to extract arguments
 pub trait ArgsExt {
-    fn get(&self, i: usize) -> Result<usize, Trap>;
-    fn to_slice(&self, bytes: &[u8], args_ofs: usize) -> Result<&[u8], Trap>;
+    fn get(&self, i: usize) -> Result<i32, Trap>;
 }
 
 impl ArgsExt for RuntimeArgs<'_> {
-    fn get(&self, i: usize) -> Result<usize, Trap> {
+    fn get(&self, i: usize) -> Result<i32, Trap> {
         self.as_ref()[i]
             .try_into::<i32>()
             .ok_or_else(|| host_trap(VMError::MissingArgument))
-            .map(|i| i as usize)
-    }
-
-    fn to_slice(&self, bytes: &[u8], args_ofs: usize) -> Result<&[u8], Trap> {
-        let args = self.as_ref();
-        let ofs: u32 = args[args_ofs]
-            .try_into()
-            .ok_or_else(|| host_trap(VMError::MissingArgument))?;
-        let len: u32 = args[args_ofs + 1]
-            .try_into()
-            .ok_or_else(|| host_trap(VMError::MissingArgument))?;
-        unsafe {
-            Ok(std::slice::from_raw_parts(
-                &bytes[ofs as usize],
-                len as usize,
-            ))
-        }
     }
 }
 
-impl<'a, S: Resolver<H>, H: ByteHash> Externals for CallContext<'a, S, H> {
+impl<'a, S, H> Externals for CallContext<'a, S, H>
+where
+    S: Resolver<H>,
+    H: ByteHash,
+{
     fn invoke_index(
         &mut self,
         index: usize,

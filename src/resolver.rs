@@ -69,7 +69,7 @@ abi_resolver! {
         1, "debug" => debug::Debug,
         2, "set_storage" => storage::SetStorage,
         3, "get_storage" => storage::GetStorage,
-        4, "call_data" => call_data::CallData,
+        4, "argument" => argument::Argument,
         5, "call_contract" => call_contract::CallContract,
         6, "balance" => balance::Balance,
         7, "ret" => ret::Return,

@@ -39,9 +39,11 @@ pub enum VMError {
     /// Invalid Signature
     InvalidEd25519Signature,
     /// Contract returned, not an error per se, this is how contracts return.
-    ContractReturn,
+    ContractReturn(usize, usize),
     /// Contract execution ran out of gas
     OutOfGas,
+    /// Contract execution ran out of gas
+    NotEnoughFunds,
     /// Contract could not be found in the state
     UnknownContract,
     /// WASM threw an error
@@ -90,8 +92,9 @@ impl fmt::Display for VMError {
             VMError::InvalidEd25519Signature => {
                 write!(f, "Invalid Ed25519 Signature")?
             }
-            VMError::ContractReturn => write!(f, "Contract Return")?,
-            VMError::OutOfGas => write!(f, "Out of Gas Error")?,
+            VMError::ContractReturn(_, _) => write!(f, "Contract Return")?,
+            VMError::OutOfGas => write!(f, "Out of Gas error")?,
+            VMError::NotEnoughFunds => write!(f, "Not enough funds error")?,
             VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
             VMError::MemoryNotFound => write!(f, "Memory not found")?,
             VMError::InvalidABICall => write!(f, "Invalid ABI Call")?,
