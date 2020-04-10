@@ -13,6 +13,12 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub const DB_PATH: &str = "/tmp/rusk-vm-demo";
 
+const SUCCESS: Result<Option<RuntimeValue>, VMError> =
+    Ok(Some(RuntimeValue::I32(1)));
+
+const FAIL: Result<Option<RuntimeValue>, VMError> =
+    Ok(Some(RuntimeValue::I32(0)));
+
 pub struct PhoenixStore;
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
@@ -77,8 +83,8 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                     tx.set_proof(proof);
 
                     match db::store(DB_PATH, &tx) {
-                        Ok(_) => Ok(Some(RuntimeValue::I32(1))),
-                        Err(_) => Ok(Some(RuntimeValue::I32(0))),
+                        Ok(_) => SUCCESS,
+                        Err(_) => FAIL,
                     }
                 },
             )
@@ -150,8 +156,8 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                     tx.verify().unwrap();
 
                     match tx.verify() {
-                        Ok(_) => Ok(Some(RuntimeValue::I32(1))),
-                        Err(_) => Ok(Some(RuntimeValue::I32(0))),
+                        Ok(_) => SUCCESS,
+                        Err(_) => FAIL,
                     }
                 },
             )
@@ -200,8 +206,8 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixCredit {
                     tx.push_output(item).unwrap();
 
                     match db::store(DB_PATH, &tx) {
-                        Ok(_) => Ok(Some(RuntimeValue::I32(1))),
-                        Err(_) => Ok(Some(RuntimeValue::I32(0))),
+                        Ok(_) => SUCCESS,
+                        Err(_) => FAIL,
                     }
                 },
             )
