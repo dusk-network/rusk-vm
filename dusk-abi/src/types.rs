@@ -1,6 +1,8 @@
 use super::impl_serde_for_array;
 // use serde::de::Visitor;
 // use serde::ser::SerializeTuple;
+use super::Provisioners;
+use phoenix_abi::types::{Note, Nullifier, Proof, PublicKey};
 use serde::{Deserialize, Serialize};
 
 /// The standard hash type of 32 bytes
@@ -86,6 +88,81 @@ impl core::fmt::Debug for Signature {
         }
         Ok(())
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum TransferCall {
+    Transfer {
+        nullifiers: [Nullifier; Nullifier::MAX],
+        notes: [Note; Note::MAX],
+        proof: Proof,
+    },
+    Approve {
+        nullifiers: [Nullifier; Nullifier::MAX],
+        notes: [Note; Note::MAX],
+        pk: PublicKey,
+        value: u64,
+        proof: Proof,
+    },
+    TransferFrom {
+        sender: PublicKey,
+        recipient: PublicKey,
+        value: u64,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum FeeCall {
+    Withdraw {
+        sig: Signature,
+        address: [u8; 32],
+        value: u64,
+        pk: PublicKey,
+    },
+    Distribute {
+        total_reward: u64,
+        addresses: Provisioners,
+        pk: PublicKey,
+    },
+    GetBalanceAndNonce {
+        address: [u8; 32],
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum StakingCall {
+    Init {
+        address: H256,
+        pk: PublicKey,
+    },
+    Stake {
+        nullifiers: [Nullifier; Nullifier::MAX],
+        notes: [Note; Note::MAX],
+        // proof: Proof,
+        pk: PublicKey,
+        pk_bls: [u8; 32],
+        expiration: u64,
+        value: u64,
+        current_height: u64,
+    },
+    Withdraw {
+        // proof: Proof,
+        pk: PublicKey,
+        // sig: Signature,
+        current_height: u64,
+    },
+    Slash {
+        pk: PublicKey,
+        height: u64,
+        step: u8,
+        sig1: Signature,
+        sig2: Signature,
+        msg1: [u8; 32],
+        msg2: [u8; 32],
+    },
+    GetStake {
+        pk: PublicKey,
+    },
 }
 
 #[cfg(feature = "std")]

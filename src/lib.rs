@@ -14,6 +14,8 @@ mod ops;
 mod resolver;
 mod state;
 
+pub use dusk_abi;
+
 pub use call_context::StandardABI;
 pub use contract::Contract;
 pub use fermion::Error;

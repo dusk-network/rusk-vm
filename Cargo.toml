@@ -19,6 +19,7 @@ kelvin-radix = "0.5"
 fermion = "0.2"
 lazy_static = "1.4"
 parking_lot = "0.10"
+threshold_crypto_ce = "0.4"
 
 dusk-abi = { path = "./dusk-abi" }
 phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
@@ -35,6 +36,7 @@ criterion = "0.3"
 default_account = { path = "tests/contracts/default_account/wasm" }
 factorial = { path = "tests/contracts/factorial/wasm" }
 transfer = { path = "tests/contracts/transfer/wasm" }
+fee = { path = "tests/contracts/fee/wasm" }
 
 [[bench]]
 sample_size = 10

@@ -4,6 +4,7 @@ use crate::VMError;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub mod balance;
+pub mod bls;
 pub mod call_contract;
 pub mod call_data;
 pub mod debug;

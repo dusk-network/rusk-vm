@@ -26,8 +26,11 @@ mod panic;
 
 mod types;
 
+mod provisioners;
+
 pub use contract_call::{ContractCall, ContractReturn};
-pub use types::{Signature, H256};
+pub use provisioners::Provisioners;
+pub use types::{FeeCall, Signature, StakingCall, TransferCall, H256};
 
 // TODO: Extend this error type
 pub use fermion::Error;
@@ -76,6 +79,12 @@ mod external {
             data_len: i32,
         );
         pub fn verify_ed25519_signature(
+            pub_key: &[u8; 32],
+            signature: &[u8; 64],
+            buffer: &u8,
+            buffer_len: i32,
+        ) -> bool;
+        pub fn bls_verify(
             pub_key: &[u8; 32],
             signature: &[u8; 64],
             buffer: &u8,
@@ -186,6 +195,18 @@ pub fn verify_ed25519_signature(
             &buffer[0],
             len,
         )
+    }
+}
+
+/// Verifies a BLS signature, returns true if successful
+pub fn bls_verify(
+    pub_key: &[u8; 32],
+    signature: &Signature,
+    buffer: &[u8],
+) -> bool {
+    unsafe {
+        let len = buffer.len() as i32;
+        external::bls_verify(pub_key, signature.as_array_ref(), &buffer[0], len)
     }
 }
 
