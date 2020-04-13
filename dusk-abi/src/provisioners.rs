@@ -10,6 +10,10 @@ impl Provisioners {
     pub fn to_bytes(&self) -> [u8; PROVISIONERS_SIZE] {
         self.0
     }
+
+    pub fn from_bytes(bytes: [u8; PROVISIONERS_SIZE]) -> Self {
+        Provisioners(bytes)
+    }
 }
 
 impl Default for Provisioners {
