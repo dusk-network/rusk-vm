@@ -72,11 +72,11 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                     let mut tx = Transaction::default();
 
                     nullifiers?
-                        .iter()
-                        .for_each(|nul| tx.push_input(*nul).unwrap());
+                        .into_iter()
+                        .for_each(|nul| tx.push_input(nul).unwrap());
                     notes?
-                        .iter()
-                        .for_each(|note| tx.push_output(*note).unwrap());
+                        .into_iter()
+                        .for_each(|note| tx.push_output(note).unwrap());
 
                     tx.set_proof(proof);
 
@@ -142,11 +142,11 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                     let mut tx = Transaction::default();
 
                     nullifiers?
-                        .iter()
-                        .for_each(|nul| tx.push_input(*nul).unwrap());
+                        .into_iter()
+                        .for_each(|nul| tx.push_input(nul).unwrap());
                     notes?
-                        .iter()
-                        .for_each(|note| tx.push_output(*note).unwrap());
+                        .into_iter()
+                        .for_each(|note| tx.push_output(note).unwrap());
 
                     tx.set_proof(proof);
                     tx.verify().unwrap();
