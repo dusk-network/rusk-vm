@@ -18,6 +18,7 @@ impl core::fmt::Debug for Provisioners {
         for i in 0..64 {
             write!(f, "{:02x}", self.0[i])?;
         }
+        write!(f, ")")?;
         Ok(())
     }
 }
