@@ -2,9 +2,15 @@ use super::impl_serde_for_array;
 
 const PROVISIONERS_SIZE: usize = 32 * 128;
 
-pub struct Provisioners(pub [u8; PROVISIONERS_SIZE]);
+pub struct Provisioners([u8; PROVISIONERS_SIZE]);
 
 impl_serde_for_array!(Provisioners, PROVISIONERS_SIZE);
+
+impl Provisioners {
+    pub fn to_bytes(&self) -> [u8; PROVISIONERS_SIZE] {
+        self.0
+    }
+}
 
 impl Default for Provisioners {
     fn default() -> Self {
