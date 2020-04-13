@@ -53,7 +53,6 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                             Ok(item)
                         })
                         .collect();
-                    let nullifiers = nullifiers.unwrap();
 
                     let notes_buf =
                         &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
@@ -66,17 +65,16 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                                 Ok(TransactionOutput::from(note))
                             })
                             .collect();
-                    let notes = notes.unwrap();
 
                     let proof_buf = &a[proof_ptr..proof_ptr + Proof::SIZE];
                     let proof = zk::bytes_to_proof(&proof_buf).unwrap();
 
                     let mut tx = Transaction::default();
 
-                    nullifiers
+                    nullifiers?
                         .iter()
                         .for_each(|nul| tx.push_input(*nul).unwrap());
-                    notes
+                    notes?
                         .iter()
                         .for_each(|note| tx.push_output(*note).unwrap());
 
@@ -125,7 +123,6 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                             Ok(item)
                         })
                         .collect();
-                    let nullifiers = nullifiers.unwrap();
 
                     let notes_buf =
                         &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
@@ -138,17 +135,16 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                                 Ok(TransactionOutput::from(note))
                             })
                             .collect();
-                    let notes = notes.unwrap();
 
                     let proof_buf = &a[proof_ptr..proof_ptr + Proof::SIZE];
                     let proof = zk::bytes_to_proof(&proof_buf).unwrap();
 
                     let mut tx = Transaction::default();
 
-                    nullifiers
+                    nullifiers?
                         .iter()
                         .for_each(|nul| tx.push_input(*nul).unwrap());
-                    notes
+                    notes?
                         .iter()
                         .for_each(|note| tx.push_output(*note).unwrap());
 
