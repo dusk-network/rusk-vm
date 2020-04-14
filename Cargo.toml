@@ -23,7 +23,7 @@ threshold_crypto_ce = "0.4"
 
 dusk-abi = { path = "./dusk-abi" }
 phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "update-protobuf" }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", branch = "conversions" }
+phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", branch = "transfer" }
 
 # UNCOMMENT for local development
 # phoenix-abi = { path="../phoenix-abi" }
