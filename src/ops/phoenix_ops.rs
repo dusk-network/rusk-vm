@@ -72,7 +72,13 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                     inputs?
                         .into_iter()
                         .for_each(|input| tx.push_input(input).unwrap());
-                    notes?
+
+                    let mut notes = notes.unwrap();
+
+                    let fee_note = notes.pop().unwrap();
+                    tx.set_fee(fee_note);
+
+                    notes
                         .into_iter()
                         .for_each(|note| tx.push_output(note).unwrap());
 
@@ -122,14 +128,16 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                     let notes_buf =
                         &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
 
-                    let notes: Result<Vec<TransactionOutput>, fermion::Error> =
-                        notes_buf
-                            .chunks(Note::SIZE)
-                            .map(|bytes| {
-                                let note: Note = encoding::decode(bytes)?;
-                                Ok(TransactionOutput::from(note))
-                            })
-                            .collect();
+                    let mut notes: Result<
+                        Vec<TransactionOutput>,
+                        fermion::Error,
+                    > = notes_buf
+                        .chunks(Note::SIZE)
+                        .map(|bytes| {
+                            let note: Note = encoding::decode(bytes)?;
+                            Ok(TransactionOutput::from(note))
+                        })
+                        .collect();
 
                     let mut proof_buf =
                         &mut a[proof_ptr..proof_ptr + Proof::SIZE];
@@ -142,7 +150,13 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                             tx.push_input(input).unwrap()
                         }
                     });
-                    notes?
+
+                    let mut notes = notes.unwrap();
+
+                    let fee_note = notes.pop().unwrap();
+                    tx.set_fee(fee_note);
+
+                    notes
                         .into_iter()
                         .for_each(|note| tx.push_output(note).unwrap());
 
