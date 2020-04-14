@@ -2,7 +2,6 @@
 use dusk_abi::{self, TransferCall};
 
 // TODO: obfuscated approve and transferfrom
-// TODO: proof verification
 
 #[no_mangle]
 pub fn call() {

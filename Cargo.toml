@@ -14,16 +14,16 @@ signatory-dalek = "0.18"
 blake2-rfc = "0.2"
 failure = "0.1"
 serde = "1.0"
-kelvin = "0.9"
-kelvin-radix = "0.5"
+kelvin = "0.11.2"
+kelvin-radix = "0.7"
 fermion = "0.2"
 lazy_static = "1.4"
 parking_lot = "0.10"
 threshold_crypto_ce = "0.4"
 
 dusk-abi = { path = "./dusk-abi" }
-phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
+phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "update-protobuf" }
+phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", branch = "conversions" }
 
 # UNCOMMENT for local development
 # phoenix-abi = { path="../phoenix-abi" }

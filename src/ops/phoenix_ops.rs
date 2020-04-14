@@ -1,6 +1,7 @@
 use super::AbiCall;
 use crate::call_context::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
+use std::io::Read;
 
 use dusk_abi::encoding;
 use kelvin::ByteHash;
@@ -11,7 +12,7 @@ use phoenix::{
 use phoenix_abi::{Note, Nullifier, Proof};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
-pub const DB_PATH: &str = "/tmp/rusk-vm-demo";
+pub const DB_PATH: &str = "/tmp/rusk";
 
 const SUCCESS: Result<Option<RuntimeValue>, VMError> =
     Ok(Some(RuntimeValue::I32(1)));
@@ -131,25 +132,35 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                         notes_buf
                             .chunks(Note::SIZE)
                             .map(|bytes| {
+                                println!("one");
                                 let note: Note = encoding::decode(bytes)?;
                                 Ok(TransactionOutput::from(note))
                             })
                             .collect();
 
-                    let proof_buf = &a[proof_ptr..proof_ptr + Proof::SIZE];
-                    let proof = zk::bytes_to_proof(&proof_buf).unwrap();
+                    let mut proof_buf =
+                        &mut a[proof_ptr..proof_ptr + Proof::SIZE];
+                    let proof =
+                        zk::bytes_to_proof(&proof_buf[0..1097]).unwrap();
+                    let mut public_inputs = zk::ZkPublicInputs::default();
+                    public_inputs.read(&mut proof_buf[1097..]).unwrap();
 
                     let mut tx = Transaction::default();
 
-                    nullifiers?
-                        .into_iter()
-                        .for_each(|nul| tx.push_input(nul).unwrap());
+                    nullifiers?.into_iter().for_each(|nul| {
+                        if nul.nullifier().to_bytes().unwrap() != [0u8; 32] {
+                            tx.push_input(nul).unwrap()
+                        }
+                    });
                     notes?
                         .into_iter()
                         .for_each(|note| tx.push_output(note).unwrap());
 
+                    println!("a");
                     tx.set_proof(proof);
+                    tx.set_public_inputs(public_inputs);
                     tx.verify().unwrap();
+                    println!("b");
 
                     match tx.verify() {
                         Ok(_) => SUCCESS,
