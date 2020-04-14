@@ -2,7 +2,7 @@ use super::impl_serde_for_array;
 // use serde::de::Visitor;
 // use serde::ser::SerializeTuple;
 use super::Provisioners;
-use phoenix_abi::types::{Note, Nullifier, Proof, PublicKey};
+use phoenix_abi::types::{Input, Note, Proof, PublicKey};
 use serde::{Deserialize, Serialize};
 
 /// The standard hash type of 32 bytes
@@ -93,12 +93,12 @@ impl core::fmt::Debug for Signature {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum TransferCall {
     Transfer {
-        nullifiers: [Nullifier; Nullifier::MAX],
+        inputs: [Input; Input::MAX],
         notes: [Note; Note::MAX],
         proof: Proof,
     },
     Approve {
-        nullifiers: [Nullifier; Nullifier::MAX],
+        inputs: [Input; Input::MAX],
         notes: [Note; Note::MAX],
         pk: PublicKey,
         value: u64,
@@ -136,7 +136,7 @@ pub enum StakingCall {
         pk: PublicKey,
     },
     Stake {
-        nullifiers: [Nullifier; Nullifier::MAX],
+        inputs: [Input; Input::MAX],
         notes: [Note; Note::MAX],
         // proof: Proof,
         pk: PublicKey,

@@ -9,7 +9,7 @@ use phoenix::{
     db, utils, zk, BlsScalar, NoteGenerator, NoteVariant, PublicKey,
     Transaction, TransactionInput, TransactionOutput, TransparentNote,
 };
-use phoenix_abi::{Note, Nullifier, Proof};
+use phoenix_abi::{Input, Note, Proof};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub const DB_PATH: &str = "/tmp/rusk";
@@ -31,7 +31,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        let nullifiers_ptr = args.get(0)?;
+        let inputs_ptr = args.get(0)?;
         let notes_ptr = args.get(1)?;
         let proof_ptr = args.get(2)?;
 
@@ -40,20 +40,17 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
             .memory
             .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
                 |a| {
-                    let nullifiers_buf = &a[nullifiers_ptr
-                        ..nullifiers_ptr + (Nullifier::MAX * Nullifier::SIZE)];
-                    let nullifiers: Result<
-                        Vec<TransactionInput>,
-                        fermion::Error,
-                    > = nullifiers_buf
-                        .chunks(Nullifier::SIZE)
-                        .map(|bytes| {
-                            let nullifier: Nullifier = encoding::decode(bytes)?;
-                            let mut item = TransactionInput::default();
-                            item.nullifier = nullifier.into();
-                            Ok(item)
-                        })
-                        .collect();
+                    let inputs_buf =
+                        &a[inputs_ptr..inputs_ptr + (Input::MAX * Input::SIZE)];
+                    let inputs: Result<Vec<TransactionInput>, fermion::Error> =
+                        inputs_buf
+                            .chunks(Input::SIZE)
+                            .map(|bytes| {
+                                let input: Input = encoding::decode(bytes)?;
+                                let item: TransactionInput = input.into();
+                                Ok(item)
+                            })
+                            .collect();
 
                     let notes_buf =
                         &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
@@ -72,9 +69,9 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
 
                     let mut tx = Transaction::default();
 
-                    nullifiers?
+                    inputs?
                         .into_iter()
-                        .for_each(|nul| tx.push_input(nul).unwrap());
+                        .for_each(|input| tx.push_input(input).unwrap());
                     notes?
                         .into_iter()
                         .for_each(|note| tx.push_output(note).unwrap());
@@ -101,7 +98,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        let nullifiers_ptr = args.get(0)?;
+        let inputs_ptr = args.get(0)?;
         let notes_ptr = args.get(1)?;
         let proof_ptr = args.get(2)?;
 
@@ -110,20 +107,17 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
             .memory
             .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
                 |a| {
-                    let nullifiers_buf = &a[nullifiers_ptr
-                        ..nullifiers_ptr + (Nullifier::MAX * Nullifier::SIZE)];
-                    let nullifiers: Result<
-                        Vec<TransactionInput>,
-                        fermion::Error,
-                    > = nullifiers_buf
-                        .chunks(Nullifier::SIZE)
-                        .map(|bytes| {
-                            let nullifier: Nullifier = encoding::decode(bytes)?;
-                            let mut item = TransactionInput::default();
-                            item.nullifier = nullifier.into();
-                            Ok(item)
-                        })
-                        .collect();
+                    let inputs_buf =
+                        &a[inputs_ptr..inputs_ptr + (Input::MAX * Input::SIZE)];
+                    let inputs: Result<Vec<TransactionInput>, fermion::Error> =
+                        inputs_buf
+                            .chunks(Input::SIZE)
+                            .map(|bytes| {
+                                let input: Input = encoding::decode(bytes)?;
+                                let item: TransactionInput = input.into();
+                                Ok(item)
+                            })
+                            .collect();
 
                     let notes_buf =
                         &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
@@ -132,7 +126,6 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                         notes_buf
                             .chunks(Note::SIZE)
                             .map(|bytes| {
-                                println!("one");
                                 let note: Note = encoding::decode(bytes)?;
                                 Ok(TransactionOutput::from(note))
                             })
@@ -140,27 +133,21 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
 
                     let mut proof_buf =
                         &mut a[proof_ptr..proof_ptr + Proof::SIZE];
-                    let proof =
-                        zk::bytes_to_proof(&proof_buf[0..1097]).unwrap();
-                    let mut public_inputs = zk::ZkPublicInputs::default();
-                    public_inputs.read(&mut proof_buf[1097..]).unwrap();
+                    let proof = zk::bytes_to_proof(&proof_buf).unwrap();
 
                     let mut tx = Transaction::default();
 
-                    nullifiers?.into_iter().for_each(|nul| {
-                        if nul.nullifier().to_bytes().unwrap() != [0u8; 32] {
-                            tx.push_input(nul).unwrap()
+                    inputs?.into_iter().for_each(|input| {
+                        if input.nullifier().to_bytes().unwrap() != [0u8; 32] {
+                            tx.push_input(input).unwrap()
                         }
                     });
                     notes?
                         .into_iter()
                         .for_each(|note| tx.push_output(note).unwrap());
 
-                    println!("a");
                     tx.set_proof(proof);
-                    tx.set_public_inputs(public_inputs);
                     tx.verify().unwrap();
-                    println!("b");
 
                     match tx.verify() {
                         Ok(_) => SUCCESS,
