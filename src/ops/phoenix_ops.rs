@@ -46,6 +46,16 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                     let inputs: Result<Vec<TransactionInput>, fermion::Error> =
                         inputs_buf
                             .chunks(Input::SIZE)
+                            .take_while(|bytes| {
+                                let mut zero_count = 0;
+                                bytes.into_iter().for_each(|b| {
+                                    if *b == 0 {
+                                        zero_count += 1;
+                                    }
+                                });
+
+                                zero_count != Input::SIZE
+                            })
                             .map(|bytes| {
                                 let input: Input = encoding::decode(bytes)?;
                                 let item: TransactionInput =
@@ -62,6 +72,16 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                     let notes: Result<Vec<TransactionOutput>, fermion::Error> =
                         notes_buf
                             .chunks(Note::SIZE)
+                            .take_while(|bytes| {
+                                let mut zero_count = 0;
+                                bytes.into_iter().for_each(|b| {
+                                    if *b == 0 {
+                                        zero_count += 1;
+                                    }
+                                });
+
+                                zero_count != Note::SIZE
+                            })
                             .map(|bytes| {
                                 let note: Note = encoding::decode(bytes)?;
                                 Ok(TransactionOutput::try_from(note).map_err(
@@ -127,6 +147,16 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                     let inputs: Result<Vec<TransactionInput>, fermion::Error> =
                         inputs_buf
                             .chunks(Input::SIZE)
+                            .take_while(|bytes| {
+                                let mut zero_count = 0;
+                                bytes.into_iter().for_each(|b| {
+                                    if *b == 0 {
+                                        zero_count += 1;
+                                    }
+                                });
+
+                                zero_count != Input::SIZE
+                            })
                             .map(|bytes| {
                                 let input: Input = encoding::decode(bytes)?;
                                 let item: TransactionInput =
@@ -145,6 +175,16 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                         fermion::Error,
                     > = notes_buf
                         .chunks(Note::SIZE)
+                        .take_while(|bytes| {
+                            let mut zero_count = 0;
+                            bytes.into_iter().for_each(|b| {
+                                if *b == 0 {
+                                    zero_count += 1;
+                                }
+                            });
+
+                            zero_count != Note::SIZE
+                        })
                         .map(|bytes| {
                             let note: Note = encoding::decode(bytes)?;
                             Ok(TransactionOutput::try_from(note).map_err(
@@ -159,11 +199,9 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
 
                     let mut tx = Transaction::default();
 
-                    inputs?.into_iter().for_each(|input| {
-                        if input.nullifier().to_bytes().unwrap() != [0u8; 32] {
-                            tx.push_input(input).unwrap()
-                        }
-                    });
+                    inputs?
+                        .into_iter()
+                        .for_each(|input| tx.push_input(input).unwrap());
 
                     let mut notes = notes.unwrap();
 
