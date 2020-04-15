@@ -8,7 +8,7 @@ use dusk_abi::{
     ContractCall, FeeCall, Provisioners, Signature, StakingCall, TransferCall,
 };
 use phoenix::PublicKey as PhoenixPK;
-use phoenix_abi::{Note, Nullifier, Proof, PublicKey};
+use phoenix_abi::{Input, Note, Proof, PublicKey};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
 #[test]
@@ -75,7 +75,7 @@ fn transfer() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     // Generate some items
-    let nullifiers = [Nullifier::default(); Nullifier::MAX];
+    let inputs = [Input::default(); Input::MAX];
     let notes = [Note::default(); Note::MAX];
     let proof = Proof::default();
 
@@ -83,7 +83,7 @@ fn transfer() {
         .call_contract(
             &contract_id,
             ContractCall::new(TransferCall::Transfer {
-                nullifiers,
+                inputs,
                 notes,
                 proof,
             })
@@ -121,7 +121,7 @@ fn fee() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     let mut addresses = Provisioners::default();
-    addresses.0[0] = 1u8;
+    addresses.to_bytes()[0] = 1u8;
 
     let call: ContractCall<()> = ContractCall::new(FeeCall::Distribute {
         total_reward: 100,
@@ -177,14 +177,14 @@ fn staking() {
     network.call_contract(&contract_id, call, &mut gas).unwrap();
 
     // Add provisioner
-    let nullifiers = [Nullifier::default(); Nullifier::MAX];
+    let inputs = [Input::default(); Input::MAX];
     let notes = [Note::default(); Note::MAX];
-    let prov_pk = PhoenixPK::default();
+    let prov_pk = PublicKey::default();
 
     let call: ContractCall<bool> = ContractCall::new(StakingCall::Stake {
-        nullifiers,
+        inputs,
         notes,
-        pk: prov_pk.into(),
+        pk: prov_pk,
         pk_bls: [2u8; 32],
         expiration: 100,
         value: 1000,
@@ -198,8 +198,7 @@ fn staking() {
 
     // Check if he was added properly
     let call: ContractCall<(u64, [u8; 32], u64, u64)> =
-        ContractCall::new(StakingCall::GetStake { pk: prov_pk.into() })
-            .unwrap();
+        ContractCall::new(StakingCall::GetStake { pk: prov_pk }).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
     let results = network.call_contract(&contract_id, call, &mut gas).unwrap();
@@ -210,7 +209,7 @@ fn staking() {
 
     // Withdraw the stake
     let call: ContractCall<bool> = ContractCall::new(StakingCall::Withdraw {
-        pk: prov_pk.into(),
+        pk: prov_pk,
         // sig: Signature([0u8; 64]),
         current_height: 200,
     })
@@ -221,8 +220,7 @@ fn staking() {
 
     // provisioner should have been removed now
     let call: ContractCall<(u64, [u8; 32], u64, u64)> =
-        ContractCall::new(StakingCall::GetStake { pk: prov_pk.into() })
-            .unwrap();
+        ContractCall::new(StakingCall::GetStake { pk: prov_pk }).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
     let results = network.call_contract(&contract_id, call, &mut gas).unwrap();
@@ -233,9 +231,9 @@ fn staking() {
 
     // Now add a provisioner, and slash them
     let call: ContractCall<bool> = ContractCall::new(StakingCall::Stake {
-        nullifiers,
+        inputs,
         notes,
-        pk: prov_pk.into(),
+        pk: prov_pk,
         pk_bls: [2u8; 32],
         expiration: 100,
         value: 1000,
@@ -248,7 +246,7 @@ fn staking() {
     network.call_contract(&contract_id, call, &mut gas).unwrap();
 
     let call: ContractCall<bool> = ContractCall::new(StakingCall::Slash {
-        pk: prov_pk.into(),
+        pk: prov_pk,
         height: 10,
         step: 2,
         sig1: Signature::from_slice(&[0u8; 64]),
@@ -264,8 +262,7 @@ fn staking() {
 
     // provisioner should have been removed now
     let call: ContractCall<(u64, [u8; 32], u64, u64)> =
-        ContractCall::new(StakingCall::GetStake { pk: prov_pk.into() })
-            .unwrap();
+        ContractCall::new(StakingCall::GetStake { pk: prov_pk }).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
     let results = network.call_contract(&contract_id, call, &mut gas).unwrap();
