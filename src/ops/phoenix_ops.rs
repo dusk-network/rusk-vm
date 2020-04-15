@@ -95,10 +95,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                         &tx,
                     ) {
                         Ok(_) => SUCCESS,
-                        Err(e) => {
-                            println!("{}", e);
-                            FAIL
-                        }
+                        Err(e) => FAIL,
                     }
                 },
             )
