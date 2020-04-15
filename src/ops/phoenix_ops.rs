@@ -1,6 +1,7 @@
 use super::AbiCall;
 use crate::call_context::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
+use std::convert::{TryFrom, TryInto};
 use std::env;
 use std::io::Read;
 use std::path::Path;
@@ -8,7 +9,7 @@ use std::path::Path;
 use dusk_abi::encoding;
 use kelvin::ByteHash;
 use phoenix::{
-    db, utils, zk, BlsScalar, NoteGenerator, NoteVariant, PublicKey,
+    db, utils, zk, BlsScalar, Error, NoteGenerator, NoteVariant, PublicKey,
     Transaction, TransactionInput, TransactionOutput, TransparentNote,
 };
 use phoenix_abi::{Input, Note, Proof};
@@ -47,7 +48,10 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                             .chunks(Input::SIZE)
                             .map(|bytes| {
                                 let input: Input = encoding::decode(bytes)?;
-                                let item: TransactionInput = input.into();
+                                let item: TransactionInput =
+                                    input.try_into().map_err(|_| {
+                                        fermion::Error::InvalidRepresentation
+                                    })?;
                                 Ok(item)
                             })
                             .collect();
@@ -60,7 +64,9 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                             .chunks(Note::SIZE)
                             .map(|bytes| {
                                 let note: Note = encoding::decode(bytes)?;
-                                Ok(TransactionOutput::from(note))
+                                Ok(TransactionOutput::try_from(note).map_err(
+                                    |_| fermion::Error::InvalidRepresentation,
+                                )?)
                             })
                             .collect();
 
@@ -126,7 +132,10 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                             .chunks(Input::SIZE)
                             .map(|bytes| {
                                 let input: Input = encoding::decode(bytes)?;
-                                let item: TransactionInput = input.into();
+                                let item: TransactionInput =
+                                    input.try_into().map_err(|_| {
+                                        fermion::Error::InvalidRepresentation
+                                    })?;
                                 Ok(item)
                             })
                             .collect();
@@ -141,7 +150,9 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                         .chunks(Note::SIZE)
                         .map(|bytes| {
                             let note: Note = encoding::decode(bytes)?;
-                            Ok(TransactionOutput::from(note))
+                            Ok(TransactionOutput::try_from(note).map_err(
+                                |_| fermion::Error::InvalidRepresentation,
+                            )?)
                         })
                         .collect();
 
