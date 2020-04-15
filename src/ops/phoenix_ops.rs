@@ -23,6 +23,11 @@ const FAIL: Result<Option<RuntimeValue>, VMError> =
 
 pub struct PhoenixStore;
 
+#[inline]
+fn has_value(bytes: &[u8]) -> bool {
+    !bytes.iter().all(|b| *b == 0)
+}
+
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
     const ARGUMENTS: &'static [ValueType] =
         &[ValueType::I32, ValueType::I32, ValueType::I32];
@@ -46,16 +51,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                     let inputs: Result<Vec<TransactionInput>, fermion::Error> =
                         inputs_buf
                             .chunks(Input::SIZE)
-                            .take_while(|bytes| {
-                                let mut zero_count = 0;
-                                bytes.into_iter().for_each(|b| {
-                                    if *b == 0 {
-                                        zero_count += 1;
-                                    }
-                                });
-
-                                zero_count != Input::SIZE
-                            })
+                            .take_while(|bytes| has_value(bytes))
                             .map(|bytes| {
                                 let input: Input = encoding::decode(bytes)?;
                                 let item: TransactionInput =
@@ -72,16 +68,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                     let notes: Result<Vec<TransactionOutput>, fermion::Error> =
                         notes_buf
                             .chunks(Note::SIZE)
-                            .take_while(|bytes| {
-                                let mut zero_count = 0;
-                                bytes.into_iter().for_each(|b| {
-                                    if *b == 0 {
-                                        zero_count += 1;
-                                    }
-                                });
-
-                                zero_count != Note::SIZE
-                            })
+                            .take_while(|bytes| has_value(bytes))
                             .map(|bytes| {
                                 let note: Note = encoding::decode(bytes)?;
                                 Ok(TransactionOutput::try_from(note).map_err(
@@ -147,16 +134,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                     let inputs: Result<Vec<TransactionInput>, fermion::Error> =
                         inputs_buf
                             .chunks(Input::SIZE)
-                            .take_while(|bytes| {
-                                let mut zero_count = 0;
-                                bytes.into_iter().for_each(|b| {
-                                    if *b == 0 {
-                                        zero_count += 1;
-                                    }
-                                });
-
-                                zero_count != Input::SIZE
-                            })
+                            .take_while(|bytes| has_value(bytes))
                             .map(|bytes| {
                                 let input: Input = encoding::decode(bytes)?;
                                 let item: TransactionInput =
@@ -175,16 +153,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                         fermion::Error,
                     > = notes_buf
                         .chunks(Note::SIZE)
-                        .take_while(|bytes| {
-                            let mut zero_count = 0;
-                            bytes.into_iter().for_each(|b| {
-                                if *b == 0 {
-                                    zero_count += 1;
-                                }
-                            });
-
-                            zero_count != Note::SIZE
-                        })
+                        .take_while(|bytes| has_value(bytes))
                         .map(|bytes| {
                             let note: Note = encoding::decode(bytes)?;
                             Ok(TransactionOutput::try_from(note).map_err(
