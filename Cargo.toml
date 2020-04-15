@@ -33,7 +33,6 @@ phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
 tempfile = "*"
 criterion = "0.3"
 
-default_account = { path = "tests/contracts/default_account/wasm" }
 factorial = { path = "tests/contracts/factorial/wasm" }
 transfer = { path = "tests/contracts/transfer/wasm" }
 fee = { path = "tests/contracts/fee/wasm" }
