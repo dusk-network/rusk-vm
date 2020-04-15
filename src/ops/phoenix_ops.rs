@@ -89,7 +89,10 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                         &tx,
                     ) {
                         Ok(_) => SUCCESS,
-                        Err(_) => FAIL,
+                        Err(e) => {
+                            println!("{}", e);
+                            FAIL
+                        }
                     }
                 },
             )
@@ -164,7 +167,6 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                         .for_each(|note| tx.push_output(note).unwrap());
 
                     tx.set_proof(proof);
-                    tx.verify().unwrap();
 
                     match tx.verify() {
                         Ok(_) => SUCCESS,
