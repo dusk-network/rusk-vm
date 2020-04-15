@@ -4,9 +4,7 @@ mod helpers;
 use kelvin::Blake2b;
 use std::fs;
 
-use dusk_abi::{
-    ContractCall, FeeCall, Provisioners, Signature, StakingCall, TransferCall,
-};
+use dusk_abi::{ContractCall, FeeCall, Provisioners, Signature, TransferCall};
 use phoenix::PublicKey as PhoenixPK;
 use phoenix_abi::{Input, Note, Proof, PublicKey};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};

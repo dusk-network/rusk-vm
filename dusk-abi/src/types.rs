@@ -129,42 +129,6 @@ pub enum FeeCall {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub enum StakingCall {
-    Init {
-        address: H256,
-        pk: PublicKey,
-    },
-    Stake {
-        inputs: [Input; Input::MAX],
-        notes: [Note; Note::MAX],
-        // proof: Proof,
-        pk: PublicKey,
-        pk_bls: [u8; 32],
-        expiration: u64,
-        value: u64,
-        current_height: u64,
-    },
-    Withdraw {
-        // proof: Proof,
-        pk: PublicKey,
-        // sig: Signature,
-        current_height: u64,
-    },
-    Slash {
-        pk: PublicKey,
-        height: u64,
-        step: u8,
-        sig1: Signature,
-        sig2: Signature,
-        msg1: [u8; 32],
-        msg2: [u8; 32],
-    },
-    GetStake {
-        pk: PublicKey,
-    },
-}
-
 #[cfg(feature = "std")]
 mod content {
     use std::io::Read;
