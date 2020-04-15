@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use dataview::Pod;
 use dusk_abi::H256;
-use kelvin::{ByteHash, Content, Map, Sink, Source, ValRef, ValRefMut};
+use kelvin::{ByteHash, Content, Sink, Source, ValRef, ValRefMut};
 use kelvin_radix::DefaultRadixMap as RadixMap;
 
 use crate::call_context::{CallContext, Resolver};
@@ -11,7 +11,7 @@ use crate::contract::{Contract, MeteredContract};
 use crate::gas::GasMeter;
 use crate::VMError;
 
-pub type Storage<H> = RadixMap<H256, Vec<u8>, H>;
+pub type Storage<H> = RadixMap<Vec<u8>, Vec<u8>, H>;
 
 #[derive(Clone)]
 pub struct ContractState<H: ByteHash> {

@@ -13,20 +13,13 @@ signatory = "0.18"
 signatory-dalek = "0.18"
 blake2-rfc = "0.2"
 failure = "0.1"
-kelvin = "0.9"
-kelvin-radix = "0.5"
+kelvin = "0.12"
+kelvin-radix = "0.8"
 lazy_static = "1.4"
 parking_lot = "0.10"
 
 dusk-abi = { path = "./dusk-abi" }
 dataview = { git = "ssh://git@github.com/dusk-network/dataview.git" }
-
-# phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
-# phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
-
-# # UNCOMMENT for local development
-# # phoenix-abi = { path="../phoenix-abi" }
-# # phoenix = { path="../phoenix" }
 
 [dev-dependencies]
 tempfile = "*"

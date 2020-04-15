@@ -32,18 +32,19 @@ pub const DEBUG_BUFFER_SIZE: usize = 1024 * 16;
 
 // declare available host-calls
 mod external {
-    use super::*;
     extern "C" {
         pub fn balance(buffer: &mut u8);
 
-        pub fn set_storage(
-            key: &[u8; 32],
-            value: &[u8; STORAGE_VALUE_SIZE],
-            value_len: i32,
-        );
+        pub fn set_storage(key: &u8, key_len: i32, value: &u8, value_len: i32);
         // `get_storage` returns the length of the value
         // 0 is equivalent to no value
-        pub fn get_storage(key: &u8, key_len: i32, value: &mut u8) -> i32;
+        pub fn get_storage(
+            key: &u8,
+            key_len: i32,
+            value: &mut u8,
+            val_len: i32,
+        ) -> i32;
+        pub fn delete_storage(key: &u8, key_len: i32);
         pub fn caller(buffer: &mut u8);
         pub fn self_hash(buffer: &mut u8);
 
@@ -68,21 +69,28 @@ mod external {
 }
 
 /// Set a contract storage key value
-pub fn set_storage<K, V>(key: K, val: V)
+pub fn set_storage<K, V>(key: &K, val: V)
 where
-    K: AsRef<[u8]>,
+    K: Pod,
     V: Pod,
 {
-    assert!(key.as_ref().len() <= STORAGE_KEY_SIZE);
-    let key_slice = key.as_ref();
-    let mut key_buf = [0u8; STORAGE_KEY_SIZE];
-    key_buf[0..key_slice.len()].copy_from_slice(key.as_ref());
     unsafe {
-        let mut val_buf = [0u8; STORAGE_VALUE_SIZE];
-        let len = mem::size_of::<V>();
-        val_buf[0..len].copy_from_slice(val.as_bytes());
+        external::set_storage(
+            key.as_byte_ptr(),
+            mem::size_of::<K>() as i32,
+            val.as_byte_ptr(),
+            mem::size_of::<V>() as i32,
+        );
+    }
+}
 
-        external::set_storage(&key_buf, &val_buf, len as i32);
+/// Set a contract storage key value
+pub fn delete_storage<K>(key: &K)
+where
+    K: Pod,
+{
+    unsafe {
+        external::delete_storage(key.as_byte_ptr(), mem::size_of::<K>() as i32)
     }
 }
 
@@ -98,6 +106,7 @@ where
             key.as_byte_ptr(),
             mem::size_of::<K>() as i32,
             result.as_byte_ptr_mut(),
+            mem::size_of::<V>() as i32,
         )
     };
     if code != -1 {
