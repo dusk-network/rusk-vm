@@ -8,7 +8,7 @@ edition = "2018"
 serde = { version = "*", default-features = false }
 fermion = { version = "0.2", default-features = false }
 kelvin = { version = "0.11.2", optional = true }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", branch = "conversions", default-features = false }
+phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", default-features = false }
 
 [features]
 default = ["std"]
