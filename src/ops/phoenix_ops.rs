@@ -1,7 +1,9 @@
 use super::AbiCall;
 use crate::call_context::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
+use std::env;
 use std::io::Read;
+use std::path::Path;
 
 use dusk_abi::encoding;
 use kelvin::ByteHash;
@@ -11,8 +13,6 @@ use phoenix::{
 };
 use phoenix_abi::{Input, Note, Proof};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
-
-pub const DB_PATH: &str = "/tmp/rusk";
 
 const SUCCESS: Result<Option<RuntimeValue>, VMError> =
     Ok(Some(RuntimeValue::I32(1)));
@@ -84,7 +84,10 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
 
                     tx.set_proof(proof);
 
-                    match db::store(DB_PATH, &tx) {
+                    match db::store(
+                        Path::new(&env::var("PHOENIX_DB").unwrap()),
+                        &tx,
+                    ) {
                         Ok(_) => SUCCESS,
                         Err(_) => FAIL,
                     }
@@ -213,7 +216,10 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixCredit {
                     );
                     tx.push_output(item).unwrap();
 
-                    match db::store(DB_PATH, &tx) {
+                    match db::store(
+                        Path::new(&env::var("PHOENIX_DB").unwrap()),
+                        &tx,
+                    ) {
                         Ok(_) => SUCCESS,
                         Err(_) => FAIL,
                     }
