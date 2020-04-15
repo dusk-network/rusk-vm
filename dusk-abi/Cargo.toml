@@ -5,7 +5,7 @@ authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [dependencies]
-kelvin = { version = "0.9", optional = true }
+kelvin = { version = "0.12", optional = true }
 dataview = { git = "ssh://git@github.com/dusk-network/dataview.git" }
 
 [features]

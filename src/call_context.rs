@@ -261,6 +261,28 @@ where
             .memory_mut(closure)
     }
 
+    pub fn memory_storage_mut<
+        R,
+        C: FnOnce(&mut [u8], &mut Storage<H>) -> Result<R, VMError>,
+    >(
+        &mut self,
+        closure: C,
+    ) -> Result<R, VMError> {
+        let CallContext {
+            ref mut stack,
+            ref mut state,
+            ..
+        } = self;
+
+        let frame = stack.last_mut().expect("Invalid stack");
+
+        let callee = &frame.callee;
+        let mut state = state.get_contract_state_mut_or_default(callee)?;
+        let storage = state.storage_mut();
+
+        frame.memory_mut(|m| closure(m, storage))
+    }
+
     pub fn write_at<V: Pod>(&mut self, ofs: usize, value: &V) {
         self.memory_mut(|m| {
             m[ofs..ofs + mem::size_of::<V>()].copy_from_slice(value.as_bytes());

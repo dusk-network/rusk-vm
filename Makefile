@@ -27,7 +27,7 @@ publish-doc: ## Publish the documentation as github pages
 
 wasm: ## Generate the WASM for the contract given (e.g. make wasm for=transfer)
 	@cargo rustc \
-		--manifest-path=tests/contracts/$(for)/wasm/Cargo.toml \
+		--manifest-path=tests/contracts/$(for)/Cargo.toml \
 		--release \
 		--target wasm32-unknown-unknown \
 		-- -C link-args=-s
