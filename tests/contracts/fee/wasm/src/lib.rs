@@ -60,7 +60,7 @@ pub fn call() {
             // reward by the amount of provisioners
             let provisioners_count = {
                 let mut count = 0;
-                addresses.0.chunks(32).for_each(|a| {
+                addresses.to_bytes().chunks(32).for_each(|a| {
                     if a != [0u8; 32] {
                         count += 1;
                     }
@@ -87,7 +87,7 @@ pub fn call() {
 // This function increases the reward amount for each provisioner address
 // in `addresses` by `reward`.
 fn allocate_provisioner_rewards(reward: u64, addresses: Provisioners) {
-    addresses.0.chunks(32).for_each(|a| {
+    addresses.to_bytes().chunks(32).for_each(|a| {
         if a != [0u8; 32] {
             let (nonce, current_reward) =
                 dusk_abi::get_storage(a).unwrap_or((0 as u32, 0 as u64));

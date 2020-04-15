@@ -14,15 +14,15 @@ signatory-dalek = "0.18"
 blake2-rfc = "0.2"
 failure = "0.1"
 serde = "1.0"
-kelvin = "0.9"
-kelvin-radix = "0.5"
+kelvin = "0.11.2"
+kelvin-radix = "0.7"
 fermion = "0.2"
 lazy_static = "1.4"
 parking_lot = "0.10"
 threshold_crypto_ce = "0.4"
 
 dusk-abi = { path = "./dusk-abi" }
-phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
+phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git", branch = "plonk" }
 phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
 
 # UNCOMMENT for local development
@@ -33,7 +33,6 @@ phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
 tempfile = "*"
 criterion = "0.3"
 
-default_account = { path = "tests/contracts/default_account/wasm" }
 factorial = { path = "tests/contracts/factorial/wasm" }
 transfer = { path = "tests/contracts/transfer/wasm" }
 fee = { path = "tests/contracts/fee/wasm" }
@@ -42,3 +41,17 @@ fee = { path = "tests/contracts/fee/wasm" }
 sample_size = 10
 name = "factorial"
 harness = false
+
+# This is a temporary fix until we stop to use zexe; it's needed to replace
+# in the dependency graph the library below with the revision specified.
+# Unfortunately `patch` works matching just the URL - doesn't take in account
+# revision or branches, see:  https://github.com/rust-lang/cargo/issues/5478
+#
+# A quick workaround is changing the URL with double slashes
+[patch.'https://github.com/scipr-lab/zexe/']
+algebra = { git = 'https://github.com/scipr-lab//zexe', rev="2c22b77" }
+ff-fft = { git = "https://github.com/scipr-lab//zexe", rev="2c22b77" }
+bench-utils = { git = "https://github.com/scipr-lab//zexe", rev="2c22b77" }
+
+[patch.'https://github.com/scipr-lab/poly-commit']
+poly-commit = { git = "https://github.com/scipr-lab//poly-commit", rev="77676213"}

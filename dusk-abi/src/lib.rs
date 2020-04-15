@@ -30,7 +30,7 @@ mod provisioners;
 
 pub use contract_call::{ContractCall, ContractReturn};
 pub use provisioners::Provisioners;
-pub use types::{FeeCall, Signature, StakingCall, TransferCall, H256};
+pub use types::{FeeCall, Signature, TransferCall, H256};
 
 // TODO: Extend this error type
 pub use fermion::Error;
