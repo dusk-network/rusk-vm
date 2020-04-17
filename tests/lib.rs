@@ -42,6 +42,7 @@ fn factorial() {
 }
 
 #[test]
+#[ignore]
 fn transfer() {
     let code = contract_code!("transfer");
 
@@ -88,6 +89,7 @@ fn transfer() {
 }
 
 #[test]
+#[ignore]
 fn fee() {
     let code = contract_code!("fee");
 

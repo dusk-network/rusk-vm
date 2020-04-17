@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 dusk-abi = { path = "../../../../dusk-abi", default-features = false }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git", default-features = false }
+phoenix-abi = { git = "https://github.com/dusk-network/phoenix-abi", default-features = false }
 serde = { version = "*", default-features = false, features = ["derive"] }
 
 [profile.release]
