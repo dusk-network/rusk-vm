@@ -3,13 +3,12 @@ use crate::call_context::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 use std::convert::{TryFrom, TryInto};
 use std::env;
-use std::io::Read;
 use std::path::Path;
 
 use dusk_abi::encoding;
 use kelvin::ByteHash;
 use phoenix::{
-    db, utils, zk, BlsScalar, Error, NoteGenerator, NoteVariant, PublicKey,
+    db, utils, zk, BlsScalar, NoteGenerator, NoteVariant, PublicKey,
     Transaction, TransactionInput, TransactionOutput, TransparentNote,
 };
 use phoenix_abi::{Input, Note, Proof};
@@ -102,7 +101,7 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
                         &tx,
                     ) {
                         Ok(_) => SUCCESS,
-                        Err(e) => FAIL,
+                        Err(_) => FAIL,
                     }
                 },
             )
@@ -148,22 +147,19 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
                     let notes_buf =
                         &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
 
-                    let mut notes: Result<
-                        Vec<TransactionOutput>,
-                        fermion::Error,
-                    > = notes_buf
-                        .chunks(Note::SIZE)
-                        .take_while(|bytes| has_value(bytes))
-                        .map(|bytes| {
-                            let note: Note = encoding::decode(bytes)?;
-                            Ok(TransactionOutput::try_from(note).map_err(
-                                |_| fermion::Error::InvalidRepresentation,
-                            )?)
-                        })
-                        .collect();
+                    let notes: Result<Vec<TransactionOutput>, fermion::Error> =
+                        notes_buf
+                            .chunks(Note::SIZE)
+                            .take_while(|bytes| has_value(bytes))
+                            .map(|bytes| {
+                                let note: Note = encoding::decode(bytes)?;
+                                Ok(TransactionOutput::try_from(note).map_err(
+                                    |_| fermion::Error::InvalidRepresentation,
+                                )?)
+                            })
+                            .collect();
 
-                    let mut proof_buf =
-                        &mut a[proof_ptr..proof_ptr + Proof::SIZE];
+                    let proof_buf = &mut a[proof_ptr..proof_ptr + Proof::SIZE];
                     let proof = zk::bytes_to_proof(&proof_buf).unwrap();
 
                     let mut tx = Transaction::default();

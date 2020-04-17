@@ -1,9 +1,5 @@
 #![no_std]
-use dusk_abi::{
-    self, encoding, FeeCall, Provisioners, Signature, CALL_DATA_SIZE, H256,
-};
-use phoenix_abi::types::PublicKey;
-use serde::{Deserialize, Serialize};
+use dusk_abi::{self, FeeCall, Provisioners};
 
 // TODO: phoenix works with u64, but it would be more advisable to work with u128.
 #[no_mangle]
@@ -11,7 +7,7 @@ pub fn call() {
     let data: FeeCall = dusk_abi::args();
     match data {
         FeeCall::Withdraw {
-            sig,
+            sig: _,
             address,
             value,
             pk,

@@ -5,7 +5,6 @@ use kelvin::Blake2b;
 use std::fs;
 
 use dusk_abi::{ContractCall, FeeCall, Provisioners, Signature, TransferCall};
-use phoenix::PublicKey as PhoenixPK;
 use phoenix_abi::{Input, Note, Proof, PublicKey};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
@@ -43,6 +42,13 @@ fn factorial() {
 
 #[test]
 #[ignore]
+// Keep the tests for reference at the moment, but skip it because they're
+// outdated.
+//
+// To test the `transfer` contract run the tests from `rusk` repo.
+//
+// Eventually all the contracts will be moved under `rusk`.
+// See: https://github.com/dusk-network/rusk/issues/8
 fn transfer() {
     let code = contract_code!("transfer");
 
@@ -79,7 +85,7 @@ fn transfer() {
         "Transfer Contract called.
          Expected to returns `false` until proper implementation."
     );
-    if (succeeded) {
+    if succeeded {
         // Ensure data was written
         fs::metadata("/tmp/rusk-vm-demo/data").unwrap();
 
@@ -90,6 +96,10 @@ fn transfer() {
 
 #[test]
 #[ignore]
+// Keep the tests for reference at the moment, but skip it because they're
+// outdated.
+// Eventually all the contracts will be moved under `rusk`.
+// See: https://github.com/dusk-network/rusk/issues/8
 fn fee() {
     let code = contract_code!("fee");
 
@@ -102,7 +112,7 @@ fn fee() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let mut addresses = Provisioners::default();
+    let addresses = Provisioners::default();
     addresses.to_bytes()[0] = 1u8;
 
     let call: ContractCall<()> = ContractCall::new(FeeCall::Distribute {
