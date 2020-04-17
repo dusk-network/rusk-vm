@@ -2,15 +2,18 @@ use super::impl_serde_for_array;
 
 const PROVISIONERS_SIZE: usize = 32 * 128;
 
+/// The List of Provisioners
 pub struct Provisioners([u8; PROVISIONERS_SIZE]);
 
 impl_serde_for_array!(Provisioners, PROVISIONERS_SIZE);
 
 impl Provisioners {
+    /// Returns Provisioners' list as an array of bytes
     pub fn to_bytes(&self) -> [u8; PROVISIONERS_SIZE] {
         self.0
     }
 
+    /// Build a Provisioners' list from an array of bytes
     pub fn from_bytes(bytes: [u8; PROVISIONERS_SIZE]) -> Self {
         Provisioners(bytes)
     }
