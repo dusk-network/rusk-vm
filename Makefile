@@ -32,9 +32,10 @@ wasm: ## Generate the WASM for the contract given (e.g. make wasm for=transfer)
 		--target wasm32-unknown-unknown \
 		-- -C link-args=-s
 
-test: ## Run the tests in release mode
-	@make wasm for=transfer && \
+test: ## Run the contracts' tests
+	@make wasm for=factorial && \
+		make wasm for=transfer && \
 		make wasm for=fee && \
-		cargo test --release -- --nocapture
+		cargo test -- --nocapture
 
 .PHONY: help doc doc-internal publish-doc wasm test

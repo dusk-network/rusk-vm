@@ -22,8 +22,8 @@ parking_lot = "0.10"
 threshold_crypto_ce = "0.4"
 
 dusk-abi = { path = "./dusk-abi" }
-phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
-phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
+phoenix = { git = "https://github.com/dusk-network/phoenix" }
+phoenix-abi = { git = "https://github.com/dusk-network/phoenix-abi" }
 
 # UNCOMMENT for local development
 # phoenix-abi = { path="../phoenix-abi" }
@@ -49,7 +49,7 @@ harness = false
 #
 # A quick workaround is changing the URL with double slashes
 [patch.'https://github.com/scipr-lab/zexe/']
-algebra = { git = 'https://github.com/scipr-lab//zexe', rev="2c22b77" }
+algebra = { git = "https://github.com/scipr-lab//zexe", rev="2c22b77" }
 ff-fft = { git = "https://github.com/scipr-lab//zexe", rev="2c22b77" }
 bench-utils = { git = "https://github.com/scipr-lab//zexe", rev="2c22b77" }
 
