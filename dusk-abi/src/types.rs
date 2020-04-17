@@ -118,9 +118,9 @@ pub enum TransferCall {
     },
     /// The `TransferFrom` call arguments
     TransferFrom {
-        /// The sneder's public key used for TransferFrom call
+        /// The sender's public key used for TransferFrom call
         sender: PublicKey,
-        /// The recipient's public key usedfor TransferFrom call
+        /// The recipient's public key used for TransferFrom call
         recipient: PublicKey,
         /// The transparent value for the TransferFrom call
         value: u64,
@@ -148,7 +148,8 @@ pub enum FeeCall {
         total_reward: u64,
         /// The list of provisioners
         addresses: Provisioners,
-        /// The Public Key to distribute from
+        /// The Public Key of the block generator, to distribute a portion of
+        /// the reward to
         pk: PublicKey,
     },
     /// The GetBalanceAndNonce call argument
