@@ -17,6 +17,9 @@ kelvin = "0.12"
 kelvin-radix = "0.8"
 lazy_static = "1.4"
 parking_lot = "0.10"
+threshold_crypto_ce = "0.4"
+phoenix = { git = "ssh://git@github.com/dusk-network/phoenix.git" }
+phoenix-abi = { git = "ssh://git@github.com/dusk-network/phoenix-abi.git" }
 
 dusk-abi = { path = "./dusk-abi" }
 dataview = { git = "ssh://git@github.com/dusk-network/dataview.git" }
