@@ -1,6 +1,6 @@
 [package]
 name = "rusk-vm"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
