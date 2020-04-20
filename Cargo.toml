@@ -21,7 +21,7 @@ threshold_crypto_ce = "0.4"
 phoenix = { git = "https://github.com/dusk-network/phoenix.git" }
 phoenix-abi = { git = "https://github.com/dusk-network/phoenix-abi.git" }
 
-dusk-abi = { path = "./dusk-abi" }
+dusk-abi = { git = "https://github.com/dusk-network/dusk-abi" }
 dataview = { git = "https://github.com/dusk-network/dataview.git" }
 
 [dev-dependencies]
