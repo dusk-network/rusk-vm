@@ -69,7 +69,7 @@ abi_resolver! {
         1, "debug" => debug::Debug,
         2, "set_storage" => storage::SetStorage,
         3, "get_storage" => storage::GetStorage,
-        4, "delete_storage" => storage::DeleteStorage
+        4, "delete_storage" => storage::DeleteStorage,
         5, "argument" => argument::Argument,
         6, "call_contract" => call_contract::CallContract,
         7, "balance" => balance::Balance,
@@ -79,6 +79,6 @@ abi_resolver! {
         11, "phoenix_store" => phoenix_ops::PhoenixStore,
         12, "phoenix_verify" => phoenix_ops::PhoenixVerify,
         13, "phoenix_credit" => phoenix_ops::PhoenixCredit,
-        14, "bls_verify" => bls::BLS,
+        14, "bls_verify" => bls::BLS
     }
 }

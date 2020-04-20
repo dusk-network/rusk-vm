@@ -3,7 +3,6 @@ mod helpers;
 
 use kelvin::Blake2b;
 
-use dusk_abi::TransferCall;
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
 #[test]

@@ -8,10 +8,9 @@ pub mod balance;
 pub mod bls;
 pub mod call_contract;
 pub mod debug;
-// pub mod ed25519;
 pub mod gas;
 pub mod panic;
-// pub mod phoenix_ops;
+pub mod phoenix_ops;
 pub mod ret;
 use kelvin::ByteHash;
 

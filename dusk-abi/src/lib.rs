@@ -19,7 +19,7 @@ mod types;
 use dataview::Pod;
 pub use helpers::PodExt;
 
-pub use types::H256;
+pub use types::{Signature, H256};
 
 /// The maximum size of values in contract storage
 pub const STORAGE_VALUE_SIZE: usize = 1024 * 4;
@@ -63,7 +63,12 @@ mod external {
             ret_len: i32,
         );
         pub fn ret(data: &u8, len: i32) -> !;
-
+        pub fn bls_verify(
+            pub_key: &[u8; 32],
+            signature: &[u8; 64],
+            buffer: &u8,
+            buffer_len: i32,
+        ) -> bool;
         pub fn gas(value: i32);
     }
 }
