@@ -27,15 +27,14 @@ publish-doc: ## Publish the documentation as github pages
 
 wasm: ## Generate the WASM for the contract given (e.g. make wasm for=transfer)
 	@cargo rustc \
-		--manifest-path=tests/contracts/$(for)/wasm/Cargo.toml \
+		--manifest-path=tests/contracts/$(for)/Cargo.toml \
 		--release \
 		--target wasm32-unknown-unknown \
 		-- -C link-args=-s
 
 test: ## Run the contracts' tests
 	@make wasm for=factorial && \
-		make wasm for=transfer && \
-		make wasm for=fee && \
+		make wasm for=storage && \
 		cargo test -- --nocapture
 
 .PHONY: help doc doc-internal publish-doc wasm test

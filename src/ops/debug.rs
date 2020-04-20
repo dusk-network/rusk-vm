@@ -15,8 +15,11 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Debug {
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        context.memory().with_direct_access(|a| {
-            let slice = args.to_slice(a, 0)?;
+        let msg_ofs = args.get(0)? as usize;
+        let msg_len = args.get(1)? as usize;
+
+        context.memory(|a| {
+            let slice = &a[msg_ofs..msg_ofs + msg_len];
             let str = std::str::from_utf8(slice)
                 .map_err(|_| host_trap(VMError::InvalidUtf8))?;
             println!("CONTRACT DEBUG: {:?}", str);

@@ -1,6 +1,6 @@
 [package]
 name = "rusk-vm"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
@@ -13,32 +13,22 @@ signatory = "0.18"
 signatory-dalek = "0.18"
 blake2-rfc = "0.2"
 failure = "0.1"
-serde = "1.0"
-kelvin = "0.11.2"
-kelvin-radix = "0.7"
-fermion = "0.2"
+kelvin = "0.12"
+kelvin-radix = "0.8"
 lazy_static = "1.4"
 parking_lot = "0.10"
 threshold_crypto_ce = "0.4"
+phoenix = { git = "https://github.com/dusk-network/phoenix.git" }
+phoenix-abi = { git = "https://github.com/dusk-network/phoenix-abi.git" }
 
 dusk-abi = { path = "./dusk-abi" }
-phoenix = { git = "https://github.com/dusk-network/phoenix" }
-phoenix-abi = { git = "https://github.com/dusk-network/phoenix-abi" }
-
-# UNCOMMENT for local development
-# phoenix-abi = { path="../phoenix-abi" }
-# phoenix = { path="../phoenix" }
+dataview = { git = "https://github.com/dusk-network/dataview.git" }
 
 [dev-dependencies]
 tempfile = "*"
 criterion = "0.3"
 
-factorial = { path = "tests/contracts/factorial/wasm" }
-transfer = { path = "tests/contracts/transfer/wasm" }
-fee = { path = "tests/contracts/fee/wasm" }
-
 [[bench]]
-sample_size = 10
 name = "factorial"
 harness = false
 

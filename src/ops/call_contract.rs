@@ -2,7 +2,7 @@ use super::AbiCall;
 use crate::call_context::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
 
-use dusk_abi::{encoding, CALL_DATA_SIZE, H256};
+use dusk_abi::{PodExt, H256};
 use kelvin::ByteHash;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
@@ -14,6 +14,8 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for CallContract {
         ValueType::I32,
         ValueType::I32,
         ValueType::I32,
+        ValueType::I32,
+        ValueType::I32,
     ];
     const RETURN: Option<ValueType> = None;
 
@@ -21,25 +23,21 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for CallContract {
         context: &mut CallContext<S, H>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        let target_ofs = args.get(0)?;
-        let amount_ofs = args.get(1)?;
-        let data_ofs = args.get(2)?;
-        let data_len = args.get(3)?;
+        let target_ptr = args.get(0)? as usize;
+        let amount_ptr = args.get(1)? as usize;
+        let argument_ptr = args.get(2)? as usize;
+        let argument_len = args.get(3)? as usize;
+        let return_ptr = args.get(4)? as usize;
+        let return_len = args.get(5)? as usize;
 
-        let mut call_buf = [0u8; CALL_DATA_SIZE];
-        let mut target = H256::zero();
-        let mut amount = u128::default();
+        let (target, amount) = context.memory(|m| {
+            (
+                H256::from_slice(&m[target_ptr..]),
+                u128::from_slice(&m[amount_ptr..]),
+            )
+        });
 
-        context
-            .memory()
-            .with_direct_access::<Result<(), VMError>, _>(|a| {
-                target = encoding::decode(&a[target_ofs..target_ofs + 32])?;
-                amount = encoding::decode(&a[amount_ofs..amount_ofs + 16])?;
-                call_buf[0..data_len]
-                    .copy_from_slice(&a[data_ofs..data_ofs + data_len]);
-                Ok(())
-            })?;
-        // assure sufficient funds are available
+        // First, transfer the amount
         if context.balance()? >= amount {
             *context.balance_mut()? -= amount;
             *context
@@ -47,18 +45,11 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for CallContract {
                 .get_contract_state_mut_or_default(&target)?
                 .balance_mut() += amount;
         } else {
-            panic!("not enough funds")
+            // Return funding errors early
+            return Err(VMError::NotEnoughFunds);
         }
 
-        if data_len > 0 {
-            let return_buf = context.call(&target, call_buf)?;
-            // write the return data back into memory
-            context.memory().with_direct_access_mut(|a| {
-                a[data_ofs..data_ofs + CALL_DATA_SIZE]
-                    .copy_from_slice(&return_buf)
-            })
-        }
-
-        Ok(None)
+        // Perform the call
+        context.call(target, argument_ptr, argument_len, return_ptr, return_len)
     }
 }

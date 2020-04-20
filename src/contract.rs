@@ -1,6 +1,5 @@
 use std::io;
 use std::rc::Rc;
-use std::time::Instant;
 
 use failure::{bail, err_msg, Error};
 use kelvin::{ByteHash, Content, Sink, Source};
@@ -54,13 +53,10 @@ impl MeteredContract {
             if let MeteredContract::Code(code) =
                 mem::replace(self, MeteredContract::Code(vec![]))
             {
-                let start = Instant::now();
                 *self = MeteredContract::Module {
                     module: Rc::new(wasmi::Module::from_buffer(&code)?),
                     code,
                 };
-
-                println!("Compiled Contract in {:?}", start.elapsed());
             }
         }
         Ok(())

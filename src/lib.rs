@@ -18,7 +18,6 @@ pub use dusk_abi;
 
 pub use call_context::StandardABI;
 pub use contract::Contract;
-pub use fermion::Error;
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
@@ -40,9 +39,11 @@ pub enum VMError {
     /// Invalid Signature
     InvalidEd25519Signature,
     /// Contract returned, not an error per se, this is how contracts return.
-    ContractReturn,
+    ContractReturn(usize, usize),
     /// Contract execution ran out of gas
     OutOfGas,
+    /// Not enough funds for call
+    NotEnoughFunds,
     /// Contract could not be found in the state
     UnknownContract,
     /// WASM threw an error
@@ -53,8 +54,6 @@ pub enum VMError {
     WasmiError(wasmi::Error),
     /// Input output error
     IOError(io::Error),
-    /// Serialization failed
-    SerializationError(fermion::Error),
     /// Invalid WASM Module
     InvalidWASMModule,
 }
@@ -62,12 +61,6 @@ pub enum VMError {
 impl From<io::Error> for VMError {
     fn from(e: io::Error) -> Self {
         VMError::IOError(e)
-    }
-}
-
-impl From<fermion::Error> for VMError {
-    fn from(e: fermion::Error) -> Self {
-        VMError::SerializationError(e)
     }
 }
 
@@ -99,13 +92,11 @@ impl fmt::Display for VMError {
             VMError::InvalidEd25519Signature => {
                 write!(f, "Invalid Ed25519 Signature")?
             }
-            VMError::ContractReturn => write!(f, "Contract Return")?,
-            VMError::OutOfGas => write!(f, "Out of Gas Error")?,
+            VMError::ContractReturn(_, _) => write!(f, "Contract Return")?,
+            VMError::OutOfGas => write!(f, "Out of Gas error")?,
+            VMError::NotEnoughFunds => write!(f, "Not enough funds error")?,
             VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
             VMError::MemoryNotFound => write!(f, "Memory not found")?,
-            VMError::SerializationError(e) => {
-                write!(f, "Serialization Error ({:?})", e)?
-            }
             VMError::InvalidABICall => write!(f, "Invalid ABI Call")?,
             VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
             VMError::Trap(e) => write!(f, "Trap ({:?})", e)?,

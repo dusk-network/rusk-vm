@@ -4,8 +4,6 @@ use kelvin::Blake2b;
 use dusk_abi::H256;
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
-use factorial::factorial;
-
 fn get_config() -> Criterion {
     Criterion::default().sample_size(10)
 }
@@ -18,7 +16,7 @@ fn factorial_3(
     let n = 3;
 
     network
-        .call_contract(&contract_id, factorial(n), gas)
+        .call_contract::<u64, u64>(contract_id, n, gas)
         .unwrap();
 }
 
@@ -26,7 +24,7 @@ fn factorial_bench(c: &mut Criterion) {
     let code = include_bytes!(concat!(
         "../tests/contracts/",
         "factorial",
-        "/wasm/target/wasm32-unknown-unknown/release/",
+        "/target/wasm32-unknown-unknown/release/",
         "factorial",
         ".wasm"
     ));
