@@ -34,8 +34,7 @@ wasm: ## Generate the WASM for the contract given (e.g. make wasm for=transfer)
 
 test: ## Run the contracts' tests
 	@make wasm for=factorial && \
-		make wasm for=transfer && \
-		make wasm for=fee && \
+		make wasm for=storage && \
 		cargo test -- --nocapture
 
 .PHONY: help doc doc-internal publish-doc wasm test
