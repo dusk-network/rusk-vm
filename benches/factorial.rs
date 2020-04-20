@@ -24,7 +24,7 @@ fn factorial_bench(c: &mut Criterion) {
     let code = include_bytes!(concat!(
         "../tests/contracts/",
         "factorial",
-        "/wasm/target/wasm32-unknown-unknown/release/",
+        "/target/wasm32-unknown-unknown/release/",
         "factorial",
         ".wasm"
     ));
