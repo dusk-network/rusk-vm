@@ -42,7 +42,7 @@ pub enum VMError {
     ContractReturn(usize, usize),
     /// Contract execution ran out of gas
     OutOfGas,
-    /// Contract execution ran out of gas
+    /// Not enough funds for call
     NotEnoughFunds,
     /// Contract could not be found in the state
     UnknownContract,
