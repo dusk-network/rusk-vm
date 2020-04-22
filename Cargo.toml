@@ -18,7 +18,7 @@ kelvin-radix = "0.8"
 lazy_static = "1.4"
 parking_lot = "0.10"
 threshold_crypto_ce = "0.4"
-phoenix = { git = "https://github.com/dusk-network/phoenix.git" }
+phoenix = { git = "https://github.com/dusk-network/phoenix" }
 phoenix-abi = { git = "https://github.com/dusk-network/phoenix-abi.git" }
 
 dusk-abi = { git = "https://github.com/dusk-network/dusk-abi" }

@@ -1,30 +1,92 @@
 use super::AbiCall;
-use crate::call_context::{CallContext, Resolver};
+use crate::call_context::{ArgsExt, CallContext, Resolver};
 use crate::VMError;
-// use std::convert::{TryFrom, TryInto};
-// use std::env;
-// use std::path::Path;
-
+use dusk_abi::PodExt;
 use kelvin::ByteHash;
-// use phoenix::{
-//     db, utils, zk, BlsScalar, NoteGenerator, NoteVariant, PublicKey,
-//     Transaction, TransactionInput, TransactionOutput, TransparentNote,
-// };
-// use phoenix_abi::{Input, Note, Proof};
+use phoenix::{
+    db, utils, zk, BlsScalar, NoteGenerator, NoteVariant, PublicKey,
+    Transaction, TransactionInput, TransactionOutput, TransparentNote,
+};
+use phoenix_abi::{Input, Note, Proof};
+use std::convert::{TryFrom, TryInto};
+use std::env;
+use std::path::Path;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
-// const SUCCESS: Result<Option<RuntimeValue>, VMError> =
-//     Ok(Some(RuntimeValue::I32(1)));
+const SUCCESS: Result<Option<RuntimeValue>, VMError> =
+    Ok(Some(RuntimeValue::I32(1)));
 
-// const FAIL: Result<Option<RuntimeValue>, VMError> =
-//     Ok(Some(RuntimeValue::I32(0)));
+const FAIL: Result<Option<RuntimeValue>, VMError> =
+    Ok(Some(RuntimeValue::I32(0)));
 
 pub struct PhoenixStore;
 
-// #[inline]
-// fn has_value(bytes: &[u8]) -> bool {
-//     !bytes.iter().all(|b| *b == 0)
-// }
+#[inline]
+fn has_value(bytes: &[u8]) -> bool {
+    !bytes.iter().all(|b| *b == 0)
+}
+
+fn get_tx<S, H>(
+    context: &mut CallContext<S, H>,
+    args: RuntimeArgs,
+) -> Result<Transaction, VMError>
+where
+    S: Resolver<H>,
+    H: ByteHash,
+{
+    let inputs_ptr = args.get(0)? as usize;
+    let notes_ptr = args.get(1)? as usize;
+    let proof_ptr = args.get(2)? as usize;
+
+    let (inputs_buf, notes_buf, proof_buf): (Vec<_>, Vec<_>, Vec<_>) = context
+        .memory(|m| {
+            (
+                m[inputs_ptr..inputs_ptr + (Input::MAX * Input::SIZE)].into(),
+                m[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)].into(),
+                m[proof_ptr..proof_ptr + Proof::SIZE].into(),
+            )
+        });
+
+    let inputs: Vec<TransactionInput> = inputs_buf
+        .chunks(Input::SIZE)
+        .take_while(|bytes| has_value(bytes))
+        .map(|bytes| {
+            let input = Input::from_slice(bytes);
+            let item: TransactionInput = input
+                .try_into()
+                .unwrap_or_else(|_| panic!("invalid representation"));
+            item
+        })
+        .collect();
+
+    let mut notes: Vec<TransactionOutput> = notes_buf
+        .chunks(Note::SIZE)
+        .take_while(|bytes| has_value(bytes))
+        .map(|bytes| {
+            let note = Note::from_slice(bytes);
+            TransactionOutput::try_from(note)
+                .unwrap_or_else(|_| panic!("invalid representation"))
+        })
+        .collect();
+
+    let proof = zk::bytes_to_proof(&proof_buf).unwrap();
+
+    let mut tx = Transaction::default();
+
+    inputs
+        .into_iter()
+        .for_each(|input| tx.push_input(input).unwrap());
+    let fee_note = notes.pop().unwrap();
+    tx.set_fee(fee_note);
+
+    notes
+        .into_iter()
+        .for_each(|note| tx.push_output(note).unwrap());
+
+    tx.set_proof(proof);
+
+    Ok(tx)
+}
 
 impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
     const ARGUMENTS: &'static [ValueType] =
@@ -32,79 +94,14 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixStore {
     const RETURN: Option<ValueType> = Some(ValueType::I32);
 
     fn call(
-        _context: &mut CallContext<S, H>,
-        _args: RuntimeArgs,
+        context: &mut CallContext<S, H>,
+        args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        todo!("porting")
-        // let inputs_ptr = args.get(0)?;
-        // let notes_ptr = args.get(1)?;
-        // let proof_ptr = args.get(2)?;
-
-        // context
-        //     .top()
-        //     .memory
-        //     .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
-        //         |a| {
-        //             let inputs_buf =
-        //                 &a[inputs_ptr..inputs_ptr + (Input::MAX * Input::SIZE)];
-        //             let inputs: Result<Vec<TransactionInput>, fermion::Error> =
-        //                 inputs_buf
-        //                     .chunks(Input::SIZE)
-        //                     .take_while(|bytes| has_value(bytes))
-        //                     .map(|bytes| {
-        //                         let input: Input = encoding::decode(bytes)?;
-        //                         let item: TransactionInput =
-        //                             input.try_into().map_err(|_| {
-        //                                 fermion::Error::InvalidRepresentation
-        //                             })?;
-        //                         Ok(item)
-        //                     })
-        //                     .collect();
-
-        //             let notes_buf =
-        //                 &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
-
-        //             let notes: Result<Vec<TransactionOutput>, fermion::Error> =
-        //                 notes_buf
-        //                     .chunks(Note::SIZE)
-        //                     .take_while(|bytes| has_value(bytes))
-        //                     .map(|bytes| {
-        //                         let note: Note = encoding::decode(bytes)?;
-        //                         Ok(TransactionOutput::try_from(note).map_err(
-        //                             |_| fermion::Error::InvalidRepresentation,
-        //                         )?)
-        //                     })
-        //                     .collect();
-
-        //             let proof_buf = &a[proof_ptr..proof_ptr + Proof::SIZE];
-        //             let proof = zk::bytes_to_proof(&proof_buf).unwrap();
-
-        //             let mut tx = Transaction::default();
-
-        //             inputs?
-        //                 .into_iter()
-        //                 .for_each(|input| tx.push_input(input).unwrap());
-
-        //             let mut notes = notes.unwrap();
-
-        //             let fee_note = notes.pop().unwrap();
-        //             tx.set_fee(fee_note);
-
-        //             notes
-        //                 .into_iter()
-        //                 .for_each(|note| tx.push_output(note).unwrap());
-
-        //             tx.set_proof(proof);
-
-        //             match db::store(
-        //                 Path::new(&env::var("PHOENIX_DB").unwrap()),
-        //                 &tx,
-        //             ) {
-        //                 Ok(_) => SUCCESS,
-        //                 Err(_) => FAIL,
-        //             }
-        //         },
-        //     )
+        let tx = get_tx(context, args)?;
+        match db::store(Path::new(&env::var("PHOENIX_DB").unwrap()), &tx) {
+            Ok(_) => SUCCESS,
+            Err(_) => FAIL,
+        }
     }
 }
 
@@ -116,76 +113,15 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixVerify {
     const RETURN: Option<ValueType> = Some(ValueType::I32);
 
     fn call(
-        _context: &mut CallContext<S, H>,
-        _args: RuntimeArgs,
+        context: &mut CallContext<S, H>,
+        args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        todo!("porting")
-        // let inputs_ptr = args.get(0)?;
-        // let notes_ptr = args.get(1)?;
-        // let proof_ptr = args.get(2)?;
+        let mut tx = get_tx(context, args)?;
 
-        // context
-        //     .top()
-        //     .memory
-        //     .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
-        //         |a| {
-        //             let inputs_buf =
-        //                 &a[inputs_ptr..inputs_ptr + (Input::MAX * Input::SIZE)];
-        //             let inputs: Result<Vec<TransactionInput>, fermion::Error> =
-        //                 inputs_buf
-        //                     .chunks(Input::SIZE)
-        //                     .take_while(|bytes| has_value(bytes))
-        //                     .map(|bytes| {
-        //                         let input: Input = encoding::decode(bytes)?;
-        //                         let item: TransactionInput =
-        //                             input.try_into().map_err(|_| {
-        //                                 fermion::Error::InvalidRepresentation
-        //                             })?;
-        //                         Ok(item)
-        //                     })
-        //                     .collect();
-
-        //             let notes_buf =
-        //                 &a[notes_ptr..notes_ptr + (Note::MAX * Note::SIZE)];
-
-        //             let notes: Result<Vec<TransactionOutput>, fermion::Error> =
-        //                 notes_buf
-        //                     .chunks(Note::SIZE)
-        //                     .take_while(|bytes| has_value(bytes))
-        //                     .map(|bytes| {
-        //                         let note: Note = encoding::decode(bytes)?;
-        //                         Ok(TransactionOutput::try_from(note).map_err(
-        //                             |_| fermion::Error::InvalidRepresentation,
-        //                         )?)
-        //                     })
-        //                     .collect();
-
-        //             let proof_buf = &mut a[proof_ptr..proof_ptr + Proof::SIZE];
-        //             let proof = zk::bytes_to_proof(&proof_buf).unwrap();
-
-        //             let mut tx = Transaction::default();
-
-        //             inputs?
-        //                 .into_iter()
-        //                 .for_each(|input| tx.push_input(input).unwrap());
-
-        //             let mut notes = notes.unwrap();
-
-        //             let fee_note = notes.pop().unwrap();
-        //             tx.set_fee(fee_note);
-
-        //             notes
-        //                 .into_iter()
-        //                 .for_each(|note| tx.push_output(note).unwrap());
-
-        //             tx.set_proof(proof);
-
-        //             match tx.verify() {
-        //                 Ok(_) => SUCCESS,
-        //                 Err(_) => FAIL,
-        //             }
-        //         },
-        //     )
+        match tx.verify() {
+            Ok(_) => SUCCESS,
+            Err(_) => FAIL,
+        }
     }
 }
 
@@ -199,46 +135,38 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for PhoenixCredit {
     const RETURN: Option<ValueType> = Some(ValueType::I32);
 
     fn call(
-        _context: &mut CallContext<S, H>,
-        _args: RuntimeArgs,
+        context: &mut CallContext<S, H>,
+        args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        todo!("porting");
-        // let reward = args.get(0)?;
-        // let pk_ptr = args.get(1)?;
+        let reward_ptr = args.get(0)? as usize;
+        let pk_ptr = args.get(1)? as usize;
 
-        // context
-        //     .top()
-        //     .memory
-        //     .with_direct_access_mut::<Result<Option<RuntimeValue>, VMError>, _>(
-        //         |a| {
-        //             let pk_bytes = &a[pk_ptr..pk_ptr + 64];
-        //             let pk = PublicKey::new(
-        //                 utils::deserialize_compressed_jubjub(&pk_bytes[0..32])
-        //                     .unwrap(),
-        //                 utils::deserialize_compressed_jubjub(&pk_bytes[32..64])
-        //                     .unwrap(),
-        //             );
+        let (reward, pk_buf): (u64, Vec<_>) = context.memory(|m| {
+            (
+                u64::from_slice(&m[reward_ptr..]),
+                m[pk_ptr..pk_ptr + 64].into(),
+            )
+        });
 
-        //             let (output, _) =
-        //                 TransparentNote::output(&pk, reward as u64);
+        let pk = PublicKey::new(
+            utils::deserialize_compressed_jubjub(&pk_buf[0..32]).unwrap(),
+            utils::deserialize_compressed_jubjub(&pk_buf[32..64]).unwrap(),
+        );
 
-        //             let mut tx = Transaction::default();
-        //             let item = TransactionOutput::new(
-        //                 NoteVariant::Transparent(output),
-        //                 reward as u64,
-        //                 BlsScalar::default(),
-        //                 PublicKey::default(),
-        //             );
-        //             tx.push_output(item).unwrap();
+        let (output, _) = TransparentNote::output(&pk, reward);
 
-        //             match db::store(
-        //                 Path::new(&env::var("PHOENIX_DB").unwrap()),
-        //                 &tx,
-        //             ) {
-        //                 Ok(_) => SUCCESS,
-        //                 Err(_) => FAIL,
-        //             }
-        //         },
-        //     )
+        let mut tx = Transaction::default();
+        let item = TransactionOutput::new(
+            NoteVariant::Transparent(output),
+            reward,
+            BlsScalar::default(),
+            PublicKey::default(),
+        );
+        tx.push_output(item).unwrap();
+
+        match db::store(Path::new(&env::var("PHOENIX_DB").unwrap()), &tx) {
+            Ok(_) => SUCCESS,
+            Err(_) => FAIL,
+        }
     }
 }
