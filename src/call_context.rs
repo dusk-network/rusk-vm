@@ -24,6 +24,7 @@ pub use crate::resolver::CompoundResolver as StandardABI;
 
 pub struct StackFrame {
     callee: H256,
+    opcode: usize,
     argument_ptr: usize,
     argument_len: usize,
     return_ptr: usize,
@@ -45,6 +46,7 @@ impl StackFrame {
     fn new(
         callee: H256,
         memory: MemoryRef,
+        opcode: usize,
         argument_ptr: usize,
         argument_len: usize,
         return_ptr: usize,
@@ -53,6 +55,7 @@ impl StackFrame {
         StackFrame {
             callee,
             memory,
+            opcode,
             argument_ptr,
             argument_len,
             return_ptr,
@@ -110,6 +113,7 @@ where
     pub fn call(
         &mut self,
         target: H256,
+        opcode: usize,
         argument_ptr: usize,
         argument_len: usize,
         return_ptr: usize,
@@ -138,6 +142,7 @@ where
                         self.stack.push(StackFrame::new(
                             target,
                             memref,
+                            opcode,
                             argument_ptr,
                             argument_len,
                             return_ptr,
@@ -330,6 +335,10 @@ where
             .get_contract_state_mut(&callee)?
             .expect("Invalid callee")
             .wrap_mut(|state| state.balance_mut()))
+    }
+
+    pub fn opcode(&self) -> usize {
+        self.top().opcode
     }
 }
 

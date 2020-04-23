@@ -76,9 +76,10 @@ abi_resolver! {
         8, "ret" => ret::Return,
         9, "self_hash" => self_hash::SelfHash,
         10, "gas" => gas::Gas,
-        11, "phoenix_store" => phoenix_ops::PhoenixStore,
-        12, "phoenix_verify" => phoenix_ops::PhoenixVerify,
-        13, "phoenix_credit" => phoenix_ops::PhoenixCredit,
-        14, "bls_verify" => bls::BLS
+        11, "opcode" => opcode::OpCode,
+        110, "phoenix_store" => phoenix_ops::PhoenixStore,
+        120, "phoenix_verify" => phoenix_ops::PhoenixVerify,
+        130, "phoenix_credit" => phoenix_ops::PhoenixCredit,
+        140, "bls_verify" => bls::BLS
     }
 }

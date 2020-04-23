@@ -120,10 +120,21 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
         argument: A,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError> {
+        self.call_contract_operation(target, 0, argument, gas_meter)
+    }
+
+    /// Call the contract at address `target` passing the opcode
+    pub fn call_contract_operation<A: Pod, R: Pod>(
+        &mut self,
+        target: H256,
+        opcode: usize,
+        argument: A,
+        gas_meter: &mut GasMeter,
+    ) -> Result<R, VMError> {
         let mut ret = R::zeroed();
         let mut context =
             CallContext::new(self, gas_meter, &argument, &mut ret);
-        context.call(target, 0, 0, 0, 0)?;
+        context.call(target, opcode, 0, 0, 0, 0)?;
         Ok(ret)
     }
 }

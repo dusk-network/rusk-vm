@@ -50,6 +50,13 @@ impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for CallContract {
         }
 
         // Perform the call
-        context.call(target, argument_ptr, argument_len, return_ptr, return_len)
+        context.call(
+            target,
+            0,
+            argument_ptr,
+            argument_len,
+            return_ptr,
+            return_len,
+        )
     }
 }
