@@ -27,6 +27,7 @@ dataview = { git = "https://github.com/dusk-network/dataview.git" }
 [dev-dependencies]
 tempfile = "*"
 criterion = "0.3"
+cake-rusk = { git = "https://github.com/dusk-network/cake-rusk" }
 
 [[bench]]
 name = "factorial"

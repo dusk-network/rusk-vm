@@ -1,24 +1,22 @@
 #![no_std]
-#[no_mangle]
-pub fn call() {
-    let n: i32 = dusk_abi::argument();
+use cake_rusk as cake;
 
-    match n {
-        -1 => match dusk_abi::get_storage::<_, i32>(b"test") {
-            Some(val) => dusk_abi::ret(val),
-            None => dusk_abi::ret::<i32>(-1),
-        },
-        -2 => {
-            dusk_abi::delete_storage(b"test");
-            dusk_abi::ret::<i32>(-2);
+#[cake::contract(version = "0.0.1")]
+mod storage {
+    pub fn get_value() -> i32 {
+        match dusk_abi::get_storage::<_, i32>(b"test") {
+            Some(val) => val,
+            None => -1,
         }
-        n if n > 0 => {}
-        _ => panic!("invalid command"),
     }
 
-    if n == -1 {
-    } else {
+    pub fn delete() -> i32 {
+        dusk_abi::delete_storage(b"test");
+        -2
+    }
+
+    pub fn set_value(n: i32) -> i32 {
         dusk_abi::set_storage(b"test", n);
-        dusk_abi::ret::<i32>(n);
+        n
     }
 }

@@ -18,7 +18,7 @@ fn factorial() {
     let code = contract_code!("factorial");
 
     let schedule = Schedule::default();
-    let contract = Contract::new(code, &schedule).unwrap();
+    let contract = Contract::new::<Blake2b>(code, &schedule).unwrap();
 
     let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
 
@@ -30,7 +30,7 @@ fn factorial() {
 
     assert_eq!(
         network
-            .call_contract::<u64, u64>(contract_id, n, &mut gas)
+            .call_contract_operation::<u64, u64>(contract_id, 1, n, &mut gas)
             .unwrap(),
         factorial_reference(n)
     );
@@ -38,10 +38,16 @@ fn factorial() {
 
 #[test]
 fn storage() {
+    // TODO: until we don't have an easy way to obtain the ABI of a method,
+    // we need to know the opcode to call
+    const GET_VALUE: usize = 1;
+    const DELETE: usize = 2;
+    const SET_VALUE: usize = 3;
+
     let code = contract_code!("storage");
 
     let schedule = Schedule::default();
-    let contract = Contract::new(code, &schedule).unwrap();
+    let contract = Contract::new::<Blake2b>(code, &schedule).unwrap();
 
     let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
 
@@ -50,26 +56,121 @@ fn storage() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     let non_existing = network
-        .call_contract::<i32, i32>(contract_id, -1, &mut gas)
+        .call_contract_operation::<i32, i32>(
+            contract_id,
+            GET_VALUE,
+            0,
+            &mut gas,
+        )
         .unwrap();
 
     assert_eq!(non_existing, -1);
 
     let set = network
-        .call_contract::<i32, i32>(contract_id, 42, &mut gas)
+        .call_contract_operation::<i32, i32>(
+            contract_id,
+            SET_VALUE,
+            42,
+            &mut gas,
+        )
         .unwrap();
 
     assert_eq!(set, 42);
 
+    let existing = network
+        .call_contract_operation::<i32, i32>(
+            contract_id,
+            GET_VALUE,
+            0,
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(existing, 42);
+
     let delete = network
-        .call_contract::<i32, i32>(contract_id, -2, &mut gas)
+        .call_contract_operation::<i32, i32>(contract_id, DELETE, 0, &mut gas)
         .unwrap();
 
     assert_eq!(delete, -2);
 
     let non_existing_again = network
-        .call_contract::<i32, i32>(contract_id, -1, &mut gas)
+        .call_contract_operation::<i32, i32>(
+            contract_id,
+            GET_VALUE,
+            0,
+            &mut gas,
+        )
         .unwrap();
 
     assert_eq!(non_existing_again, -1);
+}
+
+#[test]
+fn storage_factorial() {
+    // TODO: until we don't have an easy way to obtain the ABI of a method,
+    // we need to know the opcode to call
+    const FACTORIAL_OF: usize = 1;
+    const GET_VALUE: usize = 2;
+
+    let factorial_code = contract_code!("factorial");
+    let storage_code = contract_code!("storage");
+    let code = contract_code!("storage_factorial");
+
+    let schedule = Schedule::default();
+    let factorial_contract =
+        Contract::new::<Blake2b>(factorial_code, &schedule).unwrap();
+    let storage_contract =
+        Contract::new::<Blake2b>(storage_code, &schedule).unwrap();
+
+    let contract = Contract::new::<Blake2b>(code, &schedule).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+
+    let f_id = network.deploy(factorial_contract).unwrap();
+    assert_eq!(
+        format!("{:?}", f_id),
+        "Digest(6bfdaf2e75d5b0613a60cb0c3c7b7bb05c402d36828ddbd4ac8099d0bd4af099)"
+    );
+
+    assert_eq!(
+        format!("{:?}", network.deploy(storage_contract).unwrap()),
+        "Digest(ab77fc1bfd6fb7336f92e0e23dcfd0516f171715cb3261854ceac694ee7f9e47)"
+    );
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let value = network
+        .call_contract_operation::<i32, i32>(
+            contract_id,
+            GET_VALUE,
+            0,
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(value, -1);
+
+    let success = network
+        .call_contract_operation::<u64, i32>(
+            contract_id,
+            FACTORIAL_OF,
+            5,
+            &mut gas,
+        )
+        .unwrap();
+    assert_eq!(success, 1);
+
+    let value = network
+        .call_contract_operation::<i32, i32>(
+            contract_id,
+            GET_VALUE,
+            0,
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(value, 120);
 }

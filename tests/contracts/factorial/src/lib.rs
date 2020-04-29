@@ -1,16 +1,20 @@
 #![no_std]
 #[no_mangle]
-pub fn call() {
-    let n: u64 = dusk_abi::argument();
+use cake_rusk as cake;
 
-    let self_hash = dusk_abi::self_hash();
-
-    if n <= 1 {
-        dusk_abi::ret::<u64>(1);
-    } else {
-        let result =
-            n * dusk_abi::call_contract::<u64, u64>(&self_hash, 0, n - 1);
-
-        dusk_abi::ret(result);
+#[cake::contract(version = "0.0.1")]
+mod factorial {
+    pub fn factorial(n: u64) -> u64 {
+        let self_hash = dusk_abi::self_hash();
+        if n <= 1 {
+            1
+        } else {
+            n * dusk_abi::call_contract_operation::<u64, u64>(
+                &self_hash,
+                1,
+                0,
+                n - 1,
+            )
+        }
     }
 }
