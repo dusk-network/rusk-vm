@@ -173,3 +173,77 @@ fn storage_factorial() {
 
     assert_eq!(value, 120);
 }
+
+#[test]
+fn error() {
+    use rusk_vm::VMError;
+    use wasmi::TrapKind;
+
+    let code = contract_code!("error");
+
+    let schedule = Schedule::default();
+    let contract = Contract::new::<Blake2b>(code, &schedule).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .call_contract::<i32, i32>(contract_id, 0, &mut gas)
+        .unwrap();
+
+    let panic = network.call_contract::<i32, i32>(contract_id, 1, &mut gas);
+
+    match panic {
+        Err(VMError::WasmiError(wasmi::Error::Trap(trap))) => {
+            match trap.kind() {
+                TrapKind::Host(host_trap) => {
+                    match host_trap.downcast_ref::<VMError>() {
+                        Some(VMError::ContractPanic(_)) => (),
+                        _ => panic!("invalid error"),
+                    }
+                }
+                _ => panic!("invalid error"),
+            }
+        }
+        _ => panic!("invalid error"),
+    }
+
+    let insufficient_funds =
+        network.call_contract::<i32, i32>(contract_id, 2, &mut gas);
+
+    match insufficient_funds {
+        Err(VMError::WasmiError(wasmi::Error::Trap(trap))) => {
+            match trap.kind() {
+                TrapKind::Host(host_trap) => {
+                    match host_trap.downcast_ref::<VMError>() {
+                        Some(VMError::NotEnoughFunds) => (),
+                        _ => panic!("invalid error"),
+                    }
+                }
+                _ => panic!("invalid error"),
+            }
+        }
+        _ => panic!("invalid error"),
+    }
+
+    let non_existing_contract =
+        network.call_contract::<i32, i32>(contract_id, 3, &mut gas);
+
+    match non_existing_contract {
+        Err(VMError::WasmiError(wasmi::Error::Trap(trap))) => {
+            match trap.kind() {
+                TrapKind::Host(host_trap) => {
+                    match host_trap.downcast_ref::<VMError>() {
+                        Some(VMError::UnknownContract) => (),
+                        _ => panic!("invalid error {:?}", trap),
+                    }
+                }
+                _ => panic!("invalid error"),
+            }
+        }
+        _ => panic!("invalid error"),
+    }
+}

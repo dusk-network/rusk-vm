@@ -36,6 +36,7 @@ test: ## Run the contracts' tests
 	@make wasm for=factorial && \
 		make wasm for=storage && \
 		make wasm for=storage_factorial && \
+		make wasm for=error && \
 		cargo test -- --nocapture
 
 .PHONY: help doc doc-internal publish-doc wasm test

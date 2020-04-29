@@ -125,7 +125,9 @@ where
         let instance;
 
         match self.state.get_contract_state_mut(&target)? {
-            None => return Err(VMError::UnknownContract),
+            None => {
+                return Err(VMError::UnknownContract);
+            }
             Some(mut contract_state) => {
                 contract_state.contract_mut().ensure_compiled()?;
 
@@ -156,8 +158,8 @@ where
 
         match instance.invoke_export("call", &[], self) {
             Err(wasmi::Error::Trap(trap)) => {
-                if let TrapKind::Host(t) = trap.kind() {
-                    if let Some(vm_error) = (**t).downcast_ref::<VMError>() {
+                if let TrapKind::Host(host) = trap.kind() {
+                    if let Some(vm_error) = (*host).downcast_ref::<VMError>() {
                         if let VMError::ContractReturn(ofs, len) = vm_error {
                             // copy the return value to return pointer
                             self.copy_return(*ofs, *len);
@@ -282,10 +284,13 @@ where
         let frame = stack.last_mut().expect("Invalid stack");
 
         let callee = &frame.callee;
-        let mut state = state.get_contract_state_mut_or_default(callee)?;
-        let storage = state.storage_mut();
-
-        frame.memory_mut(|m| closure(m, storage))
+        match state.get_contract_state_mut(callee)? {
+            Some(mut state) => {
+                let storage = state.storage_mut();
+                frame.memory_mut(|m| closure(m, storage))
+            }
+            None => Err(VMError::UnknownContract),
+        }
     }
 
     pub fn write_at<V: Pod>(&mut self, ofs: usize, value: &V) {

@@ -54,6 +54,9 @@ impl MeteredContract {
             if let MeteredContract::Code(code) =
                 mem::replace(self, MeteredContract::Code(vec![]))
             {
+                if code.len() == 0 {
+                    return Err(VMError::UnknownContract);
+                }
                 *self = MeteredContract::Module {
                     module: Rc::new(wasmi::Module::from_buffer(&code)?),
                     code,
