@@ -1,5 +1,5 @@
 [package]
-name = "factorial"
+name = "storage_factorial"
 version = "0.1.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"

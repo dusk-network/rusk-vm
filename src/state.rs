@@ -67,11 +67,8 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
     /// Deploys a contract to the state, returns the address of the created contract
     /// or an error
     pub fn deploy(&mut self, contract: Contract) -> Result<H256, VMError> {
+        let code_hash = contract.hash();
         let metered = contract.build()?;
-
-        let code = metered.bytecode();
-
-        let code_hash = H256::from_bytes(H::hash(&code).as_ref());
 
         let state = ContractState {
             code: metered,
@@ -80,7 +77,7 @@ impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
             storage: Default::default(),
         };
 
-        self.contracts.insert(code_hash.clone(), state)?;
+        self.contracts.insert(code_hash, state)?;
         Ok(code_hash)
     }
 

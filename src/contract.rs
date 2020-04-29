@@ -1,6 +1,7 @@
 use std::io;
 use std::rc::Rc;
 
+use dusk_abi::H256;
 use failure::{bail, err_msg, Error};
 use kelvin::{ByteHash, Content, Sink, Source};
 use parity_wasm::elements::{
@@ -66,17 +67,20 @@ impl MeteredContract {
 /// A parsed contract module, not metered, can still be parameterized with the
 /// `set_parameter` call
 pub struct Contract<'a> {
+    hash: H256,
     module: elements::Module,
     schedule: &'a Schedule,
 }
 
 impl<'a> Contract<'a> {
     /// Creates a new Contract from provided code and Schedule.
-    pub fn new(
+    pub fn new<H: ByteHash>(
         original_code: &[u8],
         schedule: &'a Schedule,
     ) -> Result<Self, VMError> {
         use wasmi_validation::PlainValidator;
+
+        let hash = H256::from_bytes(H::hash(original_code).as_ref());
 
         let module = elements::deserialize_buffer(original_code)
             .map_err(|_| VMError::InvalidWASMModule)?;
@@ -85,7 +89,11 @@ impl<'a> Contract<'a> {
         wasmi_validation::validate_module::<PlainValidator>(&module)
             .map_err(|_| VMError::InvalidWASMModule)?;
 
-        let mut contract_module = Contract { module, schedule };
+        let mut contract_module = Contract {
+            hash,
+            module,
+            schedule,
+        };
 
         contract_module
             .ensure_no_floating_types()
@@ -103,11 +111,16 @@ impl<'a> Contract<'a> {
         // Return a `Contract` instance with
         // __valid__ module.
         Ok(Contract {
+            hash,
             module: contract_module.module,
             schedule,
         })
     }
 
+    /// Returns the Contract's hash
+    pub fn hash(&self) -> H256 {
+        self.hash
+    }
     /// Injects gas metering into the contract
     fn inject_gas_metering(self) -> Result<Self, failure::Error> {
         let gas_rules = rules::Set::new(
@@ -121,6 +134,7 @@ impl<'a> Contract<'a> {
             pwasm_utils::inject_gas_counter(self.module, &gas_rules)
                 .map_err(|_| err_msg("gas instrumentation failed"))?;
         Ok(Contract {
+            hash: self.hash,
             module: contract_module,
             schedule: self.schedule,
         })
@@ -134,6 +148,7 @@ impl<'a> Contract<'a> {
         )
         .map_err(|_| err_msg("stack height instrumentation failed"))?;
         Ok(Contract {
+            hash: self.hash,
             module: contract_module,
             schedule: self.schedule,
         })

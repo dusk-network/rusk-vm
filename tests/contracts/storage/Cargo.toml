@@ -9,6 +9,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 dusk-abi = { git = "https://github.com/dusk-network/dusk-abi", default-features = false }
+cake-rusk = { git = "https://github.com/dusk-network/cake-rusk" }
+dataview = { git = "https://github.com/dusk-network/dataview" }
 
 [profile.release]
 opt-level = 'z'
