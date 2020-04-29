@@ -127,15 +127,14 @@ fn storage_factorial() {
 
     let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
 
-    let f_id = network.deploy(factorial_contract).unwrap();
     assert_eq!(
-        format!("{:?}", f_id),
+        format!("{:?}", network.deploy(factorial_contract).unwrap()),
         "Digest(6bfdaf2e75d5b0613a60cb0c3c7b7bb05c402d36828ddbd4ac8099d0bd4af099)"
     );
 
     assert_eq!(
         format!("{:?}", network.deploy(storage_contract).unwrap()),
-        "Digest(ab77fc1bfd6fb7336f92e0e23dcfd0516f171715cb3261854ceac694ee7f9e47)"
+        "Digest(a11d39fb84deb4eed1037c5ab50640bcd8d8de00cbfe2b534888bc12544057c6)"
     );
 
     let contract_id = network.deploy(contract).unwrap();
