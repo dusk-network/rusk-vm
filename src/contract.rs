@@ -54,7 +54,7 @@ impl MeteredContract {
             if let MeteredContract::Code(code) =
                 mem::replace(self, MeteredContract::Code(vec![]))
             {
-                if code.len() == 0 {
+                if code.is_empty() {
                     return Err(VMError::UnknownContract);
                 }
                 *self = MeteredContract::Module {

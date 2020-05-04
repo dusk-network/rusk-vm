@@ -13,7 +13,6 @@ cake-rusk = { git = "https://github.com/dusk-network/cake-rusk" }
 dataview = { git = "https://github.com/dusk-network/dataview" }
 
 [profile.release]
-opt-level = 'z'
 lto = true
 codegen-units = 1
 panic = 'abort'
