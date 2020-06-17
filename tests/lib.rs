@@ -129,7 +129,7 @@ fn storage_factorial() {
 
     assert_eq!(
         format!("{:?}", network.deploy(factorial_contract).unwrap()),
-        "Digest(6bfdaf2e75d5b0613a60cb0c3c7b7bb05c402d36828ddbd4ac8099d0bd4af099)"
+        "Digest(a10139386dcf00136361c2150c420435e3708b0b6833f09b0ad2699fc2333cb8)"
     );
 
     assert_eq!(
