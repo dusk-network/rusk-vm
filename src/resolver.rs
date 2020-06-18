@@ -78,9 +78,6 @@ abi_resolver! {
         10, "gas" => gas::Gas,
         11, "opcode" => opcode::OpCode,
         12, "call_contract_operation" => call_contract::CallContractOp,
-        110, "phoenix_store" => phoenix_ops::PhoenixStore,
-        120, "phoenix_verify" => phoenix_ops::PhoenixVerify,
-        130, "phoenix_credit" => phoenix_ops::PhoenixCredit,
         140, "bls_verify" => bls::BLS
     }
 }

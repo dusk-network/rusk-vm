@@ -9,7 +9,7 @@ mod storage_factorial {
     use dusk_abi::H256;
 
     const FACTORIAL: [u8; 32] = address!(
-        "6bfdaf2e75d5b0613a60cb0c3c7b7bb05c402d36828ddbd4ac8099d0bd4af099"
+        "a10139386dcf00136361c2150c420435e3708b0b6833f09b0ad2699fc2333cb8"
     );
 
     const STORAGE: [u8; 32] = address!(
