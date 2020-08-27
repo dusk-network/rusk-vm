@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 #![no_std]
 #![feature(proc_macro_hygiene)]
 #[no_mangle]
