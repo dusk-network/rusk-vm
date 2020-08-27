@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 // Gas units are chosen to be represented by u64 so that gas metering instructions can operate on
 // them efficiently.
 
