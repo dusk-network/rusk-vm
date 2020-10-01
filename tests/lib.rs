@@ -137,7 +137,7 @@ fn storage_factorial() {
 
     assert_eq!(
         format!("{:?}", network.deploy(storage_contract).unwrap()),
-        "Digest(a11d39fb84deb4eed1037c5ab50640bcd8d8de00cbfe2b534888bc12544057c6)"
+        "Digest(caa768a65c3752d83804a63134699c76f6472d864768f4bb6bb610b46b3b9106)"
     );
 
     let contract_id = network.deploy(contract).unwrap();

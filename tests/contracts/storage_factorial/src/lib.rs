@@ -16,7 +16,7 @@ mod storage_factorial {
     );
 
     const STORAGE: [u8; 32] = address!(
-        "a11d39fb84deb4eed1037c5ab50640bcd8d8de00cbfe2b534888bc12544057c6"
+        "caa768a65c3752d83804a63134699c76f6472d864768f4bb6bb610b46b3b9106"
     );
 
     const FACTORIAL_OF: u8 = 1;
