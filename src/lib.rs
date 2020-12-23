@@ -5,9 +5,11 @@
 //!
 //! The main engine for executing WASM on the network state
 #![warn(missing_docs)]
+#![allow(unreachable_code)]
 
 use std::{fmt, io};
 
+use canonical::Store;
 use failure::Fail;
 
 mod call_context;
@@ -20,15 +22,18 @@ mod state;
 pub use dusk_abi;
 
 pub use call_context::StandardABI;
-pub use contract::Contract;
+pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
-#[derive(Debug, Fail)]
+#[derive(Fail)]
 /// The errors that can happen while executing the VM
-pub enum VMError {
-    /// An argument in `RuntimeArgs` is missing
-    MissingArgument,
+pub enum VMError<S>
+where
+    S: Store,
+{
+    /// Invalid arguments in host call
+    InvalidArguments,
     /// The contract panicked with message in `String`
     ContractPanic(String),
     /// Could not find WASM memory
@@ -42,7 +47,7 @@ pub enum VMError {
     /// Invalid Signature
     InvalidEd25519Signature,
     /// Contract returned, not an error per se, this is how contracts return.
-    ContractReturn(usize, usize),
+    ContractReturn(i32, i32),
     /// Contract execution ran out of gas
     OutOfGas,
     /// Not enough funds for call
@@ -59,32 +64,42 @@ pub enum VMError {
     IOError(io::Error),
     /// Invalid WASM Module
     InvalidWASMModule,
+    /// Error propagated from underlying store
+    StoreError(S::Error),
 }
 
-impl From<io::Error> for VMError {
+impl<S: Store> From<io::Error> for VMError<S> {
     fn from(e: io::Error) -> Self {
         VMError::IOError(e)
     }
 }
 
-impl From<wasmi::Error> for VMError {
+impl<S: Store> From<wasmi::Error> for VMError<S> {
     fn from(e: wasmi::Error) -> Self {
         VMError::WasmiError(e)
     }
 }
 
-impl From<wasmi::Trap> for VMError {
+impl<S: Store> From<wasmi::Trap> for VMError<S> {
     fn from(e: wasmi::Trap) -> Self {
         VMError::Trap(e)
     }
 }
 
-impl wasmi::HostError for VMError {}
+// The generic From<S::Error> is not specific enough and conflicts with From<Self>.
+impl<S: Store> VMError<S> {
+    /// Create a VMError from the associated stores
+    pub fn from_store_error(err: S::Error) -> Self {
+        VMError::StoreError(err)
+    }
+}
 
-impl fmt::Display for VMError {
+impl<S: Store> wasmi::HostError for VMError<S> {}
+
+impl<S: Store> fmt::Display for VMError<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            VMError::MissingArgument => write!(f, "Missing Argument")?,
+            VMError::InvalidArguments => write!(f, "Invalid arguments")?,
             VMError::ContractPanic(string) => {
                 write!(f, "Contract panic \"{}\"", string)?
             }
@@ -106,8 +121,15 @@ impl fmt::Display for VMError {
             VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
+            VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
         }
         Ok(())
+    }
+}
+
+impl<S: Store> fmt::Debug for VMError<S> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

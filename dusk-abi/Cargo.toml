@@ -1,0 +1,24 @@
+[package]
+name = "dusk-abi"
+version = "0.2.0"
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+edition = "2018"
+
+[dependencies]
+canonical = "0.4"
+canonical_derive = "0.4"
+const-arrayvec = "0.2.1"
+
+[dev-dependencies]
+canonical_fuzz = "0.4"
+canonical_host = "0.4"
+arbitrary = "0.3"
+
+[features]
+debug = []
+
+[patch.crates-io]
+canonical = { path = "../../canonical/canon" }
+canonical_host = { path = "../../canonical/canon_host" }
+canonical_derive = { path = "../../canonical/canon_derive" }
+

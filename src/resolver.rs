@@ -7,7 +7,6 @@ use crate::call_context::Resolver;
 use crate::ops::*;
 use crate::VMError;
 
-use kelvin::ByteHash;
 use wasmi::{
     self, FuncInstance, FuncRef, ModuleImportResolver, RuntimeArgs,
     RuntimeValue, Signature,
@@ -16,23 +15,25 @@ use wasmi::{
 use crate::call_context::{CallContext, Invoke};
 
 macro_rules! abi_resolver {
-    ( $visibility:vis $name:ident < $h:ident > { $( $id:expr, $op_name:expr => $op:path ),* } ) => {
+    ( $visibility:vis $name:ident < $s:ident > { $( $id:expr, $op_name:expr => $op:path ),* } ) => {
 
         #[doc(hidden)]
         #[derive(Clone, Default)]
-        $visibility struct $name<$h> (PhantomData<$h>);
+        $visibility struct $name<$s> (PhantomData<$s>);
 
-        impl<$h: ByteHash> ModuleImportResolver for $name<$h> {
+        use canonical::Store;
+
+        impl<$s: Store> ModuleImportResolver for $name<$s> {
             fn resolve_func(&self, field_name: &str, _signature: &Signature) -> Result<FuncRef, wasmi::Error>
             where $(
-                $op : AbiCall<$name<$h>, $h>,
+                $op : AbiCall<$name<$s>, $s>,
                 )*
             {
                 match field_name {
                     $(
                         $op_name => Ok(FuncInstance::alloc_host(
-                            Signature::new(<$op as AbiCall<Self, $h>>::ARGUMENTS,
-                                           <$op as AbiCall<Self, $h>>::RETURN),
+                            Signature::new(<$op as AbiCall<Self, $s>>::ARGUMENTS,
+                                           <$op as AbiCall<Self, $s>>::RETURN),
                             $id,
                         ))
                     ),*
@@ -44,11 +45,11 @@ macro_rules! abi_resolver {
             }
         }
 
-        impl<$h: ByteHash> Invoke<H> for $name<$h> {
+        impl<$s: Store> Invoke<S> for $name<$s> {
             fn invoke(
-                context: &mut CallContext<Self, $h>,
+                context: &mut CallContext<Self, $s>,
                 index: usize,
-                args: RuntimeArgs) -> Result<Option<RuntimeValue>, VMError> {
+                args: RuntimeArgs) -> Result<Option<RuntimeValue>, VMError<S>> {
 
                 match index {
                     $(
@@ -62,25 +63,18 @@ macro_rules! abi_resolver {
             }
         }
 
-        impl<H: ByteHash> Resolver<H> for $name<$h> {}
+        impl<S: Store> Resolver<S> for $name<$s> {}
     };
 }
 
 abi_resolver! {
-    pub CompoundResolver<H> {
-        0, "panic" => panic::Panic,
+    pub CompoundResolver<S> {
+        0, "sig" => panic::Panic,
         1, "debug" => debug::Debug,
-        2, "set_storage" => storage::SetStorage,
-        3, "get_storage" => storage::GetStorage,
-        4, "delete_storage" => storage::DeleteStorage,
-        5, "argument" => argument::Argument,
-        6, "call_contract" => call_contract::CallContract,
-        7, "balance" => balance::Balance,
+        6, "query" => query::ExecuteQuery,
+        7, "transact" => transact::ApplyTransaction,
         8, "ret" => ret::Return,
-        9, "self_hash" => self_hash::SelfHash,
-        10, "gas" => gas::Gas,
-        11, "opcode" => opcode::OpCode,
-        12, "call_contract_operation" => call_contract::CallContractOp,
-        140, "bls_verify" => bls::BLS
+        9, "self_id" => self_id::SelfId,
+        10, "gas" => gas::Gas
     }
 }

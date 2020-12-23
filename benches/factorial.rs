@@ -1,10 +1,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
+use canonical::Id32;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use kelvin::Blake2b;
-
-use dusk_abi::H256;
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
 
 fn get_config() -> Criterion {
@@ -13,7 +11,7 @@ fn get_config() -> Criterion {
 
 fn factorial_3(
     network: &mut NetworkState<StandardABI<Blake2b>, Blake2b>,
-    contract_id: H256,
+    contract_id: Id32,
     gas: &mut GasMeter,
 ) {
     let n = 3;

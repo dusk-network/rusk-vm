@@ -1,0 +1,22 @@
+[package]
+name = "delegator"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+canonical = { version = "0.4", default-features = false }
+canonical_derive = "0.4"
+canonical_host = { version = "0.4", optional = true }
+dusk-abi = { path = "../../../dusk-abi" }
+
+[features]
+host = ["canonical_host"]
+
+[patch.crates-io]
+canonical = { path = "../../../../canonical/canon" }
+canonical_host = { path = "../../../../canonical/canon_host" }
+canonical_derive = { path = "../../../../canonical/canon_derive" }

@@ -1,171 +1,123 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-use std::io;
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 
-use dataview::Pod;
-use dusk_abi::H256;
-use kelvin::{ByteHash, Content, Sink, Source, ValRef, ValRefMut};
-use kelvin_radix::DefaultRadixMap as RadixMap;
+use canonical::{ByteSource, Canon, Ident, Store};
+use canonical_derive::Canon;
+use dusk_abi::{Query, Transaction};
+use dusk_kelvin_map::Map;
 
 use crate::call_context::{CallContext, Resolver};
-use crate::contract::{Contract, MeteredContract};
+use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::VMError;
 
-pub type Storage<H> = RadixMap<Vec<u8>, Vec<u8>, H>;
-
-#[derive(Clone)]
-pub struct ContractState<H: ByteHash> {
-    balance: u128,
-    code: MeteredContract,
-    nonce: u64,
-    storage: Storage<H>,
-}
-
-impl<H: ByteHash> ContractState<H> {
-    pub fn empty() -> Self {
-        ContractState {
-            code: MeteredContract::empty(),
-            balance: 0,
-            nonce: 0,
-            storage: Default::default(),
-        }
-    }
-
-    pub fn balance(&self) -> u128 {
-        self.balance
-    }
-
-    pub fn balance_mut(&mut self) -> &mut u128 {
-        &mut self.balance
-    }
-
-    pub fn storage(&self) -> &Storage<H> {
-        &self.storage
-    }
-
-    pub fn storage_mut(&mut self) -> &mut Storage<H> {
-        &mut self.storage
-    }
-
-    pub fn contract(&self) -> &MeteredContract {
-        &self.code
-    }
-
-    pub fn contract_mut(&mut self) -> &mut MeteredContract {
-        &mut self.code
-    }
-}
-
 /// The main network state, includes the full state of contracts.
-#[derive(Clone, Default)]
-pub struct NetworkState<S, H: ByteHash> {
-    contracts: RadixMap<H256, ContractState<H>, H>,
-    _marker: PhantomData<S>,
+#[derive(Clone, Default, Canon)]
+pub struct NetworkState<E, S>
+where
+    S: Store,
+{
+    contracts: Map<ContractId, Contract, S, 17>,
+    store: S,
+    _marker: PhantomData<E>,
 }
 
-impl<S: Resolver<H>, H: ByteHash> NetworkState<S, H> {
+impl<E, S> NetworkState<E, S>
+where
+    E: Resolver<S>,
+    S: Store,
+{
     /// Deploys a contract to the state, returns the address of the created contract
     /// or an error
-    pub fn deploy(&mut self, contract: Contract) -> Result<H256, VMError> {
-        let code_hash = contract.hash();
-        let metered = contract.build()?;
+    pub fn deploy(
+        &mut self,
+        contract: Contract,
+    ) -> Result<ContractId, S::Error> {
+        let id: ContractId = S::Ident::from_bytes(contract.bytecode()).into();
 
-        let state = ContractState {
-            code: metered,
-            balance: 0,
-            nonce: 0,
-            storage: Default::default(),
-        };
-
-        self.contracts.insert(code_hash, state)?;
-        Ok(code_hash)
+        self.contracts
+            .insert(id.clone(), contract)
+            .expect("FIXME: error handling");
+        Ok(id)
     }
 
     /// Returns a reference to the specified contracts state
-    pub fn get_contract_state(
-        &self,
-        contract_id: &H256,
-    ) -> Result<Option<impl ValRef<ContractState<H>>>, VMError> {
-        self.contracts.get(contract_id).map_err(Into::into)
+    pub fn get_contract<'a>(
+        &'a self,
+        contract_id: &ContractId,
+    ) -> Result<Option<impl Deref<Target = Contract> + 'a>, VMError<S>> {
+        self.contracts
+            .get(contract_id)
+            .map_err(VMError::from_store_error)
     }
 
-    /// Returns a mutable reference to the specified contracts state
-    pub fn get_contract_state_mut(
-        &mut self,
-        contract_id: &H256,
-    ) -> Result<Option<impl ValRefMut<ContractState<H>>>, VMError> {
-        self.contracts.get_mut(contract_id).map_err(Into::into)
+    /// Returns a reference to the specified contracts state
+    pub fn get_contract_mut<'a>(
+        &'a mut self,
+        contract_id: &ContractId,
+    ) -> Result<Option<impl DerefMut<Target = Contract> + 'a>, VMError<S>> {
+        self.contracts
+            .get_mut(contract_id)
+            .map_err(VMError::from_store_error)
     }
 
-    /// Returns a mutable reference to the specified contracts state, or to a newly created
-    /// contract
-    pub fn get_contract_state_mut_or_default(
+    /// Returns a reference to the store backing the state
+    pub fn store(&self) -> &S {
+        &self.store
+    }
+
+    /// Queryn the contract at address `target`
+    pub fn query<A, R>(
         &mut self,
-        id: &H256,
-    ) -> Result<impl ValRefMut<ContractState<H>>, VMError> {
-        if self.contracts.get(id)?.is_none() {
-            self.contracts.insert(*id, ContractState::empty())?;
+        target: &ContractId,
+        query: A,
+        gas_meter: &mut GasMeter,
+    ) -> Result<R, VMError<S>>
+    where
+        A: Canon<S>,
+        R: Canon<S>,
+    {
+        let store = self.store().clone();
+        let mut context = CallContext::new(self, gas_meter, &store)
+            .expect("FIXME: error handling");
+
+        {
+            let result = context.query(
+                target,
+                Query::from_canon(&query, store.clone())
+                    .map_err(VMError::from_store_error)?,
+            )?;
+
+            result.cast(store).map_err(VMError::from_store_error)
         }
-
-        Ok(self.contracts.get_mut(id)?.expect("Assured above"))
     }
 
-    /// Call the contract at address `target`
-    pub fn call_contract<A: Pod, R: Pod>(
+    /// Transact with the contract at address `target`
+    pub fn transact<A, R>(
         &mut self,
-        target: H256,
-        argument: A,
+        target: &ContractId,
+        transaction: A,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError> {
-        self.call_contract_operation(target, 0, argument, gas_meter)
-    }
+    ) -> Result<R, VMError<S>>
+    where
+        A: Canon<S>,
+        R: Canon<S>,
+    {
+        let store = self.store().clone();
+        let mut context = CallContext::new(self, gas_meter, &store)
+            .expect("FIXME: error handling");
 
-    /// Call the contract at address `target` passing the opcode
-    pub fn call_contract_operation<A: Pod, R: Pod>(
-        &mut self,
-        target: H256,
-        opcode: usize,
-        argument: A,
-        gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError> {
-        let mut ret = R::zeroed();
-        let mut context =
-            CallContext::new(self, gas_meter, &argument, &mut ret);
-        context.call(target, opcode, 0, 0, 0, 0)?;
-        Ok(ret)
-    }
-}
+        let result = context.transact(
+            target,
+            Transaction::from_canon(&transaction, store.clone())
+                .map_err(VMError::from_store_error)?,
+        )?;
 
-impl<H: ByteHash> Content<H> for ContractState<H> {
-    fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
-        self.balance.persist(sink)?;
-        self.nonce.persist(sink)?;
-        self.code.persist(sink)?;
-        self.storage.persist(sink)
-    }
+        let mut source = ByteSource::new(result.as_bytes(), self.store.clone());
 
-    fn restore(source: &mut Source<H>) -> io::Result<Self> {
-        Ok(ContractState {
-            balance: u128::restore(source)?,
-            nonce: u64::restore(source)?,
-            code: MeteredContract::restore(source)?,
-            storage: Storage::restore(source)?,
-        })
-    }
-}
-
-impl<S: 'static + Resolver<H>, H: ByteHash> Content<H> for NetworkState<S, H> {
-    fn persist(&mut self, sink: &mut Sink<H>) -> io::Result<()> {
-        self.contracts.persist(sink)
-    }
-
-    fn restore(source: &mut Source<H>) -> io::Result<Self> {
-        Ok(NetworkState {
-            contracts: RadixMap::restore(source)?,
-            _marker: PhantomData,
-        })
+        Canon::<S>::read(&mut source).map_err(VMError::from_store_error)
     }
 }

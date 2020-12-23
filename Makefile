@@ -31,11 +31,12 @@ wasm: ## Generate the WASM for the contract given (e.g. make wasm for=transfer)
 		--release \
 		--target wasm32-unknown-unknown \
 		-- -C link-args=-s
+	cp tests/contracts/$(for)/target/wasm32-unknown-unknown/release/$(for).wasm tests/contracts/$(for)/$(for).wasm
 
 test: ## Run the contracts' tests
-	@make wasm for=factorial && \
-		make wasm for=storage && \
-		make wasm for=storage_factorial && \
-		cargo test -- --nocapture
+	@make wasm for=counter && \
+		make wasm for=delegator && \
+		make wasm for=fibonacci && \
+		cargo test
 
 .PHONY: help doc doc-internal publish-doc wasm test
