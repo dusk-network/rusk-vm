@@ -130,17 +130,12 @@ where
                         // write contract state and argument to memory
                         memref
                             .with_direct_access_mut(|m| {
-                                println!("A: {:?}", &m[..32]);
-
                                 let mut sink =
                                     ByteSink::new(&mut m[..], store.clone());
                                 // copy the raw bytes only, since the contract can infer
                                 // it's own state and argument lengths
                                 sink.copy_bytes(contract.state().as_bytes());
                                 sink.copy_bytes(query.as_bytes());
-
-                                println!("B: {:?}", &m[..32]);
-
                                 Ok(())
                             })
                             .map_err(VMError::from_store_error)?;
@@ -159,8 +154,6 @@ where
         match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => memref
                 .with_direct_access_mut(|m| {
-                    println!("C: {:?}", &m[..32]);
-
                     let mut source = ByteSource::new(&m[..], store);
                     let result = Canon::<S>::read(&mut source)?;
 
@@ -226,11 +219,6 @@ where
                     Some(wasmi::ExternVal::Memory(memref)) => {
                         memref
                             .with_direct_access_mut(|m| {
-                                println!(
-                                    "bytes after transaction {:?}",
-                                    &m[..32]
-                                );
-
                                 let mut source = ByteSource::new(&m[..], store);
 
                                 // read new state

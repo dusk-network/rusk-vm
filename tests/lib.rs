@@ -155,7 +155,6 @@ fn fibonacci() {
     let n = 5;
 
     for i in 0..n {
-        println!("testing {}", i);
         assert_eq!(
             network
                 .query::<_, u64>(

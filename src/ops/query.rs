@@ -31,11 +31,6 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ExecuteQuery {
                         &m[contract_id_ofs..contract_id_ofs + 32],
                     );
 
-                    println!(
-                        "query ofs memory {:?}",
-                        &m[query_ofs..query_ofs + 32]
-                    );
-
                     let mut source = ByteSource::new(
                         &m[query_ofs..],
                         context.store().clone(),
@@ -43,17 +38,11 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ExecuteQuery {
 
                     let query = Canon::<S>::read(&mut source)?;
 
-                    println!("Read query as {:?}", query);
-
                     Ok((contract_id, query))
                 })
                 .map_err(VMError::from_store_error)?;
 
-            println!("--- calling {:?} with query {:?}", contract_id, query);
-
             let result = context.query(&contract_id, query)?;
-
-            println!("got the result {:?}", result);
 
             let store = context.store().clone();
 
