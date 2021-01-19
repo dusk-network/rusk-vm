@@ -57,7 +57,7 @@ impl<const N: usize> Buffer<N> {
     }
 
     /// Creates a buffer from a type implementing `Canon`
-    pub fn from_canon<C, S>(c: &C, s: S) -> Result<Self, S::Error>
+    pub fn from_canon<C, S>(c: &C, s: &S) -> Result<Self, S::Error>
     where
         C: Canon<S>,
         S: Store,
@@ -81,7 +81,7 @@ impl ContractState {
     }
 
     /// Creates a state from a type implementing `Canon`
-    pub fn from_canon<C, S>(c: &C, s: S) -> Result<Self, S::Error>
+    pub fn from_canon<C, S>(c: &C, s: &S) -> Result<Self, S::Error>
     where
         C: Canon<S>,
         S: Store,
@@ -106,7 +106,7 @@ impl Query {
     }
 
     /// Creates a query from a type implementing `Canon`
-    pub fn from_canon<C, S>(c: &C, s: S) -> Result<Self, S::Error>
+    pub fn from_canon<C, S>(c: &C, s: &S) -> Result<Self, S::Error>
     where
         C: Canon<S>,
         S: Store,
@@ -131,7 +131,7 @@ impl Transaction {
     }
 
     /// Creates a transaction from a type implementing `Canon`
-    pub fn from_canon<C, S>(c: &C, s: S) -> Result<Self, S::Error>
+    pub fn from_canon<C, S>(c: &C, s: &S) -> Result<Self, S::Error>
     where
         C: Canon<S>,
         S: Store,
@@ -156,7 +156,7 @@ impl ReturnValue {
     }
 
     /// Creates a transaction from a type implementing `Canon`
-    pub fn from_canon<C, S>(c: &C, s: S) -> Result<Self, S::Error>
+    pub fn from_canon<C, S>(c: &C, s: &S) -> Result<Self, S::Error>
     where
         C: Canon<S>,
         S: Store,
@@ -170,7 +170,7 @@ impl ReturnValue {
         C: Canon<S>,
         S: Store,
     {
-        let mut source = ByteSource::new(self.as_bytes(), store);
+        let mut source = ByteSource::new(self.as_bytes(), &store);
         Canon::<S>::read(&mut source)
     }
 }
@@ -241,14 +241,14 @@ pub fn query_raw(
     let bs = BridgeStore::<Id32>::default();
 
     let mut buf = [0u8; BUFFER_SIZE_LIMIT];
-    let mut sink = ByteSink::new(&mut buf, bs);
+    let mut sink = ByteSink::new(&mut buf, &bs);
 
     query.write(&mut sink)?;
 
     unsafe { external::query(&target.as_bytes()[0], &mut buf[0]) }
 
     // read return back
-    let mut source = ByteSource::new(&buf, bs);
+    let mut source = ByteSource::new(&buf, &bs);
 
     ReturnValue::read(&mut source)
 }
@@ -265,7 +265,7 @@ where
     R: Canon<BridgeStore<Id32>>,
 {
     let bs = BridgeStore::<Id32>::default();
-    let wrapped = Query::from_canon(query, bs)?;
+    let wrapped = Query::from_canon(query, &bs)?;
     let result = query_raw(target, &wrapped)?;
     result.cast(bs)
 }
@@ -278,14 +278,14 @@ pub fn transact_raw(
     let bs = BridgeStore::<Id32>::default();
 
     let mut buf = [0u8; BUFFER_SIZE_LIMIT];
-    let mut sink = ByteSink::new(&mut buf, bs);
+    let mut sink = ByteSink::new(&mut buf, &bs);
 
     transaction.write(&mut sink)?;
 
     unsafe { external::transact(&target.as_bytes()[0], &mut buf[0]) }
 
     // read return back
-    let mut source = ByteSource::new(&buf, bs);
+    let mut source = ByteSource::new(&buf, &bs);
 
     ReturnValue::read(&mut source)
 }
@@ -302,7 +302,7 @@ where
     R: Canon<BridgeStore<Id32>>,
 {
     let bs = BridgeStore::<Id32>::default();
-    let wrapped = Transaction::from_canon(transaction, bs)?;
+    let wrapped = Transaction::from_canon(transaction, &bs)?;
     let result = transact_raw(target, &wrapped)?;
     result.cast(bs)
 }
@@ -359,6 +359,6 @@ mod test {
     fn fuzz_buffer() {
         let store = MemStore::new();
         fuzz_canon::<Buffer<BUFFER_SIZE_LIMIT>, _>(store.clone());
-        fuzz_canon::<ReturnValue, _>(store.clone());
+        fuzz_canon::<ReturnValue, _>(store);
     }
 }

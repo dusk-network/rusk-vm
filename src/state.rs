@@ -87,7 +87,7 @@ where
         {
             let result = context.query(
                 target,
-                Query::from_canon(&query, store.clone())
+                Query::from_canon(&query, &store)
                     .map_err(VMError::from_store_error)?,
             )?;
 
@@ -112,11 +112,11 @@ where
 
         let result = context.transact(
             target,
-            Transaction::from_canon(&transaction, store.clone())
+            Transaction::from_canon(&transaction, &store)
                 .map_err(VMError::from_store_error)?,
         )?;
 
-        let mut source = ByteSource::new(result.as_bytes(), self.store.clone());
+        let mut source = ByteSource::new(result.as_bytes(), &self.store);
 
         Canon::<S>::read(&mut source).map_err(VMError::from_store_error)
     }

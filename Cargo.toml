@@ -14,10 +14,10 @@ failure = "0.1"
 lazy_static = "1.4"
 parking_lot = "0.10"
 
-dusk-abi = { path = "dusk-abi" }
-canonical = { version = "0.4" , features = ["host"] }
-canonical_host = { version = "0.4" }
-canonical_derive = { version = "0.4" }
+dusk-abi = { path = "dusk-abi", version = "0.3" }
+canonical = { version = "0.5" , features = ["host"] }
+canonical_host = "0.5"
+canonical_derive = "0.5"
 dusk-kelvin-map = "0.2"
 
 [dev-dependencies]
@@ -33,8 +33,3 @@ delegator = { path = "tests/contracts/delegator", features = ["host"] }
 [[bench]]
 name = "factorial"
 harness = false
-
-[patch.crates-io]
-canonical = { path = "../canonical/canon" }
-canonical_host = { path = "../canonical/canon_host" }
-canonical_derive = { path = "../canonical/canon_derive" }

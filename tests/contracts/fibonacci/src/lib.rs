@@ -46,7 +46,7 @@ mod hosted {
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         let store = BS::default();
-        let mut source = ByteSource::new(&bytes[..], store.clone());
+        let mut source = ByteSource::new(&bytes[..], &store);
 
         // read self (noop).
         let slf: Fibonacci = Canon::<BS>::read(&mut source)?;
@@ -61,8 +61,8 @@ mod hosted {
 
                 let ret = slf.compute(input);
 
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
-                let packed_ret = ReturnValue::from_canon(&ret, store)?;
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
+                let packed_ret = ReturnValue::from_canon(&ret, &store)?;
 
                 dusk_abi::debug!("packed_ret {:?}", packed_ret);
 

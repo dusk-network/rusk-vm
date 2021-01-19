@@ -25,7 +25,7 @@ impl Contract {
         S: Store,
     {
         Ok(Contract {
-            state: ContractState::from_canon(&state, store.clone())?,
+            state: ContractState::from_canon(&state, &store)?,
             code: code.into(),
         })
     }

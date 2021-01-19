@@ -84,7 +84,7 @@ mod hosted {
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         let bs = BS::default();
-        let mut source = ByteSource::new(&bytes[..], bs);
+        let mut source = ByteSource::new(&bytes[..], &bs);
 
         // read self.
         let slf: Counter = Canon::<BS>::read(&mut source)?;
@@ -98,11 +98,11 @@ mod hosted {
 
                 let r = {
                     // return value
-                    let wrapped_return = ReturnValue::from_canon(&ret, bs)?;
+                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
 
                     dusk_abi::debug!("wrapped return {:?}", wrapped_return);
 
-                    let mut sink = ByteSink::new(&mut bytes[..], bs);
+                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
 
                     Canon::<BS>::write(&wrapped_return, &mut sink)
                 };
@@ -114,14 +114,14 @@ mod hosted {
             XOR_VALUES => {
                 let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let ret = slf.xor_values(a, b);
-                let mut sink = ByteSink::new(&mut bytes[..], bs);
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
             // is_even (&Self) -> bool
             IS_EVEN => {
                 let ret = slf.is_even();
-                let mut sink = ByteSink::new(&mut bytes[..], bs);
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
 
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
@@ -140,7 +140,7 @@ mod hosted {
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {
         let bs = BS::default();
-        let mut source = ByteSource::new(bytes, bs);
+        let mut source = ByteSource::new(bytes, &bs);
 
         // read self.
         let mut slf: Counter = Canon::<BS>::read(&mut source)?;
@@ -150,26 +150,26 @@ mod hosted {
             // increment (&Self)
             INCREMENT => {
                 slf.increment();
-                let mut sink = ByteSink::new(&mut bytes[..], bs);
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
                 // return new state
                 Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, bs)?,
+                    &ContractState::from_canon(&slf, &bs)?,
                     &mut sink,
                 )?;
 
                 // return value
                 Canon::<BS>::write(
-                    &ReturnValue::from_canon(&(), bs)?,
+                    &ReturnValue::from_canon(&(), &bs)?,
                     &mut sink,
                 )
             }
             DECREMENT => {
                 // no args
                 slf.decrement();
-                let mut sink = ByteSink::new(&mut bytes[..], bs);
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
 
                 Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, bs),
+                    &ContractState::from_canon(&slf, &bs),
                     &mut sink,
                 )?;
 
@@ -180,10 +180,10 @@ mod hosted {
                 // read arg
                 let by: i32 = Canon::<BS>::read(&mut source)?;
                 slf.adjust(by);
-                let mut sink = ByteSink::new(&mut bytes[..], bs);
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
 
                 Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, bs),
+                    &ContractState::from_canon(&slf, &bs),
                     &mut sink,
                 )?;
 
@@ -194,10 +194,10 @@ mod hosted {
                 // read multiple args
                 let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let res = slf.compare_and_swap(a, b);
-                let mut sink = ByteSink::new(&mut bytes[..], bs);
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
 
                 Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, bs),
+                    &ContractState::from_canon(&slf, &bs),
                     &mut sink,
                 )?;
 

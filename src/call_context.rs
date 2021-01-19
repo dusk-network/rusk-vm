@@ -131,7 +131,7 @@ where
                         memref
                             .with_direct_access_mut(|m| {
                                 let mut sink =
-                                    ByteSink::new(&mut m[..], store.clone());
+                                    ByteSink::new(&mut m[..], &store);
                                 // copy the raw bytes only, since the contract can infer
                                 // it's own state and argument lengths
                                 sink.copy_bytes(contract.state().as_bytes());
@@ -154,7 +154,7 @@ where
         match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => memref
                 .with_direct_access_mut(|m| {
-                    let mut source = ByteSource::new(&m[..], store);
+                    let mut source = ByteSource::new(&m[..], &store);
                     let result = Canon::<S>::read(&mut source)?;
 
                     self.stack.pop();
@@ -190,8 +190,7 @@ where
                         // write contract state and argument to memory
 
                         memref.with_direct_access_mut(|m| {
-                            let mut sink =
-                                ByteSink::new(&mut m[..], store.clone());
+                            let mut sink = ByteSink::new(&mut m[..], &store);
                             // copy the raw bytes only, since the contract can infer
                             // it's own state and argument lengths.
                             sink.copy_bytes(contract.state().as_bytes());
@@ -219,7 +218,8 @@ where
                     Some(wasmi::ExternVal::Memory(memref)) => {
                         memref
                             .with_direct_access_mut(|m| {
-                                let mut source = ByteSource::new(&m[..], store);
+                                let mut source =
+                                    ByteSource::new(&m[..], &store);
 
                                 // read new state
                                 let state = Canon::<S>::read(&mut source)?;

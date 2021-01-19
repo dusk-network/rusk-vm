@@ -50,8 +50,8 @@ mod hosted {
     }
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let store = BS::default();
-        let mut source = ByteSource::new(&bytes[..], store.clone());
+        let bs = BS::default();
+        let mut source = ByteSource::new(&bytes[..], &bs);
 
         // read self.
         let slf: Delegator = Canon::<BS>::read(&mut source)?;
@@ -65,7 +65,7 @@ mod hosted {
 
                 let result = slf.delegate_query(&target, &query);
 
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
 
                 Canon::<BS>::write(&result, &mut sink)?;
                 Ok(())
@@ -84,7 +84,7 @@ mod hosted {
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {
         let bs = BS::default();
-        let mut source = ByteSource::new(bytes, bs);
+        let mut source = ByteSource::new(bytes, &bs);
 
         // read self.
         let mut slf: Delegator = Canon::<BS>::read(&mut source)?;
@@ -97,11 +97,11 @@ mod hosted {
 
                 let result = slf.delegate_transaction(&target, &transaction);
 
-                let mut sink = ByteSink::new(&mut bytes[..], bs);
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
 
                 // return new state
                 Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, bs)?,
+                    &ContractState::from_canon(&slf, &bs)?,
                     &mut sink,
                 )?;
 

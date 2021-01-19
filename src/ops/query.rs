@@ -31,10 +31,8 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ExecuteQuery {
                         &m[contract_id_ofs..contract_id_ofs + 32],
                     );
 
-                    let mut source = ByteSource::new(
-                        &m[query_ofs..],
-                        context.store().clone(),
-                    );
+                    let mut source =
+                        ByteSource::new(&m[query_ofs..], context.store());
 
                     let query = Canon::<S>::read(&mut source)?;
 
@@ -49,7 +47,7 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ExecuteQuery {
             context
                 .memory_mut(|m| {
                     // write back the return value
-                    let mut sink = ByteSink::new(&mut m[query_ofs..], store);
+                    let mut sink = ByteSink::new(&mut m[query_ofs..], &store);
                     Canon::<S>::write(&result, &mut sink)
                 })
                 .map_err(VMError::from_store_error)?;
