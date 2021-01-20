@@ -2,9 +2,7 @@
 //!
 //! ABI functionality for communicating with the host
 #![warn(missing_docs)]
-#![cfg_attr(not(feature = "std"), no_std)]
-#![feature(lang_items)]
-#![feature(panic_info_message)]
+#![no_std]
 
 use canonical::{
     BridgeStore, ByteSink, ByteSource, Canon, Id32, Sink, Source, Store,
@@ -38,7 +36,7 @@ where
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let len: u16 = Canon::<S>::read(source)?;
-        Ok(Self::from_bytes(source.read_bytes(len as usize)))
+        Ok(Self::from_slice(source.read_bytes(len as usize)))
     }
 
     fn encoded_len(&self) -> usize {
@@ -48,7 +46,7 @@ where
 
 impl<const N: usize> Buffer<N> {
     /// Creates a buffer from a type implementing `Canon`
-    fn from_bytes(buffer: &[u8]) -> Self {
+    fn from_slice(buffer: &[u8]) -> Self {
         let mut vec = ArrayVec::new();
         vec.try_extend_from_slice(buffer)
             .unwrap_or_else(|_| panic!("too large! {}", buffer.len()));
@@ -66,7 +64,7 @@ impl<const N: usize> Buffer<N> {
         let mut sink = ByteSink::new(&mut buffer, s);
         let len = Canon::<S>::encoded_len(c);
         Canon::<S>::write(c, &mut sink)?;
-        Ok(Self::from_bytes(&buffer[..len]))
+        Ok(Self::from_slice(&buffer[..len]))
     }
 }
 
@@ -101,8 +99,8 @@ impl Query {
     }
 
     /// Creates a query from a raw bytes
-    pub fn from_bytes(buffer: &[u8]) -> Self {
-        Query(Buffer::from_bytes(buffer))
+    pub fn from_slice(buffer: &[u8]) -> Self {
+        Query(Buffer::from_slice(buffer))
     }
 
     /// Creates a query from a type implementing `Canon`
@@ -126,8 +124,8 @@ impl Transaction {
     }
 
     /// Creates a transaction from a raw bytes
-    pub fn from_bytes(buffer: &[u8]) -> Self {
-        Transaction(Buffer::from_bytes(buffer))
+    pub fn from_slice(buffer: &[u8]) -> Self {
+        Transaction(Buffer::from_slice(buffer))
     }
 
     /// Creates a transaction from a type implementing `Canon`
@@ -151,8 +149,8 @@ impl ReturnValue {
     }
 
     /// Creates a transaction from a raw bytes
-    pub fn from_bytes(buffer: &[u8]) -> Self {
-        ReturnValue(Buffer::from_bytes(buffer))
+    pub fn from_slice(buffer: &[u8]) -> Self {
+        ReturnValue(Buffer::from_slice(buffer))
     }
 
     /// Creates a transaction from a type implementing `Canon`
@@ -303,7 +301,7 @@ where
 {
     let bs = BridgeStore::<Id32>::default();
     let wrapped = Transaction::from_canon(transaction, &bs)?;
-    let result = transact_raw(target, &wrapped)?;
+    let result = transact_raw(&target, &wrapped)?;
     result.cast(bs)
 }
 
@@ -345,7 +343,7 @@ mod test {
         fn arbitrary(u: &mut Unstructured<'_>) -> arbitrary::Result<Self> {
             let mut vec = Vec::arbitrary(u)?;
             vec.truncate(BUFFER_SIZE_LIMIT);
-            Ok(Buffer::from_bytes(&vec[..]))
+            Ok(Buffer::from_slice(&vec[..]))
         }
     }
 

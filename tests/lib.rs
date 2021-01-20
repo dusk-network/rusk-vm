@@ -37,18 +37,18 @@ fn counter() {
 
     assert_eq!(
         network
-            .query::<_, i32>(&contract_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
             .unwrap(),
         99
     );
 
     network
-        .transact::<_, ()>(&contract_id, counter::INCREMENT, &mut gas)
+        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
         .unwrap();
 
     assert_eq!(
         network
-            .query::<_, i32>(&contract_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
             .unwrap(),
         100
     );
@@ -72,7 +72,7 @@ fn counter_trivial() {
 
     assert_eq!(
         network
-            .query::<_, i32>(&contract_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
             .unwrap(),
         99
     );
@@ -104,7 +104,7 @@ fn delegated_call() {
     assert_eq!(
         network
             .query::<_, i32>(
-                &delegator_id,
+                delegator_id,
                 (delegator::DELEGATE_QUERY, counter_id, counter::READ_VALUE),
                 &mut gas
             )
@@ -116,7 +116,7 @@ fn delegated_call() {
 
     network
         .transact::<_, ()>(
-            &delegator_id,
+            delegator_id,
             (
                 delegator::DELEGATE_TRANSACTION,
                 counter_id,
@@ -130,7 +130,7 @@ fn delegated_call() {
 
     assert_eq!(
         network
-            .query::<_, i32>(&counter_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(counter_id, counter::READ_VALUE, &mut gas)
             .unwrap(),
         100
     );
@@ -157,11 +157,7 @@ fn fibonacci() {
     for i in 0..n {
         assert_eq!(
             network
-                .query::<_, u64>(
-                    &contract_id,
-                    (fibonacci::COMPUTE, i),
-                    &mut gas
-                )
+                .query::<_, u64>(contract_id, (fibonacci::COMPUTE, i), &mut gas)
                 .unwrap(),
             fibonacci_reference(i)
         );

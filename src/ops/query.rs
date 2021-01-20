@@ -40,7 +40,7 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ExecuteQuery {
                 })
                 .map_err(VMError::from_store_error)?;
 
-            let result = context.query(&contract_id, query)?;
+            let result = context.query(contract_id, query)?;
 
             let store = context.store().clone();
 

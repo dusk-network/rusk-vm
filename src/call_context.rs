@@ -41,9 +41,9 @@ impl std::fmt::Debug for StackFrame {
 }
 
 impl StackFrame {
-    fn new_query(callee: &ContractId, memory: MemoryRef, query: Query) -> Self {
+    fn new_query(callee: ContractId, memory: MemoryRef, query: Query) -> Self {
         StackFrame {
-            callee: callee.clone(),
+            callee,
             memory,
             argument: Argument::Query(query),
             ret: Default::default(),
@@ -51,12 +51,12 @@ impl StackFrame {
     }
 
     fn new_transaction(
-        callee: &ContractId,
+        callee: ContractId,
         memory: MemoryRef,
         transaction: Transaction,
     ) -> Self {
         StackFrame {
-            callee: callee.clone(),
+            callee,
             memory,
             argument: Argument::Transaction(transaction),
             ret: Default::default(),
@@ -107,7 +107,7 @@ where
 
     pub fn query(
         &mut self,
-        target: &ContractId,
+        target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError<S>> {
         let resolver = E::default();
@@ -117,7 +117,7 @@ where
 
         let store = self.store.clone();
 
-        match self.state.get_contract(target)? {
+        match self.state.get_contract(&target)? {
             None => panic!("FIXME: error handling"),
             Some(contract) => {
                 let module = wasmi::Module::from_buffer(contract.bytecode())?;
@@ -167,7 +167,7 @@ where
 
     pub fn transact(
         &mut self,
-        target: &ContractId,
+        target: ContractId,
         transaction: Transaction,
     ) -> Result<ReturnValue, VMError<S>> {
         let resolver = E::default();
@@ -177,7 +177,7 @@ where
 
         let store = self.store.clone();
 
-        match self.state.get_contract(target)? {
+        match self.state.get_contract(&target)? {
             None => panic!("FIXME: error handling"),
             Some(contract) => {
                 let module = wasmi::Module::from_buffer(contract.bytecode())?;
@@ -211,7 +211,7 @@ where
         // Perform the transact call
         instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
 
-        let ret = match self.state.get_contract_mut(target)? {
+        let ret = match self.state.get_contract_mut(&target)? {
             None => panic!("FIXME: error handling"),
             Some(mut contract) => {
                 match instance.export_by_name("memory") {

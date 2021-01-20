@@ -72,7 +72,7 @@ where
     /// Queryn the contract at address `target`
     pub fn query<A, R>(
         &mut self,
-        target: &ContractId,
+        target: ContractId,
         query: A,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError<S>>
@@ -98,7 +98,7 @@ where
     /// Transact with the contract at address `target`
     pub fn transact<A, R>(
         &mut self,
-        target: &ContractId,
+        target: ContractId,
         transaction: A,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError<S>>
