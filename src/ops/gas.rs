@@ -5,19 +5,19 @@ use super::AbiCall;
 use crate::call_context::{CallContext, Resolver};
 use crate::VMError;
 
-use kelvin::ByteHash;
+use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Gas;
 
-impl<S: Resolver<H>, H: ByteHash> AbiCall<S, H> for Gas {
+impl<E: Resolver<S>, S: Store> AbiCall<E, S> for Gas {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S, H>,
+        context: &mut CallContext<E, S>,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
+    ) -> Result<Option<RuntimeValue>, VMError<S>> {
         let meter = context.gas_meter_mut();
         let gas: u32 = args.nth_checked(0)?;
         if meter.charge(gas as u64).is_out_of_gas() {

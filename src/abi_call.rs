@@ -5,12 +5,12 @@ use crate::call_context::CallContext;
 use crate::VMError;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
-pub trait ABICall<S>: Send + Sync {
+pub trait ABICall<E>: Send + Sync {
     fn call(
         &self,
-        context: &mut CallContext<S, H>,
+        context: &mut CallContext<E, S>,
         args: &RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError>;
+    ) -> Result<Option<RuntimeValue>, VMError<S>>;
     fn args(&self) -> &'static [ValueType];
     fn ret(&self) -> Option<ValueType>;
 }
@@ -21,12 +21,12 @@ macro_rules! abi_call {
         #[derive(Clone, Copy)]
         struct $name;
 
-        impl<S: Resolver> ABICall<S> for $name {
+        impl<Re: Resolver> ABICall<Re> for $name {
             fn call(
                 &self,
-                $context: &mut CallContext<S, H>,
+                $context: &mut CallContext<Re, S>,
                 $args: &RuntimeArgs,
-            ) -> Result<Option<RuntimeValue>, VMError> {
+            ) -> Result<Option<RuntimeValue>, VMError<S>> {
                 $body
             }
 

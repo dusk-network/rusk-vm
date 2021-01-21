@@ -2,177 +2,164 @@
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 mod contracts;
-mod helpers;
 
-use kelvin::Blake2b;
+use rusk_vm::{Contract, GasMeter, NetworkState, StandardABI};
 
-use rusk_vm::{Contract, GasMeter, NetworkState, Schedule, StandardABI};
+use canonical_host::MemStore as MS;
+
+use counter::Counter;
+use delegator::Delegator;
+use fibonacci::Fibonacci;
+
+fn fibonacci_reference(n: u64) -> u64 {
+    if n < 2 {
+        n
+    } else {
+        fibonacci_reference(n - 1) + fibonacci_reference(n - 2)
+    }
+}
 
 #[test]
-fn factorial() {
-    fn factorial_reference(n: u64) -> u64 {
-        if n <= 1 {
-            1
-        } else {
-            n * factorial_reference(n - 1)
-        }
-    }
+fn counter() {
+    let counter = Counter::new(99);
 
-    let code = contract_code!("factorial");
+    let store = MS::new();
 
-    let schedule = Schedule::default();
-    let contract = Contract::new::<Blake2b>(code, &schedule).unwrap();
+    let code = include_bytes!("contracts/counter/counter.wasm");
 
-    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+    let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, MS>::default();
 
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
-
-    let n: u64 = 6;
 
     assert_eq!(
         network
-            .call_contract_operation::<u64, u64>(contract_id, 1, n, &mut gas)
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
             .unwrap(),
-        factorial_reference(n)
+        99
+    );
+
+    network
+        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+        .unwrap();
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .unwrap(),
+        100
     );
 }
 
 #[test]
-fn storage() {
-    // TODO: until we don't have an easy way to obtain the ABI of a method,
-    // we need to know the opcode to call
-    const GET_VALUE: usize = 1;
-    const DELETE: usize = 2;
-    const SET_VALUE: usize = 3;
+fn counter_trivial() {
+    let counter = Counter::new(99);
 
-    let code = contract_code!("storage");
+    let store = MS::new();
 
-    let schedule = Schedule::default();
-    let contract = Contract::new::<Blake2b>(code, &schedule).unwrap();
+    let code = include_bytes!("contracts/counter/counter.wasm");
 
-    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+    let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, MS>::default();
 
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let non_existing = network
-        .call_contract_operation::<i32, i32>(
-            contract_id,
-            GET_VALUE,
-            0,
-            &mut gas,
-        )
-        .unwrap();
-
-    assert_eq!(non_existing, -1);
-
-    let set = network
-        .call_contract_operation::<i32, i32>(
-            contract_id,
-            SET_VALUE,
-            42,
-            &mut gas,
-        )
-        .unwrap();
-
-    assert_eq!(set, 42);
-
-    let existing = network
-        .call_contract_operation::<i32, i32>(
-            contract_id,
-            GET_VALUE,
-            0,
-            &mut gas,
-        )
-        .unwrap();
-
-    assert_eq!(existing, 42);
-
-    let delete = network
-        .call_contract_operation::<i32, i32>(contract_id, DELETE, 0, &mut gas)
-        .unwrap();
-
-    assert_eq!(delete, -2);
-
-    let non_existing_again = network
-        .call_contract_operation::<i32, i32>(
-            contract_id,
-            GET_VALUE,
-            0,
-            &mut gas,
-        )
-        .unwrap();
-
-    assert_eq!(non_existing_again, -1);
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .unwrap(),
+        99
+    );
 }
 
 #[test]
-fn storage_factorial() {
-    // TODO: until we don't have an easy way to obtain the ABI of a method,
-    // we need to know the opcode to call
-    const FACTORIAL_OF: usize = 1;
-    const GET_VALUE: usize = 2;
+fn delegated_call() {
+    let counter = Counter::new(99);
+    let delegator = Delegator;
 
-    let factorial_code = contract_code!("factorial");
-    let storage_code = contract_code!("storage");
-    let code = contract_code!("storage_factorial");
+    let store = MS::new();
 
-    let schedule = Schedule::default();
-    let factorial_contract =
-        Contract::new::<Blake2b>(factorial_code, &schedule).unwrap();
-    let storage_contract =
-        Contract::new::<Blake2b>(storage_code, &schedule).unwrap();
+    let mut network = NetworkState::<StandardABI<_>, MS>::default();
 
-    let contract = Contract::new::<Blake2b>(code, &schedule).unwrap();
+    let counter_code = include_bytes!("contracts/counter/counter.wasm");
+    let counter_contract =
+        Contract::new(counter, counter_code.to_vec(), &store).unwrap();
+    let counter_id = network.deploy(counter_contract).unwrap();
 
-    let mut network = NetworkState::<StandardABI<_>, Blake2b>::default();
+    let delegator_code = include_bytes!("contracts/delegator/delegator.wasm");
+    let delegator_contract =
+        Contract::new(delegator, delegator_code.to_vec(), &store).unwrap();
+    let delegator_id = network.deploy(delegator_contract).unwrap();
 
-    assert_eq!(
-        format!("{:?}", network.deploy(factorial_contract).unwrap()),
-        "Digest(a10139386dcf00136361c2150c420435e3708b0b6833f09b0ad2699fc2333cb8)"
-    );
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    // delegate query
 
     assert_eq!(
-        format!("{:?}", network.deploy(storage_contract).unwrap()),
-        "Digest(caa768a65c3752d83804a63134699c76f6472d864768f4bb6bb610b46b3b9106)"
+        network
+            .query::<_, i32>(
+                delegator_id,
+                (delegator::DELEGATE_QUERY, counter_id, counter::READ_VALUE),
+                &mut gas
+            )
+            .unwrap(),
+        99
     );
+
+    // delegate transaction
+
+    network
+        .transact::<_, ()>(
+            delegator_id,
+            (
+                delegator::DELEGATE_TRANSACTION,
+                counter_id,
+                counter::INCREMENT,
+            ),
+            &mut gas,
+        )
+        .unwrap();
+
+    // changed the value of counter
+
+    assert_eq!(
+        network
+            .query::<_, i32>(counter_id, counter::READ_VALUE, &mut gas)
+            .unwrap(),
+        100
+    );
+}
+
+#[test]
+fn fibonacci() {
+    let fib = Fibonacci;
+
+    let store = MS::new();
+
+    let code = include_bytes!("contracts/fibonacci/fibonacci.wasm");
+
+    let contract = Contract::new(fib, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, MS>::default();
 
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let value = network
-        .call_contract_operation::<i32, i32>(
-            contract_id,
-            GET_VALUE,
-            0,
-            &mut gas,
-        )
-        .unwrap();
+    let n = 5;
 
-    assert_eq!(value, -1);
-
-    let success = network
-        .call_contract_operation::<u64, i32>(
-            contract_id,
-            FACTORIAL_OF,
-            5,
-            &mut gas,
-        )
-        .unwrap();
-    assert_eq!(success, 1);
-
-    let value = network
-        .call_contract_operation::<i32, i32>(
-            contract_id,
-            GET_VALUE,
-            0,
-            &mut gas,
-        )
-        .unwrap();
-
-    assert_eq!(value, 120);
+    for i in 0..n {
+        assert_eq!(
+            network
+                .query::<_, u64>(contract_id, (fibonacci::COMPUTE, i), &mut gas)
+                .unwrap(),
+            fibonacci_reference(i)
+        );
+    }
 }
