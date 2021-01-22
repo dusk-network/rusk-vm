@@ -11,8 +11,8 @@ pub mod debug;
 pub mod gas;
 pub mod panic;
 pub mod query;
-pub mod ret;
 pub mod self_id;
+pub mod store;
 pub mod transact;
 
 pub trait AbiCall<E, S>

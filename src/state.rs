@@ -4,7 +4,7 @@
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use canonical::{ByteSource, Canon, Ident, Store};
+use canonical::{Canon, Ident, Store};
 use canonical_derive::Canon;
 use dusk_abi::{Query, Transaction};
 use dusk_kelvin_map::Map;
@@ -84,15 +84,13 @@ where
         let mut context = CallContext::new(self, gas_meter, &store)
             .expect("FIXME: error handling");
 
-        {
-            let result = context.query(
-                target,
-                Query::from_canon(&query, &store)
-                    .map_err(VMError::from_store_error)?,
-            )?;
+        let result = context.query(
+            target,
+            Query::from_canon(&query, &store)
+                .map_err(VMError::from_store_error)?,
+        )?;
 
-            result.cast(store).map_err(VMError::from_store_error)
-        }
+        result.cast(store).map_err(VMError::from_store_error)
     }
 
     /// Transact with the contract at address `target`
@@ -116,8 +114,6 @@ where
                 .map_err(VMError::from_store_error)?,
         )?;
 
-        let mut source = ByteSource::new(result.as_bytes(), &self.store);
-
-        Canon::<S>::read(&mut source).map_err(VMError::from_store_error)
+        result.cast(store).map_err(VMError::from_store_error)
     }
 }

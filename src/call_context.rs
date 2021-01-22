@@ -111,7 +111,9 @@ where
         query: Query,
     ) -> Result<ReturnValue, VMError<S>> {
         let resolver = E::default();
-        let imports = ImportsBuilder::new().with_resolver("env", &resolver);
+        let imports = ImportsBuilder::new()
+            .with_resolver("env", &resolver)
+            .with_resolver("canon", &resolver);
 
         let instance;
 
@@ -171,7 +173,9 @@ where
         transaction: Transaction,
     ) -> Result<ReturnValue, VMError<S>> {
         let resolver = E::default();
-        let imports = ImportsBuilder::new().with_resolver("env", &resolver);
+        let imports = ImportsBuilder::new()
+            .with_resolver("env", &resolver)
+            .with_resolver("canon", &resolver);
 
         let instance;
 
