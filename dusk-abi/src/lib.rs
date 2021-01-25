@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) DUSK NETWORK. All rights reserved.
+
 //! #Dusk ABI
 //!
 //! ABI functionality for communicating with the host
@@ -174,9 +180,7 @@ impl ReturnValue {
 }
 
 /// Type used to identify a contract
-#[derive(
-    Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Canon,
-)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Canon)]
 pub struct ContractId([u8; 32]);
 
 impl<B> From<B> for ContractId
@@ -253,7 +257,8 @@ pub fn query_raw(
 
 /// Call another contract at address `target`
 ///
-/// Note that you will have to specify the expected return and argument types yourself.
+/// Note that you will have to specify the expected return and argument types
+/// yourself.
 pub fn query<A, R>(
     target: &ContractId,
     query: &A,
@@ -290,7 +295,8 @@ pub fn transact_raw(
 
 /// Call another contract at address `target`
 ///
-/// Note that you will have to specify the expected return and argument types yourself.
+/// Note that you will have to specify the expected return and argument types
+/// yourself.
 pub fn transact<A, R>(
     target: &ContractId,
     transaction: &A,

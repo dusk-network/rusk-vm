@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use super::AbiCall;
 use crate::call_context::{CallContext, Resolver};
@@ -18,7 +21,9 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for Panic {
         context: &mut CallContext<E, S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
-        if let &[RuntimeValue::I32(panic_ofs), RuntimeValue::I32(panic_len)] = args.as_ref() {
+        if let &[RuntimeValue::I32(panic_ofs), RuntimeValue::I32(panic_len)] =
+            args.as_ref()
+        {
             let panic_ofs = panic_ofs as usize;
             let panic_len = panic_len as usize;
 
@@ -27,9 +32,7 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for Panic {
                     match String::from_utf8(
                         a[panic_ofs..panic_ofs + panic_len].to_vec(),
                     ) {
-                        Ok(panic_msg) => {
-                            VMError::ContractPanic(panic_msg)
-                        }
+                        Ok(panic_msg) => VMError::ContractPanic(panic_msg),
                         Err(_) => VMError::InvalidUtf8,
                     },
                 )

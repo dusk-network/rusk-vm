@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
@@ -30,8 +33,8 @@ where
     E: Resolver<S>,
     S: Store,
 {
-    /// Deploys a contract to the state, returns the address of the created contract
-    /// or an error
+    /// Deploys a contract to the state, returns the address of the created
+    /// contract or an error
     pub fn deploy(
         &mut self,
         contract: Contract,

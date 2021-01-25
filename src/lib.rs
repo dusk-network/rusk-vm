@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! #Rusk-VM
 //!
@@ -86,7 +89,8 @@ impl<S: Store> From<wasmi::Trap> for VMError<S> {
     }
 }
 
-// The generic From<S::Error> is not specific enough and conflicts with From<Self>.
+// The generic From<S::Error> is not specific enough and conflicts with
+// From<Self>.
 impl<S: Store> VMError<S> {
     /// Create a VMError from the associated stores
     pub fn from_store_error(err: S::Error) -> Self {

@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use canonical::{ByteSink, ByteSource, Canon, Sink, Store};
 use dusk_abi::{Query, ReturnValue, Transaction};
@@ -134,7 +137,8 @@ where
                             .with_direct_access_mut(|m| {
                                 let mut sink =
                                     ByteSink::new(&mut m[..], &store);
-                                // copy the raw bytes only, since the contract can infer
+                                // copy the raw bytes only, since the contract
+                                // can infer
                                 // it's own state and argument lengths
                                 sink.copy_bytes(contract.state().as_bytes());
                                 sink.copy_bytes(query.as_bytes());
@@ -195,8 +199,8 @@ where
 
                         memref.with_direct_access_mut(|m| {
                             let mut sink = ByteSink::new(&mut m[..], &store);
-                            // copy the raw bytes only, since the contract can infer
-                            // it's own state and argument lengths.
+                            // copy the raw bytes only, since the contract can
+                            // infer it's own state and argument lengths.
                             sink.copy_bytes(contract.state().as_bytes());
                             sink.copy_bytes(transaction.as_bytes());
                         });
