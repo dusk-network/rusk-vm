@@ -18,7 +18,9 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for Debug {
         context: &mut CallContext<E, S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
-        if let &[RuntimeValue::I32(msg_ofs), RuntimeValue::I32(msg_len)] = args.as_ref() {
+        if let &[RuntimeValue::I32(msg_ofs), RuntimeValue::I32(msg_len)] =
+            args.as_ref()
+        {
             context.memory(|a| {
                 let msg_ofs = msg_ofs as usize;
                 let msg_len = msg_len as usize;

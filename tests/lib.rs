@@ -10,6 +10,7 @@ use canonical_host::MemStore as MS;
 use counter::Counter;
 use delegator::Delegator;
 use fibonacci::Fibonacci;
+use stack::Stack;
 
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
@@ -162,4 +163,47 @@ fn fibonacci() {
             fibonacci_reference(i)
         );
     }
+}
+
+#[test]
+fn stack() {
+    let stack = Stack::new();
+
+    let store = MS::new();
+
+    let code = include_bytes!("contracts/stack/stack.wasm");
+
+    let contract = Contract::new(stack, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, MS>::default();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let n: i32 = 64;
+
+    for i in 0..n {
+        network
+            .transact::<_, ()>(contract_id, (stack::PUSH, i), &mut gas)
+            .unwrap();
+    }
+
+    for i in 0..n {
+        let i = n - i - 1;
+
+        assert_eq!(
+            network
+                .transact::<_, Option<i32>>(contract_id, stack::POP, &mut gas)
+                .unwrap(),
+            Some(i)
+        );
+    }
+
+    assert_eq!(
+        network
+            .transact::<_, Option<i32>>(contract_id, stack::POP, &mut gas)
+            .unwrap(),
+        None
+    );
 }

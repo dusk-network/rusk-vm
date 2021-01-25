@@ -23,6 +23,7 @@ dusk-kelvin-map = "0.2"
 counter = { path = "tests/contracts/counter", features = ["host"] }
 fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
 delegator = { path = "tests/contracts/delegator", features = ["host"] }
+stack = { path = "tests/contracts/stack", features = ["host"] }
 
 [[bench]]
 name = "factorial"
