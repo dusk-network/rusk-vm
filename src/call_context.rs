@@ -200,8 +200,7 @@ where
                         memref.with_direct_access_mut(|m| {
                             let mut sink = ByteSink::new(&mut m[..], &store);
                             // copy the raw bytes only, since the contract can
-                            // infer it's own state
-                            // and argument lengths.
+                            // infer it's own state and argument lengths.
                             sink.copy_bytes(contract.state().as_bytes());
                             sink.copy_bytes(transaction.as_bytes());
                         });
