@@ -21,14 +21,24 @@ jobs:
         with:
           command: dusk-analyzer
 
+  # We don't run `cargo check` on this repo, since
+  # it will only pass if a build has been previously
+  # performed. Hence, it is a better idea to only run
+  # tests.
+
+  # We don't test on stable for this repo, since
+  # no_std and other things in this library
+  # depend on the nightly toolchain.
+
   test_nightly:
     name: Nightly tests
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2020-10-25
+          toolchain: nightly
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - run: make test
