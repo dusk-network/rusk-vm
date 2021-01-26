@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![cfg_attr(not(feature = "host"), no_std)]
-#![feature(lang_items)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use canonical::Canon;
 use canonical_derive::Canon;

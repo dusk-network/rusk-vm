@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 canonical = "0.5"
 canonical_derive = "0.5"
-const-arrayvec = "0.2.1"
+wee_alloc = "0.4"
 
 [dev-dependencies]
 canonical_fuzz = "0.5"

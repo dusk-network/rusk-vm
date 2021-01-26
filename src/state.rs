@@ -20,7 +20,7 @@ pub struct NetworkState<E, S>
 where
     S: Store,
 {
-    contracts: Map<ContractId, Contract, S, 17>,
+    contracts: Map<ContractId, Contract, S>,
     store: S,
     _marker: PhantomData<E>,
 }
