@@ -10,12 +10,16 @@
 #![warn(missing_docs)]
 #![no_std]
 
-use canonical::{
-    BridgeStore, ByteSink, ByteSource, Canon, Id32, Sink, Source, Store,
-};
+// re-export WeeAlloc
+
+pub use wee_alloc::WeeAlloc;
+
+extern crate alloc;
+
+use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
 use canonical_derive::Canon;
 
-use const_arrayvec::ArrayVec;
+use alloc::vec::Vec;
 
 const BUFFER_SIZE_LIMIT: usize = 1024;
 
@@ -25,63 +29,38 @@ pub const DEBUG_BUFFER_SIZE: usize = 1024;
 #[doc(hidden)]
 pub mod bufwriter;
 
-// General types to reprent queries, transactions and return values
-#[derive(Clone, Debug, Default, PartialEq)]
-struct Buffer<const N: usize>(ArrayVec<u8, N>);
-
-impl<S, const N: usize> Canon<S> for Buffer<N>
+trait CanonToVec<S>
 where
     S: Store,
 {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        let len = self.0.len() as u16;
-        Canon::<S>::write(&len, sink)?;
-        sink.copy_bytes(&self.0[..]);
-        Ok(())
-    }
-
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        let len: u16 = Canon::<S>::read(source)?;
-        Ok(Self::from_slice(source.read_bytes(len as usize)))
-    }
-
-    fn encoded_len(&self) -> usize {
-        Canon::<S>::encoded_len(&0u16) + self.0.len()
-    }
+    fn encode_to_vec(&self, store: &S) -> Result<Vec<u8>, S::Error>;
 }
 
-impl<const N: usize> Buffer<N> {
-    /// Creates a buffer from a type implementing `Canon`
-    fn from_slice(buffer: &[u8]) -> Self {
-        let mut vec = ArrayVec::new();
-        vec.try_extend_from_slice(buffer)
-            .unwrap_or_else(|_| panic!("too large! {}", buffer.len()));
+impl<T, S> CanonToVec<S> for T
+where
+    T: Canon<S>,
+    S: Store,
+{
+    fn encode_to_vec(&self, store: &S) -> Result<Vec<u8>, S::Error> {
+        let len = Canon::<S>::encoded_len(self);
 
-        Buffer(vec)
-    }
+        let mut vec = Vec::new();
+        vec.resize_with(len, || 0);
+        let mut sink = ByteSink::new(&mut vec[..], store);
 
-    /// Creates a buffer from a type implementing `Canon`
-    pub fn from_canon<C, S>(c: &C, s: &S) -> Result<Self, S::Error>
-    where
-        C: Canon<S>,
-        S: Store,
-    {
-        let mut buffer = [0u8; BUFFER_SIZE_LIMIT];
-        let mut sink = ByteSink::new(&mut buffer, s);
-        let len = Canon::<S>::encoded_len(c);
-        Canon::<S>::write(c, &mut sink)?;
-        Ok(Self::from_slice(&buffer[..len]))
+        Canon::<S>::write(self, &mut sink)?;
+        Ok(vec)
     }
 }
 
 /// A generic query
 #[derive(Clone, Canon, Debug, Default)]
-pub struct ContractState(Buffer<BUFFER_SIZE_LIMIT>);
+pub struct ContractState(Vec<u8>);
 
 impl ContractState {
     /// Returns the state of the contract as bytes
     pub fn as_bytes(&self) -> &[u8] {
-        &(self.0).0[..]
+        &self.0[..]
     }
 
     /// Creates a state from a type implementing `Canon`
@@ -90,23 +69,23 @@ impl ContractState {
         C: Canon<S>,
         S: Store,
     {
-        Ok(ContractState(Buffer::from_canon(c, s)?))
+        Ok(ContractState(c.encode_to_vec(s)?))
     }
 }
 
 /// A generic query
 #[derive(Clone, Canon, Debug, Default)]
-pub struct Query(Buffer<BUFFER_SIZE_LIMIT>);
+pub struct Query(Vec<u8>);
 
 impl Query {
     /// Returns the byte representation of the query
     pub fn as_bytes(&self) -> &[u8] {
-        &(self.0).0[..]
+        &self.0[..]
     }
 
     /// Creates a query from a raw bytes
     pub fn from_slice(buffer: &[u8]) -> Self {
-        Query(Buffer::from_slice(buffer))
+        Query(buffer.to_vec())
     }
 
     /// Creates a query from a type implementing `Canon`
@@ -115,23 +94,23 @@ impl Query {
         C: Canon<S>,
         S: Store,
     {
-        Ok(Query(Buffer::from_canon(c, s)?))
+        Ok(Query(c.encode_to_vec(s)?))
     }
 }
 
 /// A generic transaction
 #[derive(Clone, Canon, Debug, Default)]
-pub struct Transaction(Buffer<BUFFER_SIZE_LIMIT>);
+pub struct Transaction(Vec<u8>);
 
 impl Transaction {
     /// Returns the byte representation of the transaction
     pub fn as_bytes(&self) -> &[u8] {
-        &(self.0).0[..]
+        &self.0[..]
     }
 
     /// Creates a transaction from a raw bytes
     pub fn from_slice(buffer: &[u8]) -> Self {
-        Transaction(Buffer::from_slice(buffer))
+        Transaction(buffer.to_vec())
     }
 
     /// Creates a transaction from a type implementing `Canon`
@@ -140,23 +119,23 @@ impl Transaction {
         C: Canon<S>,
         S: Store,
     {
-        Ok(Transaction(Buffer::from_canon(c, s)?))
+        Ok(Transaction(c.encode_to_vec(s)?))
     }
 }
 
 /// A generic return value
 #[derive(Clone, Canon, Debug, Default, PartialEq)]
-pub struct ReturnValue(Buffer<BUFFER_SIZE_LIMIT>);
+pub struct ReturnValue(Vec<u8>);
 
 impl ReturnValue {
     /// Returns the byte representation of the transaction
     pub fn as_bytes(&self) -> &[u8] {
-        &(self.0).0[..]
+        &self.0[..]
     }
 
     /// Creates a transaction from a raw bytes
     pub fn from_slice(buffer: &[u8]) -> Self {
-        ReturnValue(Buffer::from_slice(buffer))
+        ReturnValue(buffer.to_vec())
     }
 
     /// Creates a transaction from a type implementing `Canon`
@@ -165,7 +144,7 @@ impl ReturnValue {
         C: Canon<S>,
         S: Store,
     {
-        Ok(ReturnValue(Buffer::from_canon(c, s)?))
+        Ok(ReturnValue(c.encode_to_vec(s)?))
     }
 
     /// Casts the encoded return value to given type

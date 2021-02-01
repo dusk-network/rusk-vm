@@ -9,6 +9,17 @@
 // This file is meant to be included by the `include!` macro, and is therefore
 // not defined as a module
 
+// Use `wee_alloc` as the global allocator.
+#[global_allocator]
+static ALLOC: dusk_abi::WeeAlloc = dusk_abi::WeeAlloc::INIT;
+
+#[allow(improper_ctypes_definitions)]
+#[alloc_error_handler]
+#[no_mangle]
+pub extern "C" fn oom(_: ::core::alloc::Layout) -> ! {
+    ::core::intrinsics::abort();
+}
+
 mod panic_handling {
     pub fn signal(msg: &str) {
         let bytes = msg.as_bytes();
