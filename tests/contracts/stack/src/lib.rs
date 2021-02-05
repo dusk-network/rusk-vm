@@ -50,9 +50,7 @@ mod hosted {
         }
     }
 
-    fn transaction(
-        bytes: &mut [u8; PAGE_SIZE],
-    ) -> Result<(), <BS as Store>::Error> {
+    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         let bs = BS::default();
         let mut source = ByteSource::new(bytes, &bs);
 
@@ -103,6 +101,4 @@ mod hosted {
         // todo, handle errors here
         transaction(bytes).unwrap()
     }
-
-    include!("../../../../dusk-abi/src/panic_include.rs");
 }

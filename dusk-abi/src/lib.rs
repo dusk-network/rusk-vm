@@ -9,7 +9,7 @@
 //! ABI functionality for communicating with the host
 #![warn(missing_docs)]
 #![no_std]
-
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 // re-export WeeAlloc
 
 pub use wee_alloc::WeeAlloc;
@@ -28,6 +28,10 @@ pub const DEBUG_BUFFER_SIZE: usize = 1024;
 
 #[doc(hidden)]
 pub mod bufwriter;
+
+#[doc(hidden)]
+#[cfg(target_arch = "wasm32")]
+pub mod panic_include;
 
 trait CanonToVec<S>
 where
@@ -238,10 +242,7 @@ pub fn query_raw(
 ///
 /// Note that you will have to specify the expected return and argument types
 /// yourself.
-pub fn query<A, R>(
-    target: &ContractId,
-    query: &A,
-) -> Result<R, <BridgeStore<Id32> as Store>::Error>
+pub fn query<A, R>(target: &ContractId, query: &A) -> Result<R, <BridgeStore<Id32> as Store>::Error>
 where
     A: Canon<BridgeStore<Id32>>,
     R: Canon<BridgeStore<Id32>>,
