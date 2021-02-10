@@ -46,7 +46,8 @@ mod panic_handling {
 
     impl AsRef<str> for PanicMsg {
         fn as_ref(&self) -> &str {
-            core::str::from_utf8(&self.buf[0..self.ofs]).unwrap_or("PanicMsg.as_ref failed.")
+            core::str::from_utf8(&self.buf[0..self.ofs])
+                .unwrap_or("PanicMsg.as_ref failed.")
         }
     }
 

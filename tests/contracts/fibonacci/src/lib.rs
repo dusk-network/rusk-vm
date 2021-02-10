@@ -33,9 +33,11 @@ mod hosted {
             } else {
                 let self_id = dusk_abi::self_id();
 
-                let a = dusk_abi::query::<_, u64>(&self_id, &(COMPUTE, n - 1)).unwrap();
+                let a = dusk_abi::query::<_, u64>(&self_id, &(COMPUTE, n - 1))
+                    .unwrap();
 
-                let b = dusk_abi::query::<_, u64>(&self_id, &(COMPUTE, n - 2)).unwrap();
+                let b = dusk_abi::query::<_, u64>(&self_id, &(COMPUTE, n - 2))
+                    .unwrap();
 
                 a + b
             }

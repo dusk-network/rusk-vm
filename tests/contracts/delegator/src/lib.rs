@@ -23,14 +23,20 @@ mod hosted {
     use super::*;
 
     use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
-    use dusk_abi::{ContractId, ContractState, Query, ReturnValue, Transaction};
+    use dusk_abi::{
+        ContractId, ContractState, Query, ReturnValue, Transaction,
+    };
 
     const PAGE_SIZE: usize = 1024 * 4;
 
     type BS = BridgeStore<Id32>;
 
     impl Delegator {
-        pub fn delegate_query(&self, target: &ContractId, query: &Query) -> ReturnValue {
+        pub fn delegate_query(
+            &self,
+            target: &ContractId,
+            query: &Query,
+        ) -> ReturnValue {
             dusk_abi::query_raw(target, query).unwrap()
         }
 
@@ -54,7 +60,8 @@ mod hosted {
         let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
             DELEGATE_QUERY => {
-                let (target, query): (ContractId, Query) = Canon::read(&mut source)?;
+                let (target, query): (ContractId, Query) =
+                    Canon::read(&mut source)?;
 
                 let result = slf.delegate_query(&target, &query);
 
@@ -73,7 +80,9 @@ mod hosted {
         let _ = query(bytes);
     }
 
-    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
+    fn transaction(
+        bytes: &mut [u8; PAGE_SIZE],
+    ) -> Result<(), <BS as Store>::Error> {
         let bs = BS::default();
         let mut source = ByteSource::new(bytes, &bs);
 
@@ -83,14 +92,18 @@ mod hosted {
         let tid: u8 = Canon::<BS>::read(&mut source)?;
         match tid {
             DELEGATE_TRANSACTION => {
-                let (target, transaction): (ContractId, Transaction) = Canon::read(&mut source)?;
+                let (target, transaction): (ContractId, Transaction) =
+                    Canon::read(&mut source)?;
 
                 let result = slf.delegate_transaction(&target, &transaction);
 
                 let mut sink = ByteSink::new(&mut bytes[..], &bs);
 
                 // return new state
-                Canon::<BS>::write(&ContractState::from_canon(&slf, &bs)?, &mut sink)?;
+                Canon::<BS>::write(
+                    &ContractState::from_canon(&slf, &bs)?,
+                    &mut sink,
+                )?;
 
                 // return value
                 Canon::<BS>::write(&result, &mut sink)

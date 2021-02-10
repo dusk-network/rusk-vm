@@ -242,7 +242,10 @@ pub fn query_raw(
 ///
 /// Note that you will have to specify the expected return and argument types
 /// yourself.
-pub fn query<A, R>(target: &ContractId, query: &A) -> Result<R, <BridgeStore<Id32> as Store>::Error>
+pub fn query<A, R>(
+    target: &ContractId,
+    query: &A,
+) -> Result<R, <BridgeStore<Id32> as Store>::Error>
 where
     A: Canon<BridgeStore<Id32>>,
     R: Canon<BridgeStore<Id32>>,
