@@ -213,6 +213,4 @@ mod hosted {
         // todo, handle errors here
         transaction(bytes).unwrap()
     }
-
-    include!("../../../../dusk-abi/src/panic_include.rs");
 }

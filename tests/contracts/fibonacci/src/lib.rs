@@ -77,6 +77,4 @@ mod hosted {
         // todo, handle errors here
         let _ = query(bytes);
     }
-
-    include!("../../../../dusk-abi/src/panic_include.rs");
 }

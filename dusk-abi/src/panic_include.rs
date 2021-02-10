@@ -4,14 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// PLEASE NOTE:
-//
-// This file is meant to be included by the `include!` macro, and is therefore
-// not defined as a module
-
 // Use `wee_alloc` as the global allocator.
 #[global_allocator]
-static ALLOC: dusk_abi::WeeAlloc = dusk_abi::WeeAlloc::INIT;
+static ALLOC: crate::WeeAlloc = crate::WeeAlloc::INIT;
 
 #[allow(improper_ctypes_definitions)]
 #[alloc_error_handler]
