@@ -43,6 +43,8 @@ where
     MemoryNotFound,
     /// Invalid ABI Call
     InvalidABICall,
+    /// ABI Call execution error
+    ABICallExecError,
     /// Invalid Utf8
     InvalidUtf8,
     /// Invalid Public key
@@ -126,6 +128,9 @@ impl<S: Store> fmt::Display for VMError<S> {
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
             VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
+            VMError::ABICallExecError => {
+                write!(f, "Error during ABI call execution")?
+            }
         }
         Ok(())
     }

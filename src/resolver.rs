@@ -81,6 +81,8 @@ abi_resolver! {
         9, "self_id" => self_id::SelfId,
         10, "gas" => gas::Gas,
         11, "block_height" => block_height::BlockHeight,
-        100, "poseidon_hash" => poseidon_hash::PoseidonHash
+
+        100, "poseidon_hash" => poseidon_hash::PoseidonHash,
+        101, "proof_verification" => verify_proof::ProofVerification
     }
 }

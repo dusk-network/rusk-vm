@@ -18,6 +18,7 @@ pub mod query;
 pub mod self_id;
 pub mod store;
 pub mod transact;
+pub mod verify_proof;
 
 pub mod poseidon_hash;
 
