@@ -17,6 +17,10 @@ canonical_host = "0.5"
 canonical_derive = "0.5"
 dusk-kelvin-map = "0.3"
 
+poseidon252 = {git = "https://github.com/dusk-network/Poseidon252", tag = "v0.17.0"}
+dusk-bls12_381 = "0.6"
+dusk-bytes = "0.1"
+
 [dev-dependencies]
 
 # test contracts
@@ -24,6 +28,7 @@ counter = { path = "tests/contracts/counter", features = ["host"] }
 fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
 delegator = { path = "tests/contracts/delegator", features = ["host"] }
 stack = { path = "tests/contracts/stack", features = ["host"] }
+hash = { path = "tests/contracts/hash", features = ["host"] }
 
 [[bench]]
 name = "factorial"

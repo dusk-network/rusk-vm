@@ -18,6 +18,8 @@ pub mod self_id;
 pub mod store;
 pub mod transact;
 
+pub mod poseidon_hash;
+
 pub trait AbiCall<E, S>
 where
     S: Store,
