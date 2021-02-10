@@ -79,6 +79,7 @@ abi_resolver! {
         6, "query" => query::ExecuteQuery,
         7, "transact" => transact::ApplyTransaction,
         9, "self_id" => self_id::SelfId,
-        10, "gas" => gas::Gas
+        10, "gas" => gas::Gas,
+        100, "poseidon_hash" => poseidon_hash::PoseidonHash
     }
 }

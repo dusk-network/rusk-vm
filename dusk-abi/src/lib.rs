@@ -33,6 +33,9 @@ pub mod bufwriter;
 #[cfg(target_arch = "wasm32")]
 pub mod panic_include;
 
+use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
+
 trait CanonToVec<S>
 where
     S: Store,
@@ -201,6 +204,8 @@ mod external {
         pub fn transact(target: &u8, buf: &mut u8);
 
         pub fn gas(value: i32);
+
+        pub fn poseidon_hash(result: &mut u8, buffer: &u8, len: i32);
     }
 }
 
@@ -216,6 +221,21 @@ pub fn self_id() -> ContractId {
     let mut result = ContractId::default();
     unsafe { external::self_id(&mut result.as_bytes_mut()[0]) }
     result
+}
+
+/// Hash the given list of [`BlsScalar`] using Poseidon's sponge hash function
+pub fn poseidon_hash(messages: Vec<BlsScalar>) -> BlsScalar {
+    let size = BlsScalar::SIZE * messages.len();
+    let mut result = [0u8; BlsScalar::SIZE];
+    let mut list = Vec::with_capacity(size);
+
+    for message in messages {
+        list.extend_from_slice(&message.to_bytes());
+    }
+
+    unsafe { external::poseidon_hash(&mut result[0], &list[0], size as i32) }
+
+    BlsScalar::from_bytes(&result).expect("A proper BlsScalar")
 }
 
 /// Call another contract at address `target`
