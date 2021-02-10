@@ -49,6 +49,8 @@ where
     InvalidEd25519PublicKey,
     /// Invalid Signature
     InvalidEd25519Signature,
+    /// WASM code instrumentation error.
+    InstrumentationError(String),
     /// Contract returned, not an error per se, this is how contracts return.
     ContractReturn(i32, i32),
     /// Contract execution ran out of gas
@@ -125,6 +127,9 @@ impl<S: Store> fmt::Display for VMError<S> {
             VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
+            VMError::InstrumentationError(instr_phase) => {
+                write!(f, "Instrumentation Error \"{}\"", instr_phase)?
+            }
             VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
         }
         Ok(())

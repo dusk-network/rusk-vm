@@ -13,12 +13,12 @@ use dusk_abi::{Query, Transaction};
 use dusk_kelvin_map::Map;
 
 use crate::call_context::{CallContext, Resolver};
-use crate::contract::{Contract, ContractId};
+use crate::contract::{Contract, ContractId, ContractInstrumenter};
 use crate::gas::GasMeter;
 use crate::VMError;
 
 /// The main network state, includes the full state of contracts.
-#[derive(Clone, Default, Canon)]
+#[derive(Clone, Canon)]
 pub struct NetworkState<E, S>
 where
     S: Store,
@@ -28,22 +28,44 @@ where
     _marker: PhantomData<E>,
 }
 
+impl<E, S: Store> Default for NetworkState<E, S> {
+    fn default() -> Self {
+        Self {
+            contracts: Map::Empty,
+            store: S::default(),
+            _marker: PhantomData::<E>,
+        }
+    }
+}
+
 impl<E, S> NetworkState<E, S>
 where
     E: Resolver<S>,
     S: Store,
 {
     /// Deploys a contract to the state, returns the address of the created
-    /// contract or an error
+    /// contract or an error.
+    /// Before the deployment happens the contract's bytecode is instrumented and then
+    /// stored into the NetworkState
     pub fn deploy(
         &mut self,
         contract: Contract,
-    ) -> Result<ContractId, S::Error> {
-        let id: ContractId = S::Ident::from_bytes(contract.bytecode()).into();
+    ) -> Result<ContractId, VMError<S>> {
+        let schedule = crate::Schedule::default();
+        let mut instrumenter =
+            ContractInstrumenter::new(contract.bytecode(), &schedule)?;
 
-        self.contracts
+        // Apply instrumentation & validate the module.
+        instrumenter.apply_module_config()?;
+
+        let id: ContractId =
+            S::Ident::from_bytes(instrumenter.bytecode()?.as_ref()).into();
+
+        // FIXME: This shoul check wether the contract is already deployed.
+        let _ = self
+            .contracts
             .insert(id.clone(), contract)
-            .expect("FIXME: error handling");
+            .map_err(|e| VMError::StoreError(e))?;
         Ok(id)
     }
 

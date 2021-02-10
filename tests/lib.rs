@@ -37,7 +37,7 @@ fn counter() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::with_limit(10);
 
     assert_eq!(
         network

@@ -5,10 +5,10 @@ authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [dependencies]
-wasmi = "0.6.0"
+wasmi = "0.7.0"
 wasmi-validation = "0.3"
 parity-wasm = "0.41"
-pwasm-utils = "0.12.0"
+pwasm-utils = "0.16.0"
 failure = "0.1"
 
 dusk-abi = { path = "dusk-abi", version = "0.3" }
