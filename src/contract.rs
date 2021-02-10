@@ -192,7 +192,7 @@ impl<'a, S: Store> ContractInstrumenter<'a, S> {
         self.module = pwasm_utils::inject_gas_counter(
             self.module.clone(),
             &gas_rules,
-            "gas_metered",
+            "gas",
         )
         .map_err(|_| {
             VMError::InstrumentationError(
