@@ -258,6 +258,7 @@ fn hash() {
     );
 }
 
+#[cfg(feature = "dummy_circ")]
 #[test]
 fn block_height() {
     let hash = Hash::new();

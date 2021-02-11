@@ -24,6 +24,7 @@ anyhow = {version = "1.0", optional = true}
 poseidon252 = {git = "https://github.com/dusk-network/Poseidon252", tag = "v0.17.0"}
 dusk-bls12_381 = "0.6"
 dusk-bytes = "0.1"
+bincode = "1.0"
 
 [dev-dependencies]
 rand = "0.7"
@@ -40,5 +41,4 @@ name = "factorial"
 harness = false
 
 [features]
-default = ["dummy_circ"]
 dummy_circ = ["anyhow"]

@@ -12,23 +12,23 @@ use dusk_plonk::prelude::*;
 // 2) a <= 2^6
 // 3) b <= 2^5
 // 4) a * b = d where D is a PI
-pub struct TestCircuit<'a> {
-    pub inputs: Option<&'a [BlsScalar]>,
-    pi_positions: Vec<PublicInput>,
-    trim_size: usize,
+pub struct TestCircuit {
+    pub inputs: Option<[BlsScalar; 4]>,
+    pub pi_positions: Vec<PublicInput>,
+    pub trim_size: usize,
 }
 
-impl<'a> Default for TestCircuit<'a> {
+impl Default for TestCircuit {
     fn default() -> Self {
         TestCircuit {
-            inputs: None,
+            inputs: Some([BlsScalar::zero(); 4]),
             pi_positions: vec![],
             trim_size: 1 << 9,
         }
     }
 }
 
-impl<'a> Circuit<'a> for TestCircuit<'a> {
+impl Circuit<'_> for TestCircuit {
     fn gadget(&mut self, composer: &mut StandardComposer) -> Result<()> {
         let inputs = self
             .inputs

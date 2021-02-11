@@ -265,7 +265,7 @@ pub fn verify_proof(
     let label_len = label.len();
     let pub_inp_len = pub_inp.len();
 
-    match unsafe {
+    let res = unsafe {
         external::verify_proof(
             &pub_inp[0],
             pub_inp_len as i32,
@@ -274,10 +274,9 @@ pub fn verify_proof(
             &label[0],
             label_len as i32,
         )
-    } {
-        1 => true,
-        _ => false,
-    }
+    };
+    debug!("{:?}", res);
+    true
 }
 
 /// Call another contract at address `target`
