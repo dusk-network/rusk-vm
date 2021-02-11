@@ -11,6 +11,7 @@ use canonical_derive::Canon;
 
 // query ids
 pub const HASH: u8 = 0;
+pub const BLOCK_HEIGHT: u8 = 1;
 
 #[derive(Clone, Canon, Debug)]
 pub struct Hash {}
@@ -41,6 +42,10 @@ mod hosted {
         pub fn hash(&self, messages: Vec<BlsScalar>) -> BlsScalar {
             dusk_abi::poseidon_hash(messages)
         }
+
+        pub fn block_height(&self) -> u64 {
+            dusk_abi::block_height()
+        }
     }
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
@@ -57,6 +62,20 @@ mod hosted {
                 let messages: Vec<BlsScalar> = Canon::<BS>::read(&mut source)?;
 
                 let ret = slf.hash(messages);
+
+                let r = {
+                    // return value
+                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
+
+                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
+
+                    Canon::<BS>::write(&wrapped_return, &mut sink)
+                };
+
+                r
+            }
+            BLOCK_HEIGHT => {
+                let ret = slf.block_height();
 
                 let r = {
                     // return value

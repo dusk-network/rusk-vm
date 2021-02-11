@@ -10,6 +10,7 @@ use crate::VMError;
 use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
+pub mod block_height;
 pub mod debug;
 pub mod gas;
 pub mod panic;

@@ -256,3 +256,27 @@ fn hash() {
         )
     );
 }
+
+#[test]
+fn block_height() {
+    let hash = Hash::new();
+
+    let store = MS::new();
+
+    let code = include_bytes!("contracts/hash/hash.wasm");
+
+    let contract = Contract::new(hash, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, MS>::with_block_height(99);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        99,
+        network
+            .query::<_, u64>(contract_id, hash::BLOCK_HEIGHT, &mut gas)
+            .unwrap()
+    )
+}
