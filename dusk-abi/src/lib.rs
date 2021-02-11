@@ -212,6 +212,7 @@ mod external {
 }
 
 /// Returns the caller of the contract
+#[no_mangle]
 pub fn caller() -> ContractId {
     let mut result = ContractId::default();
     unsafe { external::caller(&mut result.as_bytes_mut()[0]) }
@@ -219,6 +220,7 @@ pub fn caller() -> ContractId {
 }
 
 /// Returns the hash of the currently executing contract
+#[no_mangle]
 pub fn self_id() -> ContractId {
     let mut result = ContractId::default();
     unsafe { external::self_id(&mut result.as_bytes_mut()[0]) }
@@ -226,11 +228,13 @@ pub fn self_id() -> ContractId {
 }
 
 /// Returns the current block height
+#[no_mangle]
 pub fn block_height() -> u64 {
     unsafe { external::block_height() }
 }
 
 /// Hash the given list of [`BlsScalar`] using Poseidon's sponge hash function
+#[no_mangle]
 pub fn poseidon_hash(messages: Vec<BlsScalar>) -> BlsScalar {
     let size = BlsScalar::SIZE * messages.len();
     let mut result = [0u8; BlsScalar::SIZE];
@@ -269,6 +273,7 @@ pub fn query_raw(
 ///
 /// Note that you will have to specify the expected return and argument types
 /// yourself.
+#[no_mangle]
 pub fn query<A, R>(
     target: &ContractId,
     query: &A,
@@ -307,6 +312,7 @@ pub fn transact_raw(
 ///
 /// Note that you will have to specify the expected return and argument types
 /// yourself.
+#[no_mangle]
 pub fn transact<A, R>(
     target: &ContractId,
     transaction: &A,
@@ -322,11 +328,13 @@ where
 }
 
 /// Deduct a specified amount of gas from the call
+#[no_mangle]
 pub fn gas(value: i32) {
     unsafe { external::gas(value) }
 }
 
 #[doc(hidden)]
+#[no_mangle]
 pub fn _debug(buf: &[u8]) {
     let len = buf.len() as i32;
     unsafe { external::debug(&buf[0], len) }
