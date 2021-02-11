@@ -20,7 +20,7 @@ dusk-plonk = "0.5"
 rusk-profile = {git = "https://github.com/dusk-network/rusk/", branch = "master"}
 transfer-circuits = {git = "https://github.com/dusk-network/rusk/", branch = "master"}
 anyhow = {version = "1.0", optional = true}
-
+rand = "0.7"
 poseidon252 = {git = "https://github.com/dusk-network/Poseidon252", tag = "v0.17.0"}
 dusk-bls12_381 = "0.6"
 dusk-bytes = "0.1"
@@ -28,6 +28,7 @@ bincode = "1.0"
 
 [dev-dependencies]
 rand = "0.7"
+transfer-circuits = {git = "https://github.com/dusk-network/rusk/", branch = "master", features = ["builder", "builder-no-rusk-profile-keys"]}
 # test contracts
 counter = { path = "tests/contracts/counter", features = ["host"] }
 fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
@@ -40,5 +41,3 @@ proof_verification = { path = "tests/contracts/proof_verification", features = [
 name = "factorial"
 harness = false
 
-[features]
-dummy_circ = ["anyhow"]

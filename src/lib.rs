@@ -17,8 +17,6 @@ use failure::Fail;
 
 mod call_context;
 mod contract;
-#[cfg(feature = "dummy_circ")]
-mod dummy_circ;
 mod gas;
 mod ops;
 mod resolver;
@@ -28,8 +26,6 @@ pub use dusk_abi;
 
 pub use call_context::StandardABI;
 pub use contract::{Contract, ContractId};
-#[cfg(feature = "dummy_circ")]
-pub use dummy_circ::TestCircuit;
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 

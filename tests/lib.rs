@@ -258,7 +258,6 @@ fn hash() {
     );
 }
 
-#[cfg(feature = "dummy_circ")]
 #[test]
 fn block_height() {
     let hash = Hash::new();
@@ -283,12 +282,11 @@ fn block_height() {
     )
 }
 
-#[cfg(feature = "dummy_circ")]
 #[test]
 fn proof_verifier() {
     use dusk_plonk::prelude::*;
-    use rusk_vm::TestCircuit;
-    use std::io::*;
+    use transfer_circuits::ExecuteCircuit;
+
     let contract = ProofVerifier::new();
 
     let store = MS::new();
@@ -304,17 +302,7 @@ fn proof_verifier() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    /*let old_crs = rusk_profile::get_crs()
-    rusk_profile::set_crs(new_crs)? // this can be fail
-
-    // do your test
-
-    if old_crs.is_err() {
-      // delete file, I can add a method to clear it so you don't need to know the name of the file, but you can do it using `rusk_profile::get_profile_dir` + dev.crs
-    } else {
-    rusk_profile::set_crs(old_crs.unwrap())?
-    }*/
-
+    let old_crs = rusk_profile::get_common_reference_string();
     let pp = unsafe {
         let buff = std::fs::read("tests/pub_params_dev.bin")
             .expect("Error reading from PubParams file");
@@ -322,44 +310,46 @@ fn proof_verifier() {
             .expect("PubParams deser error")
     };
 
-    // Generate circuit compilation params
-    let inputs = [
-        BlsScalar::from(20u64),
-        BlsScalar::from(5u64),
-        BlsScalar::from(25u64),
-        BlsScalar::from(100u64),
-    ];
+    rusk_profile::set_common_reference_string("tests/pub_params_dev.bin")
+        .expect("Error setting CRS in rusk_profile");
+    let mut circuit = ExecuteCircuit::<17, 15>::create_dummy_circuit::<_, MS>(
+        &mut rand::thread_rng(),
+        1,
+        1,
+    )
+    .expect("Error creating a dummy setup");
 
-    // Initialize the circuit
-    let mut circuit = TestCircuit::default();
-    circuit.inputs = Some(inputs);
+    let (pk, vk) = circuit.compile(&pp).expect("Error compiling the circuit");
+    let proof = circuit
+        .gen_proof(&pp, &pk, b"dusk")
+        .expect("Error generating the proof");
 
-    // Compile the circuit
-    let (pk, vk) = circuit.compile(&pp).unwrap();
+    let mut pi = circuit.get_pi_positions().clone();
+    // Reset PI positions to emulate real-world verification
+    pi.iter_mut().for_each(|p| match p {
+        PublicInput::BlsScalar(_, p) => *p = 0,
+        PublicInput::JubJubScalar(_, p) => *p = 0,
+        PublicInput::AffinePoint(_, p, q) => {
+            *p = 0;
+            *q = 0;
+        }
+    });
 
-    let label = String::from("dummy").into_bytes();
-
-    // Prover POV
-    let proof = circuit.gen_proof(&pp, &pk, b"dusk").unwrap();
-
-    let public_inputs = vec![
-        PublicInput::BlsScalar(inputs[2], 0),
-        PublicInput::BlsScalar(inputs[3], 0),
-    ];
-
-    let public_inputs_bytes: Vec<u8> = public_inputs
-        .iter()
-        .flat_map(|&inp| inp.to_bytes().to_vec())
-        .collect();
-
+    let public_inputs_bytes: Vec<u8> =
+        pi.iter().flat_map(|&inp| inp.to_bytes().to_vec()).collect();
+    let label = String::from("transfer-execute-1-1").into_bytes();
     let proof_bytes = proof.to_bytes().to_vec();
     let vk_bytes = vk.to_bytes().to_vec();
 
     assert!({
-        let mut circuit = TestCircuit::default();
-        circuit
-            .verify_proof(&pp, &vk, b"dummy", &proof, &public_inputs)
-            .is_ok()
+        let mut circuit =
+            ExecuteCircuit::<17, 15>::create_dummy_circuit::<_, MS>(
+                &mut rand::thread_rng(),
+                1,
+                1,
+            )
+            .expect("Error creating a dummy setup");
+        circuit.verify_proof(&pp, &vk, b"dusk", &proof, &pi).is_ok()
     });
 
     assert_eq!(
