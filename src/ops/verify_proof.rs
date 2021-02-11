@@ -8,8 +8,8 @@ use super::AbiCall;
 use crate::call_context::{CallContext, Resolver};
 use crate::VMError;
 
-#[cfg(feature = "dummy_circ")]
-use crate::dummy_circ::TestCircuit;
+#[cfg(test)]
+use crate::TestCircuit;
 use canonical::Store;
 use dusk_plonk::prelude::*;
 use transfer_circuits::{
@@ -125,16 +125,16 @@ fn select_and_verify<'a, S:Store>(
         "transfer-execute-2-0" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-execute-2-1" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-execute-2-2" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-3-0" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-3-1" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-3-2" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-4-0" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-4-1" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-4-2" => verify_proof(ExecuteCircuit::<17, 16>::default(), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-3-0" => verify_proof(ExecuteCircuit::<17, 17>::default(), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-3-1" => verify_proof(ExecuteCircuit::<17, 17>::default(), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-3-2" => verify_proof(ExecuteCircuit::<17, 17>::default(), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-4-0" => verify_proof(ExecuteCircuit::<17, 17>::default(), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-4-1" => verify_proof(ExecuteCircuit::<17, 17>::default(), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-4-2" => verify_proof(ExecuteCircuit::<17, 17>::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-send-to-contract-obfuscated" => verify_proof(SendToContractObfuscatedCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-send-to-contract-transparent" => verify_proof(SendToContractTransparentCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-withdraw-from-obfuscated" => verify_proof(WithdrawFromObfuscatedCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
-        #[cfg(feature = "dummy_circ")]
+        #[cfg(test)]
         "dummy" => verify_proof(TestCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
         _ => Err(VMError::InvalidABICall),
     }
