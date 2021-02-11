@@ -200,6 +200,8 @@ mod external {
 
         pub fn debug(buffer: &u8, len: i32);
 
+        pub fn block_height() -> u64;
+
         pub fn query(target: &u8, buf: &mut u8);
         pub fn transact(target: &u8, buf: &mut u8);
 
@@ -221,6 +223,11 @@ pub fn self_id() -> ContractId {
     let mut result = ContractId::default();
     unsafe { external::self_id(&mut result.as_bytes_mut()[0]) }
     result
+}
+
+/// Returns the current block height
+pub fn block_height() -> u64 {
+    unsafe { external::block_height() }
 }
 
 /// Hash the given list of [`BlsScalar`] using Poseidon's sponge hash function

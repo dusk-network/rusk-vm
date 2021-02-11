@@ -23,6 +23,7 @@ pub struct NetworkState<E, S>
 where
     S: Store,
 {
+    block_height: u64,
     contracts: Map<ContractId, Contract, S>,
     store: S,
     _marker: PhantomData<E>,
@@ -33,6 +34,15 @@ where
     E: Resolver<S>,
     S: Store,
 {
+    /// Returns a [`NetworkState`] for a specific block height
+    pub fn with_block_height(block_height: u64) -> Self {
+        Self {
+            block_height,
+            contracts: Map::default(),
+            store: S::default(),
+            _marker: PhantomData,
+        }
+    }
     /// Deploys a contract to the state, returns the address of the created
     /// contract or an error
     pub fn deploy(
@@ -70,6 +80,11 @@ where
     /// Returns a reference to the store backing the state
     pub fn store(&self) -> &S {
         &self.store
+    }
+
+    /// Returns the state's block height
+    pub fn block_height(&self) -> u64 {
+        self.block_height
     }
 
     /// Queryn the contract at address `target`
