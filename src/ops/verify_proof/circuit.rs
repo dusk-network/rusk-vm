@@ -6,7 +6,8 @@
 
 use crate::VMError;
 
-use super::dummy_circ::TestCircuit;
+#[cfg(feature = "dummy_circ")]
+use crate::dummy_circ::TestCircuit;
 use canonical::Store;
 use dusk_plonk::prelude::*;
 use transfer_circuits::{

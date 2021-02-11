@@ -15,11 +15,8 @@ pub fn decode_pub_inputs<S: Store>(
     pub_inp_addr: usize,
 ) -> Result<Vec<PublicInput>, VMError<S>> {
     // Build Public Inputs vector
-    let mut pi_bytes = vec![0u8; pub_inp_len * PublicInput::serialized_size()];
-    pi_bytes.copy_from_slice(
-        &mem[pub_inp_addr
-            ..pub_inp_addr + (pub_inp_len * PublicInput::serialized_size())],
-    );
+    let mut pi_bytes = vec![0u8; pub_inp_len];
+    pi_bytes.copy_from_slice(&mem[pub_inp_addr..pub_inp_addr + pub_inp_len]);
     pi_bytes[..]
         .chunks(PublicInput::serialized_size())
         .map(|chunk| {

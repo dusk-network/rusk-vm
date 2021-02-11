@@ -26,12 +26,14 @@ dusk-bls12_381 = "0.6"
 dusk-bytes = "0.1"
 
 [dev-dependencies]
+rand = "0.7"
 # test contracts
 counter = { path = "tests/contracts/counter", features = ["host"] }
 fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
 delegator = { path = "tests/contracts/delegator", features = ["host"] }
 stack = { path = "tests/contracts/stack", features = ["host"] }
 hash = { path = "tests/contracts/hash", features = ["host"] }
+proof_verification = { path = "tests/contracts/proof_verification", features = ["host"] }
 
 [[bench]]
 name = "factorial"

@@ -14,6 +14,7 @@ use counter::Counter;
 use delegator::Delegator;
 use fibonacci::Fibonacci;
 use hash::Hash;
+use proof_verification::ProofVerifier;
 use stack::Stack;
 
 fn fibonacci_reference(n: u64) -> u64 {
@@ -279,4 +280,101 @@ fn block_height() {
             .query::<_, u64>(contract_id, hash::BLOCK_HEIGHT, &mut gas)
             .unwrap()
     )
+}
+
+#[cfg(feature = "dummy_circ")]
+#[test]
+fn proof_verifier() {
+    use dusk_plonk::prelude::*;
+    use rusk_vm::TestCircuit;
+    use std::io::*;
+    let contract = ProofVerifier::new();
+
+    let store = MS::new();
+
+    let code =
+        include_bytes!("contracts/proof_verification/proof_verification.wasm");
+
+    let contract = Contract::new(contract, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<StandardABI<_>, MS>::default();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    /*let old_crs = rusk_profile::get_crs()
+    rusk_profile::set_crs(new_crs)? // this can be fail
+
+    // do your test
+
+    if old_crs.is_err() {
+      // delete file, I can add a method to clear it so you don't need to know the name of the file, but you can do it using `rusk_profile::get_profile_dir` + dev.crs
+    } else {
+    rusk_profile::set_crs(old_crs.unwrap())?
+    }*/
+
+    let pp = unsafe {
+        let buff = std::fs::read("tests/pub_params_dev.bin")
+            .expect("Error reading from PubParams file");
+        PublicParameters::from_slice_unchecked(buff.as_slice())
+            .expect("PubParams deser error")
+    };
+
+    // Generate circuit compilation params
+    let inputs = [
+        BlsScalar::from(20u64),
+        BlsScalar::from(5u64),
+        BlsScalar::from(25u64),
+        BlsScalar::from(100u64),
+    ];
+
+    // Initialize the circuit
+    let mut circuit = TestCircuit::default();
+    circuit.inputs = Some(inputs);
+
+    // Compile the circuit
+    let (pk, vk) = circuit.compile(&pp).unwrap();
+
+    let label = String::from("dummy").into_bytes();
+
+    // Prover POV
+    let proof = circuit.gen_proof(&pp, &pk, b"dusk").unwrap();
+
+    let public_inputs = vec![
+        PublicInput::BlsScalar(inputs[2], 0),
+        PublicInput::BlsScalar(inputs[3], 0),
+    ];
+
+    let public_inputs_bytes: Vec<u8> = public_inputs
+        .iter()
+        .flat_map(|&inp| inp.to_bytes().to_vec())
+        .collect();
+
+    let proof_bytes = proof.to_bytes().to_vec();
+    let vk_bytes = vk.to_bytes().to_vec();
+
+    assert!({
+        let mut circuit = TestCircuit::default();
+        circuit
+            .verify_proof(&pp, &vk, b"dummy", &proof, &public_inputs)
+            .is_ok()
+    });
+
+    assert_eq!(
+        true,
+        network
+            .query::<_, bool>(
+                contract_id,
+                (
+                    proof_verification::PROOF_VERIFICATION,
+                    proof_bytes,
+                    vk_bytes,
+                    label,
+                    public_inputs_bytes
+                ),
+                &mut gas
+            )
+            .unwrap()
+    );
 }

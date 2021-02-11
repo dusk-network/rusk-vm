@@ -6,8 +6,7 @@
 
 mod circuit;
 mod decoding;
-#[cfg(feature = "dummy_circ")]
-mod dummy_circ;
+
 use super::AbiCall;
 use crate::call_context::{CallContext, Resolver};
 use crate::VMError;

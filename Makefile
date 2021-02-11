@@ -39,6 +39,7 @@ test: ## Run the contracts' tests
 		make wasm for=fibonacci && \
 		make wasm for=stack && \
 		make wasm for=hash && \
+		make wasm for=proof_verification && \
 		cargo test
 
 .PHONY: help doc doc-internal publish-doc wasm test

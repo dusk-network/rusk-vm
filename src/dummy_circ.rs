@@ -13,7 +13,7 @@ use dusk_plonk::prelude::*;
 // 3) b <= 2^5
 // 4) a * b = d where D is a PI
 pub struct TestCircuit<'a> {
-    inputs: Option<&'a [BlsScalar]>,
+    pub inputs: Option<&'a [BlsScalar]>,
     pi_positions: Vec<PublicInput>,
     trim_size: usize,
 }
