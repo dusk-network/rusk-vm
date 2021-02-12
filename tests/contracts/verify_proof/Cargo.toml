@@ -1,5 +1,5 @@
 [package]
-name = "proof_verification"
+name = "verify_proof"
 version = "0.1.0"
 authors = ["CPerezz <carlos@dusk.network>"]
 edition = "2018"
@@ -17,3 +17,4 @@ dusk-abi = { path = "../../../dusk-abi" }
 
 [features]
 host = ["canonical_host"]
+

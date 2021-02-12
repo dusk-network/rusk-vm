@@ -16,9 +16,9 @@ use transfer_circuits::{
 };
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
-pub struct ProofVerification;
+pub struct VerifyProof;
 
-impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ProofVerification {
+impl<E: Resolver<S>, S: Store> AbiCall<E, S> for VerifyProof {
     const ARGUMENTS: &'static [ValueType] = &[
         ValueType::I32,
         ValueType::I32,
@@ -45,21 +45,17 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ProofVerification {
 
             context.memory(|mem| -> Result<Option<RuntimeValue>, VMError<S>> {
                 let pi_vec = decode_pub_inputs(mem, pub_inp_len, pub_inp)?;
-                println!("PIVEC");
                 let proof = Proof::from_bytes(
                     &mem[proof..proof + Proof::serialised_size()],
                 )
                 .map_err(|_| VMError::InvalidArguments)?;
-                println!("proof");
                 let vk = VerifierKey::from_bytes(
                     &mem[verif_key..verif_key + VerifierKey::serialised_size()],
                 )
                 .map_err(|_| VMError::InvalidArguments)?;
-                println!("vk");
                 let label =
                     String::from_utf8(mem[label..label + label_len].to_vec())
                         .map_err(|_| VMError::InvalidUtf8)?;
-                println!("label");
                 let pp = unsafe {
                     PublicParameters::from_slice_unchecked(
                         &rusk_profile::get_common_reference_string().map_err(
@@ -72,12 +68,9 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ProofVerification {
                     )
                     .map_err(|_| VMError::InvalidArguments)?
                 };
-                println!("PP");
-                match select_and_verify::<S>(&label, &pp, &vk, &pi_vec, &proof)
-                {
-                    Ok(()) => Ok(Some(RuntimeValue::I32(1))),
-                    Err(_) => Ok(Some(RuntimeValue::I32(0))),
-                }
+                let success =
+                    select_and_verify::<S>(&label, &pp, &vk, &pi_vec, &proof);
+                Ok(Some(RuntimeValue::I32(success as i32)))
             })
         } else {
             Err(VMError::InvalidArguments)
@@ -99,26 +92,26 @@ fn decode_pub_inputs<S: Store>(
         .collect::<Result<Vec<PublicInput>, VMError<S>>>()
 }
 
-fn verify_proof<'a, S: Store>(
+fn verify_proof<'a>(
     mut c: impl Circuit<'a>,
     pp: &PublicParameters,
     vk: &VerifierKey,
     transcript_init: &'static [u8],
     p_inp: &[PublicInput],
     proof: &Proof,
-) -> Result<(), VMError<S>> {
+) -> bool {
     c.verify_proof(pp, vk, transcript_init, proof, p_inp)
-        .map_err(|_| VMError::InvalidABICall)
+        .is_ok()
 }
 
 #[rustfmt::skip]
-fn select_and_verify<'a, S:Store>(
+fn select_and_verify<'a, S: Store>(
     label: &String,
     pp: &PublicParameters,
     vk: &VerifierKey,
     p_inp: &[PublicInput],
     proof: &Proof,
-) -> Result<(), VMError<S>> {
+) -> bool {
     match label.as_str() {
         "transfer-execute-1-0" => verify_proof(ExecuteCircuit::<17, 15>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 1,0).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-execute-1-1" => verify_proof(ExecuteCircuit::<17, 15>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 1,1).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
@@ -135,6 +128,6 @@ fn select_and_verify<'a, S:Store>(
         "transfer-send-to-contract-obfuscated" => verify_proof(SendToContractObfuscatedCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-send-to-contract-transparent" => verify_proof(SendToContractTransparentCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-withdraw-from-obfuscated" => verify_proof(WithdrawFromObfuscatedCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
-        _ => Err(VMError::InvalidABICall),
+        _ => false,
     }
 }

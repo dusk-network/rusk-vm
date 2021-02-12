@@ -14,8 +14,8 @@ use counter::Counter;
 use delegator::Delegator;
 use fibonacci::Fibonacci;
 use hash::Hash;
-use proof_verification::ProofVerifier;
 use stack::Stack;
+use verify_proof::ProofVerifier;
 
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
@@ -291,8 +291,7 @@ fn proof_verifier() {
 
     let store = MS::new();
 
-    let code =
-        include_bytes!("contracts/proof_verification/proof_verification.wasm");
+    let code = include_bytes!("contracts/verify_proof/verify_proof.wasm");
 
     let contract = Contract::new(contract, code.to_vec(), &store).unwrap();
 
@@ -302,7 +301,16 @@ fn proof_verifier() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
+    // We store the current reference string here, so we can temporarily change
+    // it for the test, and then change it back once finished.
+    let old_crs_file_name = "temp_crs.bin";
     let old_crs = rusk_profile::get_common_reference_string();
+
+    if let Ok(_) = old_crs {
+        std::fs::File::create(old_crs_file_name).unwrap();
+        std::fs::write(old_crs_file_name, old_crs.unwrap().as_slice()).unwrap();
+    }
+
     let pp = unsafe {
         let buff = std::fs::read("tests/pub_params_dev.bin")
             .expect("Error reading from PubParams file");
@@ -358,7 +366,7 @@ fn proof_verifier() {
             .query::<_, bool>(
                 contract_id,
                 (
-                    proof_verification::PROOF_VERIFICATION,
+                    verify_proof::PROOF_VERIFICATION,
                     proof_bytes,
                     vk_bytes,
                     label,
@@ -368,4 +376,12 @@ fn proof_verifier() {
             )
             .unwrap()
     );
+
+    // If we stored the old CRS, let's restore it at the end of the test, too.
+    if std::fs::metadata(old_crs_file_name).is_ok() {
+        rusk_profile::set_common_reference_string(old_crs_file_name)
+            .expect("Error restoring CRS in rusk_profile");
+        std::fs::remove_file(old_crs_file_name)
+            .expect("Could not remove temporary CRS holder file");
+    }
 }

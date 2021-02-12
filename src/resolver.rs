@@ -83,6 +83,6 @@ abi_resolver! {
         11, "block_height" => block_height::BlockHeight,
 
         100, "poseidon_hash" => poseidon_hash::PoseidonHash,
-        101, "verify_proof" => verify_proof::ProofVerification
+        101, "verify_proof" => verify_proof::VerifyProof
     }
 }

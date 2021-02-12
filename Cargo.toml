@@ -17,8 +17,8 @@ canonical_host = "0.5"
 canonical_derive = "0.5"
 dusk-kelvin-map = "0.3"
 dusk-plonk = "0.5"
-rusk-profile = {git = "https://github.com/dusk-network/rusk/", branch = "master"}
-transfer-circuits = {git = "https://github.com/dusk-network/rusk/", branch = "master"}
+rusk-profile = {git = "https://github.com/dusk-network/rusk/", tag = "rusk-profile-0.1.0"}
+transfer-circuits = {git = "https://github.com/dusk-network/rusk/", tag = "transfer-circuits-0.1.0"}
 anyhow = {version = "1.0", optional = true}
 rand = "0.7"
 poseidon252 = {git = "https://github.com/dusk-network/Poseidon252", tag = "v0.17.0"}
@@ -28,14 +28,14 @@ bincode = "1.0"
 
 [dev-dependencies]
 rand = "0.7"
-transfer-circuits = {git = "https://github.com/dusk-network/rusk/", branch = "master", features = ["builder", "builder-no-rusk-profile-keys"]}
+transfer-circuits = {git = "https://github.com/dusk-network/rusk/", tag = "transfer-circuits-0.1.0", features = ["builder", "builder-no-rusk-profile-keys"]}
 # test contracts
 counter = { path = "tests/contracts/counter", features = ["host"] }
 fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
 delegator = { path = "tests/contracts/delegator", features = ["host"] }
 stack = { path = "tests/contracts/stack", features = ["host"] }
 hash = { path = "tests/contracts/hash", features = ["host"] }
-proof_verification = { path = "tests/contracts/proof_verification", features = ["host"] }
+verify_proof = { path = "tests/contracts/verify_proof", features = ["host"] }
 
 [[bench]]
 name = "factorial"
