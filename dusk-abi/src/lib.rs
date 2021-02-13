@@ -273,7 +273,6 @@ pub fn verify_proof(
             label_len as i32,
         )
     };
-    debug!("{:?}", res);
     true
 }
 
