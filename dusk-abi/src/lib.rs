@@ -208,6 +208,14 @@ mod external {
         pub fn gas(value: i32);
 
         pub fn poseidon_hash(result: &mut u8, buffer: &u8, len: i32);
+        pub fn verify_proof(
+            pub_inp: &u8,
+            pub_inp_len: i32,
+            proof: &u8,
+            verif_key: &u8,
+            label: &u8,
+            label_len: i32,
+        ) -> i32;
     }
 }
 
@@ -243,6 +251,29 @@ pub fn poseidon_hash(messages: Vec<BlsScalar>) -> BlsScalar {
     unsafe { external::poseidon_hash(&mut result[0], &list[0], size as i32) }
 
     BlsScalar::from_bytes(&result).expect("A proper BlsScalar")
+}
+
+/// Verify a PLONK proof given the Proof, VerifierKey and PublicInputs
+pub fn verify_proof(
+    proof: Vec<u8>,
+    vk: Vec<u8>,
+    label: Vec<u8>,
+    pub_inp: Vec<u8>,
+) -> bool {
+    let label_len = label.len();
+    let pub_inp_len = pub_inp.len();
+
+    let res = unsafe {
+        external::verify_proof(
+            &pub_inp[0],
+            pub_inp_len as i32,
+            &proof[0],
+            &vk[0],
+            &label[0],
+            label_len as i32,
+        )
+    };
+    true
 }
 
 /// Call another contract at address `target`
