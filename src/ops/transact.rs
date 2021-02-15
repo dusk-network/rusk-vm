@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::{CallContext, Resolver};
+use crate::call_context::CallContext;
 use crate::ops::AbiCall;
 use crate::VMError;
 
@@ -14,12 +14,12 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct ApplyTransaction;
 
-impl<E: Resolver<S>, S: Store> AbiCall<E, S> for ApplyTransaction {
+impl<S: Store> AbiCall<S> for ApplyTransaction {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<E, S>,
+        context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
         if let &[RuntimeValue::I32(contract_id_ofs), RuntimeValue::I32(transaction_ofs)] =

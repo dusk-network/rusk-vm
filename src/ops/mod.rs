@@ -22,7 +22,7 @@ pub mod verify_proof;
 
 pub mod poseidon_hash;
 
-pub trait AbiCall<E, S>
+pub trait AbiCall<S>
 where
     S: Store,
 {
@@ -30,7 +30,7 @@ where
     const RETURN: Option<ValueType>;
 
     fn call(
-        context: &mut CallContext<E, S>,
+        context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>>;
 }

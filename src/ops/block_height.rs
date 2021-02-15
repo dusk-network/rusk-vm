@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use super::AbiCall;
-use crate::call_context::{CallContext, Resolver};
+use crate::call_context::CallContext;
 use crate::VMError;
 
 use canonical::Store;
@@ -13,12 +13,12 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct BlockHeight;
 
-impl<E: Resolver<S>, S: Store> AbiCall<E, S> for BlockHeight {
+impl<S: Store> AbiCall<S> for BlockHeight {
     const ARGUMENTS: &'static [ValueType] = &[];
     const RETURN: Option<ValueType> = Some(ValueType::I64);
 
     fn call(
-        context: &mut CallContext<E, S>,
+        context: &mut CallContext<S>,
         _args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
         let block_height = context.state().block_height();

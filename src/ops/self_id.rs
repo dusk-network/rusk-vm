@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use super::AbiCall;
-use crate::call_context::{CallContext, Resolver};
+use crate::call_context::CallContext;
 use crate::VMError;
 
 use canonical::Store;
@@ -13,12 +13,12 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct SelfId;
 
-impl<E: Resolver<S>, S: Store> AbiCall<E, S> for SelfId {
+impl<S: Store> AbiCall<S> for SelfId {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<E, S>,
+        context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
         if let &[RuntimeValue::I32(result_ofs)] = args.as_ref() {

@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use super::AbiCall;
-use crate::call_context::{CallContext, Resolver};
+use crate::call_context::CallContext;
 use crate::VMError;
 
 use canonical::Store;
@@ -18,7 +18,7 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct VerifyProof;
 
-impl<E: Resolver<S>, S: Store> AbiCall<E, S> for VerifyProof {
+impl<S: Store> AbiCall<S> for VerifyProof {
     const ARGUMENTS: &'static [ValueType] = &[
         ValueType::I32,
         ValueType::I32,
@@ -30,7 +30,7 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for VerifyProof {
     const RETURN: Option<ValueType> = Some(ValueType::I32);
 
     fn call(
-        context: &mut CallContext<E, S>,
+        context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
         if let [RuntimeValue::I32(pub_inp), RuntimeValue::I32(pub_inp_len), RuntimeValue::I32(proof), RuntimeValue::I32(verif_key), RuntimeValue::I32(label), RuntimeValue::I32(label_len)] =

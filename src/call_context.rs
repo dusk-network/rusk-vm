@@ -77,26 +77,25 @@ impl StackFrame {
 
 pub trait Invoke<S: Store>: Sized {
     fn invoke(
-        context: &mut CallContext<Self, S>,
+        context: &mut CallContext<S>,
         index: usize,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>>;
 }
 
-pub struct CallContext<'a, E, S: Store> {
-    state: &'a mut NetworkState<E, S>,
+pub struct CallContext<'a, S: Store> {
+    state: &'a mut NetworkState<S>,
     stack: Vec<StackFrame>,
     store: S,
     gas_meter: &'a mut GasMeter,
 }
 
-impl<'a, E, S> CallContext<'a, E, S>
+impl<'a, S> CallContext<'a, S>
 where
-    E: Resolver<S>,
     S: Store,
 {
     pub fn new(
-        state: &'a mut NetworkState<E, S>,
+        state: &'a mut NetworkState<S>,
         gas_meter: &'a mut GasMeter,
         store: &S,
     ) -> Result<Self, VMError<S>> {
@@ -113,7 +112,7 @@ where
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError<S>> {
-        let resolver = E::default();
+        let resolver = StandardABI::<S>::default();
         let imports = ImportsBuilder::new()
             .with_resolver("env", &resolver)
             .with_resolver("canon", &resolver);
@@ -176,7 +175,7 @@ where
         target: ContractId,
         transaction: Transaction,
     ) -> Result<ReturnValue, VMError<S>> {
-        let resolver = E::default();
+        let resolver = StandardABI::<S>::default();
         let imports = ImportsBuilder::new()
             .with_resolver("env", &resolver)
             .with_resolver("canon", &resolver);
@@ -280,11 +279,11 @@ where
             .memory_mut(closure)
     }
 
-    pub fn state(&self) -> &NetworkState<E, S> {
+    pub fn state(&self) -> &NetworkState<S> {
         &self.state
     }
 
-    pub fn state_mut(&mut self) -> &mut NetworkState<E, S> {
+    pub fn state_mut(&mut self) -> &mut NetworkState<S> {
         &mut self.state
     }
 }
@@ -294,9 +293,8 @@ pub fn host_trap<S: Store>(host: VMError<S>) -> Trap {
     Trap::new(TrapKind::Host(Box::new(host)))
 }
 
-impl<'a, E, S> Externals for CallContext<'a, E, S>
+impl<'a, S> Externals for CallContext<'a, S>
 where
-    E: Resolver<S>,
     S: Store,
 {
     fn invoke_index(
@@ -304,7 +302,7 @@ where
         index: usize,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, Trap> {
-        match E::invoke(self, index, args) {
+        match StandardABI::invoke(self, index, args) {
             Ok(ok) => Ok(ok),
             Err(e) => {
                 if let VMError::Trap(t) = e {

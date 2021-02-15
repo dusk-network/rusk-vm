@@ -166,7 +166,9 @@ impl ReturnValue {
 }
 
 /// Type used to identify a contract
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Canon)]
+#[derive(
+    Default, Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Canon,
+)]
 pub struct ContractId([u8; 32]);
 
 impl<B> From<B> for ContractId
@@ -181,6 +183,13 @@ where
 }
 
 impl ContractId {
+    /// Return a reserved contract id for host fn modules
+    pub const fn reserved(id: u8) -> Self {
+        let mut bytes = [0; 32];
+        bytes[0] = id;
+        ContractId(bytes)
+    }
+
     /// Returns the contract id as a byte slice
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
@@ -263,7 +272,7 @@ pub fn verify_proof(
     let label_len = label.len();
     let pub_inp_len = pub_inp.len();
 
-    let res = unsafe {
+    let _res = unsafe {
         external::verify_proof(
             &pub_inp[0],
             pub_inp_len as i32,
@@ -273,6 +282,7 @@ pub fn verify_proof(
             label_len as i32,
         )
     };
+    // FIXME, actually return the result
     true
 }
 

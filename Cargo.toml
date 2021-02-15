@@ -36,6 +36,7 @@ delegator = { path = "tests/contracts/delegator", features = ["host"] }
 stack = { path = "tests/contracts/stack", features = ["host"] }
 hash = { path = "tests/contracts/hash", features = ["host"] }
 verify_proof = { path = "tests/contracts/verify_proof", features = ["host"] }
+host_fn = { path = "tests/contracts/host_fn", features = ["host"] }
 
 [[bench]]
 name = "factorial"

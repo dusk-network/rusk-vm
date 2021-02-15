@@ -4,34 +4,67 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::marker::PhantomData;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
-use canonical::{Canon, Ident, Store};
-use canonical_derive::Canon;
+use canonical::{Canon, Ident, Sink, Source, Store};
 use dusk_abi::{Query, Transaction};
 use dusk_kelvin_map::Map;
 
-use crate::call_context::{CallContext, Resolver};
+use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::VMError;
 
+/// The trait that host function modules use to communicate with the VM
+pub trait HostModule {
+    // ??
+}
+
 /// The main network state, includes the full state of contracts.
-#[derive(Clone, Default, Canon)]
-pub struct NetworkState<E, S>
+#[derive(Clone, Default)]
+pub struct NetworkState<S>
 where
     S: Store,
 {
     block_height: u64,
     contracts: Map<ContractId, Contract, S>,
+    modules: Rc<RefCell<HashMap<ContractId, Box<dyn HostModule>>>>,
     store: S,
-    _marker: PhantomData<E>,
 }
 
-impl<E, S> NetworkState<E, S>
+// Manual implementation of `Canon` to ignore the "modules" which needs to be
+// re-instantiated on program initialization.
+impl<S> Canon<S> for NetworkState<S>
 where
-    E: Resolver<S>,
+    S: Store,
+{
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+        self.block_height.write(sink)?;
+        self.contracts.write(sink)
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+        let block_height = u64::read(source)?;
+        let contracts = Map::read(source)?;
+        Ok(NetworkState {
+            block_height,
+            contracts,
+            store: source.store().clone(),
+            modules: Rc::new(RefCell::new(HashMap::new())),
+        })
+    }
+
+    fn encoded_len(&self) -> usize {
+        Canon::<S>::encoded_len(&self.block_height)
+            + Canon::<S>::encoded_len(&self.contracts)
+    }
+}
+
+impl<S> NetworkState<S>
+where
     S: Store,
 {
     /// Returns a [`NetworkState`] for a specific block height
@@ -39,10 +72,11 @@ where
         Self {
             block_height,
             contracts: Map::default(),
+            modules: Rc::new(RefCell::new(HashMap::new())),
             store: S::default(),
-            _marker: PhantomData,
         }
     }
+
     /// Deploys a contract to the state, returns the address of the created
     /// contract or an error
     pub fn deploy(
@@ -133,5 +167,13 @@ where
         )?;
 
         result.cast(store).map_err(VMError::from_store_error)
+    }
+
+    /// Register a host-fn handler
+    pub fn register_host_module<M>(&mut self, id: ContractId, module: M)
+    where
+        M: HostModule + 'static,
+    {
+        self.modules.borrow_mut().insert(id, Box::new(module));
     }
 }
