@@ -60,7 +60,7 @@ where
     }
 }
 
-/// A generic query
+/// Bytes representing a contract state
 #[derive(Clone, Canon, Debug, Default)]
 pub struct ContractState(Vec<u8>);
 
@@ -102,6 +102,16 @@ impl Query {
         S: Store,
     {
         Ok(Query(c.encode_to_vec(s)?))
+    }
+
+    /// Casts the generict query to given type
+    pub fn cast<C, S>(&self, store: S) -> Result<C, S::Error>
+    where
+        C: Canon<S>,
+        S: Store,
+    {
+        let mut source = ByteSource::new(self.as_bytes(), &store);
+        Canon::<S>::read(&mut source)
     }
 }
 
@@ -204,17 +214,18 @@ impl ContractId {
 mod external {
     extern "C" {
         #[allow(unused)]
-        pub fn caller(buffer: &mut u8);
-        pub fn self_id(buffer: &mut u8);
-
         pub fn debug(buffer: &u8, len: i32);
-
-        pub fn block_height() -> u64;
 
         pub fn query(target: &u8, buf: &mut u8);
         pub fn transact(target: &u8, buf: &mut u8);
 
+        pub fn caller(buffer: &mut u8);
+        pub fn self_id(buffer: &mut u8);
+
         pub fn gas(value: i32);
+        pub fn block_height() -> u64;
+
+        // -- CUT HERE ---
 
         pub fn poseidon_hash(result: &mut u8, buffer: &u8, len: i32);
         pub fn verify_proof(

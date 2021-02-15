@@ -10,7 +10,7 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use canonical::{Canon, Ident, Sink, Source, Store};
-use dusk_abi::{Query, Transaction};
+use dusk_abi::{Query, ReturnValue, Transaction};
 use dusk_kelvin_map::Map;
 
 use crate::call_context::CallContext;
@@ -19,8 +19,11 @@ use crate::gas::GasMeter;
 use crate::VMError;
 
 /// The trait that host function modules use to communicate with the VM
-pub trait HostModule {
-    // ??
+pub trait HostModule<S>
+where
+    S: Store,
+{
+    fn execute(&self, query: Query) -> Result<ReturnValue, VMError<S>>;
 }
 
 /// The main network state, includes the full state of contracts.
@@ -31,7 +34,7 @@ where
 {
     block_height: u64,
     contracts: Map<ContractId, Contract, S>,
-    modules: Rc<RefCell<HashMap<ContractId, Box<dyn HostModule>>>>,
+    modules: Rc<RefCell<HashMap<ContractId, Box<dyn HostModule<S>>>>>,
     store: S,
 }
 
@@ -111,6 +114,13 @@ where
             .map_err(VMError::from_store_error)
     }
 
+    /// Returns a reference to the specified contracts state
+    pub fn modules(
+        &self,
+    ) -> &Rc<RefCell<HashMap<ContractId, Box<dyn HostModule<S>>>>> {
+        &self.modules
+    }
+
     /// Returns a reference to the store backing the state
     pub fn store(&self) -> &S {
         &self.store
@@ -172,7 +182,7 @@ where
     /// Register a host-fn handler
     pub fn register_host_module<M>(&mut self, id: ContractId, module: M)
     where
-        M: HostModule + 'static,
+        M: HostModule<S> + 'static,
     {
         self.modules.borrow_mut().insert(id, Box::new(module));
     }

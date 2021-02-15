@@ -121,34 +121,44 @@ where
 
         let store = self.store.clone();
 
-        match self.state.get_contract(&target)? {
-            None => panic!("FIXME: error handling"),
-            Some(contract) => {
-                let module = wasmi::Module::from_buffer(contract.bytecode())?;
+        if let Some(module) = self.state.modules().borrow().get(&target) {
+            // is this a reserved module call?
+            return module.execute(query);
+        } else {
+            match self.state.get_contract(&target)? {
+                None => panic!("FIXME: error handling"),
+                Some(contract) => {
+                    let module =
+                        wasmi::Module::from_buffer(contract.bytecode())?;
 
-                instance = wasmi::ModuleInstance::new(&module, &imports)?
-                    .assert_no_start();
+                    instance = wasmi::ModuleInstance::new(&module, &imports)?
+                        .assert_no_start();
 
-                match instance.export_by_name("memory") {
-                    Some(wasmi::ExternVal::Memory(memref)) => {
-                        // write contract state and argument to memory
-                        memref
-                            .with_direct_access_mut(|m| {
-                                let mut sink =
-                                    ByteSink::new(&mut m[..], &store);
-                                // copy the raw bytes only, since the contract
-                                // can infer
-                                // it's own state and argument lengths
-                                sink.copy_bytes(contract.state().as_bytes());
-                                sink.copy_bytes(query.as_bytes());
-                                Ok(())
-                            })
-                            .map_err(VMError::from_store_error)?;
+                    match instance.export_by_name("memory") {
+                        Some(wasmi::ExternVal::Memory(memref)) => {
+                            // write contract state and argument to memory
+                            memref
+                                .with_direct_access_mut(|m| {
+                                    let mut sink =
+                                        ByteSink::new(&mut m[..], &store);
+                                    // copy the raw bytes only, since the
+                                    // contract
+                                    // can infer
+                                    // it's own state and argument lengths
+                                    sink.copy_bytes(
+                                        contract.state().as_bytes(),
+                                    );
+                                    sink.copy_bytes(query.as_bytes());
+                                    Ok(())
+                                })
+                                .map_err(VMError::from_store_error)?;
 
-                        self.stack
-                            .push(StackFrame::new_query(target, memref, query));
+                            self.stack.push(StackFrame::new_query(
+                                target, memref, query,
+                            ));
+                        }
+                        _ => panic!("FIXME - error handling"),
                     }
-                    _ => panic!("FIXME - error handling"),
                 }
             }
         }

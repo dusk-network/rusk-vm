@@ -7,13 +7,15 @@
 #![cfg_attr(not(feature = "host"), no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
+extern crate alloc;
+
 use canonical_derive::Canon;
 
 // query ids
-pub const PLZ_CALL: u8 = 0;
+pub const HASH: u8 = 0;
 
 // transaction ids
-pub const MUTATO: u8 = 0;
+pub const SOMETHING: u8 = 0;
 
 #[derive(Clone, Canon, Debug)]
 pub struct HostFnTest {}
@@ -28,22 +30,23 @@ impl HostFnTest {
 mod hosted {
     use super::*;
 
+    use alloc::vec::Vec;
+
     use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
     use dusk_abi::{ContractId, ReturnValue};
+
+    use dusk_bls12_381::BlsScalar;
 
     const PAGE_SIZE: usize = 1024 * 4;
 
     type BS = BridgeStore<Id32>;
 
     impl HostFnTest {
-        pub fn please_call_host_fn_ok(&self) -> i32 {
-            const HOST_MODULE_ID: ContractId = ContractId::reserved(0);
-            const TEST_HOST_CALL: u8 = 0;
+        pub fn hash(&self, scalars: Vec<BlsScalar>) -> BlsScalar {
+            const POSEIDON_MODULE_ID: ContractId = ContractId::reserved(99);
+            const HASH: u8 = 0;
 
-            let argument: u128 = 1994;
-
-            dusk_abi::query(&HOST_MODULE_ID, &(TEST_HOST_CALL, argument))
-                .unwrap()
+            dusk_abi::query(&POSEIDON_MODULE_ID, &(HASH, scalars)).unwrap()
         }
     }
 
@@ -58,8 +61,10 @@ mod hosted {
         let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
-            PLZ_CALL => {
-                let ret = slf.please_call_host_fn_ok();
+            HASH => {
+                let arg: Vec<BlsScalar> = Canon::<BS>::read(&mut source)?;
+
+                let ret = slf.hash(arg);
 
                 let r = {
                     // return value
