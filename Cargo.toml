@@ -1,6 +1,6 @@
 [package]
 name = "rusk-vm"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
@@ -11,7 +11,7 @@ parity-wasm = "0.41"
 pwasm-utils = "0.12.0"
 failure = "0.1"
 
-dusk-abi = { path = "dusk-abi", version = "0.3" }
+dusk-abi = { path = "dusk-abi", version = "0.4" }
 canonical = { version = "0.5" , features = ["host"] }
 canonical_host = "0.5"
 canonical_derive = "0.5"
