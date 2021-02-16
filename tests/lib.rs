@@ -312,18 +312,19 @@ fn proof_verifier() {
     }
 
     let pp = unsafe {
-        let buff = std::fs::read("tests/pub_params_dev.bin")
+        let buff = std::fs::read("temp_crs.bin")
             .expect("Error reading from PubParams file");
         PublicParameters::from_slice_unchecked(buff.as_slice())
             .expect("PubParams deser error")
     };
 
-    rusk_profile::set_common_reference_string("tests/pub_params_dev.bin")
+    rusk_profile::set_common_reference_string(pp.to_raw_bytes())
         .expect("Error setting CRS in rusk_profile");
     let mut circuit = ExecuteCircuit::<17, 15>::create_dummy_circuit::<_, MS>(
         &mut rand::thread_rng(),
         1,
         1,
+        true,
     )
     .expect("Error creating a dummy setup");
 
@@ -355,6 +356,7 @@ fn proof_verifier() {
                 &mut rand::thread_rng(),
                 1,
                 1,
+                true,
             )
             .expect("Error creating a dummy setup");
         circuit.verify_proof(&pp, &vk, b"dusk", &proof, &pi).is_ok()
@@ -379,7 +381,7 @@ fn proof_verifier() {
 
     // If we stored the old CRS, let's restore it at the end of the test, too.
     if std::fs::metadata(old_crs_file_name).is_ok() {
-        rusk_profile::set_common_reference_string(old_crs_file_name)
+        rusk_profile::set_common_reference_string(pp.to_raw_bytes())
             .expect("Error restoring CRS in rusk_profile");
         std::fs::remove_file(old_crs_file_name)
             .expect("Could not remove temporary CRS holder file");
