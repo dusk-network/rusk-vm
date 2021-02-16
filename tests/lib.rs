@@ -309,6 +309,8 @@ fn proof_verifier() {
     if let Ok(_) = old_crs {
         std::fs::File::create(old_crs_file_name).unwrap();
         std::fs::write(old_crs_file_name, old_crs.unwrap().as_slice()).unwrap();
+    } else {
+        std::fs::write(old_crs_file_name, PublicParameters::setup(1<<15, &mut rand::thread_rng()).unwrap().to_raw_bytes()).unwrap();
     }
 
     let pp = unsafe {
