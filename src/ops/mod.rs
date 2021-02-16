@@ -20,8 +20,6 @@ pub mod store;
 pub mod transact;
 pub mod verify_proof;
 
-pub mod poseidon_hash;
-
 pub trait AbiCall<S>
 where
     S: Store,

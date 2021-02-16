@@ -39,7 +39,7 @@ test: ## Run the contracts' tests
 		make wasm for=fibonacci && \
 		make wasm for=stack && \
 		make wasm for=host_fn && \
-		make wasm for=hash && \
+		make wasm for=block_height && \
 		make wasm for=verify_proof && \
 		cargo test --release
 

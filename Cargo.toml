@@ -21,7 +21,6 @@ rusk-profile = {git = "https://github.com/dusk-network/rusk/", tag = "rusk-profi
 transfer-circuits = {git = "https://github.com/dusk-network/rusk/", tag = "transfer-circuits-0.1.0"}
 anyhow = {version = "1.0", optional = true}
 rand = "0.7"
-poseidon252 = {git = "https://github.com/dusk-network/Poseidon252", tag = "v0.17.0"}
 dusk-bls12_381 = "0.6"
 dusk-bytes = "0.1"
 bincode = "1.0"
@@ -34,9 +33,10 @@ counter = { path = "tests/contracts/counter", features = ["host"] }
 fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
 delegator = { path = "tests/contracts/delegator", features = ["host"] }
 stack = { path = "tests/contracts/stack", features = ["host"] }
-hash = { path = "tests/contracts/hash", features = ["host"] }
+block_height = { path = "tests/contracts/block_height", features = ["host"] }
 verify_proof = { path = "tests/contracts/verify_proof", features = ["host"] }
 host_fn = { path = "tests/contracts/host_fn", features = ["host"] }
+dusk-poseidon = "0.18"
 
 [[bench]]
 name = "factorial"

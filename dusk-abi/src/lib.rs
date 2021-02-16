@@ -227,7 +227,6 @@ mod external {
 
         // -- CUT HERE ---
 
-        pub fn poseidon_hash(result: &mut u8, buffer: &u8, len: i32);
         pub fn verify_proof(
             pub_inp: &u8,
             pub_inp_len: i32,
@@ -256,21 +255,6 @@ pub fn self_id() -> ContractId {
 /// Returns the current block height
 pub fn block_height() -> u64 {
     unsafe { external::block_height() }
-}
-
-/// Hash the given list of [`BlsScalar`] using Poseidon's sponge hash function
-pub fn poseidon_hash(messages: Vec<BlsScalar>) -> BlsScalar {
-    let size = BlsScalar::SIZE * messages.len();
-    let mut result = [0u8; BlsScalar::SIZE];
-    let mut list = Vec::with_capacity(size);
-
-    for message in messages {
-        list.extend_from_slice(&message.to_bytes());
-    }
-
-    unsafe { external::poseidon_hash(&mut result[0], &list[0], size as i32) }
-
-    BlsScalar::from_bytes(&result).expect("A proper BlsScalar")
 }
 
 /// Verify a PLONK proof given the Proof, VerifierKey and PublicInputs

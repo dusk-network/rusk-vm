@@ -10,15 +10,14 @@
 use canonical_derive::Canon;
 
 // query ids
-pub const HASH: u8 = 0;
-pub const BLOCK_HEIGHT: u8 = 1;
+pub const BLOCK_HEIGHT: u8 = 0;
 
 #[derive(Clone, Canon, Debug)]
-pub struct Hash {}
+pub struct BlockHeight {}
 
-impl Hash {
+impl BlockHeight {
     pub fn new() -> Self {
-        Hash {}
+        BlockHeight {}
     }
 }
 
@@ -28,8 +27,6 @@ mod hosted {
     extern crate alloc;
 
     use super::*;
-    use alloc::vec::Vec;
-    use dusk_bls12_381::BlsScalar;
 
     use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
     use dusk_abi::ReturnValue;
@@ -38,11 +35,7 @@ mod hosted {
 
     type BS = BridgeStore<Id32>;
 
-    impl Hash {
-        pub fn hash(&self, messages: Vec<BlsScalar>) -> BlsScalar {
-            dusk_abi::poseidon_hash(messages)
-        }
-
+    impl BlockHeight {
         pub fn block_height(&self) -> u64 {
             dusk_abi::block_height()
         }
@@ -53,27 +46,11 @@ mod hosted {
         let mut source = ByteSource::new(&bytes[..], &bs);
 
         // read self.
-        let slf: Hash = Canon::<BS>::read(&mut source)?;
+        let slf: BlockHeight = Canon::<BS>::read(&mut source)?;
 
         // read query id
         let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
-            HASH => {
-                let messages: Vec<BlsScalar> = Canon::<BS>::read(&mut source)?;
-
-                let ret = slf.hash(messages);
-
-                let r = {
-                    // return value
-                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
-
-                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
-
-                    Canon::<BS>::write(&wrapped_return, &mut sink)
-                };
-
-                r
-            }
             BLOCK_HEIGHT => {
                 let ret = slf.block_height();
 
