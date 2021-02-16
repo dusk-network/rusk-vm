@@ -34,7 +34,6 @@ fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
 delegator = { path = "tests/contracts/delegator", features = ["host"] }
 stack = { path = "tests/contracts/stack", features = ["host"] }
 block_height = { path = "tests/contracts/block_height", features = ["host"] }
-verify_proof = { path = "tests/contracts/verify_proof", features = ["host"] }
 host_fn = { path = "tests/contracts/host_fn", features = ["host"] }
 dusk-poseidon = "0.18"
 

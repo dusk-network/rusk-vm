@@ -33,6 +33,9 @@ pub mod bufwriter;
 #[cfg(target_arch = "wasm32")]
 pub mod panic_include;
 
+mod contract;
+pub use contract::{ContractId, ContractState};
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
@@ -57,26 +60,6 @@ where
 
         Canon::<S>::write(self, &mut sink)?;
         Ok(vec)
-    }
-}
-
-/// Bytes representing a contract state
-#[derive(Clone, Canon, Debug, Default)]
-pub struct ContractState(Vec<u8>);
-
-impl ContractState {
-    /// Returns the state of the contract as bytes
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0[..]
-    }
-
-    /// Creates a state from a type implementing `Canon`
-    pub fn from_canon<C, S>(c: &C, s: &S) -> Result<Self, S::Error>
-    where
-        C: Canon<S>,
-        S: Store,
-    {
-        Ok(ContractState(c.encode_to_vec(s)?))
     }
 }
 
@@ -175,41 +158,6 @@ impl ReturnValue {
     }
 }
 
-/// Type used to identify a contract
-#[derive(
-    Default, Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Canon,
-)]
-pub struct ContractId([u8; 32]);
-
-impl<B> From<B> for ContractId
-where
-    B: AsRef<[u8]>,
-{
-    fn from(b: B) -> Self {
-        let mut bytes = [0u8; 32];
-        bytes.copy_from_slice(b.as_ref());
-        ContractId(bytes)
-    }
-}
-
-impl ContractId {
-    /// Return a reserved contract id for host fn modules
-    pub const fn reserved(id: u8) -> Self {
-        let mut bytes = [0; 32];
-        bytes[0] = id;
-        ContractId(bytes)
-    }
-
-    /// Returns the contract id as a byte slice
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    fn as_bytes_mut(&mut self) -> &mut [u8] {
-        &mut self.0
-    }
-}
-
 // declare available host-calls
 mod external {
     extern "C" {
@@ -224,17 +172,6 @@ mod external {
 
         pub fn gas(value: i32);
         pub fn block_height() -> u64;
-
-        // -- CUT HERE ---
-
-        pub fn verify_proof(
-            pub_inp: &u8,
-            pub_inp_len: i32,
-            proof: &u8,
-            verif_key: &u8,
-            label: &u8,
-            label_len: i32,
-        ) -> i32;
     }
 }
 
@@ -255,30 +192,6 @@ pub fn self_id() -> ContractId {
 /// Returns the current block height
 pub fn block_height() -> u64 {
     unsafe { external::block_height() }
-}
-
-/// Verify a PLONK proof given the Proof, VerifierKey and PublicInputs
-pub fn verify_proof(
-    proof: Vec<u8>,
-    vk: Vec<u8>,
-    label: Vec<u8>,
-    pub_inp: Vec<u8>,
-) -> bool {
-    let label_len = label.len();
-    let pub_inp_len = pub_inp.len();
-
-    let _res = unsafe {
-        external::verify_proof(
-            &pub_inp[0],
-            pub_inp_len as i32,
-            &proof[0],
-            &vk[0],
-            &label[0],
-            label_len as i32,
-        )
-    };
-    // FIXME, actually return the result
-    true
 }
 
 /// Call another contract at address `target`
