@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use canonical::{Canon, Ident, Sink, Source, Store};
+use canonical::{ByteSource, Canon, Ident, Sink, Source, Store};
 use dusk_abi::{Query, ReturnValue, Transaction};
 use dusk_kelvin_map::Map;
 
@@ -185,5 +185,30 @@ where
         M: HostModule<S> + 'static,
     {
         self.modules.borrow_mut().insert(id, Box::new(module));
+    }
+
+    /// Gets the state of the given contract
+    pub fn get_contract_state<C>(
+        &self,
+        contract_id: ContractId,
+    ) -> Result<Option<C>, VMError<S>>
+    where
+        C: Canon<S>,
+    {
+        let state = self
+            .contracts
+            .get(&contract_id)
+            .map_err(VMError::from_store_error)?
+            .map(|contract| {
+                let mut source = ByteSource::new(
+                    (*contract).state().as_bytes(),
+                    &self.store,
+                );
+                let res = Canon::<S>::read(&mut source)
+                    .map_err(VMError::from_store_error);
+                res
+            })
+            .transpose()?;
+        Ok(state)
     }
 }

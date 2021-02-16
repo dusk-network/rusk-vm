@@ -203,6 +203,28 @@ fn stack() {
     }
 
     for i in 0..n {
+        assert_eq!(
+            network
+                .query::<_, Option<i32>>(
+                    contract_id,
+                    (stack::PEEK, i),
+                    &mut gas
+                )
+                .unwrap(),
+            Some(i)
+        );
+    }
+
+    for i in 0..n {
+        let contract_state = network
+            .get_contract_state::<Stack<MS>>(contract_id)
+            .expect("A result")
+            .expect("An option");
+
+        assert_eq!(contract_state.peek(i), Some(i));
+    }
+
+    for i in 0..n {
         let i = n - i - 1;
 
         assert_eq!(

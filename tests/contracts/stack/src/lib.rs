@@ -10,11 +10,15 @@
 use canonical::{Canon, Store};
 use canonical_derive::Canon;
 use microkelvin::Cardinality;
+use microkelvin::Nth;
 use nstack::NStack;
 
 // transaction ids
 pub const PUSH: u8 = 0;
 pub const POP: u8 = 1;
+
+// query ids
+pub const PEEK: u8 = 0;
 
 #[derive(Clone, Canon, Debug)]
 pub struct Stack<S: Store> {
@@ -26,6 +30,10 @@ impl<S: Store> Stack<S> {
         Stack {
             inner: NStack::new(),
         }
+    }
+
+    pub fn peek(&self, n: i32) -> Option<i32> {
+        self.inner.nth(n as u64).unwrap().map(|n| *n)
     }
 }
 
@@ -48,6 +56,42 @@ mod hosted {
         pub fn pop(&mut self) -> Option<i32> {
             self.inner.pop().unwrap()
         }
+    }
+
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
+        let bs = BS::default();
+        let mut source = ByteSource::new(&bytes[..], &bs);
+
+        // read self.
+        let slf: Stack<BS> = Canon::<BS>::read(&mut source)?;
+
+        // read query id
+        let qid: u8 = Canon::<BS>::read(&mut source)?;
+        match qid {
+            PEEK => {
+                let arg: i32 = Canon::<BS>::read(&mut source)?;
+
+                let ret = slf.peek(arg);
+
+                let r = {
+                    // return value
+                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
+
+                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
+
+                    Canon::<BS>::write(&wrapped_return, &mut sink)
+                };
+
+                r
+            }
+            _ => panic!(""),
+        }
+    }
+
+    #[no_mangle]
+    fn q(bytes: &mut [u8; PAGE_SIZE]) {
+        // todo, handle errors here
+        let _ = query(bytes);
     }
 
     fn transaction(
