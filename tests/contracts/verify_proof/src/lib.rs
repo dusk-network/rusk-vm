@@ -28,7 +28,6 @@ mod hosted {
 
     use super::*;
     use alloc::vec::Vec;
-    use dusk_bls12_381::BlsScalar;
 
     use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
     use dusk_abi::ReturnValue;
