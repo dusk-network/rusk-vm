@@ -123,7 +123,7 @@ where
 
         if let Some(module) = self.state.modules().borrow().get(&target) {
             // is this a reserved module call?
-            return module.execute(query);
+            return module.execute(query).map_err(VMError::from_store_error);
         } else {
             match self.state.get_contract(&target)? {
                 None => panic!("FIXME: error handling"),

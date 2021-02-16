@@ -11,11 +11,11 @@ use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub mod block_height;
+pub mod callee;
 pub mod debug;
 pub mod gas;
 pub mod panic;
 pub mod query;
-pub mod self_id;
 pub mod store;
 pub mod transact;
 

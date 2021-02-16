@@ -10,21 +10,13 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use canonical::{ByteSource, Canon, Ident, Sink, Source, Store};
-use dusk_abi::{Query, ReturnValue, Transaction};
+use dusk_abi::{HostModule, Query, Transaction};
 use dusk_kelvin_map::Map;
 
 use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::VMError;
-
-/// The trait that host function modules use to communicate with the VM
-pub trait HostModule<S>
-where
-    S: Store,
-{
-    fn execute(&self, query: Query) -> Result<ReturnValue, VMError<S>>;
-}
 
 /// The main network state, includes the full state of contracts.
 #[derive(Clone, Default)]

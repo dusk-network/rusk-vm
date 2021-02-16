@@ -78,7 +78,7 @@ abi_resolver! {
         3, "put" => store::Put,
         6, "query" => query::ExecuteQuery,
         7, "transact" => transact::ApplyTransaction,
-        9, "self_id" => self_id::SelfId,
+        9, "callee" => callee::Callee,
         10, "gas" => gas::Gas,
         11, "block_height" => block_height::BlockHeight
     }

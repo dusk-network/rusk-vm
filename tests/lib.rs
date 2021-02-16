@@ -6,16 +6,14 @@
 
 mod contracts;
 
-use rusk_vm::{
-    Contract, ContractId, GasMeter, HostModule, NetworkState, VMError,
-};
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::ParseHexStr;
 
 use canonical::{ByteSource, Canon, Store};
 use canonical_host::MemStore as MS;
-use dusk_abi::{Query, ReturnValue};
+use dusk_abi::{HostModule, Query, ReturnValue};
 
 use block_height::BlockHeight;
 use counter::Counter;
@@ -259,20 +257,17 @@ impl<S> HostModule<S> for PoseidonModule<S>
 where
     S: Store,
 {
-    fn execute(&self, query: Query) -> Result<ReturnValue, VMError<S>> {
+    fn execute(&self, query: Query) -> Result<ReturnValue, S::Error> {
         let mut source = ByteSource::new(query.as_bytes(), &self.store);
 
-        let qid: u8 =
-            Canon::<S>::read(&mut source).map_err(VMError::from_store_error)?;
+        let qid: u8 = Canon::<S>::read(&mut source)?;
 
         match qid {
             0 => {
-                let scalars: Vec<BlsScalar> = Canon::<S>::read(&mut source)
-                    .map_err(VMError::from_store_error)?;
+                let scalars: Vec<BlsScalar> = Canon::<S>::read(&mut source)?;
                 let ret = dusk_poseidon::sponge::hash(&scalars);
 
                 ReturnValue::from_canon(&ret, &self.store)
-                    .map_err(VMError::from_store_error)
             }
             _ => todo!(),
         }

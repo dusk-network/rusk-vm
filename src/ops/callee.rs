@@ -11,9 +11,9 @@ use crate::VMError;
 use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
-pub struct SelfId;
+pub struct Callee;
 
-impl<S: Store> AbiCall<S> for SelfId {
+impl<S: Store> AbiCall<S> for Callee {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 

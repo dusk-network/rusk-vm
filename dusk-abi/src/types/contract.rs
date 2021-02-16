@@ -6,9 +6,10 @@
 
 extern crate alloc;
 
-use crate::CanonToVec;
+use crate::canon_to_vec::CanonToVec;
+
 use alloc::vec::Vec;
-use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
+use canonical::{Canon, Store};
 use canonical_derive::Canon;
 
 /// Bytes representing a contract state
@@ -61,6 +62,7 @@ impl ContractId {
         &self.0
     }
 
+    /// Returns the contract id as a mutable slice
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
         &mut self.0
     }

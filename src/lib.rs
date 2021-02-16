@@ -27,7 +27,7 @@ pub use dusk_abi;
 pub use call_context::StandardABI;
 pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
-pub use state::{HostModule, NetworkState};
+pub use state::NetworkState;
 
 #[derive(Fail)]
 /// The errors that can happen while executing the VM
