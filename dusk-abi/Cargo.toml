@@ -1,6 +1,6 @@
 [package]
 name = "dusk-abi"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
@@ -9,7 +9,7 @@ canonical = "0.5"
 canonical_derive = "0.5"
 wee_alloc = "0.4"
 
-poseidon252 = {git = "https://github.com/dusk-network/Poseidon252", tag = "v0.17.0", default-features = false}
+dusk-poseidon = {version = "0.18", default-features = false}
 dusk-bls12_381 = { version = "0.6", default-features = false }
 dusk-bytes = "0.1"
 

@@ -303,13 +303,7 @@ fn proof_verifier() {
 
     // We store the current reference string here, so we can temporarily change
     // it for the test, and then change it back once finished.
-    let old_crs_file_name = "temp_crs.bin";
     let old_crs = rusk_profile::get_common_reference_string();
-
-    if let Ok(_) = old_crs {
-        std::fs::File::create(old_crs_file_name).unwrap();
-        std::fs::write(old_crs_file_name, old_crs.unwrap().as_slice()).unwrap();
-    }
 
     let pp = unsafe {
         let buff = std::fs::read("tests/pub_params_dev.bin")
@@ -318,12 +312,14 @@ fn proof_verifier() {
             .expect("PubParams deser error")
     };
 
-    rusk_profile::set_common_reference_string("tests/pub_params_dev.bin")
+    rusk_profile::set_common_reference_string(pp.to_raw_bytes())
         .expect("Error setting CRS in rusk_profile");
+
     let mut circuit = ExecuteCircuit::<17, 15>::create_dummy_circuit::<_, MS>(
         &mut rand::thread_rng(),
         1,
         1,
+        true,
     )
     .expect("Error creating a dummy setup");
 
@@ -355,6 +351,7 @@ fn proof_verifier() {
                 &mut rand::thread_rng(),
                 1,
                 1,
+                true,
             )
             .expect("Error creating a dummy setup");
         circuit.verify_proof(&pp, &vk, b"dusk", &proof, &pi).is_ok()
@@ -378,10 +375,10 @@ fn proof_verifier() {
     );
 
     // If we stored the old CRS, let's restore it at the end of the test, too.
-    if std::fs::metadata(old_crs_file_name).is_ok() {
-        rusk_profile::set_common_reference_string(old_crs_file_name)
+    if old_crs.is_ok() {
+        rusk_profile::set_common_reference_string(old_crs.unwrap())
             .expect("Error restoring CRS in rusk_profile");
-        std::fs::remove_file(old_crs_file_name)
-            .expect("Could not remove temporary CRS holder file");
+    } else {
+        rusk_profile::delete_common_reference_string().unwrap();
     }
 }

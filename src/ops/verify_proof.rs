@@ -8,6 +8,7 @@ use super::AbiCall;
 use crate::call_context::{CallContext, Resolver};
 use crate::VMError;
 
+use bid_circuits::CorrectnessCircuit;
 use canonical::Store;
 use dusk_plonk::prelude::*;
 use transfer_circuits::{
@@ -113,21 +114,22 @@ fn select_and_verify<'a, S: Store>(
     proof: &Proof,
 ) -> bool {
     match label.as_str() {
-        "transfer-execute-1-0" => verify_proof(ExecuteCircuit::<17, 15>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 1,0).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-1-1" => verify_proof(ExecuteCircuit::<17, 15>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 1,1).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-1-2" => verify_proof(ExecuteCircuit::<17, 15>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 1,2).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-2-0" => verify_proof(ExecuteCircuit::<17, 16>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 2,0).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-2-1" => verify_proof(ExecuteCircuit::<17, 16>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 2,1).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-2-2" => verify_proof(ExecuteCircuit::<17, 16>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 2,2).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-3-0" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 3,0).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-3-1" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 3,1).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-3-2" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 3,2).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-4-0" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 4,0).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-4-1" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 4,1).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
-        "transfer-execute-4-2" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 4,2).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-1-0" => verify_proof(ExecuteCircuit::<17, 15>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 1,0, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-1-1" => verify_proof(ExecuteCircuit::<17, 15>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 1,1, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-1-2" => verify_proof(ExecuteCircuit::<17, 15>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 1,2, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-2-0" => verify_proof(ExecuteCircuit::<17, 16>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 2,0, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-2-1" => verify_proof(ExecuteCircuit::<17, 16>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 2,1, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-2-2" => verify_proof(ExecuteCircuit::<17, 16>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 2,2, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-3-0" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 3,0, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-3-1" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 3,1, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-3-2" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 3,2, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-4-0" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 4,0, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-4-1" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 4,1, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
+        "transfer-execute-4-2" => verify_proof(ExecuteCircuit::<17, 17>::create_dummy_circuit::<_,S>(&mut rand::thread_rng(), 4,2, true).expect("Error generating dummy circuit"), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-send-to-contract-obfuscated" => verify_proof(SendToContractObfuscatedCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-send-to-contract-transparent" => verify_proof(SendToContractTransparentCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
         "transfer-withdraw-from-obfuscated" => verify_proof(WithdrawFromObfuscatedCircuit::default(), pp, vk, b"dusk" ,p_inp, proof),
+        "bid-correctness" => verify_proof(CorrectnessCircuit::default(), pp, vk, b"dusk", p_inp, proof),
         _ => false,
     }
 }

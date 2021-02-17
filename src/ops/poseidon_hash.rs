@@ -13,7 +13,7 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-use poseidon252::sponge::hash;
+use dusk_poseidon::sponge::hash;
 
 pub struct PoseidonHash;
 

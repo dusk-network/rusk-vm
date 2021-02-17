@@ -273,7 +273,11 @@ pub fn verify_proof(
             label_len as i32,
         )
     };
-    true
+
+    if res == 1 {
+        return true;
+    }
+    false
 }
 
 /// Call another contract at address `target`
