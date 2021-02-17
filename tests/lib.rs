@@ -306,15 +306,8 @@ fn proof_verifier() {
     let old_crs_file_name = "temp_crs.bin";
     let old_crs = rusk_profile::get_common_reference_string();
 
-    if let Ok(_) = old_crs {
-        std::fs::File::create(old_crs_file_name).unwrap();
-        std::fs::write(old_crs_file_name, old_crs.unwrap().as_slice()).unwrap();
-    } else {
-        std::fs::write(old_crs_file_name, PublicParameters::setup(1<<15, &mut rand::thread_rng()).unwrap().to_raw_bytes()).unwrap();
-    }
-
     let pp = unsafe {
-        let buff = std::fs::read("temp_crs.bin")
+        let buff = std::fs::read("tests/pub_params_dev.bin")
             .expect("Error reading from PubParams file");
         PublicParameters::from_slice_unchecked(buff.as_slice())
             .expect("PubParams deser error")
@@ -322,6 +315,12 @@ fn proof_verifier() {
 
     rusk_profile::set_common_reference_string(pp.to_raw_bytes())
         .expect("Error setting CRS in rusk_profile");
+
+    // This is the same code that runs inside the ABICall and fails too.
+    unsafe{PublicParameters::from_slice_unchecked(&rusk_profile::get_common_reference_string().unwrap())
+        .expect("PubParams deser error");}
+
+
     let mut circuit = ExecuteCircuit::<17, 15>::create_dummy_circuit::<_, MS>(
         &mut rand::thread_rng(),
         1,
@@ -382,10 +381,12 @@ fn proof_verifier() {
     );
 
     // If we stored the old CRS, let's restore it at the end of the test, too.
-    if std::fs::metadata(old_crs_file_name).is_ok() {
-        rusk_profile::set_common_reference_string(pp.to_raw_bytes())
+    if old_crs.is_ok() {
+        rusk_profile::set_common_reference_string(old_crs.unwrap())
             .expect("Error restoring CRS in rusk_profile");
         std::fs::remove_file(old_crs_file_name)
             .expect("Could not remove temporary CRS holder file");
+    } else {
+        rusk_profile::delete_common_reference_string().unwrap();
     }
 }
