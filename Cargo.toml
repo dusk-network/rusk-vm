@@ -42,4 +42,3 @@ rusk-profile = {git = "https://github.com/dusk-network/rusk/", tag = "rusk-profi
 [[bench]]
 name = "factorial"
 harness = false
-

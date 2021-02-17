@@ -303,7 +303,6 @@ fn proof_verifier() {
 
     // We store the current reference string here, so we can temporarily change
     // it for the test, and then change it back once finished.
-    let old_crs_file_name = "temp_crs.bin";
     let old_crs = rusk_profile::get_common_reference_string();
 
     let pp = unsafe {
@@ -384,8 +383,6 @@ fn proof_verifier() {
     if old_crs.is_ok() {
         rusk_profile::set_common_reference_string(old_crs.unwrap())
             .expect("Error restoring CRS in rusk_profile");
-        std::fs::remove_file(old_crs_file_name)
-            .expect("Could not remove temporary CRS holder file");
     } else {
         rusk_profile::delete_common_reference_string().unwrap();
     }
