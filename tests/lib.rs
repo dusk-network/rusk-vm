@@ -315,11 +315,6 @@ fn proof_verifier() {
     rusk_profile::set_common_reference_string(pp.to_raw_bytes())
         .expect("Error setting CRS in rusk_profile");
 
-    // This is the same code that runs inside the ABICall and fails too.
-    unsafe{PublicParameters::from_slice_unchecked(&rusk_profile::get_common_reference_string().unwrap())
-        .expect("PubParams deser error");}
-
-
     let mut circuit = ExecuteCircuit::<17, 15>::create_dummy_circuit::<_, MS>(
         &mut rand::thread_rng(),
         1,
