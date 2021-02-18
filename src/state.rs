@@ -106,7 +106,7 @@ where
             .map_err(VMError::from_store_error)
     }
 
-    /// Returns a reference to the specified contracts state
+    /// Returns a reference to the map of registered host modules
     pub fn modules(
         &self,
     ) -> &Rc<RefCell<HashMap<ContractId, Box<dyn HostModule<S>>>>> {
@@ -172,11 +172,13 @@ where
     }
 
     /// Register a host-fn handler
-    pub fn register_host_module<M>(&mut self, id: ContractId, module: M)
+    pub fn register_host_module<M>(&mut self, module: M)
     where
         M: HostModule<S> + 'static,
     {
-        self.modules.borrow_mut().insert(id, Box::new(module));
+        self.modules
+            .borrow_mut()
+            .insert(module.module_id(), Box::new(module));
     }
 
     /// Gets the state of the given contract

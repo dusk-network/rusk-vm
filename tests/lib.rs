@@ -13,7 +13,7 @@ use dusk_bytes::ParseHexStr;
 
 use canonical::{ByteSource, Canon, Store};
 use canonical_host::MemStore as MS;
-use dusk_abi::{HostModule, Query, ReturnValue};
+use dusk_abi::{HostModule, Module, Query, ReturnValue};
 
 use block_height::BlockHeight;
 use counter::Counter;
@@ -253,6 +253,12 @@ where
     }
 }
 
+impl<S> Module for PoseidonModule<S> {
+    fn id() -> ContractId {
+        ContractId::reserved(11)
+    }
+}
+
 impl<S> HostModule<S> for PoseidonModule<S>
 where
     S: Store,
@@ -299,7 +305,7 @@ fn hash_as_host_fn() {
 
     let pos_mod = PoseidonModule::new(store.clone());
 
-    network.register_host_module(ContractId::reserved(99), pos_mod);
+    network.register_host_module(pos_mod);
 
     let contract_id = network.deploy(contract).unwrap();
 
