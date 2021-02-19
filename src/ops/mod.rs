@@ -11,18 +11,15 @@ use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub mod block_height;
+pub mod callee;
 pub mod debug;
 pub mod gas;
 pub mod panic;
 pub mod query;
-pub mod self_id;
 pub mod store;
 pub mod transact;
-pub mod verify_proof;
 
-pub mod poseidon_hash;
-
-pub trait AbiCall<E, S>
+pub trait AbiCall<S>
 where
     S: Store,
 {
@@ -30,7 +27,7 @@ where
     const RETURN: Option<ValueType>;
 
     fn call(
-        context: &mut CallContext<E, S>,
+        context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>>;
 }

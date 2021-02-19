@@ -38,8 +38,8 @@ test: ## Run the contracts' tests
 		make wasm for=delegator && \
 		make wasm for=fibonacci && \
 		make wasm for=stack && \
-		make wasm for=hash && \
-		make wasm for=verify_proof && \
+		make wasm for=host_fn && \
+		make wasm for=block_height && \
 		cargo test --release
 
 .PHONY: help doc doc-internal publish-doc wasm test

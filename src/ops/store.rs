@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::{CallContext, Resolver};
+use crate::call_context::CallContext;
 use crate::ops::AbiCall;
 use crate::VMError;
 
@@ -13,12 +13,12 @@ use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Get;
 
-impl<E: Resolver<S>, S: Store> AbiCall<E, S> for Get {
+impl<S: Store> AbiCall<S> for Get {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<E, S>,
+        context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
         if let &[RuntimeValue::I32(ofs)] = args.as_ref() {
@@ -44,13 +44,13 @@ impl<E: Resolver<S>, S: Store> AbiCall<E, S> for Get {
 
 pub struct Put;
 
-impl<E: Resolver<S>, S: Store> AbiCall<E, S> for Put {
+impl<S: Store> AbiCall<S> for Put {
     const ARGUMENTS: &'static [ValueType] =
         &[ValueType::I32, ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<E, S>,
+        context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
         if let &[RuntimeValue::I32(ofs), RuntimeValue::I32(len), RuntimeValue::I32(ret)] =

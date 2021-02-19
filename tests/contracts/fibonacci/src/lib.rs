@@ -31,12 +31,12 @@ mod hosted {
             if n < 2 {
                 n
             } else {
-                let self_id = dusk_abi::self_id();
+                let callee = dusk_abi::callee();
 
-                let a = dusk_abi::query::<_, u64>(&self_id, &(COMPUTE, n - 1))
+                let a = dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 1))
                     .unwrap();
 
-                let b = dusk_abi::query::<_, u64>(&self_id, &(COMPUTE, n - 2))
+                let b = dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 2))
                     .unwrap();
 
                 a + b

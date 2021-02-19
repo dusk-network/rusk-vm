@@ -29,14 +29,14 @@ macro_rules! abi_resolver {
         impl<$s: Store> ModuleImportResolver for $name<$s> {
             fn resolve_func(&self, field_name: &str, _signature: &Signature) -> Result<FuncRef, wasmi::Error>
             where $(
-                $op : AbiCall<$name<$s>, $s>,
+                $op : AbiCall<$s>,
                 )*
             {
                 match field_name {
                     $(
                         $op_name => Ok(FuncInstance::alloc_host(
-                            Signature::new(<$op as AbiCall<Self, $s>>::ARGUMENTS,
-                                           <$op as AbiCall<Self, $s>>::RETURN),
+                            Signature::new(<$op as AbiCall<$s>>::ARGUMENTS,
+                                           <$op as AbiCall<$s>>::RETURN),
                             $id,
                         ))
                     ),*
@@ -50,13 +50,13 @@ macro_rules! abi_resolver {
 
         impl<$s: Store> Invoke<S> for $name<$s> {
             fn invoke(
-                context: &mut CallContext<Self, $s>,
+                context: &mut CallContext<$s>,
                 index: usize,
                 args: RuntimeArgs) -> Result<Option<RuntimeValue>, VMError<S>> {
 
                 match index {
                     $(
-                        $id => <$op as AbiCall<Self, _>>::call(context, args)
+                        $id => <$op as AbiCall<_>>::call(context, args)
                     ),*
 
                     ,
@@ -78,11 +78,8 @@ abi_resolver! {
         3, "put" => store::Put,
         6, "query" => query::ExecuteQuery,
         7, "transact" => transact::ApplyTransaction,
-        9, "self_id" => self_id::SelfId,
+        9, "callee" => callee::Callee,
         10, "gas" => gas::Gas,
-        11, "block_height" => block_height::BlockHeight,
-
-        100, "poseidon_hash" => poseidon_hash::PoseidonHash,
-        101, "verify_proof" => verify_proof::VerifyProof
+        11, "block_height" => block_height::BlockHeight
     }
 }

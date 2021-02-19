@@ -7,44 +7,46 @@
 #![cfg_attr(not(feature = "host"), no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
+extern crate alloc;
+
 use canonical_derive::Canon;
 
 // query ids
 pub const HASH: u8 = 0;
-pub const BLOCK_HEIGHT: u8 = 1;
+
+// transaction ids
+pub const SOMETHING: u8 = 0;
 
 #[derive(Clone, Canon, Debug)]
-pub struct Hash {}
+pub struct HostFnTest {}
 
-impl Hash {
+impl HostFnTest {
     pub fn new() -> Self {
-        Hash {}
+        HostFnTest {}
     }
 }
 
 #[cfg(not(feature = "host"))]
 mod hosted {
-
-    extern crate alloc;
-
     use super::*;
+
     use alloc::vec::Vec;
-    use dusk_bls12_381::BlsScalar;
 
     use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
-    use dusk_abi::ReturnValue;
+    use dusk_abi::{ContractId, ReturnValue};
+
+    use dusk_bls12_381::BlsScalar;
 
     const PAGE_SIZE: usize = 1024 * 4;
 
     type BS = BridgeStore<Id32>;
 
-    impl Hash {
-        pub fn hash(&self, messages: Vec<BlsScalar>) -> BlsScalar {
-            dusk_abi::poseidon_hash(messages)
-        }
+    impl HostFnTest {
+        pub fn hash(&self, scalars: Vec<BlsScalar>) -> BlsScalar {
+            const POSEIDON_MODULE_ID: ContractId = ContractId::reserved(11);
+            const HASH: u8 = 0;
 
-        pub fn block_height(&self) -> u64 {
-            dusk_abi::block_height()
+            dusk_abi::query(&POSEIDON_MODULE_ID, &(HASH, scalars)).unwrap()
         }
     }
 
@@ -53,29 +55,16 @@ mod hosted {
         let mut source = ByteSource::new(&bytes[..], &bs);
 
         // read self.
-        let slf: Hash = Canon::<BS>::read(&mut source)?;
+        let slf: HostFnTest = Canon::<BS>::read(&mut source)?;
 
         // read query id
         let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
+            // read_value (&Self) -> i32
             HASH => {
-                let messages: Vec<BlsScalar> = Canon::<BS>::read(&mut source)?;
+                let arg: Vec<BlsScalar> = Canon::<BS>::read(&mut source)?;
 
-                let ret = slf.hash(messages);
-
-                let r = {
-                    // return value
-                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
-
-                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
-
-                    Canon::<BS>::write(&wrapped_return, &mut sink)
-                };
-
-                r
-            }
-            BLOCK_HEIGHT => {
-                let ret = slf.block_height();
+                let ret = slf.hash(arg);
 
                 let r = {
                     // return value
@@ -96,5 +85,26 @@ mod hosted {
     fn q(bytes: &mut [u8; PAGE_SIZE]) {
         // todo, handle errors here
         let _ = query(bytes);
+    }
+
+    fn transaction(
+        bytes: &mut [u8; PAGE_SIZE],
+    ) -> Result<(), <BS as Store>::Error> {
+        let bs = BS::default();
+        let mut source = ByteSource::new(bytes, &bs);
+
+        // read self.
+        let mut _slf: HostFnTest = Canon::<BS>::read(&mut source)?;
+        // read transaction id
+        let tid: u8 = Canon::<BS>::read(&mut source)?;
+        match tid {
+            _ => panic!(""),
+        }
+    }
+
+    #[no_mangle]
+    fn t(bytes: &mut [u8; PAGE_SIZE]) {
+        // todo, handle errors here
+        transaction(bytes).unwrap()
     }
 }
