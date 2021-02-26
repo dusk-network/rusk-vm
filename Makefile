@@ -38,6 +38,7 @@ test: ## Run the contracts' tests
 		make wasm for=delegator && \
 		make wasm for=fibonacci && \
 		make wasm for=stack && \
+		make wasm for=self_snapshot && \
 		make wasm for=host_fn && \
 		make wasm for=block_height && \
 		cargo test --release

@@ -20,6 +20,7 @@ use counter::Counter;
 use delegator::Delegator;
 use fibonacci::Fibonacci;
 use host_fn::HostFnTest;
+use self_snapshot::SelfSnapshot;
 use stack::Stack;
 
 fn fibonacci_reference(n: u64) -> u64 {
@@ -348,4 +349,58 @@ fn block_height() {
             .query::<_, u64>(contract_id, block_height::BLOCK_HEIGHT, &mut gas)
             .unwrap()
     )
+}
+
+#[test]
+fn self_snapshot() {
+    let bh = SelfSnapshot::new(7);
+
+    let store = MS::new();
+
+    let code = include_bytes!("contracts/self_snapshot/self_snapshot.wasm");
+
+    let contract = Contract::new(bh, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::with_block_height(99);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        7,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
+
+    network
+        .transact::<_, ()>(
+            contract_id,
+            (self_snapshot::SET_CROSSOVER, 9),
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        9,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
+
+    network
+        .transact::<_, ()>(
+            contract_id,
+            (self_snapshot::SELF_CALL_TEST_A, 10),
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        10,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
 }
