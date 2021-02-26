@@ -21,7 +21,7 @@ impl<S: Store> AbiCall<S> for Get {
         context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
-        if let &[RuntimeValue::I32(ofs)] = args.as_ref() {
+        if let [RuntimeValue::I32(ofs)] = *args.as_ref() {
             let ofs = ofs as usize;
             let store = context.store().clone();
             context
@@ -53,8 +53,8 @@ impl<S: Store> AbiCall<S> for Put {
         context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
-        if let &[RuntimeValue::I32(ofs), RuntimeValue::I32(len), RuntimeValue::I32(ret)] =
-            args.as_ref()
+        if let [RuntimeValue::I32(ofs), RuntimeValue::I32(len), RuntimeValue::I32(ret)] =
+            *args.as_ref()
         {
             let ofs = ofs as usize;
             let len = len as usize;

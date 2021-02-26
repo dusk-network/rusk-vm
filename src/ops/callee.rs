@@ -21,9 +21,9 @@ impl<S: Store> AbiCall<S> for Callee {
         context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
-        if let &[RuntimeValue::I32(result_ofs)] = args.as_ref() {
+        if let [RuntimeValue::I32(result_ofs)] = *args.as_ref() {
             let result_ofs = result_ofs as usize;
-            let callee = context.callee().clone();
+            let callee = *context.callee();
 
             context
                 .memory_mut(|a| {

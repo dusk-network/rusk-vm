@@ -22,8 +22,8 @@ impl<S: Store> AbiCall<S> for ExecuteQuery {
         context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
-        if let &[RuntimeValue::I32(contract_id_ofs), RuntimeValue::I32(query_ofs)] =
-            args.as_ref()
+        if let [RuntimeValue::I32(contract_id_ofs), RuntimeValue::I32(query_ofs)] =
+            *args.as_ref()
         {
             let contract_id_ofs = contract_id_ofs as usize;
             let query_ofs = query_ofs as usize;

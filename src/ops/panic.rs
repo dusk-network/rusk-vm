@@ -21,8 +21,8 @@ impl<S: Store> AbiCall<S> for Panic {
         context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
-        if let &[RuntimeValue::I32(panic_ofs), RuntimeValue::I32(panic_len)] =
-            args.as_ref()
+        if let [RuntimeValue::I32(panic_ofs), RuntimeValue::I32(panic_len)] =
+            *args.as_ref()
         {
             let panic_ofs = panic_ofs as usize;
             let panic_len = panic_len as usize;

@@ -22,8 +22,8 @@ impl<S: Store> AbiCall<S> for ApplyTransaction {
         context: &mut CallContext<S>,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
-        if let &[RuntimeValue::I32(contract_id_ofs), RuntimeValue::I32(transaction_ofs)] =
-            args.as_ref()
+        if let [RuntimeValue::I32(contract_id_ofs), RuntimeValue::I32(transaction_ofs)] =
+            *args.as_ref()
         {
             let contract_id_ofs = contract_id_ofs as usize;
             let transaction_ofs = transaction_ofs as usize;
@@ -43,7 +43,7 @@ impl<S: Store> AbiCall<S> for ApplyTransaction {
                 })
                 .map_err(VMError::from_store_error)?;
 
-            let result = context.transact(contract_id, transaction)?;
+            let (state, result) = context.transact(contract_id, transaction)?;
 
             let store = context.store().clone();
 
@@ -52,7 +52,7 @@ impl<S: Store> AbiCall<S> for ApplyTransaction {
                     // write back the return value
                     let mut sink =
                         ByteSink::new(&mut m[transaction_ofs..], &store);
-                    Canon::<S>::write(&result, &mut sink)
+                    Canon::<S>::write(&(state, result), &mut sink)
                 })
                 .map_err(VMError::from_store_error)?;
 

@@ -214,10 +214,9 @@ fn stack() {
     }
 
     for i in 0..n {
-        let contract_state = network
-            .get_contract_state::<Stack<MS>>(contract_id)
-            .expect("A result")
-            .expect("An option");
+        let contract_state: Stack<MS> = network
+            .get_contract_cast_state(&contract_id)
+            .expect("A result");
 
         assert_eq!(contract_state.peek(i), Some(i));
     }
@@ -374,13 +373,17 @@ fn self_snapshot() {
             .unwrap()
     );
 
-    network
-        .transact::<_, ()>(
-            contract_id,
-            (self_snapshot::SET_CROSSOVER, 9),
-            &mut gas,
-        )
-        .unwrap();
+    // returns old value
+    assert_eq!(
+        network
+            .transact::<_, i32>(
+                contract_id,
+                (self_snapshot::SET_CROSSOVER, 9),
+                &mut gas,
+            )
+            .unwrap(),
+        7
+    );
 
     assert_eq!(
         9,
@@ -396,6 +399,21 @@ fn self_snapshot() {
             &mut gas,
         )
         .unwrap();
+
+    assert_eq!(
+        10,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
+
+    let result = network.transact::<_, ()>(
+        contract_id,
+        (self_snapshot::UPDATE_AND_PANIC, 11),
+        &mut gas,
+    );
+
+    assert!(result.is_err());
 
     assert_eq!(
         10,

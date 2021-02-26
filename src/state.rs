@@ -18,6 +18,8 @@ use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::VMError;
 
+type BoxedHostModule<S> = Box<dyn HostModule<S>>;
+
 /// The main network state, includes the full state of contracts.
 #[derive(Clone, Default)]
 pub struct NetworkState<S>
@@ -26,7 +28,7 @@ where
 {
     block_height: u64,
     contracts: Map<ContractId, Contract, S>,
-    modules: Rc<RefCell<HashMap<ContractId, Box<dyn HostModule<S>>>>>,
+    modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule<S>>>>,
     store: S,
 }
 
@@ -80,9 +82,7 @@ where
     ) -> Result<ContractId, S::Error> {
         let id: ContractId = S::Ident::from_bytes(contract.bytecode()).into();
 
-        self.contracts
-            .insert(id.clone(), contract)
-            .expect("FIXME: error handling");
+        self.contracts.insert(id, contract)?;
         Ok(id)
     }
 
@@ -90,26 +90,30 @@ where
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<Option<impl Deref<Target = Contract> + 'a>, VMError<S>> {
+    ) -> Result<impl Deref<Target = Contract> + 'a, VMError<S>> {
         self.contracts
             .get(contract_id)
             .map_err(VMError::from_store_error)
+            .transpose()
+            .unwrap_or(Err(VMError::UnknownContract))
     }
 
     /// Returns a reference to the specified contracts state
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<Option<impl DerefMut<Target = Contract> + 'a>, VMError<S>> {
+    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError<S>> {
         self.contracts
             .get_mut(contract_id)
             .map_err(VMError::from_store_error)
+            .transpose()
+            .unwrap_or(Err(VMError::UnknownContract))
     }
 
     /// Returns a reference to the map of registered host modules
     pub fn modules(
         &self,
-    ) -> &Rc<RefCell<HashMap<ContractId, Box<dyn HostModule<S>>>>> {
+    ) -> &Rc<RefCell<HashMap<ContractId, BoxedHostModule<S>>>> {
         &self.modules
     }
 
@@ -135,8 +139,7 @@ where
         R: Canon<S>,
     {
         let store = self.store().clone();
-        let mut context = CallContext::new(self, gas_meter, &store)
-            .expect("FIXME: error handling");
+        let mut context = CallContext::new(self, gas_meter, &store)?;
 
         let result = context.query(
             target,
@@ -159,16 +162,26 @@ where
         R: Canon<S>,
     {
         let store = self.store().clone();
-        let mut context = CallContext::new(self, gas_meter, &store)
-            .expect("FIXME: error handling");
 
-        let result = context.transact(
+        // Fork the current network's state
+        let mut fork = self.clone();
+
+        // Use the forked state to execute the transaction
+        let mut context = CallContext::new(&mut fork, gas_meter, &store)?;
+
+        let (_, result) = context.transact(
             target,
             Transaction::from_canon(&transaction, &store)
                 .map_err(VMError::from_store_error)?,
         )?;
 
-        result.cast(store).map_err(VMError::from_store_error)
+        let ret = result.cast(store).map_err(VMError::from_store_error)?;
+
+        // If we reach this point, everything went well and we can use the
+        // updates made in the forked state.
+        *self = fork;
+
+        Ok(ret)
     }
 
     /// Register a host-fn handler
@@ -182,27 +195,22 @@ where
     }
 
     /// Gets the state of the given contract
-    pub fn get_contract_state<C>(
+    pub fn get_contract_cast_state<C>(
         &self,
-        contract_id: ContractId,
-    ) -> Result<Option<C>, VMError<S>>
+        contract_id: &ContractId,
+    ) -> Result<C, VMError<S>>
     where
         C: Canon<S>,
     {
-        let state = self
-            .contracts
-            .get(&contract_id)
+        self.contracts
+            .get(contract_id)
             .map_err(VMError::from_store_error)?
-            .map(|contract| {
+            .map_or(Err(VMError::UnknownContract), |contract| {
                 let mut source = ByteSource::new(
                     (*contract).state().as_bytes(),
                     &self.store,
                 );
-                let res = Canon::<S>::read(&mut source)
-                    .map_err(VMError::from_store_error);
-                res
+                Canon::<S>::read(&mut source).map_err(VMError::from_store_error)
             })
-            .transpose()?;
-        Ok(state)
     }
 }

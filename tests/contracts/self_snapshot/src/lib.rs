@@ -17,6 +17,7 @@ pub const CROSSOVER: u8 = 0;
 pub const SET_CROSSOVER: u8 = 0;
 pub const SELF_CALL_TEST_A: u8 = 1;
 pub const SELF_CALL_TEST_B: u8 = 2;
+pub const UPDATE_AND_PANIC: u8 = 3;
 
 #[derive(Clone, Canon, Debug)]
 pub struct SelfSnapshot {
@@ -45,16 +46,53 @@ mod hosted {
             self.crossover
         }
 
-        pub fn set_crossover(&mut self, to: i32) {
-            dusk_abi::debug!("setting crossover to {:?}", to);
-            self.crossover = to
+        pub fn set_crossover(&mut self, to: i32) -> i32 {
+            let old_val = self.crossover;
+            dusk_abi::debug!(
+                "setting crossover from {:?} to {:?}",
+                self.crossover,
+                to
+            );
+            self.crossover = to;
+            old_val
         }
 
-        pub fn self_call_test_a(&mut self, update: i32) {
+        // updates crossover and returns the old value
+        pub fn self_call_test_a(&mut self, update: i32) -> i32 {
+            let old_value = self.crossover;
+
             let callee = dusk_abi::callee();
 
-            dusk_abi::transact::<_, ()>(&callee, &(SET_CROSSOVER, update))
-                .unwrap();
+            dusk_abi::transact::<_, (), Self>(
+                self,
+                &callee,
+                &(SET_CROSSOVER, update),
+            )
+            .unwrap();
+
+            assert_eq!(self.crossover, update);
+
+            old_value
+        }
+
+        pub fn update_and_panic(&mut self, new_value: i32) {
+            let old_value = self.crossover;
+
+            assert_eq!(self.self_call_test_a(new_value), old_value);
+
+            let callee = dusk_abi::callee();
+
+            // What should self.crossover be in this case?
+
+            // A: we live with inconsistencies and communicate them.
+            // B: we update self, which then should be passed to the transaction
+
+            assert_eq!(
+                dusk_abi::query::<_, i32>(&callee, &(CROSSOVER),).unwrap(),
+                new_value
+            );
+
+            panic!("OH NOES")
         }
     }
 
@@ -100,18 +138,41 @@ mod hosted {
             // increment (&Self)
             SET_CROSSOVER => {
                 let to: i32 = Canon::<BS>::read(&mut source)?;
-                slf.set_crossover(to);
+                let old = slf.set_crossover(to);
 
                 let mut sink = ByteSink::new(&mut bytes[..], &bs);
                 // return new state
                 Canon::<BS>::write(
                     &ContractState::from_canon(&slf, &bs)?,
                     &mut sink,
+                )?;
+
+                // return value
+                Canon::<BS>::write(
+                    &ReturnValue::from_canon(&old, &bs)?,
+                    &mut sink,
                 )
             }
             SELF_CALL_TEST_A => {
                 let update: i32 = Canon::<BS>::read(&mut source)?;
-                slf.self_call_test_a(update);
+                let old = slf.self_call_test_a(update);
+
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                // return new state
+                Canon::<BS>::write(
+                    &ContractState::from_canon(&slf, &bs)?,
+                    &mut sink,
+                )?;
+
+                // return value
+                Canon::<BS>::write(
+                    &ReturnValue::from_canon(&old, &bs)?,
+                    &mut sink,
+                )
+            }
+            UPDATE_AND_PANIC => {
+                let update: i32 = Canon::<BS>::read(&mut source)?;
+                slf.update_and_panic(update);
 
                 let mut sink = ByteSink::new(&mut bytes[..], &bs);
                 // return new state

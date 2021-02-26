@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use canonical::{ByteSink, ByteSource, Canon, Sink, Store};
-use dusk_abi::{Query, ReturnValue, Transaction};
+use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
 
 use wasmi::{
     Externals, ImportsBuilder, MemoryRef, ModuleImportResolver, RuntimeArgs,
@@ -125,41 +125,33 @@ where
             // is this a reserved module call?
             return module.execute(query).map_err(VMError::from_store_error);
         } else {
-            match self.state.get_contract(&target)? {
-                None => panic!("FIXME: error handling"),
-                Some(contract) => {
-                    let module =
-                        wasmi::Module::from_buffer(contract.bytecode())?;
+            let contract = self.state.get_contract(&target)?;
 
-                    instance = wasmi::ModuleInstance::new(&module, &imports)?
-                        .assert_no_start();
+            let module = wasmi::Module::from_buffer(contract.bytecode())?;
 
-                    match instance.export_by_name("memory") {
-                        Some(wasmi::ExternVal::Memory(memref)) => {
-                            // write contract state and argument to memory
-                            memref
-                                .with_direct_access_mut(|m| {
-                                    let mut sink =
-                                        ByteSink::new(&mut m[..], &store);
-                                    // copy the raw bytes only, since the
-                                    // contract
-                                    // can infer
-                                    // it's own state and argument lengths
-                                    sink.copy_bytes(
-                                        contract.state().as_bytes(),
-                                    );
-                                    sink.copy_bytes(query.as_bytes());
-                                    Ok(())
-                                })
-                                .map_err(VMError::from_store_error)?;
+            instance = wasmi::ModuleInstance::new(&module, &imports)?
+                .assert_no_start();
 
-                            self.stack.push(StackFrame::new_query(
-                                target, memref, query,
-                            ));
-                        }
-                        _ => panic!("FIXME - error handling"),
-                    }
+            match instance.export_by_name("memory") {
+                Some(wasmi::ExternVal::Memory(memref)) => {
+                    // write contract state and argument to memory
+                    memref
+                        .with_direct_access_mut(|m| {
+                            let mut sink = ByteSink::new(&mut m[..], &store);
+                            // copy the raw bytes only, since the
+                            // contract
+                            // can infer
+                            // it's own state and argument lengths
+                            sink.copy_bytes(contract.state().as_bytes());
+                            sink.copy_bytes(query.as_bytes());
+                            Ok(())
+                        })
+                        .map_err(VMError::from_store_error)?;
+
+                    self.stack
+                        .push(StackFrame::new_query(target, memref, query));
                 }
+                _ => return Err(VMError::MemoryNotFound),
             }
         }
 
@@ -176,7 +168,7 @@ where
                     Ok(result)
                 })
                 .map_err(VMError::from_store_error),
-            _ => panic!("FIXME - error handling"),
+            _ => Err(VMError::MemoryNotFound),
         }
     }
 
@@ -184,7 +176,7 @@ where
         &mut self,
         target: ContractId,
         transaction: Transaction,
-    ) -> Result<ReturnValue, VMError<S>> {
+    ) -> Result<(ContractState, ReturnValue), VMError<S>> {
         let resolver = StandardABI::<S>::default();
         let imports = ImportsBuilder::new()
             .with_resolver("env", &resolver)
@@ -193,70 +185,72 @@ where
         let instance;
 
         let store = self.store.clone();
+        {
+            let contract = self.state.get_contract(&target)?;
+            let module = wasmi::Module::from_buffer(contract.bytecode())?;
 
-        match self.state.get_contract(&target)? {
-            None => panic!("FIXME: error handling"),
-            Some(contract) => {
-                let module = wasmi::Module::from_buffer(contract.bytecode())?;
+            instance = wasmi::ModuleInstance::new(&module, &imports)?
+                .assert_no_start();
 
-                instance = wasmi::ModuleInstance::new(&module, &imports)?
-                    .assert_no_start();
+            match instance.export_by_name("memory") {
+                Some(wasmi::ExternVal::Memory(memref)) => {
+                    // write contract state and argument to memory
 
-                match instance.export_by_name("memory") {
-                    Some(wasmi::ExternVal::Memory(memref)) => {
-                        // write contract state and argument to memory
+                    memref.with_direct_access_mut(|m| {
+                        let mut sink = ByteSink::new(&mut m[..], &store);
+                        // copy the raw bytes only, since the contract can
+                        // infer it's own state and argument lengths.
+                        sink.copy_bytes(contract.state().as_bytes());
+                        sink.copy_bytes(transaction.as_bytes());
+                    });
 
-                        memref.with_direct_access_mut(|m| {
-                            let mut sink = ByteSink::new(&mut m[..], &store);
-                            // copy the raw bytes only, since the contract can
-                            // infer it's own state and argument lengths.
-                            sink.copy_bytes(contract.state().as_bytes());
-                            sink.copy_bytes(transaction.as_bytes());
-                        });
-
-                        self.stack.push(StackFrame::new_transaction(
-                            target,
-                            memref,
-                            transaction,
-                        ));
-                    }
-                    _ => panic!("FIXME - error handling"),
+                    self.stack.push(StackFrame::new_transaction(
+                        target,
+                        memref,
+                        transaction,
+                    ));
                 }
+                _ => return Err(VMError::MemoryNotFound),
             }
         }
-
         // Perform the transact call
         instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
 
-        let ret = match self.state.get_contract_mut(&target)? {
-            None => panic!("FIXME: error handling"),
-            Some(mut contract) => {
-                match instance.export_by_name("memory") {
-                    Some(wasmi::ExternVal::Memory(memref)) => {
-                        memref
-                            .with_direct_access_mut(|m| {
-                                let mut source =
-                                    ByteSource::new(&m[..], &store);
+        let ret = {
+            let mut contract = self.state.get_contract_mut(&target)?;
 
-                                // read new state
-                                let state = Canon::<S>::read(&mut source)?;
+            match instance.export_by_name("memory") {
+                Some(wasmi::ExternVal::Memory(memref)) => {
+                    memref
+                        .with_direct_access_mut(|m| {
+                            let mut source = ByteSource::new(&m[..], &store);
 
-                                // update new self state
-                                *(*contract).state_mut() = state;
+                            // read new state
+                            let state = Canon::<S>::read(&mut source)?;
 
-                                // read return value
-                                Canon::<S>::read(&mut source)
-                            })
-                            .map_err(VMError::from_store_error)
-                    }
-                    _ => panic!("FIXME - error handling"),
+                            // update new self state
+                            *(*contract).state_mut() = state;
+
+                            // read return value
+                            Canon::<S>::read(&mut source)
+                        })
+                        .map_err(VMError::from_store_error)
                 }
+                _ => return Err(VMError::MemoryNotFound),
             }
         };
 
-        // finally pop the stack
-        self.stack.pop();
-        ret
+        let state = if self.stack.len() > 1 {
+            self.stack.pop();
+
+            self.state.get_contract(self.callee())?.state().clone()
+        } else {
+            let state = self.state.get_contract(self.callee())?.state().clone();
+            self.stack.pop();
+            state
+        };
+
+        Ok((state, ret?))
     }
 
     pub fn gas_meter_mut(&mut self) -> &mut GasMeter {

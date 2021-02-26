@@ -50,7 +50,7 @@ impl GasMeter {
         };
 
         // We always consume the gas even if there is not enough gas.
-        self.gas_left = new_value.unwrap_or_else(|| 0);
+        self.gas_left = new_value.unwrap_or(0);
 
         match new_value {
             Some(_) => GasMeterResult::Proceed,
