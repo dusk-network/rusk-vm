@@ -10,7 +10,7 @@
 use canonical::Canon;
 use canonical_derive::Canon;
 
-// qulery ids
+// query ids
 pub const READ_VALUE: u8 = 0;
 pub const XOR_VALUES: u8 = 1;
 pub const IS_EVEN: u8 = 2;

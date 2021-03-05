@@ -9,7 +9,7 @@
 
 use canonical_derive::Canon;
 
-// qulery ids
+// query ids
 pub const DELEGATE_QUERY: u8 = 0;
 
 // transaction ids

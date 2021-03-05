@@ -41,6 +41,7 @@ test: ## Run the contracts' tests
 		make wasm for=self_snapshot && \
 		make wasm for=host_fn && \
 		make wasm for=block_height && \
+		make wasm for=tx_vec && \
 		cargo test --release
 
 .PHONY: help doc doc-internal publish-doc wasm test
