@@ -22,6 +22,7 @@ use fibonacci::Fibonacci;
 use host_fn::HostFnTest;
 use self_snapshot::SelfSnapshot;
 use stack::Stack;
+use tx_vec::{TxCall, TxVec};
 
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
@@ -440,4 +441,72 @@ fn self_snapshot() {
             .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
             .unwrap()
     );
+}
+
+#[test]
+fn tx_vec() {
+    let value = 15;
+    let tx_vec = TxVec::new(value);
+
+    let store = MS::new();
+    let code = include_bytes!("contracts/tx_vec/tx_vec.wasm");
+    let contract = Contract::new(tx_vec, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::default();
+    let contract_id = network.deploy(contract).unwrap();
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let v = network
+        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = vec![3u8, 5, 7];
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    let tx = TxCall::Sum { values };
+    network
+        .transact::<_, ()>(contract_id, tx, &mut gas)
+        .unwrap();
+
+    let v = network
+        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = vec![11u8, 13, 17];
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    let tx = TxCall::Sum { values };
+    let tx = Transaction::from_canon(&tx, &store).unwrap();
+    let tx = TxCall::Delegate {
+        contract: contract_id,
+        tx,
+    };
+    network
+        .transact::<_, ()>(contract_id, tx, &mut gas)
+        .unwrap();
+
+    let v = network
+        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = (0..1500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    let tx = TxCall::Sum { values };
+    let tx = Transaction::from_canon(&tx, &store).unwrap();
+    let tx = TxCall::Delegate {
+        contract: contract_id,
+        tx,
+    };
+    network
+        .transact::<_, ()>(contract_id, tx, &mut gas)
+        .unwrap();
+
+    let v = network
+        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
 }
