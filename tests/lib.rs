@@ -13,7 +13,7 @@ use dusk_bytes::ParseHexStr;
 
 use canonical::{ByteSource, Canon, Store};
 use canonical_host::MemStore as MS;
-use dusk_abi::{HostModule, Module, Query, ReturnValue};
+use dusk_abi::{HostModule, Module, Query, ReturnValue, Transaction};
 
 use block_height::BlockHeight;
 use counter::Counter;
@@ -417,6 +417,25 @@ fn self_snapshot() {
 
     assert_eq!(
         10,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
+
+    let transaction =
+        Transaction::from_canon(&(self_snapshot::SET_CROSSOVER, 12), &store)
+            .unwrap();
+
+    network
+        .transact::<_, ()>(
+            contract_id,
+            (self_snapshot::SELF_CALL_TEST_B, contract_id, transaction),
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        12,
         network
             .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
             .unwrap()
