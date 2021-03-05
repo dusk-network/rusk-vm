@@ -1,4 +1,4 @@
-NAME=counter
+NAME=tx_vec
 
 all: ## Generate the optimized WASM for the contract given
 	@cargo rustc \
