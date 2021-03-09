@@ -38,7 +38,8 @@ fn counter() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/counter/counter.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
     let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
 
@@ -73,7 +74,8 @@ fn counter_trivial() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/counter/counter.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
     let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
 
@@ -100,12 +102,16 @@ fn delegated_call() {
 
     let mut network = NetworkState::<MS>::default();
 
-    let counter_code = include_bytes!("contracts/counter/counter.wasm");
+    let counter_code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
     let counter_contract =
         Contract::new(counter, counter_code.to_vec(), &store).unwrap();
     let counter_id = network.deploy(counter_contract).unwrap();
 
-    let delegator_code = include_bytes!("contracts/delegator/delegator.wasm");
+    let delegator_code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/delegator.wasm"
+    );
     let delegator_contract =
         Contract::new(delegator, delegator_code.to_vec(), &store).unwrap();
     let delegator_id = network.deploy(delegator_contract).unwrap();
@@ -155,7 +161,9 @@ fn fibonacci() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/fibonacci/fibonacci.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/fibonacci.wasm"
+    );
 
     let contract = Contract::new(fib, code.to_vec(), &store).unwrap();
 
@@ -183,7 +191,8 @@ fn stack() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/stack/stack.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
 
     let contract = Contract::new(stack, code.to_vec(), &store).unwrap();
 
@@ -298,7 +307,8 @@ fn hash_as_host_fn() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/host_fn/host_fn.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/host_fn.wasm");
 
     let contract = Contract::new(hash, code.to_vec(), &store).unwrap();
 
@@ -333,7 +343,9 @@ fn block_height() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/block_height/block_height.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/block_height.wasm"
+    );
 
     let contract = Contract::new(bh, code.to_vec(), &store).unwrap();
 
@@ -357,7 +369,9 @@ fn self_snapshot() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/self_snapshot/self_snapshot.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/self_snapshot.wasm"
+    );
 
     let contract = Contract::new(bh, code.to_vec(), &store).unwrap();
 
@@ -449,7 +463,8 @@ fn tx_vec() {
     let tx_vec = TxVec::new(value);
 
     let store = MS::new();
-    let code = include_bytes!("contracts/tx_vec/tx_vec.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
     let contract = Contract::new(tx_vec, code.to_vec(), &store).unwrap();
 
     let mut network = NetworkState::<MS>::default();
