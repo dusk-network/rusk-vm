@@ -35,7 +35,7 @@ mod hosted {
     use super::*;
 
     use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
-    use dusk_abi::{ContractState, ReturnValue};
+    use dusk_abi::{ContractId, ContractState, ReturnValue, Transaction};
 
     const PAGE_SIZE: usize = 1024 * 4;
 
@@ -63,7 +63,7 @@ mod hosted {
 
             let callee = dusk_abi::callee();
 
-            dusk_abi::transact::<_, (), Self>(
+            dusk_abi::transact::<BS, _, (), Self>(
                 self,
                 &callee,
                 &(SET_CROSSOVER, update),
@@ -73,6 +73,20 @@ mod hosted {
             assert_eq!(self.crossover, update);
 
             old_value
+        }
+
+        // updates crossover and returns the old value
+        pub fn self_call_test_b(
+            &mut self,
+            target: ContractId,
+            transaction: Transaction,
+        ) -> i32 {
+            self.set_crossover(self.crossover * 2);
+
+            dusk_abi::transact_raw::<BS, _>(self, &target, &transaction)
+                .unwrap();
+
+            self.crossover
         }
 
         pub fn update_and_panic(&mut self, new_value: i32) {
@@ -158,6 +172,29 @@ mod hosted {
                 let old = slf.self_call_test_a(update);
 
                 let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                // return new state
+                Canon::<BS>::write(
+                    &ContractState::from_canon(&slf, &bs)?,
+                    &mut sink,
+                )?;
+
+                // return value
+                Canon::<BS>::write(
+                    &ReturnValue::from_canon(&old, &bs)?,
+                    &mut sink,
+                )
+            }
+            SELF_CALL_TEST_B => {
+                dusk_abi::debug!("A");
+                let (target, transaction): (ContractId, Transaction) =
+                    Canon::read(&mut source)?;
+
+                let old = slf.self_call_test_b(target, transaction);
+
+                dusk_abi::debug!("C");
+                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+
+                dusk_abi::debug!("D");
                 // return new state
                 Canon::<BS>::write(
                     &ContractState::from_canon(&slf, &bs)?,

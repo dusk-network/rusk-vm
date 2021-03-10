@@ -14,7 +14,7 @@ parity-wasm = "0.41"
 pwasm-utils = "0.12.0"
 failure = "0.1"
 
-dusk-abi = "0.6"
+dusk-abi = { git  = "https://github.com/dusk-network/dusk-abi", branch = "release-0.7" }
 canonical = { version = "0.5" , features = ["host"] }
 canonical_host = "0.5"
 canonical_derive = "0.5"
@@ -32,8 +32,18 @@ stack = { path = "tests/contracts/stack", features = ["host"] }
 block_height = { path = "tests/contracts/block_height", features = ["host"] }
 self_snapshot = { path = "tests/contracts/self_snapshot", features = ["host"] }
 host_fn = { path = "tests/contracts/host_fn", features = ["host"] }
+tx_vec = { path = "tests/contracts/tx_vec", features = ["host"] }
 dusk-poseidon = "0.18"
 
 [[bench]]
 name = "factorial"
 harness = false
+
+[workspace]
+
+members = [
+    "tests/contracts/*",
+]
+
+[patch.crates-io]
+dusk-abi = { git  = "https://github.com/dusk-network/dusk-abi", branch = "release-0.7" }
