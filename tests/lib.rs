@@ -13,7 +13,7 @@ use dusk_bytes::ParseHexStr;
 
 use canonical::{ByteSource, Canon, Store};
 use canonical_host::MemStore as MS;
-use dusk_abi::{HostModule, Module, Query, ReturnValue};
+use dusk_abi::{HostModule, Module, Query, ReturnValue, Transaction};
 
 use block_height::BlockHeight;
 use counter::Counter;
@@ -22,6 +22,7 @@ use fibonacci::Fibonacci;
 use host_fn::HostFnTest;
 use self_snapshot::SelfSnapshot;
 use stack::Stack;
+use tx_vec::TxVec;
 
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
@@ -37,7 +38,8 @@ fn counter() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/counter/counter.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
     let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
 
@@ -72,7 +74,8 @@ fn counter_trivial() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/counter/counter.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
     let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
 
@@ -99,12 +102,16 @@ fn delegated_call() {
 
     let mut network = NetworkState::<MS>::default();
 
-    let counter_code = include_bytes!("contracts/counter/counter.wasm");
+    let counter_code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
     let counter_contract =
         Contract::new(counter, counter_code.to_vec(), &store).unwrap();
     let counter_id = network.deploy(counter_contract).unwrap();
 
-    let delegator_code = include_bytes!("contracts/delegator/delegator.wasm");
+    let delegator_code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/delegator.wasm"
+    );
     let delegator_contract =
         Contract::new(delegator, delegator_code.to_vec(), &store).unwrap();
     let delegator_id = network.deploy(delegator_contract).unwrap();
@@ -154,7 +161,9 @@ fn fibonacci() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/fibonacci/fibonacci.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/fibonacci.wasm"
+    );
 
     let contract = Contract::new(fib, code.to_vec(), &store).unwrap();
 
@@ -182,7 +191,8 @@ fn stack() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/stack/stack.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
 
     let contract = Contract::new(stack, code.to_vec(), &store).unwrap();
 
@@ -297,7 +307,8 @@ fn hash_as_host_fn() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/host_fn/host_fn.wasm");
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/host_fn.wasm");
 
     let contract = Contract::new(hash, code.to_vec(), &store).unwrap();
 
@@ -332,7 +343,9 @@ fn block_height() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/block_height/block_height.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/block_height.wasm"
+    );
 
     let contract = Contract::new(bh, code.to_vec(), &store).unwrap();
 
@@ -356,7 +369,9 @@ fn self_snapshot() {
 
     let store = MS::new();
 
-    let code = include_bytes!("contracts/self_snapshot/self_snapshot.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/self_snapshot.wasm"
+    );
 
     let contract = Contract::new(bh, code.to_vec(), &store).unwrap();
 
@@ -421,4 +436,89 @@ fn self_snapshot() {
             .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
             .unwrap()
     );
+
+    let transaction =
+        Transaction::from_canon(&(self_snapshot::SET_CROSSOVER, 12), &store)
+            .unwrap();
+
+    network
+        .transact::<_, ()>(
+            contract_id,
+            (self_snapshot::SELF_CALL_TEST_B, contract_id, transaction),
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        12,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
+}
+
+#[test]
+fn tx_vec() {
+    let value = 15;
+    let tx_vec = TxVec::new(value);
+
+    let store = MS::new();
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
+    let contract = Contract::new(tx_vec, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::default();
+    let contract_id = network.deploy(contract).unwrap();
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let v = network
+        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = vec![3u8, 5, 7];
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    network
+        .transact::<_, ()>(contract_id, (tx_vec::SUM, values), &mut gas)
+        .unwrap();
+
+    let v = network
+        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = vec![11u8, 13, 17];
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    let tx = Transaction::from_canon(&(tx_vec::SUM, values), &store).unwrap();
+    network
+        .transact::<_, ()>(
+            contract_id,
+            (tx_vec::DELEGATE_SUM, contract_id, tx),
+            &mut gas,
+        )
+        .unwrap();
+
+    let v = network
+        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    let tx = Transaction::from_canon(&(tx_vec::SUM, values), &store).unwrap();
+    network
+        .transact::<_, ()>(
+            contract_id,
+            (tx_vec::DELEGATE_SUM, contract_id, tx),
+            &mut gas,
+        )
+        .unwrap();
+
+    let v = network
+        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
 }

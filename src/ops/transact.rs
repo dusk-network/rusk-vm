@@ -28,7 +28,7 @@ impl<S: Store> AbiCall<S> for ApplyTransaction {
             let contract_id_ofs = contract_id_ofs as usize;
             let transaction_ofs = transaction_ofs as usize;
 
-            let (contract_id, transaction) = context
+            let (contract_id, state, transaction) = context
                 .memory(|m| {
                     let contract_id = ContractId::from(
                         &m[contract_id_ofs..contract_id_ofs + 32],
@@ -37,11 +37,15 @@ impl<S: Store> AbiCall<S> for ApplyTransaction {
                     let mut source =
                         ByteSource::new(&m[transaction_ofs..], context.store());
 
+                    let state = Canon::<S>::read(&mut source)?;
                     let transaction = Canon::<S>::read(&mut source)?;
 
-                    Ok((contract_id, transaction))
+                    Ok((contract_id, state, transaction))
                 })
                 .map_err(VMError::from_store_error)?;
+
+            let callee = context.callee().clone();
+            *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
 
             let (state, result) = context.transact(contract_id, transaction)?;
 

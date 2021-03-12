@@ -9,7 +9,7 @@
 
 use canonical_derive::Canon;
 
-// qulery ids
+// query ids
 pub const COMPUTE: u8 = 0;
 
 #[derive(Clone, Canon, Debug)]
