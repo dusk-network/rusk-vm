@@ -7,7 +7,6 @@
 #![cfg_attr(not(feature = "host"), no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use canonical::Canon;
 use canonical_derive::Canon;
 
 // query ids
@@ -40,12 +39,10 @@ impl Counter {
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Id32, Store};
+    use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::{ContractState, ReturnValue};
 
     const PAGE_SIZE: usize = 1024 * 4;
-
-    type BS = BridgeStore<Id32>;
 
     impl Counter {
         pub fn read_value(&self) -> i32 {
@@ -82,48 +79,38 @@ mod hosted {
         }
     }
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(&bytes[..], &bs);
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(&bytes[..]);
 
         // read self.
-        let slf: Counter = Canon::<BS>::read(&mut source)?;
+        let slf = Counter::decode(&mut source)?;
 
         // read query id
-        let qid: u8 = Canon::<BS>::read(&mut source)?;
+        let qid = u8::decode(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
             READ_VALUE => {
                 let ret = slf.read_value();
 
-                let r = {
-                    // return value
-                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                    dusk_abi::debug!("wrapped return {:?}", wrapped_return);
-
-                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
-
-                    Canon::<BS>::write(&wrapped_return, &mut sink)
-                };
-                dusk_abi::debug!("memory bytes {:?}", &bytes[..32]);
-
-                r
+                ReturnValue::from_canon(&ret).encode(&mut sink);
+                Ok(())
             }
             // xor_values (&Self, a: i32, b: i32) -> i32
             XOR_VALUES => {
-                let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
+                let (a, b): (i32, i32) = Canon::decode(&mut source)?;
                 let ret = slf.xor_values(a, b);
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
-                Canon::<BS>::write(&ret, &mut sink)?;
+                let mut sink = Sink::new(&mut bytes[..]);
+                ReturnValue::from_canon(&ret).encode(&mut sink);
                 Ok(())
             }
             // is_even (&Self) -> bool
             IS_EVEN => {
                 let ret = slf.is_even();
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                Canon::<BS>::write(&ret, &mut sink)?;
+                ReturnValue::from_canon(&ret).encode(&mut sink);
                 Ok(())
             }
             _ => panic!(""),
@@ -136,73 +123,59 @@ mod hosted {
         let _ = query(bytes);
     }
 
-    fn transaction(
-        bytes: &mut [u8; PAGE_SIZE],
-    ) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(bytes, &bs);
+    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(bytes);
 
         // read self.
-        let mut slf: Counter = Canon::<BS>::read(&mut source)?;
+        let mut slf = Counter::decode(&mut source)?;
         // read transaction id
-        let tid: u8 = Canon::<BS>::read(&mut source)?;
+        let tid = u8::decode(&mut source)?;
         match tid {
             // increment (&Self)
             INCREMENT => {
                 slf.increment();
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
                 // return new state
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs)?,
-                    &mut sink,
-                )?;
+                ContractState::from_canon(&slf).encode(&mut sink);
 
-                // return value
-                Canon::<BS>::write(
-                    &ReturnValue::from_canon(&(), &bs)?,
-                    &mut sink,
-                )
+                // return value ()
+                ReturnValue::from_canon(&()).encode(&mut sink);
+                Ok(())
             }
             DECREMENT => {
                 // no args
                 slf.decrement();
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs),
-                    &mut sink,
-                )?;
+                ContractState::from_canon(&slf).encode(&mut sink);
 
-                // no return value
+                // return value ()
+                ReturnValue::from_canon(&()).encode(&mut sink);
                 Ok(())
             }
             ADJUST => {
                 // read arg
-                let by: i32 = Canon::<BS>::read(&mut source)?;
+                let by = i32::decode(&mut source)?;
                 slf.adjust(by);
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs),
-                    &mut sink,
-                )?;
+                ContractState::from_canon(&slf).encode(&mut sink);
 
-                // no return value
+                // return value ()
+                ReturnValue::from_canon(&()).encode(&mut sink);
                 Ok(())
             }
             COMPARE_AND_SWAP => {
                 // read multiple args
-                let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
+                let (a, b): (i32, i32) = Canon::decode(&mut source)?;
                 let res = slf.compare_and_swap(a, b);
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs),
-                    &mut sink,
-                )?;
+                ContractState::from_canon(&slf).encode(&mut sink);
 
-                // return result
-                Canon::<BS>::write(&res, &mut sink)
+                // return value ()
+                ReturnValue::from_canon(&res).encode(&mut sink);
+                Ok(())
             }
             _ => panic!(""),
         }

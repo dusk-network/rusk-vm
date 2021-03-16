@@ -19,12 +19,10 @@ pub struct Fibonacci;
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
+    use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::ReturnValue;
 
     const PAGE_SIZE: usize = 1024 * 4;
-
-    type BS = BridgeStore<Id32>;
 
     impl Fibonacci {
         pub fn compute(&self, n: u64) -> u64 {
@@ -44,29 +42,25 @@ mod hosted {
         }
     }
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let store = BS::default();
-        let mut source = ByteSource::new(&bytes[..], &store);
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(&bytes[..]);
 
         // read self (noop).
-        let slf: Fibonacci = Canon::<BS>::read(&mut source)?;
+        let slf = Fibonacci::decode(&mut source)?;
 
         // read query id
-        let qid: u8 = Canon::<BS>::read(&mut source)?;
+        let qid = u8::decode(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
             COMPUTE => {
                 // read arg
-                let input: u64 = Canon::<BS>::read(&mut source)?;
-
+                let input = u64::decode(&mut source)?;
                 let ret = slf.compute(input);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &store);
-                let packed_ret = ReturnValue::from_canon(&ret, &store)?;
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                dusk_abi::debug!("packed_ret {:?}", packed_ret);
-
-                Canon::<BS>::write(&packed_ret, &mut sink)
+                ReturnValue::from_canon(&ret).encode(&mut sink);
+                Ok(())
             }
             _ => panic!(""),
         }

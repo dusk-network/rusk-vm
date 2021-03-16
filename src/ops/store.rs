@@ -8,32 +8,33 @@ use crate::call_context::CallContext;
 use crate::ops::AbiCall;
 use crate::VMError;
 
-use canonical::Store;
+// use canonical::Id;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Get;
 
-impl<S: Store> AbiCall<S> for Get {
+impl AbiCall for Get {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError<S>> {
+    ) -> Result<Option<RuntimeValue>, VMError> {
         if let [RuntimeValue::I32(ofs)] = *args.as_ref() {
-            let ofs = ofs as usize;
-            let store = context.store().clone();
+            let _ofs = ofs as usize;
             context
-                .memory_mut(|mem| {
+                .memory_mut(|_mem| {
                     // read identifier
-                    let mut id = S::Ident::default();
-                    let id_len = id.as_ref().len();
-                    let slice = &mem[ofs..ofs + id_len];
-                    id.as_mut().copy_from_slice(slice);
+                    // let mut id = Id::default();
+                    // //let id_len = id.as_ref().len();
+                    // let slice = &mem[ofs..ofs + id_len];
+                    // id.as_mut().copy_from_slice(slice);
 
-                    store.fetch(&id, &mut mem[ofs..])?;
-                    Ok(None)
+                    // store.fetch(&id, &mut mem[ofs..])?;
+                    // Ok(None)
+
+                    todo!()
                 })
                 .map_err(VMError::from_store_error)
         } else {
@@ -44,30 +45,31 @@ impl<S: Store> AbiCall<S> for Get {
 
 pub struct Put;
 
-impl<S: Store> AbiCall<S> for Put {
+impl AbiCall for Put {
     const ARGUMENTS: &'static [ValueType] =
         &[ValueType::I32, ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError<S>> {
+    ) -> Result<Option<RuntimeValue>, VMError> {
         if let [RuntimeValue::I32(ofs), RuntimeValue::I32(len), RuntimeValue::I32(ret)] =
             *args.as_ref()
         {
-            let ofs = ofs as usize;
-            let len = len as usize;
-            let ret = ret as usize;
-            let store = context.store().clone();
+            let _ofs = ofs as usize;
+            let _len = len as usize;
+            let _ret = ret as usize;
+
             context
-                .memory_mut(|mem| {
-                    if let Ok(id) = store.put_raw(&mem[ofs..ofs + len]) {
-                        let id_len = id.as_ref().len();
-                        // write id back
-                        mem[ret..ret + id_len].copy_from_slice(id.as_ref());
-                    }
-                    Ok(None)
+                .memory_mut(|_mem| {
+                    // if let Ok(id) = store.put_raw(&mem[ofs..ofs + len]) {
+                    //     let id_len = id.as_ref().len();
+                    //     // write id back
+                    //     mem[ret..ret + id_len].copy_from_slice(id.as_ref());
+                    // }
+                    // Ok(None)
+                    todo!()
                 })
                 .map_err(VMError::from_store_error)
         } else {

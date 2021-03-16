@@ -18,13 +18,7 @@ pub const HASH: u8 = 0;
 pub const SOMETHING: u8 = 0;
 
 #[derive(Clone, Canon, Debug)]
-pub struct HostFnTest {}
-
-impl HostFnTest {
-    pub fn new() -> Self {
-        HostFnTest {}
-    }
-}
+pub struct HostFnTest;
 
 #[cfg(not(feature = "host"))]
 mod hosted {
@@ -32,14 +26,14 @@ mod hosted {
 
     use alloc::vec::Vec;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
+    use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::{ContractId, ReturnValue};
 
-    use dusk_bls12_381::BlsScalar;
+    // use dusk_bls12_381::BlsScalar;
+    #[derive(Clone, Canon)]
+    pub struct BlsScalar;
 
     const PAGE_SIZE: usize = 1024 * 4;
-
-    type BS = BridgeStore<Id32>;
 
     impl HostFnTest {
         pub fn hash(&self, scalars: Vec<BlsScalar>) -> BlsScalar {
@@ -50,32 +44,24 @@ mod hosted {
         }
     }
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(&bytes[..], &bs);
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(&bytes[..]);
 
         // read self.
-        let slf: HostFnTest = Canon::<BS>::read(&mut source)?;
+        let slf = HostFnTest::decode(&mut source)?;
 
         // read query id
-        let qid: u8 = Canon::<BS>::read(&mut source)?;
+        let qid = u8::decode(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
             HASH => {
-                let arg: Vec<BlsScalar> = Canon::<BS>::read(&mut source)?;
+                let arg = Vec::<BlsScalar>::decode(&mut source)?;
 
                 let ret = slf.hash(arg);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                let r = {
-                    // return value
-                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
-
-                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
-
-                    Canon::<BS>::write(&wrapped_return, &mut sink)
-                };
-
-                r
+                ReturnValue::from_canon(&ret).encode(&mut sink);
+                Ok(())
             }
             _ => panic!(""),
         }
@@ -87,16 +73,13 @@ mod hosted {
         let _ = query(bytes);
     }
 
-    fn transaction(
-        bytes: &mut [u8; PAGE_SIZE],
-    ) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(bytes, &bs);
+    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(bytes);
 
         // read self.
-        let mut _slf: HostFnTest = Canon::<BS>::read(&mut source)?;
+        let mut _slf = HostFnTest::decode(&mut source)?;
         // read transaction id
-        let tid: u8 = Canon::<BS>::read(&mut source)?;
+        let tid = u8::decode(&mut source)?;
         match tid {
             _ => panic!(""),
         }

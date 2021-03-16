@@ -7,7 +7,6 @@
 #![cfg_attr(not(feature = "host"), no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use canonical::{Canon, Store};
 use canonical_derive::Canon;
 use microkelvin::Cardinality;
 use microkelvin::Nth;
@@ -21,11 +20,11 @@ pub const POP: u8 = 1;
 pub const PEEK: u8 = 0;
 
 #[derive(Clone, Canon, Debug)]
-pub struct Stack<S: Store> {
-    inner: NStack<i32, Cardinality, S>,
+pub struct Stack {
+    inner: NStack<i32, Cardinality>,
 }
 
-impl<S: Store> Stack<S> {
+impl Stack {
     pub fn new() -> Self {
         Stack {
             inner: NStack::new(),
@@ -41,14 +40,12 @@ impl<S: Store> Stack<S> {
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Id32, Store};
+    use canonical::{BridgeStore, Id32, Sink, Source, Store};
     use dusk_abi::{ContractState, ReturnValue};
 
     const PAGE_SIZE: usize = 1024 * 4;
 
-    type BS = BridgeStore<Id32>;
-
-    impl<S: Store> Stack<S> {
+    impl Stack {
         pub fn push(&mut self, value: i32) {
             self.inner.push(value).unwrap()
         }
@@ -58,9 +55,9 @@ mod hosted {
         }
     }
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
         let bs = BS::default();
-        let mut source = ByteSource::new(&bytes[..], &bs);
+        let mut source = Source::new(&bytes[..], &bs);
 
         // read self.
         let slf: Stack<BS> = Canon::<BS>::read(&mut source)?;
@@ -77,7 +74,7 @@ mod hosted {
                     // return value
                     let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
 
-                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                    let mut sink = Sink::new(&mut bytes[..], &bs);
 
                     Canon::<BS>::write(&wrapped_return, &mut sink)
                 };
@@ -94,11 +91,9 @@ mod hosted {
         let _ = query(bytes);
     }
 
-    fn transaction(
-        bytes: &mut [u8; PAGE_SIZE],
-    ) -> Result<(), <BS as Store>::Error> {
+    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
         let bs = BS::default();
-        let mut source = ByteSource::new(bytes, &bs);
+        let mut source = Source::new(bytes, &bs);
 
         // read self.
         let mut slf: Stack<BS> = Canon::<BS>::read(&mut source)?;
@@ -109,7 +104,7 @@ mod hosted {
                 let value: i32 = Canon::<BS>::read(&mut source)?;
                 slf.push(value);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..], &bs);
 
                 let new_state = ContractState::from_canon(&slf, &bs)?;
 
@@ -124,7 +119,7 @@ mod hosted {
             POP => {
                 let result = slf.pop();
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..], &bs);
 
                 let new_state = ContractState::from_canon(&slf, &bs)?;
 

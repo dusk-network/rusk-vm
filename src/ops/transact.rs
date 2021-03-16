@@ -8,20 +8,20 @@ use crate::call_context::CallContext;
 use crate::ops::AbiCall;
 use crate::VMError;
 
-use canonical::{ByteSink, ByteSource, Canon, Store};
-use dusk_abi::ContractId;
+use canonical::{Canon, Sink, Source};
+use dusk_abi::{ContractId, ContractState, Transaction};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct ApplyTransaction;
 
-impl<S: Store> AbiCall<S> for ApplyTransaction {
+impl AbiCall for ApplyTransaction {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError<S>> {
+    ) -> Result<Option<RuntimeValue>, VMError> {
         if let [RuntimeValue::I32(contract_id_ofs), RuntimeValue::I32(transaction_ofs)] =
             *args.as_ref()
         {
@@ -34,11 +34,10 @@ impl<S: Store> AbiCall<S> for ApplyTransaction {
                         &m[contract_id_ofs..contract_id_ofs + 32],
                     );
 
-                    let mut source =
-                        ByteSource::new(&m[transaction_ofs..], context.store());
+                    let mut source = Source::new(&m[transaction_ofs..]);
 
-                    let state = Canon::<S>::read(&mut source)?;
-                    let transaction = Canon::<S>::read(&mut source)?;
+                    let state = ContractState::decode(&mut source)?;
+                    let transaction = Transaction::decode(&mut source)?;
 
                     Ok((contract_id, state, transaction))
                 })
@@ -49,18 +48,15 @@ impl<S: Store> AbiCall<S> for ApplyTransaction {
 
             let (state, result) = context.transact(contract_id, transaction)?;
 
-            let store = context.store().clone();
-
             context
                 .memory_mut(|m| {
                     // write back the return value
-                    let mut sink =
-                        ByteSink::new(&mut m[transaction_ofs..], &store);
-                    Canon::<S>::write(&(state, result), &mut sink)
+                    let mut sink = Sink::new(&mut m[transaction_ofs..]);
+                    state.encode(&mut sink);
+                    result.encode(&mut sink);
+                    Ok(None)
                 })
-                .map_err(VMError::from_store_error)?;
-
-            Ok(None)
+                .map_err(VMError::from_store_error)
         } else {
             Err(VMError::InvalidArguments)
         }

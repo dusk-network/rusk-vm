@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{ByteSink, ByteSource, Canon, Sink, Store};
+use canonical::{Canon, CanonError, Sink, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
 
 use wasmi::{
@@ -17,10 +17,7 @@ use crate::gas::GasMeter;
 use crate::state::NetworkState;
 use crate::VMError;
 
-pub trait Resolver<S: Store>:
-    Invoke<S> + ModuleImportResolver + Clone + Default
-{
-}
+pub trait Resolver: Invoke + ModuleImportResolver + Clone + Default {}
 
 pub use crate::resolver::CompoundResolver as StandardABI;
 
@@ -75,51 +72,43 @@ impl StackFrame {
     }
 }
 
-pub trait Invoke<S: Store>: Sized {
+pub trait Invoke: Sized {
     fn invoke(
-        context: &mut CallContext<S>,
+        context: &mut CallContext,
         index: usize,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError<S>>;
+    ) -> Result<Option<RuntimeValue>, VMError>;
 }
 
-pub struct CallContext<'a, S: Store> {
-    state: &'a mut NetworkState<S>,
+pub struct CallContext<'a> {
+    state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
-    store: S,
     gas_meter: &'a mut GasMeter,
 }
 
-impl<'a, S> CallContext<'a, S>
-where
-    S: Store,
-{
+impl<'a> CallContext<'a> {
     pub fn new(
-        state: &'a mut NetworkState<S>,
+        state: &'a mut NetworkState,
         gas_meter: &'a mut GasMeter,
-        store: &S,
-    ) -> Result<Self, VMError<S>> {
-        Ok(CallContext {
+    ) -> Self {
+        CallContext {
             state,
             stack: vec![],
             gas_meter,
-            store: store.clone(),
-        })
+        }
     }
 
     pub fn query(
         &mut self,
         target: ContractId,
         query: Query,
-    ) -> Result<ReturnValue, VMError<S>> {
-        let resolver = StandardABI::<S>::default();
+    ) -> Result<ReturnValue, VMError> {
+        let resolver = StandardABI::default();
         let imports = ImportsBuilder::new()
             .with_resolver("env", &resolver)
             .with_resolver("canon", &resolver);
 
         let instance;
-
-        let store = self.store.clone();
 
         if let Some(module) = self.state.modules().borrow().get(&target) {
             // is this a reserved module call?
@@ -137,7 +126,7 @@ where
                     // write contract state and argument to memory
                     memref
                         .with_direct_access_mut(|m| {
-                            let mut sink = ByteSink::new(&mut m[..], &store);
+                            let mut sink = Sink::new(&mut m[..]);
                             // copy the raw bytes only, since the
                             // contract
                             // can infer
@@ -161,8 +150,8 @@ where
         match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => memref
                 .with_direct_access_mut(|m| {
-                    let mut source = ByteSource::new(&m[..], &store);
-                    let result = Canon::<S>::read(&mut source)?;
+                    let mut source = Source::new(&m[..]);
+                    let result = ReturnValue::decode(&mut source)?;
 
                     self.stack.pop();
                     Ok(result)
@@ -176,15 +165,14 @@ where
         &mut self,
         target: ContractId,
         transaction: Transaction,
-    ) -> Result<(ContractState, ReturnValue), VMError<S>> {
-        let resolver = StandardABI::<S>::default();
+    ) -> Result<(ContractState, ReturnValue), VMError> {
+        let resolver = StandardABI::default();
         let imports = ImportsBuilder::new()
             .with_resolver("env", &resolver)
             .with_resolver("canon", &resolver);
 
         let instance;
 
-        let store = self.store.clone();
         {
             let contract = self.state.get_contract(&target)?;
             let module = wasmi::Module::from_buffer(contract.bytecode())?;
@@ -197,7 +185,7 @@ where
                     // write contract state and argument to memory
 
                     memref.with_direct_access_mut(|m| {
-                        let mut sink = ByteSink::new(&mut m[..], &store);
+                        let mut sink = Sink::new(&mut m[..]);
                         // copy the raw bytes only, since the contract can
                         // infer it's own state and argument lengths.
                         sink.copy_bytes(contract.state().as_bytes());
@@ -223,16 +211,16 @@ where
                 Some(wasmi::ExternVal::Memory(memref)) => {
                     memref
                         .with_direct_access_mut(|m| {
-                            let mut source = ByteSource::new(&m[..], &store);
+                            let mut source = Source::new(&m[..]);
 
                             // read new state
-                            let state = Canon::<S>::read(&mut source)?;
+                            let state = ContractState::decode(&mut source)?;
 
                             // update new self state
                             *(*contract).state_mut() = state;
 
                             // read return value
-                            Canon::<S>::read(&mut source)
+                            ReturnValue::decode(&mut source)
                         })
                         .map_err(VMError::from_store_error)
                 }
@@ -269,38 +257,31 @@ where
         self.top().memory(closure)
     }
 
-    pub fn store(&self) -> &S {
-        &self.store
-    }
-
-    pub fn memory_mut<R, C: FnOnce(&mut [u8]) -> Result<R, S::Error>>(
+    pub fn memory_mut<R, C: FnOnce(&mut [u8]) -> Result<R, CanonError>>(
         &mut self,
         closure: C,
-    ) -> Result<R, S::Error> {
+    ) -> Result<R, CanonError> {
         self.stack
             .last_mut()
             .expect("Invalid stack")
             .memory_mut(closure)
     }
 
-    pub fn state(&self) -> &NetworkState<S> {
+    pub fn state(&self) -> &NetworkState {
         &self.state
     }
 
-    pub fn state_mut(&mut self) -> &mut NetworkState<S> {
+    pub fn state_mut(&mut self) -> &mut NetworkState {
         &mut self.state
     }
 }
 
 /// Convenience function to construct host traps
-pub fn host_trap<S: Store>(host: VMError<S>) -> Trap {
+pub fn host_trap(host: VMError) -> Trap {
     Trap::new(TrapKind::Host(Box::new(host)))
 }
 
-impl<'a, S> Externals for CallContext<'a, S>
-where
-    S: Store,
-{
+impl<'a> Externals for CallContext<'a> {
     fn invoke_index(
         &mut self,
         index: usize,

@@ -16,19 +16,18 @@ failure = "0.1"
 
 dusk-abi = "0.7"
 canonical = { version = "0.5", features = ["host"] }
-canonical_host = "0.5"
 canonical_derive = "0.5"
-dusk-kelvin-map = "0.3"
+dusk-hamt = { path = "../dusk-hamt" }
 
-[dev-dependencies]
-dusk-bls12_381 = "0.6"
-dusk-bytes = "0.1"
+# [dev-dependencies]
+# dusk-bls12_381 = "0.6"
+# dusk-bytes = "0.1"
 
 # test contracts
 counter = { path = "tests/contracts/counter", features = ["host"] }
 fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
 delegator = { path = "tests/contracts/delegator", features = ["host"] }
-stack = { path = "tests/contracts/stack", features = ["host"] }
+# stack = { path = "tests/contracts/stack", features = ["host"] }
 block_height = { path = "tests/contracts/block_height", features = ["host"] }
 self_snapshot = { path = "tests/contracts/self_snapshot", features = ["host"] }
 host_fn = { path = "tests/contracts/host_fn", features = ["host"] }
@@ -44,3 +43,8 @@ harness = false
 members = [
     "tests/contracts/*",
 ]
+
+[patch.crates-io]
+canonical = { path = "../canonical/canon" }
+canonical_derive = { path = "../canonical/canon_derive" }
+dusk-abi = { path = "../dusk-abi" }

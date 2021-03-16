@@ -12,7 +12,7 @@
 
 use std::{fmt, io};
 
-use canonical::Store;
+use canonical::CanonError;
 use failure::Fail;
 
 mod call_context;
@@ -31,10 +31,7 @@ pub use state::NetworkState;
 
 #[derive(Fail)]
 /// The errors that can happen while executing the VM
-pub enum VMError<S>
-where
-    S: Store,
-{
+pub enum VMError {
     /// Invalid arguments in host call
     InvalidArguments,
     /// The contract panicked with message in `String`
@@ -68,39 +65,39 @@ where
     /// Invalid WASM Module
     InvalidWASMModule,
     /// Error propagated from underlying store
-    StoreError(S::Error),
+    StoreError(CanonError),
 }
 
-impl<S: Store> From<io::Error> for VMError<S> {
+impl From<io::Error> for VMError {
     fn from(e: io::Error) -> Self {
         VMError::IOError(e)
     }
 }
 
-impl<S: Store> From<wasmi::Error> for VMError<S> {
+impl From<wasmi::Error> for VMError {
     fn from(e: wasmi::Error) -> Self {
         VMError::WasmiError(e)
     }
 }
 
-impl<S: Store> From<wasmi::Trap> for VMError<S> {
+impl From<wasmi::Trap> for VMError {
     fn from(e: wasmi::Trap) -> Self {
         VMError::Trap(e)
     }
 }
 
-// The generic From<S::Error> is not specific enough and conflicts with
+// The generic From<CanonError> is not specific enough and conflicts with
 // From<Self>.
-impl<S: Store> VMError<S> {
+impl VMError {
     /// Create a VMError from the associated stores
-    pub fn from_store_error(err: S::Error) -> Self {
+    pub fn from_store_error(err: CanonError) -> Self {
         VMError::StoreError(err)
     }
 }
 
-impl<S: Store> wasmi::HostError for VMError<S> {}
+impl wasmi::HostError for VMError {}
 
-impl<S: Store> fmt::Display for VMError<S> {
+impl fmt::Display for VMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             VMError::InvalidArguments => write!(f, "Invalid arguments")?,
@@ -131,7 +128,7 @@ impl<S: Store> fmt::Display for VMError<S> {
     }
 }
 
-impl<S: Store> fmt::Debug for VMError<S> {
+impl fmt::Debug for VMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }

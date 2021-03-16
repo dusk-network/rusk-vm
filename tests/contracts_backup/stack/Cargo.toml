@@ -1,7 +1,7 @@
 [package]
-name = "block_height"
+name = "stack"
 version = "0.1.0"
-authors = ["zer0 <matteo@dusk.network>"]
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [lib]
@@ -10,7 +10,10 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 canonical = { path = "../../../../canonical/canon", default-features = false }
 canonical_derive = { path = "../../../../canonical/canon_derive" }
+
+nstack = { path = "../../../../nstack" }
+microkelvin = { path = "../../../../microkelvin" }
 dusk-abi = { path = "../../../../dusk-abi" }
 
 [features]
-host = []
+host = ["canonical/host"]
