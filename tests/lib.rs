@@ -149,15 +149,7 @@ fn out_of_gas_aborts_execution() {
         .is_err());
 
     // Ensure all gas is consumed even the tx did not succeed.
-    assert_eq!(gas.gas_left() == 0);
-
-    // FIXME: Query actually consumes gas. Should this be the expected?
-    assert_eq!(
-        network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
-            .expect("Query error"),
-        99
-    );
+    assert_eq!(gas.gas_left(), 0);
 }
 
 #[test]
