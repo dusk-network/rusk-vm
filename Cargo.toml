@@ -8,10 +8,10 @@ authors = [
 edition = "2018"
 
 [dependencies]
-wasmi = "0.6.0"
+wasmi = "0.7"
 wasmi-validation = "0.3"
 parity-wasm = "0.41"
-pwasm-utils = "0.12.0"
+pwasm-utils = "0.16"
 failure = "0.1"
 
 dusk-abi = "0.7"

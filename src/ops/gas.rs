@@ -11,9 +11,9 @@ use crate::VMError;
 use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
-pub struct Gas;
+pub struct GasMetered;
 
-impl<S: Store> AbiCall<S> for Gas {
+impl<S: Store> AbiCall<S> for GasMetered {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
@@ -23,6 +23,7 @@ impl<S: Store> AbiCall<S> for Gas {
     ) -> Result<Option<RuntimeValue>, VMError<S>> {
         let meter = context.gas_meter_mut();
         let gas: u32 = args.nth_checked(0)?;
+        println!("{:?}", gas);
         if meter.charge(gas as u64).is_out_of_gas() {
             return Err(VMError::OutOfGas);
         }

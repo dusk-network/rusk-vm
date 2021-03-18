@@ -94,6 +94,39 @@ fn counter_trivial() {
 }
 
 #[test]
+fn gas() {
+    let counter = Counter::new(99);
+
+    let store = MS::new();
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        network
+            .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+            .expect("Transaction error"),
+        ()
+    );
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .expect("Query error"),
+        100
+    );
+    assert_ne!(gas.spent(), 0);
+}
+
+#[test]
 fn delegated_call() {
     let counter = Counter::new(99);
     let delegator = Delegator;
