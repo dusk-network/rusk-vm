@@ -14,7 +14,7 @@ use dusk_abi::{HostModule, Query, Transaction};
 use dusk_kelvin_map::Map;
 
 use crate::call_context::CallContext;
-use crate::contract::{Contract, ContractId};
+use crate::contract::{Contract, ContractId, ContractInstrumenter};
 use crate::gas::GasMeter;
 use crate::VMError;
 
@@ -75,14 +75,32 @@ where
     }
 
     /// Deploys a contract to the state, returns the address of the created
-    /// contract or an error
+    /// contract or an error.
+    /// Before the deployment happens the contract's bytecode is instrumented
+    /// and then stored into the NetworkState
     pub fn deploy(
         &mut self,
-        contract: Contract,
-    ) -> Result<ContractId, S::Error> {
-        let id: ContractId = S::Ident::from_bytes(contract.bytecode()).into();
+        mut contract: Contract,
+    ) -> Result<ContractId, VMError<S>> {
+        let schedule = crate::Schedule::default();
+        let mut instrumenter =
+            ContractInstrumenter::new(contract.bytecode(), &schedule)?;
 
-        self.contracts.insert(id, contract)?;
+        // Apply instrumentation & validate the module.
+        instrumenter.apply_module_config()?;
+
+        let id: ContractId =
+            S::Ident::from_bytes(instrumenter.bytecode()?.as_ref()).into();
+
+        // Assign to the Contract that we're going to store the instrumented
+        // bytecode.
+        contract.code = instrumenter.bytecode()?.clone();
+
+        // FIXME: This shoul check wether the contract is already deployed.
+        let _ = self
+            .contracts
+            .insert(id.clone(), contract)
+            .map_err(|e| VMError::StoreError(e))?;
         Ok(id)
     }
 
