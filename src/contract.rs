@@ -42,6 +42,11 @@ impl Contract {
         &self.code
     }
 
+    /// Replaces the bytecode of a contract instance by another one.
+    fn update_bytecode(&mut self, bytecode: Vec<u8>) {
+        self.code = bytecode;
+    }
+
     /// Returns a reference to the contract state
     pub fn state(&self) -> &ContractState {
         &self.state
@@ -61,49 +66,67 @@ pub struct ContractInstrumenter<'a, S: Store> {
 }
 
 impl<'a, S: Store> ContractInstrumenter<'a, S> {
-    /// Creates a new [`ContractInstrumenter`] instance from a bytecode source
-    /// and a Schedule config.
-    pub fn new(
-        bytecode: &[u8],
+    /// Creates a new [`ContractInstrumenter`] instance from a mutable reference
+    /// to a [`Contract`] and a [`Schedule`] config.
+    pub(crate) fn instrument(
+        contract: &'a mut Contract,
         schedule: &'a Schedule,
-    ) -> Result<ContractInstrumenter<'a, S>, VMError<S>> {
-        Ok(Self {
-            module: elements::deserialize_buffer(bytecode)
+    ) -> Result<(), VMError<S>> {
+        // Instanciate the instrumenter
+        let code = contract.clone().code;
+        let instrumenter = Self {
+            module: elements::deserialize_buffer(code.as_slice())
                 .map_err(|_| VMError::InvalidWASMModule)?,
             schedule,
             _marker: PhantomData::<S>,
-        })
+        };
+
+        // Apply instrumentation.
+        let new_bytecode = instrumenter.apply_module_config()?;
+
+        // Update the Contract instance bytecode.
+        contract.update_bytecode(new_bytecode);
+
+        Ok(())
     }
 
-    /// Serializes the [`ContractInstrumenter`] bytecode returning an
-    /// error if anything in the Module is wrongly configured.
-    pub fn bytecode(&self) -> Result<Vec<u8>, VMError<S>> {
-        self.module
-            .clone()
-            .to_bytes()
-            .map_err(|_| VMError::InvalidWASMModule)
+    /// Given a ContractInstrumenter instance, it applies the
+    /// instrumentalization to the bytecode and returning the newly
+    /// generated one after checking that it is a valid WASM module.
+    fn apply_module_config(self) -> Result<Vec<u8>, VMError<S>> {
+        let ruleset = pwasm_utils::rules::Set::new(
+            self.schedule.regular_op_cost as u32,
+            Default::default(),
+        )
+        .with_grow_cost(self.schedule.grow_mem_cost as u32)
+        .with_forbidden_floats();
+
+        self.inject_gas_metering(ruleset)?
+            .inject_stack_height_metering()?
+            .ensure_table_size_limit(&crate::Schedule::default())?
+            .validate_module()
     }
 
-    /// Applies all of the checks and instrumentation injections to a contract
+    /// Check the validity of a [`Module`] pertaining to a
+    /// [`ContractInstrumenter`] and in case it is, return it serialized as
     /// bytecode.
-    /// It also validates the module after the instrumentation has been applied.
-    pub fn apply_module_config(&mut self) -> Result<(), VMError<S>> {
-        self.ensure_table_size_limit(&crate::Schedule::default())?;
-        self.inject_gas_metering()?;
-        self.inject_stack_height_metering()?;
-        self.validate_module()
-    }
+    fn validate_module(self) -> Result<Vec<u8>, VMError<S>> {
+        let _ = validate_module::<PlainValidator>(&self.module)
+            .map_err(|_| VMError::InvalidWASMModule)?;
 
-    pub fn validate_module(&self) -> Result<(), VMError<S>> {
-        validate_module::<PlainValidator>(&self.module)
-            .map_err(|_| VMError::InvalidWASMModule)
+        self.module.to_bytes().map_err(|_| {
+            VMError::InstrumentalizationError(
+                "Failed to serialize the WASM Module back to plain bytecode"
+                    .to_string(),
+            )
+        })
     }
 
     /// Ensures that tables declared in the module are not too big.
     fn ensure_table_size_limit(
-        &self,
+        self,
         schedule: &Schedule,
-    ) -> Result<(), VMError<S>> {
+    ) -> Result<Self, VMError<S>> {
         if let Some(table_section) = self.module.table_section() {
             // In Wasm MVP spec, there may be at most one table declared. Double
             // check this explicitly just in case the Wasm version
@@ -124,34 +147,26 @@ impl<'a, S: Store> ContractInstrumenter<'a, S> {
                 }
             }
         }
-        Ok(())
+        Ok(self)
     }
 
     /// Injects gas metering instrumentation into the Module.
-    fn inject_gas_metering(&mut self) -> Result<(), VMError<S>> {
-        let gas_rules = pwasm_utils::rules::Set::new(
-            self.schedule.regular_op_cost as u32,
-            Default::default(),
-        )
-        .with_grow_cost(self.schedule.grow_mem_cost as u32)
-        .with_forbidden_floats();
-
-        self.module = pwasm_utils::inject_gas_counter(
-            self.module.clone(),
-            &gas_rules,
-            "env",
-        )
-        .map_err(|_| {
-            VMError::InstrumentalizationError(
-                "gas instrumentation injection failed".to_string(),
-            )
-        })?;
-
-        Ok(())
+    fn inject_gas_metering<T>(mut self, ruleset: T) -> Result<Self, VMError<S>>
+    where
+        T: pwasm_utils::rules::Rules,
+    {
+        self.module =
+            pwasm_utils::inject_gas_counter(self.module, &ruleset, "env")
+                .map_err(|_| {
+                    VMError::InstrumentalizationError(
+                        "gas instrumentation injection failed".to_string(),
+                    )
+                })?;
+        Ok(self)
     }
 
     /// Injects stack height metering instrumentation into the Module.
-    fn inject_stack_height_metering(&mut self) -> Result<(), VMError<S>> {
+    fn inject_stack_height_metering(mut self) -> Result<Self, VMError<S>> {
         self.module = pwasm_utils::stack_height::inject_limiter(
             self.module.clone(),
             self.schedule.max_stack_height,
@@ -161,6 +176,6 @@ impl<'a, S: Store> ContractInstrumenter<'a, S> {
                 "stack height instrumentation injection failed".to_string(),
             )
         })?;
-        Ok(())
+        Ok(self)
     }
 }

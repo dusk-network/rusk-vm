@@ -82,19 +82,15 @@ where
         &mut self,
         mut contract: Contract,
     ) -> Result<ContractId, VMError<S>> {
-        let schedule = crate::Schedule::default();
-        let mut instrumenter =
-            ContractInstrumenter::new(contract.bytecode(), &schedule)?;
-
-        // Apply instrumentation & validate the module.
-        instrumenter.apply_module_config()?;
-
+        // Before any instrumentation is applied, generate the contract id.
         let id: ContractId =
-            S::Ident::from_bytes(instrumenter.bytecode()?.as_ref()).into();
+            S::Ident::from_bytes(contract.code.as_ref()).into();
 
-        // Assign to the Contract that we're going to store the instrumented
-        // bytecode.
-        contract.code = instrumenter.bytecode()?.clone();
+        // Instrumentalize the contract.
+        ContractInstrumenter::instrument(
+            &mut contract,
+            &crate::Schedule::default(),
+        )?;
 
         // FIXME: This shoul check wether the contract is already deployed.
         let _ = self
