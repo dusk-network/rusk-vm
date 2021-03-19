@@ -17,6 +17,7 @@ use dusk_abi::{HostModule, Module, Query, ReturnValue, Transaction};
 
 use block_height::BlockHeight;
 use counter::Counter;
+use counter_float::CounterFloat;
 use delegator::Delegator;
 use fibonacci::Fibonacci;
 use host_fn::HostFnTest;
@@ -150,6 +151,23 @@ fn out_of_gas_aborts_execution() {
 
     // Ensure all gas is consumed even the tx did not succeed.
     assert_eq!(gas.gas_left(), 0);
+}
+
+#[test]
+fn deploy_fails_with_floats() {
+    let counter = CounterFloat::new(9.99f32);
+
+    let store = MS::new();
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/counter_float.wasm"
+    );
+
+    let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::default();
+
+    assert!(network.deploy(contract).is_err());
 }
 
 #[test]

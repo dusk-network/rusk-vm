@@ -26,6 +26,7 @@ dusk-bytes = "0.1"
 
 # test contracts
 counter = { path = "tests/contracts/counter", features = ["host"] }
+counter_float = { path = "tests/contracts/counter_float", features = ["host"] }
 fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
 delegator = { path = "tests/contracts/delegator", features = ["host"] }
 stack = { path = "tests/contracts/stack", features = ["host"] }
