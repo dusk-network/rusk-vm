@@ -230,13 +230,14 @@ impl<'a> CallContext<'a> {
 
         let state = if self.stack.len() > 1 {
             self.stack.pop();
-
             self.state.get_contract(self.callee())?.state().clone()
         } else {
             let state = self.state.get_contract(self.callee())?.state().clone();
             self.stack.pop();
             state
         };
+
+        println!("State after transaction {:?}", state);
 
         Ok((state, ret?))
     }

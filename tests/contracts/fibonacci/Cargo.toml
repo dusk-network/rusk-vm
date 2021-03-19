@@ -14,5 +14,5 @@ canonical_derive = "0.5"
 dusk-abi = "0.7"
 
 [features]
-host = []
-
+host = ["canonical/host"]
+bridge = ["canonical/bridge"]

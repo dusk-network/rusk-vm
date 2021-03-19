@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = { path = "../../../../canonical/canon", default-features = false }
+canonical = { path = "../../../../canonical/canon" }
 canonical_derive = { path = "../../../../canonical/canon_derive" }
 
 nstack = { path = "../../../../nstack" }
@@ -17,3 +17,4 @@ dusk-abi = { path = "../../../../dusk-abi" }
 
 [features]
 host = ["canonical/host"]
+bridge = ["canonical/bridge"]

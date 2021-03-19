@@ -13,4 +13,5 @@ canonical_derive = { path = "../../../../canonical/canon_derive" }
 dusk-abi = { path = "../../../../dusk-abi" }
 
 [features]
-host = []
+host = ["canonical/host"]
+bridge = ["canonical/bridge"]

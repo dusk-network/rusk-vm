@@ -17,7 +17,6 @@ use delegator::Delegator;
 use fibonacci::Fibonacci;
 // use host_fn::HostFnTest;
 use self_snapshot::SelfSnapshot;
-// use stack::Stack;
 use tx_vec::TxVec;
 
 fn fibonacci_reference(n: u64) -> u64 {
@@ -170,70 +169,6 @@ fn fibonacci() {
         );
     }
 }
-
-// #[test]
-// fn stack() {
-//     let stack = Stack::new();
-
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm"
-// );
-
-//     let contract = Contract::new(stack, code.to_vec());
-
-//     let mut network = NetworkState::default();
-
-//     let contract_id = network.deploy(contract).unwrap();
-
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-
-//     let n: i32 = 64;
-
-//     for i in 0..n {
-//         network
-//             .transact::<_, ()>(contract_id, (stack::PUSH, i), &mut gas)
-//             .unwrap();
-//     }
-
-//     for i in 0..n {
-//         assert_eq!(
-//             network
-//                 .query::<_, Option<i32>>(
-//                     contract_id,
-//                     (stack::PEEK, i),
-//                     &mut gas
-//                 )
-//                 .unwrap(),
-//             Some(i)
-//         );
-//     }
-
-//     for i in 0..n {
-//         let contract_state: Stack = network
-//             .get_contract_cast_state(&contract_id)
-//             .expect("A result");
-
-//         assert_eq!(contract_state.peek(i), Some(i));
-//     }
-
-//     for i in 0..n {
-//         let i = n - i - 1;
-
-//         assert_eq!(
-//             network
-//                 .transact::<_, Option<i32>>(contract_id, stack::POP, &mut
-// gas)                 .unwrap(),
-//             Some(i)
-//         );
-//     }
-
-//     assert_eq!(
-//         network
-//             .transact::<_, Option<i32>>(contract_id, stack::POP, &mut gas)
-//             .unwrap(),
-//         None
-//     );
-// }
 
 struct PoseidonModule;
 

@@ -72,6 +72,7 @@ abi_resolver! {
         1, "debug" => debug::Debug,
         2, "get" => store::Get,
         3, "put" => store::Put,
+        4, "hash" => store::Hash,
         6, "query" => query::ExecuteQuery,
         7, "transact" => transact::ApplyTransaction,
         9, "callee" => callee::Callee,
