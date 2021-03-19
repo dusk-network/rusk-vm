@@ -9,7 +9,7 @@ use canonical::{Canon, Store};
 use canonical_derive::Canon;
 use core::marker::PhantomData;
 pub use dusk_abi::{ContractId, ContractState};
-use parity_wasm::elements::{self, Module, Type, ValueType};
+use parity_wasm::elements::{self, Module};
 use wasmi_validation::{validate_module, PlainValidator};
 
 /// A representation of a contract with a state and bytecode
