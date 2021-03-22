@@ -65,8 +65,6 @@ mod hosted {
         // read self.
         let slf = Stack::<Leaf>::decode(&mut source)?;
 
-        dusk_abi::debug!("QUERY - self: {:?}", slf);
-
         // read query id
         let qid = u8::decode(&mut source)?;
         match qid {
@@ -110,9 +108,6 @@ mod hosted {
             }
             POP => {
                 let result = slf.pop();
-
-                dusk_abi::debug!("bytes b4 wite {:?}", &bytes[..128]);
-                dusk_abi::debug!("state after pop {:?}", &slf);
 
                 let mut sink = Sink::new(&mut bytes[..]);
 

@@ -34,8 +34,6 @@ impl AbiCall for Get {
                     let mut source = Source::new(&mem[hash_ofs..]);
                     let hash = IdHash::decode(&mut source)?;
 
-                    println!("get hash {:?} with len {}", &hash, write_len);
-
                     // we don't allow get requests to fail in the bridge
                     // communication since that is the
                     // responsibility of the host.
@@ -73,19 +71,11 @@ impl AbiCall for Put {
             context
                 .memory_mut(|mem| {
                     // only non-inlined values end up written here
-
-                    println!(
-                        "\nPUT - Putting the goods {:?}",
-                        &mem[ofs..ofs + len]
-                    );
-
                     debug_assert!(len > core::mem::size_of::<IdHash>());
                     let hash = Store::put(&mem[ofs..ofs + len]);
 
                     let mut sink = Sink::new(&mut mem[ret..]);
                     hash.encode(&mut sink);
-
-                    println!("\nPUT - got hash {:?}", &hash);
 
                     Ok(None)
                 })

@@ -7,7 +7,7 @@ use stack::Stack;
 #[test]
 fn stack() {
     type Leaf = u64;
-    const N: Leaf = 15;
+    const N: Leaf = 64;
 
     let stack = Stack::<Leaf>::new();
 
@@ -22,7 +22,6 @@ fn stack() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     for i in 0..N {
-        println!("\n\n -------- pushing {}", i);
         network
             .transact::<_, Result<(), CanonError>>(
                 contract_id,
@@ -32,25 +31,9 @@ fn stack() {
             .unwrap()
             .unwrap();
 
-        // all the peeks in wasm
+        // all the peeks
 
         for o in 0..i {
-            println!("\n\n -------- query peeking {}", o);
-            assert_eq!(
-                network
-                    .query::<_, Result<Option<Leaf>, CanonError>>(
-                        contract_id,
-                        (stack::PEEK, o),
-                        &mut gas
-                    )
-                    .unwrap()
-                    .unwrap(),
-                Some(o)
-            );
-        }
-
-        for o in 0..i {
-            println!("\n\n -------- spurious peeking {}", o);
             let contract: &Contract =
                 &*network.get_contract(&contract_id).expect("A result");
 
@@ -62,8 +45,6 @@ fn stack() {
 
     for i in 0..N {
         let i = N - i - 1;
-
-        println!("\n \n --- Popping {}", i);
 
         assert_eq!(
             network
