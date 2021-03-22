@@ -145,9 +145,9 @@ fn out_of_gas_aborts_execution() {
 
     let mut gas = GasMeter::with_limit(1);
 
-    assert!(network
-        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
-        .is_err());
+    let should_be_err =
+        network.transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas);
+    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
 
     // Ensure all gas is consumed even the tx did not succeed.
     assert_eq!(gas.gas_left(), 0);
@@ -167,7 +167,10 @@ fn deploy_fails_with_floats() {
 
     let mut network = NetworkState::<MS>::default();
 
-    assert!(network.deploy(contract).is_err());
+    assert!(matches!(
+        network.deploy(contract),
+        Err(rusk_vm::VMError::InstrumentalizationError(_))
+    ));
 }
 
 #[test]
