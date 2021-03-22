@@ -8,35 +8,41 @@ use crate::call_context::CallContext;
 use crate::ops::AbiCall;
 use crate::VMError;
 
-use canonical::{Canon, Id, Sink, Source, Store};
+use canonical::{Canon, IdHash, Sink, Source, Store};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Get;
 
 impl AbiCall for Get {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
+    const ARGUMENTS: &'static [ValueType] =
+        &[ValueType::I32, ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
         context: &mut CallContext,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(id_ofs), RuntimeValue::I32(write_ofs)] =
+        if let [RuntimeValue::I32(hash_ofs), RuntimeValue::I32(write_buf), RuntimeValue::I32(write_len)] =
             *args.as_ref()
         {
-            let id_ofs = id_ofs as usize;
-            let write_ofs = write_ofs as usize;
-
-            println!("\nGET {:?} {:?}", id_ofs, write_ofs);
+            let hash_ofs = hash_ofs as usize;
+            let write_buf = write_buf as usize;
+            let write_len = write_len as usize;
 
             context
                 .memory_mut(|mem| {
-                    let mut source = Source::new(&mem[id_ofs..]);
-                    let id = Id::decode(&mut source)?;
+                    let mut source = Source::new(&mem[hash_ofs..]);
+                    let hash = IdHash::decode(&mut source)?;
+
+                    println!("get hash {:?} with len {}", &hash, write_len);
+
                     // we don't allow get requests to fail in the bridge
                     // communication since that is the
                     // responsibility of the host.
-                    Store::get(&id, &mut mem[write_ofs..])?;
+                    Store::get(
+                        &hash,
+                        &mut mem[write_buf..write_buf + write_len],
+                    )?;
                     Ok(None)
                 })
                 .map_err(VMError::from_store_error)
@@ -66,21 +72,21 @@ impl AbiCall for Put {
 
             context
                 .memory_mut(|mem| {
-                    let id = Store::put(&mem[ofs..ofs + len]);
+                    // only non-inlined values end up written here
 
-                    // let to_put = &mem[ofs..ofs + len];
+                    println!(
+                        "\nPUT - Putting the goods {:?}",
+                        &mem[ofs..ofs + len]
+                    );
 
-                    // println!("PUT put {:?}", to_put);
-
-                    // let id = Id::new(to_put);
-
-                    // write id into wasm memory
+                    debug_assert!(len > core::mem::size_of::<IdHash>());
+                    let hash = Store::put(&mem[ofs..ofs + len]);
 
                     let mut sink = Sink::new(&mut mem[ret..]);
+                    hash.encode(&mut sink);
 
-                    println!("ID IS {:?}", id);
+                    println!("\nPUT - got hash {:?}", &hash);
 
-                    id.encode(&mut sink);
                     Ok(None)
                 })
                 .map_err(VMError::from_store_error)

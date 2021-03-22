@@ -103,6 +103,8 @@ impl<'a> CallContext<'a> {
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError> {
+        println!("QUERY");
+
         let resolver = StandardABI::default();
         let imports = ImportsBuilder::new()
             .with_resolver("env", &resolver)
@@ -174,6 +176,8 @@ impl<'a> CallContext<'a> {
         let instance;
 
         {
+            println!("TRANSACTION");
+
             let contract = self.state.get_contract(&target)?;
             let module = wasmi::Module::from_buffer(contract.bytecode())?;
 
@@ -220,7 +224,7 @@ impl<'a> CallContext<'a> {
                             *(*contract).state_mut() = state;
 
                             // read return value
-                            ReturnValue::decode(&mut source)
+                            dbg!(ReturnValue::decode(&mut source))
                         })
                         .map_err(VMError::from_store_error)
                 }

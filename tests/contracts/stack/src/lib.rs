@@ -65,15 +65,14 @@ mod hosted {
         // read self.
         let slf = Stack::<Leaf>::decode(&mut source)?;
 
+        dusk_abi::debug!("QUERY - self: {:?}", slf);
+
         // read query id
         let qid = u8::decode(&mut source)?;
         match qid {
             PEEK => {
                 let arg = Leaf::decode(&mut source)?;
                 let ret = slf.peek(arg);
-
-                dusk_abi::debug!("self after peek {:?}", slf);
-                dusk_abi::debug!("ret {:?}", ret);
 
                 let mut sink = Sink::new(&mut bytes[..]);
 
@@ -102,16 +101,18 @@ mod hosted {
                 let leaf = Leaf::decode(&mut source)?;
                 let result = slf.push(leaf);
 
-                dusk_abi::debug!("state after push {:?}", &slf);
-
                 let mut sink = Sink::new(&mut bytes[..]);
 
                 ContractState::from_canon(&slf).encode(&mut sink);
                 ReturnValue::from_canon(&result).encode(&mut sink);
+
                 Ok(())
             }
             POP => {
                 let result = slf.pop();
+
+                dusk_abi::debug!("bytes b4 wite {:?}", &bytes[..128]);
+                dusk_abi::debug!("state after pop {:?}", &slf);
 
                 let mut sink = Sink::new(&mut bytes[..]);
 
