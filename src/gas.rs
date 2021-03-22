@@ -17,7 +17,7 @@ pub enum GasMeterResult {
 }
 
 impl GasMeterResult {
-    pub fn is_out_of_gas(&self) -> bool {
+    pub const fn is_out_of_gas(&self) -> bool {
         match *self {
             GasMeterResult::OutOfGas => true,
             GasMeterResult::Proceed => false,
