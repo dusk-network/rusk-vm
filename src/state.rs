@@ -14,7 +14,7 @@ use dusk_abi::{HostModule, Query, Transaction};
 use dusk_kelvin_map::Map;
 
 use crate::call_context::CallContext;
-use crate::contract::{Contract, ContractId, ContractInstrumenter};
+use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::VMError;
 
@@ -27,7 +27,7 @@ where
     S: Store,
 {
     block_height: u64,
-    contracts: Map<ContractId, Contract, S>,
+    contracts: Map<ContractId, Contract<S>, S>,
     modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule<S>>>>,
     store: S,
 }
@@ -80,22 +80,16 @@ where
     /// and then stored into the NetworkState
     pub fn deploy(
         &mut self,
-        mut contract: Contract,
+        contract: Contract<S>,
     ) -> Result<ContractId, VMError<S>> {
         // Before any instrumentation is applied, generate the contract id.
         let id: ContractId =
             S::Ident::from_bytes(contract.code.as_ref()).into();
 
-        // Instrumentalize the contract.
-        ContractInstrumenter::instrument(
-            &mut contract,
-            &crate::Schedule::default(),
-        )?;
-
-        // FIXME: This shoul check wether the contract is already deployed.
+        // FIXME: This should check wether the contract is already deployed.
         let _ = self
             .contracts
-            .insert(id.clone(), contract)
+            .insert(id.clone(), contract.instrument()?)
             .map_err(|e| VMError::StoreError(e))?;
         Ok(id)
     }
@@ -104,7 +98,7 @@ where
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError<S>> {
+    ) -> Result<impl Deref<Target = Contract<S>> + 'a, VMError<S>> {
         self.contracts
             .get(contract_id)
             .map_err(VMError::from_store_error)
@@ -116,7 +110,7 @@ where
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError<S>> {
+    ) -> Result<impl DerefMut<Target = Contract<S>> + 'a, VMError<S>> {
         self.contracts
             .get_mut(contract_id)
             .map_err(VMError::from_store_error)
