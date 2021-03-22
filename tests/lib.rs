@@ -20,6 +20,7 @@ use counter::Counter;
 use counter_float::CounterFloat;
 use delegator::Delegator;
 use fibonacci::Fibonacci;
+use gas_consumed::GasConsumed;
 use host_fn::HostFnTest;
 use self_snapshot::SelfSnapshot;
 use stack::Stack;
@@ -48,7 +49,7 @@ fn counter() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     assert_eq!(
         network
@@ -84,7 +85,7 @@ fn counter_trivial() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     assert_eq!(
         network
@@ -92,6 +93,44 @@ fn counter_trivial() {
             .unwrap(),
         99
     );
+}
+
+#[test]
+fn gas_consumed_host_function_works() {
+    let gas_contract = GasConsumed::new(99);
+
+    let store = MS::new();
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/gas_consumed.wasm"
+    );
+
+    let contract = Contract::new(gas_contract, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::new(1_000_000_000);
+
+    assert_eq!(
+        network
+            .transact::<_, ()>(contract_id, gas_consumed::INCREMENT, &mut gas)
+            .expect("Transaction error"),
+        ()
+    );
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, gas_consumed::READ_VALUE, &mut gas)
+            .expect("Query error"),
+        100
+    );
+
+    let gas_consumed = network
+        .query::<_, u64>(contract_id, gas_consumed::GAS_CONSUMED, &mut gas)
+        .expect("Query error");
+    assert_eq!(gas_consumed, gas.spent());
 }
 
 #[test]
@@ -109,7 +148,7 @@ fn gas_consumtion_works() {
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     assert_eq!(
         network
@@ -143,7 +182,7 @@ fn out_of_gas_aborts_execution() {
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
-    let mut gas = GasMeter::with_limit(1);
+    let mut gas = GasMeter::new(1);
 
     let should_be_err =
         network.transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas);
@@ -196,7 +235,7 @@ fn delegated_call() {
         Contract::new(delegator, delegator_code.to_vec(), &store).unwrap();
     let delegator_id = network.deploy(delegator_contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     // delegate query
 
@@ -251,7 +290,7 @@ fn fibonacci() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     let n = 5;
 
@@ -280,7 +319,7 @@ fn stack() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     let n: i32 = 64;
 
@@ -400,7 +439,7 @@ fn hash_as_host_fn() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     assert_eq!(
         "0xe36f4ea9b858d5c85b02770823c7c5d8253c28787d17f283ca348b906dca8528",
@@ -433,7 +472,7 @@ fn block_height() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     assert_eq!(
         99,
@@ -459,7 +498,7 @@ fn self_snapshot() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     assert_eq!(
         7,
@@ -549,7 +588,7 @@ fn tx_vec() {
 
     let mut network = NetworkState::<MS>::default();
     let contract_id = network.deploy(contract).unwrap();
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::new(1_000_000_000);
 
     let v = network
         .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)

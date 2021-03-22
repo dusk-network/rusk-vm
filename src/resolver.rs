@@ -80,6 +80,7 @@ abi_resolver! {
         7, "transact" => transact::ApplyTransaction,
         9, "callee" => callee::Callee,
         10, "gas" => gas::Gas,
-        11, "block_height" => block_height::BlockHeight
+        11, "block_height" => block_height::BlockHeight,
+        12, "gas_consumed" => gas::GasConsumed
     }
 }

@@ -257,6 +257,10 @@ where
         self.gas_meter
     }
 
+    pub fn gas_consumed(&self) -> u64 {
+        self.gas_meter.spent()
+    }
+
     pub fn top(&self) -> &StackFrame {
         self.stack.last().expect("Invalid stack")
     }

@@ -37,6 +37,8 @@ pub struct GasMeter {
 impl GasMeter {
     /// Minimum amount of gas that has to be used in order to call a contract
     /// execution.
+    // TODO: Add the correct value here that changes in respect to the transfer
+    // contract.
     pub const MIN_TERMINATION_GAS_REQUIRED: Gas = 70440;
 
     /// Creates a new `GasMeter` with given initial gas.
