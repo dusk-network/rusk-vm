@@ -28,33 +28,48 @@ impl GasMeterResult {
 #[derive(Debug)]
 /// Struct to keep track of gas usage
 pub struct GasMeter {
-    limit: Gas,
+    /// Initial amount of gas added by the transactor.
+    initial: Gas,
     /// Amount of gas left from initial gas limit. Can reach zero.
     gas_left: Gas,
 }
 
 impl GasMeter {
-    /// Creates a new `GasMeter` with given gas limits
-    pub fn with_limit(gas_limit: Gas) -> GasMeter {
+    /// Minimum amount of gas that has to be used in order to call a contract
+    /// execution.
+    pub const MIN_TERMINATION_GAS_REQUIRED: Gas = 70440;
+
+    /// Creates a new `GasMeter` with given initial gas.
+    pub fn new(initial: Gas) -> GasMeter {
         GasMeter {
-            limit: gas_limit,
-            gas_left: gas_limit,
+            initial,
+            gas_left: initial,
         }
     }
 
     /// Deduct specified amount of gas from the meter
     pub fn charge(&mut self, amount: Gas) -> GasMeterResult {
-        let new_value = match self.gas_left.checked_sub(amount) {
-            None => None,
-            Some(val) => Some(val),
-        };
-
-        // We always consume the gas even if there is not enough gas.
-        self.gas_left = new_value.unwrap_or(0);
-
-        match new_value {
-            Some(_) => GasMeterResult::Proceed,
-            None => GasMeterResult::OutOfGas,
+        match self.gas_left.checked_sub(amount) {
+            // If for any reason, we fall below the threshold, we run out of gas
+            // directly consuming all of the gas left.
+            None => {
+                self.gas_left = 0;
+                GasMeterResult::OutOfGas
+            }
+            Some(val) => match val {
+                // If after subtracting the gas, the gas left in the Meter is
+                // below [`GasMeter::MIN_TERMINATION_GAS_REQUIRED`]
+                // we also abort the execution since no more stuff will be
+                // possible to do.
+                0..=Self::MIN_TERMINATION_GAS_REQUIRED => {
+                    self.gas_left = 0;
+                    GasMeterResult::OutOfGas
+                }
+                _ => {
+                    self.gas_left = val;
+                    GasMeterResult::Proceed
+                }
+            },
         }
     }
 
@@ -65,6 +80,6 @@ impl GasMeter {
 
     /// Returns how much gas was spent.
     pub fn spent(&self) -> Gas {
-        self.limit - self.gas_left
+        self.initial - self.gas_left
     }
 }
