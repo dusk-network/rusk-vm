@@ -57,6 +57,8 @@ where
     NotEnoughFunds,
     /// Contract could not be found in the state
     UnknownContract,
+    /// WASM code instrumentation error.
+    InstrumentalizationError(String),
     /// WASM threw an error
     WASMError(failure::Error),
     /// wasmi trap triggered
@@ -122,6 +124,9 @@ impl<S: Store> fmt::Display for VMError<S> {
             VMError::InvalidABICall => write!(f, "Invalid ABI Call")?,
             VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
             VMError::Trap(e) => write!(f, "Trap ({:?})", e)?,
+            VMError::InstrumentalizationError(instr_phase) => {
+                write!(f, "Instrumentation Error \"{}\"", instr_phase)?
+            }
             VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,

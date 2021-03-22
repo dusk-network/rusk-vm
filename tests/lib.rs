@@ -17,6 +17,7 @@ use dusk_abi::{HostModule, Module, Query, ReturnValue, Transaction};
 
 use block_height::BlockHeight;
 use counter::Counter;
+use counter_float::CounterFloat;
 use delegator::Delegator;
 use fibonacci::Fibonacci;
 use host_fn::HostFnTest;
@@ -91,6 +92,85 @@ fn counter_trivial() {
             .unwrap(),
         99
     );
+}
+
+#[test]
+fn gas_consumtion_works() {
+    let counter = Counter::new(99);
+
+    let store = MS::new();
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        network
+            .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+            .expect("Transaction error"),
+        ()
+    );
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .expect("Query error"),
+        100
+    );
+    assert_ne!(gas.spent(), 0);
+    assert!(gas.gas_left() < 1_000_000_000);
+}
+
+#[test]
+fn out_of_gas_aborts_execution() {
+    let counter = Counter::new(99);
+
+    let store = MS::new();
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1);
+
+    let should_be_err =
+        network.transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas);
+    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
+
+    // Ensure all gas is consumed even the tx did not succeed.
+    assert_eq!(gas.gas_left(), 0);
+}
+
+#[test]
+fn deploy_fails_with_floats() {
+    let counter = CounterFloat::new(9.99f32);
+
+    let store = MS::new();
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/counter_float.wasm"
+    );
+
+    let contract = Contract::new(counter, code.to_vec(), &store).unwrap();
+
+    let mut network = NetworkState::<MS>::default();
+
+    assert!(matches!(
+        network.deploy(contract),
+        Err(rusk_vm::VMError::InstrumentalizationError(_))
+    ));
 }
 
 #[test]

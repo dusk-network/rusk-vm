@@ -27,7 +27,7 @@ where
     S: Store,
 {
     block_height: u64,
-    contracts: Map<ContractId, Contract, S>,
+    contracts: Map<ContractId, Contract<S>, S>,
     modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule<S>>>>,
     store: S,
 }
@@ -75,14 +75,22 @@ where
     }
 
     /// Deploys a contract to the state, returns the address of the created
-    /// contract or an error
+    /// contract or an error.
+    /// Before the deployment happens the contract's bytecode is instrumented
+    /// and then stored into the NetworkState
     pub fn deploy(
         &mut self,
-        contract: Contract,
-    ) -> Result<ContractId, S::Error> {
-        let id: ContractId = S::Ident::from_bytes(contract.bytecode()).into();
+        contract: Contract<S>,
+    ) -> Result<ContractId, VMError<S>> {
+        // Before any instrumentation is applied, generate the contract id.
+        let id: ContractId =
+            S::Ident::from_bytes(contract.code.as_ref()).into();
 
-        self.contracts.insert(id, contract)?;
+        // FIXME: This should check wether the contract is already deployed.
+        let _ = self
+            .contracts
+            .insert(id.clone(), contract.instrument()?)
+            .map_err(|e| VMError::StoreError(e))?;
         Ok(id)
     }
 
@@ -90,7 +98,7 @@ where
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError<S>> {
+    ) -> Result<impl Deref<Target = Contract<S>> + 'a, VMError<S>> {
         self.contracts
             .get(contract_id)
             .map_err(VMError::from_store_error)
@@ -102,7 +110,7 @@ where
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError<S>> {
+    ) -> Result<impl DerefMut<Target = Contract<S>> + 'a, VMError<S>> {
         self.contracts
             .get_mut(contract_id)
             .map_err(VMError::from_store_error)
