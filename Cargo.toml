@@ -16,7 +16,7 @@ failure = "0.1"
 
 dusk-abi = "0.7"
 
-canonical = { path = "../canonical/canon", default-features = false }
+canonical = { path = "../canonical/canon" }
 canonical_derive = { path = "../canonical/canon_derive" }
 dusk-hamt = { path = "../dusk-hamt" }
 
@@ -25,14 +25,14 @@ dusk-hamt = { path = "../dusk-hamt" }
 # dusk-bytes = "0.1"
 
 # test contracts
-counter = { path = "tests/contracts/counter", features = ["host"] }
-fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
-delegator = { path = "tests/contracts/delegator", features = ["host"] }
-stack = { path = "tests/contracts/stack", features = ["host"] }
-block_height = { path = "tests/contracts/block_height", features = ["host"] }
-self_snapshot = { path = "tests/contracts/self_snapshot", features = ["host"] }
-host_fn = { path = "tests/contracts/host_fn", features = ["host"] }
-tx_vec = { path = "tests/contracts/tx_vec", features = ["host"] }
+counter = { path = "tests/contracts/counter" }
+fibonacci = { path = "tests/contracts/fibonacci" }
+delegator = { path = "tests/contracts/delegator" }
+stack = { path = "tests/contracts/stack" }
+block_height = { path = "tests/contracts/block_height" }
+self_snapshot = { path = "tests/contracts/self_snapshot" }
+host_fn = { path = "tests/contracts/host_fn" }
+tx_vec = { path = "tests/contracts/tx_vec" }
 dusk-poseidon = "0.18"
 
 [[bench]]

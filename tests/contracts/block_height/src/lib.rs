@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(not(feature = "host"), no_std)]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use canonical_derive::Canon;
@@ -21,7 +21,7 @@ impl BlockHeight {
     }
 }
 
-#[cfg(not(feature = "host"))]
+#[cfg(target_arch = "wasm32")]
 mod hosted {
 
     extern crate alloc;
