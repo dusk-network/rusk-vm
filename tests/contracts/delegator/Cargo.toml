@@ -8,8 +8,8 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = { version = "0.5", default-features = false }
-canonical_derive = "0.5"
+canonical = { path = "../../../../canonical/canon", default-features = false }
+canonical_derive = { path = "../../../../canonical/canon_derive" }
 
 dusk-abi = "0.7"
 
