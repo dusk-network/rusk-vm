@@ -14,7 +14,3 @@ canonical_derive = { path = "../../../../canonical/canon_derive" }
 nstack = { path = "../../../../nstack" }
 microkelvin = { path = "../../../../microkelvin" }
 dusk-abi = { path = "../../../../dusk-abi" }
-
-[features]
-host = ["canonical/host"]
-bridge = ["canonical/bridge"]

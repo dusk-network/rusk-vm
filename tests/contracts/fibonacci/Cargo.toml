@@ -12,7 +12,3 @@ canonical = { path = "../../../../canonical/canon", default-features = false }
 canonical_derive = { path = "../../../../canonical/canon_derive" }
 
 dusk-abi = "0.7"
-
-[features]
-host = ["canonical/host"]
-bridge = ["canonical/bridge"]

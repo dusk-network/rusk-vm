@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(not(feature = "host"), no_std)]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use canonical_derive::Canon;
@@ -15,7 +15,7 @@ pub const COMPUTE: u8 = 0;
 #[derive(Clone, Canon, Debug)]
 pub struct Fibonacci;
 
-#[cfg(not(feature = "host"))]
+#[cfg(target_arch = "wasm32")]
 mod hosted {
     use super::*;
 

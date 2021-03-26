@@ -11,7 +11,3 @@ crate-type = ["cdylib", "rlib"]
 canonical = { path = "../../../../canonical/canon", default-features = false }
 canonical_derive = { path = "../../../../canonical/canon_derive" }
 dusk-abi = { path = "../../../../dusk-abi" }
-
-[features]
-host = ["canonical/host"]
-bridge = ["canonical/bridge"]
