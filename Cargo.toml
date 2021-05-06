@@ -16,8 +16,8 @@ failure = "0.1"
 
 dusk-abi = "0.7"
 
-canonical = { path = "../canonical/canon", default-features = false }
-canonical_derive = { path = "../canonical/canon_derive" }
+canonical = "0.6"
+canonical_derive = "0.6"
 dusk-hamt = { path = "../dusk-hamt" }
 
 # [dev-dependencies]
@@ -46,6 +46,4 @@ members = [
 ]
 
 [patch.crates-io]
-canonical = { path = "../canonical/canon" }
-canonical_derive = { path = "../canonical/canon_derive" }
 dusk-abi = { path = "../dusk-abi" }
