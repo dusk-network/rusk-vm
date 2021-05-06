@@ -8,9 +8,9 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = { path = "../../../../canonical/canon" }
-canonical_derive = { path = "../../../../canonical/canon_derive" }
+canonical = "0.6"
+canonical_derive = "0.6"
 
-nstack = { path = "../../../../nstack" }
-microkelvin = { path = "../../../../microkelvin" }
-dusk-abi = { path = "../../../../dusk-abi" }
+nstack = "0.8"
+microkelvin = "0.7"
+dusk-abi = "0.8"

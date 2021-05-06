@@ -14,15 +14,18 @@ parity-wasm = "0.41"
 pwasm-utils = "0.12.0"
 failure = "0.1"
 
-dusk-abi = "0.7"
+dusk-abi = "0.8"
 
-canonical = { path = "../canonical/canon" }
-canonical_derive = { path = "../canonical/canon_derive" }
-dusk-hamt = { path = "../dusk-hamt" }
+canonical = "0.6"
+canonical_derive = "0.6"
+dusk-hamt = "0.2"
 
-# [dev-dependencies]
-# dusk-bls12_381 = "0.6"
-# dusk-bytes = "0.1"
+[dev-dependencies]
+dusk-bls12_381 = "0.8"
+dusk-bytes = "0.1"
+dusk-poseidon = "0.21.0-rc"
+criterion = "0.3"
+
 
 # test contracts
 counter = { path = "tests/contracts/counter" }
@@ -33,10 +36,9 @@ block_height = { path = "tests/contracts/block_height" }
 self_snapshot = { path = "tests/contracts/self_snapshot" }
 host_fn = { path = "tests/contracts/host_fn" }
 tx_vec = { path = "tests/contracts/tx_vec" }
-dusk-poseidon = "0.18"
 
 [[bench]]
-name = "factorial"
+name = "fibonacci"
 harness = false
 
 [workspace]
@@ -46,6 +48,4 @@ members = [
 ]
 
 [patch.crates-io]
-canonical = { path = "../canonical/canon" }
-canonical_derive = { path = "../canonical/canon_derive" }
 dusk-abi = { path = "../dusk-abi" }
