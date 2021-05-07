@@ -5,8 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 use fibonacci::Fibonacci;
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 
 fn get_config() -> Criterion {
     Criterion::default().sample_size(10)
