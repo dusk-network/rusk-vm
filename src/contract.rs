@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Canon, Store};
+use canonical::Canon;
 use canonical_derive::Canon;
 pub use dusk_abi::{ContractId, ContractState};
 
@@ -17,20 +17,15 @@ pub struct Contract {
 
 impl Contract {
     /// Create a new Contract with initial state and code
-    pub fn new<State, Code, S>(
-        state: State,
-        code: Code,
-        store: &S,
-    ) -> Result<Self, S::Error>
+    pub fn new<State, Code>(state: State, code: Code) -> Self
     where
-        State: Canon<S>,
+        State: Canon,
         Code: Into<Vec<u8>>,
-        S: Store,
     {
-        Ok(Contract {
-            state: ContractState::from_canon(&state, &store)?,
+        Contract {
+            state: ContractState::from_canon(&state),
             code: code.into(),
-        })
+        }
     }
 
     /// Returns a reference to the contract bytecode

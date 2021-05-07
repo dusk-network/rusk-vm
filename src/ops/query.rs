@@ -8,20 +8,20 @@ use crate::call_context::CallContext;
 use crate::ops::AbiCall;
 use crate::VMError;
 
-use canonical::{ByteSink, ByteSource, Canon, Store};
-use dusk_abi::ContractId;
+use canonical::{Canon, Sink, Source};
+use dusk_abi::{ContractId, Query};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct ExecuteQuery;
 
-impl<S: Store> AbiCall<S> for ExecuteQuery {
+impl AbiCall for ExecuteQuery {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError<S>> {
+    ) -> Result<Option<RuntimeValue>, VMError> {
         if let [RuntimeValue::I32(contract_id_ofs), RuntimeValue::I32(query_ofs)] =
             *args.as_ref()
         {
@@ -34,10 +34,8 @@ impl<S: Store> AbiCall<S> for ExecuteQuery {
                         &m[contract_id_ofs..contract_id_ofs + 32],
                     );
 
-                    let mut source =
-                        ByteSource::new(&m[query_ofs..], context.store());
-
-                    let query = Canon::<S>::read(&mut source)?;
+                    let mut source = Source::new(&m[query_ofs..]);
+                    let query = Query::decode(&mut source)?;
 
                     Ok((contract_id, query))
                 })
@@ -45,13 +43,12 @@ impl<S: Store> AbiCall<S> for ExecuteQuery {
 
             let result = context.query(contract_id, query)?;
 
-            let store = context.store().clone();
-
             context
                 .memory_mut(|m| {
                     // write back the return value
-                    let mut sink = ByteSink::new(&mut m[query_ofs..], &store);
-                    Canon::<S>::write(&result, &mut sink)
+                    let mut sink = Sink::new(&mut m[query_ofs..]);
+                    result.encode(&mut sink);
+                    Ok(())
                 })
                 .map_err(VMError::from_store_error)?;
 

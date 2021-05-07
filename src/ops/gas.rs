@@ -8,19 +8,18 @@ use super::AbiCall;
 use crate::call_context::CallContext;
 use crate::VMError;
 
-use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Gas;
 
-impl<S: Store> AbiCall<S> for Gas {
+impl AbiCall for Gas {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError<S>> {
+    ) -> Result<Option<RuntimeValue>, VMError> {
         let meter = context.gas_meter_mut();
         let gas: u32 = args.nth_checked(0)?;
         if meter.charge(gas as u64).is_out_of_gas() {

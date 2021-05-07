@@ -4,10 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(not(feature = "host"), no_std)]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use canonical::Canon;
 use canonical_derive::Canon;
 
 // query ids
@@ -28,20 +27,18 @@ impl TxVec {
     }
 }
 
-#[cfg(not(feature = "host"))]
+#[cfg(target_arch = "wasm32")]
 mod hosted {
     extern crate alloc;
 
     use super::*;
 
     use alloc::vec::Vec;
-    use canonical::{BridgeStore, ByteSink, ByteSource, Id32, Store};
+    use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::{ContractId, Transaction};
     use dusk_abi::{ContractState, ReturnValue};
 
     const PAGE_SIZE: usize = 1024 * 4;
-
-    type BS = BridgeStore<Id32>;
 
     impl TxVec {
         pub fn read_value(&self) -> u8 {
@@ -58,38 +55,27 @@ mod hosted {
             target: &ContractId,
             transaction: &Transaction,
         ) -> ReturnValue {
-            dusk_abi::transact_raw::<BS, _>(self, target, transaction).unwrap()
+            dusk_abi::transact_raw::<_>(self, target, transaction).unwrap()
         }
     }
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(&bytes[..], &bs);
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(&bytes[..]);
 
         // read self.
-        let slf: TxVec = Canon::<BS>::read(&mut source)?;
+        let slf = TxVec::decode(&mut source)?;
 
         // read query id
-        let qid: u8 = Canon::<BS>::read(&mut source)?;
+        let qid = u8::decode(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
             READ_VALUE => {
                 let ret = slf.read_value();
 
-                let r = {
-                    // return value
-                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                    dusk_abi::debug!("wrapped return {:?}", wrapped_return);
-
-                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
-
-                    Canon::<BS>::write(&wrapped_return, &mut sink)
-                };
-
-                dusk_abi::debug!("memory bytes {:?}", &bytes[..32]);
-
-                r
+                ReturnValue::from_canon(&ret).encode(&mut sink);
+                Ok(())
             }
 
             _ => panic!("Method not found!"),
@@ -102,48 +88,41 @@ mod hosted {
         let _ = query(bytes);
     }
 
-    fn transaction(
-        bytes: &mut [u8; PAGE_SIZE],
-    ) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(bytes, &bs);
+    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(bytes);
 
         // read self.
-        let mut slf: TxVec = Canon::<BS>::read(&mut source)?;
+        let mut slf = TxVec::decode(&mut source)?;
         // read transaction id
-        let tid: u8 = Canon::<BS>::read(&mut source)?;
+        let tid = u8::decode(&mut source)?;
         match tid {
             SUM => {
-                let values: Vec<u8> = Canon::<BS>::read(&mut source)?;
+                let values = Vec::<u8>::decode(&mut source)?;
 
                 slf.sum(values);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
                 // return new state
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs)?,
-                    &mut sink,
-                )?;
+                &ContractState::from_canon(&slf).encode(&mut sink);
 
                 // return value
-                Canon::<BS>::write(
-                    &ReturnValue::from_canon(&(), &bs)?,
-                    &mut sink,
-                )
+                ReturnValue::from_canon(&()).encode(&mut sink);
+                Ok(())
             }
 
             DELEGATE_SUM => {
-                let contract: ContractId = Canon::<BS>::read(&mut source)?;
-                let tx: Transaction = Canon::<BS>::read(&mut source)?;
+                let contract = ContractId::decode(&mut source)?;
+                let tx = Transaction::decode(&mut source)?;
 
                 let result = slf.delegate_sum(&contract, &tx);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                let state = ContractState::from_canon(&slf, &bs)?;
+                let state = ContractState::from_canon(&slf);
 
-                Canon::<BS>::write(&state, &mut sink)?;
-                Canon::<BS>::write(&result, &mut sink)
+                state.encode(&mut sink);
+                result.encode(&mut sink);
+                Ok(())
             }
             _ => panic!(""),
         }

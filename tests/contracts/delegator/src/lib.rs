@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(not(feature = "host"), no_std)]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use canonical_derive::Canon;
@@ -18,18 +18,16 @@ pub const DELEGATE_TRANSACTION: u8 = 0;
 #[derive(Clone, Canon, Debug)]
 pub struct Delegator;
 
-#[cfg(not(feature = "host"))]
+#[cfg(target_arch = "wasm32")]
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
+    use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::{
         ContractId, ContractState, Query, ReturnValue, Transaction,
     };
 
     const PAGE_SIZE: usize = 1024 * 4;
-
-    type BS = BridgeStore<Id32>;
 
     impl Delegator {
         pub fn delegate_query(
@@ -45,29 +43,28 @@ mod hosted {
             target: &ContractId,
             transaction: &Transaction,
         ) -> ReturnValue {
-            dusk_abi::transact_raw::<BS, _>(self, target, transaction).unwrap()
+            dusk_abi::transact_raw::<_>(self, target, transaction).unwrap()
         }
     }
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(&bytes[..], &bs);
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(&bytes[..]);
 
         // read self.
-        let slf: Delegator = Canon::<BS>::read(&mut source)?;
+        let slf = Delegator::decode(&mut source)?;
 
         // read query id
-        let qid: u8 = Canon::<BS>::read(&mut source)?;
+        let qid = u8::decode(&mut source)?;
         match qid {
             DELEGATE_QUERY => {
                 let (target, query): (ContractId, Query) =
-                    Canon::read(&mut source)?;
+                    Canon::decode(&mut source)?;
 
                 let result = slf.delegate_query(&target, &query);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                Canon::<BS>::write(&result, &mut sink)?;
+                result.encode(&mut sink);
                 Ok(())
             }
             _ => panic!(""),
@@ -80,33 +77,28 @@ mod hosted {
         let _ = query(bytes);
     }
 
-    fn transaction(
-        bytes: &mut [u8; PAGE_SIZE],
-    ) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(bytes, &bs);
+    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(bytes);
 
         // read self.
-        let mut slf: Delegator = Canon::<BS>::read(&mut source)?;
+        let mut slf = Delegator::decode(&mut source)?;
         // read transaction id
-        let tid: u8 = Canon::<BS>::read(&mut source)?;
+        let tid = u8::decode(&mut source)?;
         match tid {
             DELEGATE_TRANSACTION => {
                 let (target, transaction): (ContractId, Transaction) =
-                    Canon::read(&mut source)?;
+                    Canon::decode(&mut source)?;
 
                 let result = slf.delegate_transaction(&target, &transaction);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
                 // return new state
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs)?,
-                    &mut sink,
-                )?;
+                ContractState::from_canon(&slf).encode(&mut sink);
 
                 // return value
-                Canon::<BS>::write(&result, &mut sink)
+                result.encode(&mut sink);
+                Ok(())
             }
             _ => panic!(""),
         }

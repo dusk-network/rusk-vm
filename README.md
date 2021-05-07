@@ -10,20 +10,13 @@ To compile and test the contracts, run
 $ make test
 ```
 
-## Design
-
-The design idea of the VM is _everything is a contract_. There are no separation between "accounts" and contracts, accounts are simply contracts programmed to behave like accounts.
-
-The state is a trie mapping `32-byte Hash` to a tuple containing `(balance: u128, bytecode: Vec<u8>, Storage)`
-
-The storage is a trie mapping a key(`Vec<u8>`) to a value (`Vec<u8>`)
-
-For the balance, i chose `u128`, the idea being to move away from Ethereum style 256 bit integers, that are not needed. 128 bit balances should be enough for everyone.
-
-### Contract deployment and Calls
-
-Check the `tests/lib.rs` for an actual usage example of the contract deployment and call interface.
+## Contract deployment and Calls
+Check the `tests` for actual usage examples of the contract deployment and call interfaces.
 
 ## ABI
 
-The dusk_abi crate is responsible for contract communication with the VM. As well as implementing panic handlers and the boilerplate neccesary to run a contract in a no_std environment.
+The [dusk-abi](https://github.com/dusk-network/dusk-abi) crate is responsible for contract communication with the VM. As well as implementing panic handlers and the boilerplate neccesary to run a contract in a no_std environment.
+
+### Introduction
+
+For more info have a look at the [wiki](https://github.com/dusk-network/rusk-vm/wiki/Introducing)

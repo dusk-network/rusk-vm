@@ -4,10 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(not(feature = "host"), no_std)]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use canonical::Canon;
 use canonical_derive::Canon;
 
 // query ids
@@ -30,16 +29,14 @@ impl SelfSnapshot {
     }
 }
 
-#[cfg(not(feature = "host"))]
+#[cfg(target_arch = "wasm32")]
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
+    use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::{ContractId, ContractState, ReturnValue, Transaction};
 
     const PAGE_SIZE: usize = 1024 * 4;
-
-    type BS = BridgeStore<Id32>;
 
     impl SelfSnapshot {
         pub fn crossover(&self) -> i32 {
@@ -63,7 +60,7 @@ mod hosted {
 
             let callee = dusk_abi::callee();
 
-            dusk_abi::transact::<BS, _, (), Self>(
+            dusk_abi::transact::<_, (), Self>(
                 self,
                 &callee,
                 &(SET_CROSSOVER, update),
@@ -83,8 +80,7 @@ mod hosted {
         ) -> i32 {
             self.set_crossover(self.crossover * 2);
 
-            dusk_abi::transact_raw::<BS, _>(self, &target, &transaction)
-                .unwrap();
+            dusk_abi::transact_raw::<_>(self, &target, &transaction).unwrap();
 
             self.crossover
         }
@@ -110,23 +106,23 @@ mod hosted {
         }
     }
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let store = BS::default();
-        let mut source = ByteSource::new(&bytes[..], &store);
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(&bytes[..]);
 
         // read self (noop).
-        let slf: SelfSnapshot = Canon::<BS>::read(&mut source)?;
+        let slf = SelfSnapshot::decode(&mut source)?;
 
         // read query id
-        let qid: u8 = Canon::<BS>::read(&mut source)?;
+        let qid = u8::decode(&mut source)?;
         match qid {
             CROSSOVER => {
                 let ret = slf.crossover();
 
-                let mut sink = ByteSink::new(&mut bytes[..], &store);
-                let packed_ret = ReturnValue::from_canon(&ret, &store)?;
+                let mut sink = Sink::new(&mut bytes[..]);
+                let packed_ret = ReturnValue::from_canon(&ret);
 
-                Canon::<BS>::write(&packed_ret, &mut sink)
+                packed_ret.encode(&mut sink);
+                Ok(())
             }
             _ => panic!(""),
         }
@@ -138,85 +134,62 @@ mod hosted {
         let _ = query(bytes);
     }
 
-    fn transaction(
-        bytes: &mut [u8; PAGE_SIZE],
-    ) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(bytes, &bs);
+    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(bytes);
 
         // read self.
-        let mut slf: SelfSnapshot = Canon::<BS>::read(&mut source)?;
+        let mut slf = SelfSnapshot::decode(&mut source)?;
         // read transaction id
-        let tid: u8 = Canon::<BS>::read(&mut source)?;
+        let tid = u8::decode(&mut source)?;
         match tid {
             // increment (&Self)
             SET_CROSSOVER => {
-                let to: i32 = Canon::<BS>::read(&mut source)?;
+                let to = i32::decode(&mut source)?;
                 let old = slf.set_crossover(to);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
                 // return new state
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs)?,
-                    &mut sink,
-                )?;
+                ContractState::from_canon(&slf).encode(&mut sink);
 
                 // return value
-                Canon::<BS>::write(
-                    &ReturnValue::from_canon(&old, &bs)?,
-                    &mut sink,
-                )
+                ReturnValue::from_canon(&old).encode(&mut sink);
+                Ok(())
             }
             SELF_CALL_TEST_A => {
-                let update: i32 = Canon::<BS>::read(&mut source)?;
+                let update = i32::decode(&mut source)?;
                 let old = slf.self_call_test_a(update);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
                 // return new state
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs)?,
-                    &mut sink,
-                )?;
+                ContractState::from_canon(&slf).encode(&mut sink);
 
                 // return value
-                Canon::<BS>::write(
-                    &ReturnValue::from_canon(&old, &bs)?,
-                    &mut sink,
-                )
+                ReturnValue::from_canon(&old).encode(&mut sink);
+                Ok(())
             }
             SELF_CALL_TEST_B => {
-                dusk_abi::debug!("A");
                 let (target, transaction): (ContractId, Transaction) =
-                    Canon::read(&mut source)?;
+                    Canon::decode(&mut source)?;
 
                 let old = slf.self_call_test_b(target, transaction);
 
-                dusk_abi::debug!("C");
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                dusk_abi::debug!("D");
                 // return new state
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs)?,
-                    &mut sink,
-                )?;
+                ContractState::from_canon(&slf).encode(&mut sink);
 
                 // return value
-                Canon::<BS>::write(
-                    &ReturnValue::from_canon(&old, &bs)?,
-                    &mut sink,
-                )
+                ReturnValue::from_canon(&old).encode(&mut sink);
+                Ok(())
             }
             UPDATE_AND_PANIC => {
-                let update: i32 = Canon::<BS>::read(&mut source)?;
+                let update = i32::decode(&mut source)?;
                 slf.update_and_panic(update);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
                 // return new state
-                Canon::<BS>::write(
-                    &ContractState::from_canon(&slf, &bs)?,
-                    &mut sink,
-                )
+                ContractState::from_canon(&slf).encode(&mut sink);
+                Ok(())
             }
             _ => panic!(""),
         }
