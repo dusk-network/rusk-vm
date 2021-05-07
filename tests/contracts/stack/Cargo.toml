@@ -13,4 +13,4 @@ canonical_derive = "0.6"
 
 nstack = "0.8"
 microkelvin = "0.7"
-dusk-abi = "0.8"
+dusk-abi = "0.9.0-rc"
