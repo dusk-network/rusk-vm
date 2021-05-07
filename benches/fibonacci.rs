@@ -17,7 +17,7 @@ fn fibonacci_3(
     contract_id: ContractId,
     gas: &mut GasMeter,
 ) {
-    let n = 3;
+    let n: u64 = 3;
 
     network
         .query::<_, u64>(contract_id, (fibonacci::COMPUTE, n), gas)
