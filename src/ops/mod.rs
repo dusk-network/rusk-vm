@@ -7,7 +7,6 @@
 use crate::call_context::CallContext;
 use crate::VMError;
 
-use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub mod block_height;
@@ -19,15 +18,12 @@ pub mod query;
 pub mod store;
 pub mod transact;
 
-pub trait AbiCall<S>
-where
-    S: Store,
-{
+pub trait AbiCall {
     const ARGUMENTS: &'static [ValueType];
     const RETURN: Option<ValueType>;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError<S>>;
+    ) -> Result<Option<RuntimeValue>, VMError>;
 }

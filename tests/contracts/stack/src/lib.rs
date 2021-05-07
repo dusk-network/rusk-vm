@@ -4,10 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(not(feature = "host"), no_std)]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use canonical::{Canon, Store};
+use canonical::{Canon, CanonError};
 use canonical_derive::Canon;
 use microkelvin::Cardinality;
 use microkelvin::Nth;
@@ -20,69 +20,62 @@ pub const POP: u8 = 1;
 // query ids
 pub const PEEK: u8 = 0;
 
-#[derive(Clone, Canon, Debug)]
-pub struct Stack<S: Store> {
-    inner: NStack<i32, Cardinality, S>,
+#[derive(Clone, Canon, Debug, Default)]
+pub struct Stack<T> {
+    inner: NStack<T, Cardinality>,
 }
 
-impl<S: Store> Stack<S> {
+impl<T> Stack<T>
+where
+    T: Canon,
+{
     pub fn new() -> Self {
         Stack {
             inner: NStack::new(),
         }
     }
 
-    pub fn peek(&self, n: i32) -> Option<i32> {
-        self.inner.nth(n as u64).unwrap().map(|n| *n)
+    pub fn peek(&self, n: u64) -> Result<Option<T>, CanonError> {
+        Ok(self.inner.nth(n)?.map(|n| n.clone()))
+    }
+
+    pub fn push(&mut self, value: T) -> Result<(), CanonError> {
+        self.inner.push(value)
+    }
+
+    pub fn pop(&mut self) -> Result<Option<T>, CanonError> {
+        self.inner.pop()
     }
 }
 
-#[cfg(not(feature = "host"))]
+#[cfg(target_arch = "wasm32")]
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Id32, Store};
+    use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::{ContractState, ReturnValue};
 
-    const PAGE_SIZE: usize = 1024 * 4;
+    const PAGE_SIZE: usize = 1024 * 64;
 
-    type BS = BridgeStore<Id32>;
+    type Leaf = u64;
 
-    impl<S: Store> Stack<S> {
-        pub fn push(&mut self, value: i32) {
-            self.inner.push(value).unwrap()
-        }
-
-        pub fn pop(&mut self) -> Option<i32> {
-            self.inner.pop().unwrap()
-        }
-    }
-
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(&bytes[..], &bs);
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(&bytes[..]);
 
         // read self.
-        let slf: Stack<BS> = Canon::<BS>::read(&mut source)?;
+        let slf = Stack::<Leaf>::decode(&mut source)?;
 
         // read query id
-        let qid: u8 = Canon::<BS>::read(&mut source)?;
+        let qid = u8::decode(&mut source)?;
         match qid {
             PEEK => {
-                let arg: i32 = Canon::<BS>::read(&mut source)?;
-
+                let arg = Leaf::decode(&mut source)?;
                 let ret = slf.peek(arg);
 
-                let r = {
-                    // return value
-                    let wrapped_return = ReturnValue::from_canon(&ret, &bs)?;
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                    let mut sink = ByteSink::new(&mut bytes[..], &bs);
-
-                    Canon::<BS>::write(&wrapped_return, &mut sink)
-                };
-
-                r
+                ReturnValue::from_canon(&ret).encode(&mut sink);
+                Ok(())
             }
             _ => panic!(""),
         }
@@ -94,48 +87,32 @@ mod hosted {
         let _ = query(bytes);
     }
 
-    fn transaction(
-        bytes: &mut [u8; PAGE_SIZE],
-    ) -> Result<(), <BS as Store>::Error> {
-        let bs = BS::default();
-        let mut source = ByteSource::new(bytes, &bs);
+    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
+        let mut source = Source::new(bytes);
 
         // read self.
-        let mut slf: Stack<BS> = Canon::<BS>::read(&mut source)?;
+        let mut slf = Stack::decode(&mut source)?;
         // read transaction id
-        let tid: u8 = Canon::<BS>::read(&mut source)?;
+        let tid = u8::decode(&mut source)?;
         match tid {
             PUSH => {
-                let value: i32 = Canon::<BS>::read(&mut source)?;
-                slf.push(value);
+                let leaf = Leaf::decode(&mut source)?;
+                let result = slf.push(leaf);
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                let new_state = ContractState::from_canon(&slf, &bs)?;
+                ContractState::from_canon(&slf).encode(&mut sink);
+                ReturnValue::from_canon(&result).encode(&mut sink);
 
-                // return new state
-                Canon::<BS>::write(&new_state, &mut sink)?;
-
-                let ret_val = ReturnValue::from_canon(&(), &bs);
-
-                // return value (no-op)
-                Canon::<BS>::write(&ret_val, &mut sink)
+                Ok(())
             }
             POP => {
                 let result = slf.pop();
 
-                let mut sink = ByteSink::new(&mut bytes[..], &bs);
+                let mut sink = Sink::new(&mut bytes[..]);
 
-                let new_state = ContractState::from_canon(&slf, &bs)?;
-
-                // return new self
-                Canon::<BS>::write(&new_state, &mut sink)?;
-
-                let return_value = ReturnValue::from_canon(&result, &bs)?;
-
-                // return value
-                Canon::<BS>::write(&return_value, &mut sink)?;
-
+                ContractState::from_canon(&slf).encode(&mut sink);
+                ReturnValue::from_canon(&result).encode(&mut sink);
                 Ok(())
             }
             _ => panic!(""),
@@ -145,6 +122,6 @@ mod hosted {
     #[no_mangle]
     fn t(bytes: &mut [u8; PAGE_SIZE]) {
         // todo, handle errors here
-        transaction(bytes).unwrap()
+        let _ = transaction(bytes);
     }
 }

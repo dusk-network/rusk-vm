@@ -9,68 +9,54 @@ use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use canonical::{ByteSource, Canon, Ident, Sink, Source, Store};
+use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
-use dusk_kelvin_map::Map;
+use dusk_hamt::Hamt;
 
 use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::VMError;
 
-type BoxedHostModule<S> = Box<dyn HostModule<S>>;
+type BoxedHostModule = Box<dyn HostModule>;
 
 /// The main network state, includes the full state of contracts.
 #[derive(Clone, Default)]
-pub struct NetworkState<S>
-where
-    S: Store,
-{
+pub struct NetworkState {
     block_height: u64,
-    contracts: Map<ContractId, Contract, S>,
-    modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule<S>>>>,
-    store: S,
+    contracts: Hamt<ContractId, Contract, ()>,
+    modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
 }
 
 // Manual implementation of `Canon` to ignore the "modules" which needs to be
 // re-instantiated on program initialization.
-impl<S> Canon<S> for NetworkState<S>
-where
-    S: Store,
-{
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        self.block_height.write(sink)?;
-        self.contracts.write(sink)
+impl Canon for NetworkState {
+    fn encode(&self, sink: &mut Sink) {
+        self.block_height.encode(sink);
+        self.contracts.encode(sink);
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        let block_height = u64::read(source)?;
-        let contracts = Map::read(source)?;
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
         Ok(NetworkState {
-            block_height,
-            contracts,
-            store: source.store().clone(),
+            block_height: u64::decode(source)?,
+            contracts: Hamt::decode(source)?,
             modules: Rc::new(RefCell::new(HashMap::new())),
         })
     }
 
     fn encoded_len(&self) -> usize {
-        Canon::<S>::encoded_len(&self.block_height)
-            + Canon::<S>::encoded_len(&self.contracts)
+        Canon::encoded_len(&self.block_height)
+            + Canon::encoded_len(&self.contracts)
     }
 }
 
-impl<S> NetworkState<S>
-where
-    S: Store,
-{
+impl NetworkState {
     /// Returns a [`NetworkState`] for a specific block height
     pub fn with_block_height(block_height: u64) -> Self {
         Self {
             block_height,
-            contracts: Map::default(),
+            contracts: Hamt::default(),
             modules: Rc::new(RefCell::new(HashMap::new())),
-            store: S::default(),
         }
     }
 
@@ -79,8 +65,8 @@ where
     pub fn deploy(
         &mut self,
         contract: Contract,
-    ) -> Result<ContractId, S::Error> {
-        let id: ContractId = S::Ident::from_bytes(contract.bytecode()).into();
+    ) -> Result<ContractId, CanonError> {
+        let id: ContractId = Store::hash(contract.bytecode()).into();
 
         self.contracts.insert(id, contract)?;
         Ok(id)
@@ -90,7 +76,7 @@ where
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError<S>> {
+    ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
         self.contracts
             .get(contract_id)
             .map_err(VMError::from_store_error)
@@ -102,7 +88,7 @@ where
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError<S>> {
+    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
         self.contracts
             .get_mut(contract_id)
             .map_err(VMError::from_store_error)
@@ -113,13 +99,8 @@ where
     /// Returns a reference to the map of registered host modules
     pub fn modules(
         &self,
-    ) -> &Rc<RefCell<HashMap<ContractId, BoxedHostModule<S>>>> {
+    ) -> &Rc<RefCell<HashMap<ContractId, BoxedHostModule>>> {
         &self.modules
-    }
-
-    /// Returns a reference to the store backing the state
-    pub fn store(&self) -> &S {
-        &self.store
     }
 
     /// Returns the state's block height
@@ -133,21 +114,16 @@ where
         target: ContractId,
         query: A,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError<S>>
+    ) -> Result<R, VMError>
     where
-        A: Canon<S>,
-        R: Canon<S>,
+        A: Canon,
+        R: Canon,
     {
-        let store = self.store().clone();
-        let mut context = CallContext::new(self, gas_meter, &store)?;
+        let mut context = CallContext::new(self, gas_meter);
 
-        let result = context.query(
-            target,
-            Query::from_canon(&query, &store)
-                .map_err(VMError::from_store_error)?,
-        )?;
+        let result = context.query(target, Query::from_canon(&query))?;
 
-        result.cast(store).map_err(VMError::from_store_error)
+        result.cast().map_err(VMError::from_store_error)
     }
 
     /// Transact with the contract at address `target`
@@ -156,26 +132,21 @@ where
         target: ContractId,
         transaction: A,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError<S>>
+    ) -> Result<R, VMError>
     where
-        A: Canon<S>,
-        R: Canon<S>,
+        A: Canon,
+        R: Canon,
     {
-        let store = self.store().clone();
-
         // Fork the current network's state
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(&mut fork, gas_meter, &store)?;
+        let mut context = CallContext::new(&mut fork, gas_meter);
 
-        let (_, result) = context.transact(
-            target,
-            Transaction::from_canon(&transaction, &store)
-                .map_err(VMError::from_store_error)?,
-        )?;
+        let (_, result) =
+            context.transact(target, Transaction::from_canon(&transaction))?;
 
-        let ret = result.cast(store).map_err(VMError::from_store_error)?;
+        let ret = result.cast().map_err(VMError::from_store_error)?;
 
         // If we reach this point, everything went well and we can use the
         // updates made in the forked state.
@@ -187,7 +158,7 @@ where
     /// Register a host-fn handler
     pub fn register_host_module<M>(&mut self, module: M)
     where
-        M: HostModule<S> + 'static,
+        M: HostModule + 'static,
     {
         self.modules
             .borrow_mut()
@@ -198,19 +169,16 @@ where
     pub fn get_contract_cast_state<C>(
         &self,
         contract_id: &ContractId,
-    ) -> Result<C, VMError<S>>
+    ) -> Result<C, VMError>
     where
-        C: Canon<S>,
+        C: Canon,
     {
         self.contracts
             .get(contract_id)
             .map_err(VMError::from_store_error)?
             .map_or(Err(VMError::UnknownContract), |contract| {
-                let mut source = ByteSource::new(
-                    (*contract).state().as_bytes(),
-                    &self.store,
-                );
-                Canon::<S>::read(&mut source).map_err(VMError::from_store_error)
+                let mut source = Source::new((*contract).state().as_bytes());
+                C::decode(&mut source).map_err(VMError::from_store_error)
             })
     }
 }

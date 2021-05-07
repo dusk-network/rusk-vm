@@ -1,6 +1,6 @@
 [package]
 name = "rusk-vm"
-version = "0.5.1"
+version = "0.6.0-rc.0"
 authors = [
   "Kristoffer Ström <kristoffer@dusk.network>",
   "zer0 <matteo@dusk.network>"
@@ -14,29 +14,31 @@ parity-wasm = "0.41"
 pwasm-utils = "0.12.0"
 failure = "0.1"
 
-dusk-abi = "0.7"
-canonical = { version = "0.5", features = ["host"] }
-canonical_host = "0.5"
-canonical_derive = "0.5"
-dusk-kelvin-map = "0.3"
+dusk-abi = "0.9.0-rc"
+
+canonical = "0.6"
+canonical_derive = "0.6"
+dusk-hamt = "0.2"
 
 [dev-dependencies]
-dusk-bls12_381 = "0.6"
+dusk-bls12_381 = "0.8"
 dusk-bytes = "0.1"
+dusk-poseidon = "0.21.0-rc"
+criterion = "0.3"
+
 
 # test contracts
-counter = { path = "tests/contracts/counter", features = ["host"] }
-fibonacci = { path = "tests/contracts/fibonacci", features = ["host"] }
-delegator = { path = "tests/contracts/delegator", features = ["host"] }
-stack = { path = "tests/contracts/stack", features = ["host"] }
-block_height = { path = "tests/contracts/block_height", features = ["host"] }
-self_snapshot = { path = "tests/contracts/self_snapshot", features = ["host"] }
-host_fn = { path = "tests/contracts/host_fn", features = ["host"] }
-tx_vec = { path = "tests/contracts/tx_vec", features = ["host"] }
-dusk-poseidon = "0.18"
+counter = { path = "tests/contracts/counter" }
+fibonacci = { path = "tests/contracts/fibonacci" }
+delegator = { path = "tests/contracts/delegator" }
+stack = { path = "tests/contracts/stack" }
+block_height = { path = "tests/contracts/block_height" }
+self_snapshot = { path = "tests/contracts/self_snapshot" }
+host_fn = { path = "tests/contracts/host_fn" }
+tx_vec = { path = "tests/contracts/tx_vec" }
 
 [[bench]]
-name = "factorial"
+name = "fibonacci"
 harness = false
 
 [workspace]
@@ -44,3 +46,10 @@ harness = false
 members = [
     "tests/contracts/*",
 ]
+
+[patch.crates-io]
+canonical = { path = "../canonical/canon" }
+canonical_derive = { path = "../canonical/canon_derive" }
+canonical_fuzz = { path = "../canonical/canon_fuzz" }
+
+integer-encoding = { path = "../integer-encoding-rs" }

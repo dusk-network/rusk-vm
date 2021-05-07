@@ -8,19 +8,18 @@ use super::AbiCall;
 use crate::call_context::CallContext;
 use crate::VMError;
 
-use canonical::Store;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Callee;
 
-impl<S: Store> AbiCall<S> for Callee {
+impl AbiCall for Callee {
     const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
     const RETURN: Option<ValueType> = None;
 
     fn call(
-        context: &mut CallContext<S>,
+        context: &mut CallContext,
         args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError<S>> {
+    ) -> Result<Option<RuntimeValue>, VMError> {
         if let [RuntimeValue::I32(result_ofs)] = *args.as_ref() {
             let result_ofs = result_ofs as usize;
             let callee = *context.callee();
