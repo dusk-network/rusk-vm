@@ -43,7 +43,7 @@ impl AbiCall for ApplyTransaction {
                 })
                 .map_err(VMError::from_store_error)?;
 
-            let callee = context.callee().clone();
+            let callee = *context.callee();
             *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
 
             let (state, result) = context.transact(contract_id, transaction)?;

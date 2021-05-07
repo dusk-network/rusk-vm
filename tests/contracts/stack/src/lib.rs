@@ -20,7 +20,7 @@ pub const POP: u8 = 1;
 // query ids
 pub const PEEK: u8 = 0;
 
-#[derive(Clone, Canon, Debug)]
+#[derive(Clone, Canon, Debug, Default)]
 pub struct Stack<T> {
     inner: NStack<T, Cardinality>,
 }

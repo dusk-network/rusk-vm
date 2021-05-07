@@ -12,7 +12,7 @@ use canonical_derive::Canon;
 // query ids
 pub const BLOCK_HEIGHT: u8 = 0;
 
-#[derive(Clone, Canon, Debug)]
+#[derive(Clone, Canon, Debug, Default)]
 pub struct BlockHeight {}
 
 impl BlockHeight {

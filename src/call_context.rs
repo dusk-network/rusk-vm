@@ -126,7 +126,7 @@ impl<'a> CallContext<'a> {
                     // write contract state and argument to memory
                     memref
                         .with_direct_access_mut(|m| {
-                            let mut sink = Sink::new(&mut m[..]);
+                            let mut sink = Sink::new(&mut *m);
                             // copy the raw bytes only, since the
                             // contract
                             // can infer
@@ -185,7 +185,7 @@ impl<'a> CallContext<'a> {
                     // write contract state and argument to memory
 
                     memref.with_direct_access_mut(|m| {
-                        let mut sink = Sink::new(&mut m[..]);
+                        let mut sink = Sink::new(&mut *m);
                         // copy the raw bytes only, since the contract can
                         // infer it's own state and argument lengths.
                         sink.copy_bytes(contract.state().as_bytes());
