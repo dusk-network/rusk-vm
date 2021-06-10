@@ -36,3 +36,30 @@ impl AbiCall for Callee {
         }
     }
 }
+
+pub struct Caller;
+
+impl AbiCall for Caller {
+    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
+    const RETURN: Option<ValueType> = None;
+
+    fn call(
+        context: &mut CallContext,
+        args: RuntimeArgs,
+    ) -> Result<Option<RuntimeValue>, VMError> {
+        if let [RuntimeValue::I32(result_ofs)] = *args.as_ref() {
+            let result_ofs = result_ofs as usize;
+            let caller = *context.caller();
+
+            context
+                .memory_mut(|a| {
+                    a[result_ofs..result_ofs + 32]
+                        .copy_from_slice(caller.as_bytes());
+                    Ok(None)
+                })
+                .map_err(VMError::from_store_error)
+        } else {
+            Err(VMError::InvalidArguments)
+        }
+    }
+}

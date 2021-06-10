@@ -75,8 +75,9 @@ abi_resolver! {
         4, "hash" => store::Hash,
         6, "query" => query::ExecuteQuery,
         7, "transact" => transact::ApplyTransaction,
-        9, "callee" => callee::Callee,
-        10, "gas" => gas::Gas,
-        11, "block_height" => block_height::BlockHeight
+        9, "callee" => call_stack::Callee,
+        10, "caller" => call_stack::Caller,
+        11, "gas" => gas::Gas,
+        12, "block_height" => block_height::BlockHeight
     }
 }

@@ -252,6 +252,14 @@ impl<'a> CallContext<'a> {
         &self.top().callee
     }
 
+    pub fn caller(&self) -> &ContractId {
+        if self.stack.len() > 1 {
+            &self.stack[self.stack.len() - 2].callee
+        } else {
+            self.callee()
+        }
+    }
+
     pub fn memory<R, C: FnOnce(&[u8]) -> R>(&self, closure: C) -> R {
         self.top().memory(closure)
     }
