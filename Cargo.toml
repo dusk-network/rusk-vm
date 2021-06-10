@@ -7,6 +7,10 @@ authors = [
 ]
 edition = "2018"
 
+repository = "https://github.com/dusk-network/rusk-vm"
+description = "Rusk VM is the virtual machine running Dusk Network's Smart contracts"
+license = "MPL-2.0"
+
 [dependencies]
 wasmi = "0.6.0"
 wasmi-validation = "0.3"
