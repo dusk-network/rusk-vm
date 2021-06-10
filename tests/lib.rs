@@ -19,6 +19,10 @@ use fibonacci::Fibonacci;
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
+use callee_1::Callee1;
+use callee_2::Callee2;
+use caller::Caller;
+
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
         n
@@ -425,4 +429,62 @@ fn tx_vec() {
         .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
         .unwrap();
     assert_eq!(value, v);
+}
+
+#[test]
+fn calling() {
+    let caller = Caller::new();
+    let callee1 = Callee1::new();
+    let callee2 = Callee2::new();
+
+    let code_caller =
+        include_bytes!("../target/wasm32-unknown-unknown/release/caller.wasm");
+    let code_callee1 = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/callee_1.wasm"
+    );
+    let code_callee2 = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/callee_2.wasm"
+    );
+
+    let mut network = NetworkState::default();
+
+    let caller_id = network
+        .deploy(Contract::new(caller, code_caller.to_vec()))
+        .unwrap();
+    let callee1_id = network
+        .deploy(Contract::new(callee1, code_callee1.to_vec()))
+        .unwrap();
+    let callee2_id = network
+        .deploy(Contract::new(callee2, code_callee2.to_vec()))
+        .unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact::<_, ()>(
+            caller_id,
+            (caller::SET_TARGET, callee1_id),
+            &mut gas,
+        )
+        .unwrap();
+
+    // network
+    //     .transact::<_, ()>(
+    //         callee1_id,
+    //         (caller::SET_TARGET, callee1_id),
+    //         &mut gas,
+    //     )
+    //     .unwrap();
+
+    assert_eq!(
+        network
+            .query::<_, (ContractId, ContractId, ContractId)>(
+                caller_id,
+                caller::CALL,
+                &mut gas
+            )
+            .unwrap(),
+        (caller_id, callee1_id, callee2_id),
+        "Expected Callers and Callees"
+    )
 }
