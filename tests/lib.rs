@@ -468,13 +468,13 @@ fn calling() {
         )
         .unwrap();
 
-    // network
-    //     .transact::<_, ()>(
-    //         callee1_id,
-    //         (caller::SET_TARGET, callee1_id),
-    //         &mut gas,
-    //     )
-    //     .unwrap();
+    network
+        .transact::<_, ()>(
+            callee1_id,
+            (caller::SET_TARGET, callee2_id),
+            &mut gas,
+        )
+        .unwrap();
 
     assert_eq!(
         network

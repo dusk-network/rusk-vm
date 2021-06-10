@@ -10,7 +10,7 @@ use crate::VMError;
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub mod block_height;
-pub mod callee;
+pub mod call_stack;
 pub mod debug;
 pub mod gas;
 pub mod panic;
