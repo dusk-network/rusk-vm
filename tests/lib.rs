@@ -12,16 +12,16 @@ use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 use dusk_abi::{Module, Transaction};
 
 use block_height::BlockHeight;
-use counter::Counter;
-use delegator::Delegator;
-use fibonacci::Fibonacci;
-// use host_fn::HostFnTest;
-use self_snapshot::SelfSnapshot;
-use tx_vec::TxVec;
-
 use callee_1::Callee1;
 use callee_2::Callee2;
 use caller::Caller;
+use counter::Counter;
+use delegator::Delegator;
+use fibonacci::Fibonacci;
+use gas_consumed::GasConsumed;
+// use host_fn::HostFnTest;
+use self_snapshot::SelfSnapshot;
+use tx_vec::TxVec;
 
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
@@ -487,4 +487,38 @@ fn calling() {
         (caller_id, callee1_id, callee2_id),
         "Expected Callers and Callees"
     )
+}
+
+#[test]
+fn gas_consumed_host_function_works() {
+    let gas_contract = GasConsumed::new(99);
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/gas_consumed.wasm"
+    );
+
+    let contract = Contract::new(gas_contract, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact::<_, ()>(contract_id, gas_consumed::INCREMENT, &mut gas)
+        .expect("Transaction error");
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, gas_consumed::VALUE, &mut gas)
+            .expect("Query error"),
+        100
+    );
+
+    let gas_consumed = network
+        .query::<_, u64>(contract_id, gas_consumed::GAS_CONSUMED, &mut gas)
+        .expect("Query error");
+
+    assert_eq!(gas_consumed, gas.spent());
 }
