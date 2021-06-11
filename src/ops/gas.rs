@@ -28,3 +28,19 @@ impl AbiCall for Gas {
         Ok(None)
     }
 }
+
+pub struct GasConsumed;
+
+impl AbiCall for GasConsumed {
+    const ARGUMENTS: &'static [ValueType] = &[];
+    const RETURN: Option<ValueType> = Some(ValueType::I64);
+
+    fn call(
+        _context: &mut CallContext,
+        _args: RuntimeArgs,
+    ) -> Result<Option<RuntimeValue>, VMError> {
+        // TODO get the gas consumed from dusk_abi API
+        // https://github.com/dusk-network/rusk-vm/pull/176
+        Ok(Some(RuntimeValue::from(1)))
+    }
+}
