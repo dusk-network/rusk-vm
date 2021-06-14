@@ -16,6 +16,7 @@ use callee_1::Callee1;
 use callee_2::Callee2;
 use caller::Caller;
 use counter::Counter;
+use counter_float::CounterFloat;
 use delegator::Delegator;
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
@@ -584,4 +585,22 @@ fn out_of_gas_aborts_execution() {
 
     // Ensure all gas is consumed even the tx did not succeed.
     assert_eq!(gas.left(), 0);
+}
+
+#[test]
+fn deploy_fails_with_floats() {
+    let counter = CounterFloat::new(9.99f32);
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/counter_float.wasm"
+    );
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    assert!(matches!(
+        network.deploy(contract),
+        Err(rusk_vm::VMError::InstrumentalizationError(_))
+    ));
 }

@@ -4,8 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::module_config::ModuleConfig;
+use crate::VMError;
 use canonical::Canon;
 use canonical_derive::Canon;
+
 pub use dusk_abi::{ContractId, ContractState};
 
 /// A representation of a contract with a state and bytecode
@@ -41,5 +44,16 @@ impl Contract {
     /// Returns a mutable reference to the contract state
     pub fn state_mut(&mut self) -> &mut ContractState {
         &mut self.state
+    }
+
+    pub(crate) fn instrument(mut self) -> Result<Self, VMError> {
+        self.code = ModuleConfig::new()
+            .with_grow_cost()
+            .with_forbidden_floats()
+            .with_metering()
+            .with_table_size_limit()
+            .apply(&self.code[..])?;
+
+        Ok(self)
     }
 }
