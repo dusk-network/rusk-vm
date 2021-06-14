@@ -279,7 +279,7 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn state(&self) -> &NetworkState {
-        &self.state
+        self.state
     }
 
     pub fn state_mut(&mut self) -> &mut NetworkState {
