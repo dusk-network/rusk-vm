@@ -220,7 +220,7 @@ impl<'a> CallContext<'a> {
                             *(*contract).state_mut() = state;
 
                             // read return value
-                            dbg!(ReturnValue::decode(&mut source))
+                            ReturnValue::decode(&mut source)
                         })
                         .map_err(VMError::from_store_error)
                 }
