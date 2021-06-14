@@ -503,7 +503,9 @@ fn gas_consumed_host_function_works() {
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
+    // 2050 is the gas held that is known will be spent in the contract
+    // after the `dusk_abi::gas_left()` call
+    let mut gas = GasMeter::with_range(2_050..1_000_000_000);
 
     network
         .transact::<_, ()>(contract_id, gas_consumed::INCREMENT, &mut gas)
@@ -516,9 +518,70 @@ fn gas_consumed_host_function_works() {
         100
     );
 
-    let gas_consumed = network
-        .query::<_, u64>(contract_id, gas_consumed::GAS_CONSUMED, &mut gas)
+    let (gas_consumed, gas_left) = network
+        .query::<_, (u64, u64)>(
+            contract_id,
+            gas_consumed::GAS_CONSUMED,
+            &mut gas,
+        )
         .expect("Query error");
 
-    assert_eq!(gas_consumed, gas.spent());
+    assert_eq!(gas_left + gas.spent(), 1_000_000_000, 
+        "The gas left plus the gas spent should be equal to the initial gas provided");
+
+    assert_eq!(gas.spent() - gas_consumed, 2_050,
+        "The gas spent minus the gas consumed should be equal to the gas held");
+}
+
+#[test]
+fn gas_consumption_works() {
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+        .expect("Transaction error");
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .expect("Query error"),
+        100
+    );
+
+    assert_ne!(gas.spent(), 100);
+    assert!(gas.left() < 1_000_000_000);
+}
+
+#[test]
+fn out_of_gas_aborts_execution() {
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1);
+
+    let should_be_err =
+        network.transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas);
+    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
+
+    // Ensure all gas is consumed even the tx did not succeed.
+    assert_eq!(gas.left(), 0);
 }

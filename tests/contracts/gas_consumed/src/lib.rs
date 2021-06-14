@@ -45,12 +45,6 @@ mod hosted {
     use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::{ContractState, ReturnValue};
 
-    impl GasConsumed {
-        pub fn gas_consumed(&self) -> u64 {
-            dusk_abi::gas_consumed()
-        }
-    }
-
     const PAGE_SIZE: usize = 1024 * 64;
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
@@ -71,7 +65,7 @@ mod hosted {
                 Ok(())
             }
             GAS_CONSUMED => {
-                let ret = slf.gas_consumed();
+                let ret = (dusk_abi::gas_consumed(), dusk_abi::gas_left());
 
                 let mut sink = Sink::new(&mut bytes[..]);
 

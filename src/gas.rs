@@ -7,6 +7,8 @@
 // Gas units are chosen to be represented by u64 so that gas metering
 // instructions can operate on them efficiently.
 
+use core::ops::Range;
+
 /// Type alias for gas
 pub type Gas = u64;
 
@@ -28,57 +30,74 @@ impl GasMeterResult {
 #[derive(Debug)]
 /// Struct to keep track of gas usage
 pub struct GasMeter {
+    /// Gas held but not spent yet
+    held: Gas,
+    /// Initial gas limit
     limit: Gas,
-    /// Amount of gas left from initial gas limit. Can reach zero.
-    gas_left: Gas,
+    /// Amount of gas left from initial gas limit; can reach zero
+    left: Gas,
 }
 
 impl GasMeter {
-    /// Minimum amount of gas that has to be used in order to call a contract
-    /// execution.
-    // TODO: Add the correct value here that changes in respect to the transfer
-    // contract.
-    pub const MIN_TERMINATION_GAS_REQUIRED: Gas = 70440;
-
     /// Creates a new `GasMeter` with given gas limits
     pub fn with_limit(gas_limit: Gas) -> GasMeter {
+        GasMeter::with_range(Range {
+            start: 0,
+            end: gas_limit,
+        })
+    }
+
+    /// Creates a new `GasMeter` with given gas range.
+    /// A range of `2_000..1_000_000` means that `2_000` gas will be
+    /// held for known required calculation, and therefore the gas
+    /// actually available is `1_000_000 - 2_000 = 800_000`.
+    pub fn with_range(gas_range: Range<Gas>) -> GasMeter {
         GasMeter {
-            limit: gas_limit,
-            gas_left: gas_limit,
+            held: gas_range.start,
+            limit: gas_range.end,
+            left: gas_range.end,
         }
     }
 
     /// Deduct specified amount of gas from the meter
     pub fn charge(&mut self, amount: Gas) -> GasMeterResult {
-        match self.gas_left.checked_sub(amount) {
+        match self.left.checked_sub(amount) {
             // If for any reason, we fall below the threshold, we run out of gas
             // directly consuming all of the gas left.
             None => {
-                self.gas_left = 0;
+                self.left = 0;
                 GasMeterResult::OutOfGas
             }
             // If after subtracting the gas, the gas left in the Meter is
-            // below [`GasMeter::MIN_TERMINATION_GAS_REQUIRED`]
+            // below [`GasMeter::held`]
             // we also abort the execution since no more stuff will be
             // possible to do.
-            Some(val) if val <= Self::MIN_TERMINATION_GAS_REQUIRED => {
-                self.gas_left = 0;
+            Some(val) if val <= self.held => {
+                self.left = 0;
                 GasMeterResult::OutOfGas
             }
             Some(val) => {
-                self.gas_left = val;
+                self.left = val;
                 GasMeterResult::Proceed
             }
         }
     }
 
     /// Returns how much gas left from the initial budget.
+    #[deprecated(since = "0.6.0", note = "Please use `left` instead")]
     pub fn gas_left(&self) -> Gas {
-        self.gas_left
+        self.left
     }
 
-    /// Returns how much gas was spent.
+    /// Returns how much gas left from the initial budget.
+    /// This take in account [`GasMeter::held`].
+    pub fn left(&self) -> Gas {
+        self.left.saturating_sub(self.held)
+    }
+
+    /// Returns how much gas was actually spent.
+    /// This does not consider [`GasMeter::held`] since it's not spent yet.
     pub fn spent(&self) -> Gas {
-        self.limit - self.gas_left
+        self.limit - self.left
     }
 }

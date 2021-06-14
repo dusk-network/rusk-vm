@@ -32,7 +32,7 @@ impl AbiCall for Gas {
 pub struct GasConsumed;
 
 impl GasConsumed {
-    pub const GAS_CONSUMED_CALL_COST: u64 = 9165;
+    pub const GAS_CONSUMED_CALL_COST: u64 = 1;
 }
 
 impl AbiCall for GasConsumed {
@@ -43,15 +43,25 @@ impl AbiCall for GasConsumed {
         context: &mut CallContext,
         _args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
-        // Note that when this function returns, the costs that invoking this
-        // host function has are not taken into account here, they are
-        // once the host call execution finnishes. Therefore, we need to
-        // add to the result the gas_consumed fn cost.
         // FIXME: This will not always be correct since if the `gas_consumed =
         // ALL` the gas, this will add the extra cost of the call
         // which can't be consumed since it's not even there.
         Ok(Some(RuntimeValue::from(
             context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST,
         )))
+    }
+}
+
+pub struct GasLeft;
+
+impl AbiCall for GasLeft {
+    const ARGUMENTS: &'static [ValueType] = &[];
+    const RETURN: Option<ValueType> = Some(ValueType::I64);
+
+    fn call(
+        context: &mut CallContext,
+        _args: RuntimeArgs,
+    ) -> Result<Option<RuntimeValue>, VMError> {
+        Ok(Some(RuntimeValue::from(context.gas_meter().left())))
     }
 }
