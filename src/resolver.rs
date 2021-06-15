@@ -78,6 +78,8 @@ abi_resolver! {
         9, "callee" => call_stack::Callee,
         10, "caller" => call_stack::Caller,
         11, "gas" => gas::Gas,
-        12, "block_height" => block_height::BlockHeight
+        12, "gas_consumed" => gas::GasConsumed,
+        13, "gas_left" => gas::GasLeft,
+        14, "block_height" => block_height::BlockHeight
     }
 }

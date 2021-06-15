@@ -240,6 +240,10 @@ impl<'a> CallContext<'a> {
         Ok((state, ret?))
     }
 
+    pub fn gas_meter(&self) -> &GasMeter {
+        self.gas_meter
+    }
+
     pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
         self.gas_meter
     }
@@ -275,7 +279,7 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn state(&self) -> &NetworkState {
-        &self.state
+        self.state
     }
 
     pub fn state_mut(&mut self) -> &mut NetworkState {

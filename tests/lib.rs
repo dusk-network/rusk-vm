@@ -12,16 +12,17 @@ use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 use dusk_abi::{Module, Transaction};
 
 use block_height::BlockHeight;
-use counter::Counter;
-use delegator::Delegator;
-use fibonacci::Fibonacci;
-// use host_fn::HostFnTest;
-use self_snapshot::SelfSnapshot;
-use tx_vec::TxVec;
-
 use callee_1::Callee1;
 use callee_2::Callee2;
 use caller::Caller;
+use counter::Counter;
+use counter_float::CounterFloat;
+use delegator::Delegator;
+use fibonacci::Fibonacci;
+use gas_consumed::GasConsumed;
+// use host_fn::HostFnTest;
+use self_snapshot::SelfSnapshot;
+use tx_vec::TxVec;
 
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
@@ -487,4 +488,122 @@ fn calling() {
         (caller_id, callee1_id, callee2_id),
         "Expected Callers and Callees"
     )
+}
+
+#[test]
+fn gas_consumed_host_function_works() {
+    let gas_contract = GasConsumed::new(99);
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/gas_consumed.wasm"
+    );
+
+    let contract = Contract::new(gas_contract, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    // 2050 is the gas held that is known will be spent in the contract
+    // after the `dusk_abi::gas_left()` call
+    let mut gas = GasMeter::with_range(2_050..1_000_000_000);
+
+    network
+        .transact::<_, ()>(contract_id, gas_consumed::INCREMENT, &mut gas)
+        .expect("Transaction error");
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, gas_consumed::VALUE, &mut gas)
+            .expect("Query error"),
+        100
+    );
+
+    let (gas_consumed, gas_left) = network
+        .query::<_, (u64, u64)>(
+            contract_id,
+            gas_consumed::GAS_CONSUMED,
+            &mut gas,
+        )
+        .expect("Query error");
+
+    assert_eq!(gas_left + gas.spent(), 1_000_000_000,
+        "The gas left plus the gas spent should be equal to the initial gas provided");
+
+    assert_eq!(
+        gas.spent() - gas_consumed,
+        2_050,
+        "The gas spent minus the gas consumed should be equal to the gas held"
+    );
+}
+
+#[test]
+fn gas_consumption_works() {
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+        .expect("Transaction error");
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .expect("Query error"),
+        100
+    );
+
+    assert_ne!(gas.spent(), 100);
+    assert!(gas.left() < 1_000_000_000);
+}
+
+#[test]
+fn out_of_gas_aborts_execution() {
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1);
+
+    let should_be_err =
+        network.transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas);
+    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
+
+    // Ensure all gas is consumed even the tx did not succeed.
+    assert_eq!(gas.left(), 0);
+}
+
+#[test]
+fn deploy_fails_with_floats() {
+    let counter = CounterFloat::new(9.99f32);
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/counter_float.wasm"
+    );
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    assert!(matches!(
+        network.deploy(contract),
+        Err(rusk_vm::VMError::InstrumentalizationError(_))
+    ));
 }

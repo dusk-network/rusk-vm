@@ -18,6 +18,7 @@ use failure::Fail;
 mod call_context;
 mod contract;
 mod gas;
+mod module_config;
 mod ops;
 mod resolver;
 mod state;
@@ -38,6 +39,8 @@ pub enum VMError {
     ContractPanic(String),
     /// Could not find WASM memory
     MemoryNotFound,
+    /// Error during the instrumentalization
+    InstrumentalizationError(module_config::InstrumentalizationError),
     /// Invalid ABI Call
     InvalidABICall,
     /// Invalid Utf8
@@ -86,6 +89,12 @@ impl From<wasmi::Trap> for VMError {
     }
 }
 
+impl From<module_config::InstrumentalizationError> for VMError {
+    fn from(e: module_config::InstrumentalizationError) -> Self {
+        VMError::InstrumentalizationError(e)
+    }
+}
+
 // The generic From<CanonError> is not specific enough and conflicts with
 // From<Self>.
 impl VMError {
@@ -123,6 +132,9 @@ impl fmt::Display for VMError {
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
             VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
+            VMError::InstrumentalizationError(e) => {
+                write!(f, "Instrumentalization error {:?}", e)?
+            }
         }
         Ok(())
     }

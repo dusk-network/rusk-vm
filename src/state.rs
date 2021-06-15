@@ -65,10 +65,12 @@ impl NetworkState {
     pub fn deploy(
         &mut self,
         contract: Contract,
-    ) -> Result<ContractId, CanonError> {
+    ) -> Result<ContractId, VMError> {
         let id: ContractId = Store::hash(contract.bytecode()).into();
 
-        self.contracts.insert(id, contract)?;
+        self.contracts
+            .insert(id, contract.instrument()?)
+            .map_err(VMError::from_store_error)?;
         Ok(id)
     }
 
