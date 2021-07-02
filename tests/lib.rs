@@ -607,3 +607,63 @@ fn deploy_fails_with_floats() {
         Err(rusk_vm::VMError::InstrumentalizationError(_))
     ));
 }
+
+#[test]
+fn persistance() {
+    use microkelvin::DiskBackend;
+
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let (persist_id, contract_id) = {
+        let mut network = NetworkState::default();
+
+        let contract_id = network.deploy(contract).unwrap();
+
+        let mut gas = GasMeter::with_limit(1_000_000_000);
+
+        assert_eq!(
+            network
+                .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+                .unwrap(),
+            99
+        );
+
+        network
+            .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+            .unwrap();
+
+        assert_eq!(
+            network
+                .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+                .unwrap(),
+            100
+        );
+
+        (
+            network
+                .persist(|| DiskBackend::new("./"))
+                .expect("Error in persistance"),
+            contract_id,
+        )
+    };
+
+    // If the persistance works, We should still read 100 with a freshly created
+    // NetworkState.
+    let mut network = NetworkState::with_block_height(10)
+        .restore(persist_id)
+        .expect("Error reconstructing the NetworkState");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .unwrap(),
+        100
+    );
+}

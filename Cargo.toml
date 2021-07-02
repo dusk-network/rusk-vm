@@ -6,7 +6,6 @@ authors = [
   "zer0 <matteo@dusk.network>"
 ]
 edition = "2018"
-
 repository = "https://github.com/dusk-network/rusk-vm"
 description = "Rusk VM is the virtual machine running Dusk Network's Smart contracts"
 license = "MPL-2.0"
@@ -17,18 +16,18 @@ wasmi-validation = "0.3"
 parity-wasm = "0.41"
 pwasm-utils = "0.16"
 failure = "0.1"
-
 dusk-abi = "0.9.0-rc"
-
 canonical = "0.6"
 canonical_derive = "0.6"
-dusk-hamt = "0.2"
+dusk-hamt = "0.3.1"
+microkelvin = "0.9.0-rc.0"
 
 [dev-dependencies]
 dusk-bls12_381 = "0.8"
 dusk-bytes = "0.1"
 dusk-poseidon = "0.21.0-rc"
 criterion = "0.3"
+
 
 
 # test contracts
@@ -45,6 +44,7 @@ callee_1 = { path = "tests/contracts/callee-1" }
 callee_2 = { path = "tests/contracts/callee-2" }
 gas_consumed = { path = "tests/contracts/gas_consumed" }
 counter_float = { path = "tests/contracts/counter_float" }
+persistance = { path = "tests/contracts/persistance" }
 
 [[bench]]
 name = "fibonacci"
@@ -55,3 +55,9 @@ harness = false
 members = [
     "tests/contracts/*",
 ]
+
+[features]
+default = ["dusk-hamt/persistance"]
+
+[patch.crates-io]
+dusk-hamt = { git = "https://github.com/dusk-network/dusk-hamt", branch = "main" }
