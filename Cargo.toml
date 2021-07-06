@@ -6,7 +6,6 @@ authors = [
   "zer0 <matteo@dusk.network>"
 ]
 edition = "2018"
-
 repository = "https://github.com/dusk-network/rusk-vm"
 description = "Rusk VM is the virtual machine running Dusk Network's Smart contracts"
 license = "MPL-2.0"
@@ -17,17 +16,15 @@ wasmi-validation = "0.3"
 parity-wasm = "0.41"
 pwasm-utils = "0.16"
 failure = "0.1"
-
-dusk-abi = "0.9.0-rc"
-
+dusk-abi = "0.9"
 canonical = "0.6"
 canonical_derive = "0.6"
-dusk-hamt = "0.2"
+dusk-hamt = "0.4"
+microkelvin = "0.9"
 
 [dev-dependencies]
 dusk-bls12_381 = "0.8"
 dusk-bytes = "0.1"
-dusk-poseidon = "0.21.0-rc"
 criterion = "0.3"
 
 
@@ -59,3 +56,6 @@ harness = false
 members = [
     "tests/contracts/*",
 ]
+
+[features]
+default = ["dusk-hamt/persistance"]

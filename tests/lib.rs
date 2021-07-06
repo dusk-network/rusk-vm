@@ -4,13 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
-
-// use dusk_bls12_381::BlsScalar;
-// use dusk_bytes::ParseHexStr;
-
-use dusk_abi::{Module, Transaction};
-
 use block_height::BlockHeight;
 use callee_1::Callee1;
 use callee_2::Callee2;
@@ -18,9 +11,10 @@ use caller::Caller;
 use counter::Counter;
 use counter_float::CounterFloat;
 use delegator::Delegator;
+use dusk_abi::{Module, Transaction};
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
-// use host_fn::HostFnTest;
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
@@ -606,4 +600,73 @@ fn deploy_fails_with_floats() {
         network.deploy(contract),
         Err(rusk_vm::VMError::InstrumentalizationError(_))
     ));
+}
+
+#[test]
+fn persistence() {
+    use microkelvin::DiskBackend;
+
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let (persist_id, contract_id) = {
+        let mut network = NetworkState::default();
+
+        let contract_id = network.deploy(contract).unwrap();
+
+        let mut gas = GasMeter::with_limit(1_000_000_000);
+
+        assert_eq!(
+            network
+                .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+                .unwrap(),
+            99
+        );
+
+        network
+            .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+            .unwrap();
+
+        assert_eq!(
+            network
+                .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+                .unwrap(),
+            100
+        );
+
+        (
+            network
+                .persist(|| {
+                    let dir = std::env::temp_dir().join("test_persist");
+                    std::fs::create_dir_all(&dir)
+                        .expect("Error on tmp dir creation");
+                    DiskBackend::new(dir)
+                })
+                .expect("Error in persistance"),
+            contract_id,
+        )
+    };
+
+    // If the persistance works, We should still read 100 with a freshly created
+    // NetworkState.
+    let mut network = NetworkState::with_block_height(10)
+        .restore(persist_id)
+        .expect("Error reconstructing the NetworkState");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .unwrap(),
+        100
+    );
+
+    // Teardown
+    std::fs::remove_dir_all(std::env::temp_dir().join("test_persist"))
+        .expect("teardown fn error");
 }
