@@ -50,6 +50,10 @@ counter_float = { path = "tests/contracts/counter_float" }
 name = "fibonacci"
 harness = false
 
+[[bench]]
+name = "stack"
+harness = false
+
 [workspace]
 
 members = [
