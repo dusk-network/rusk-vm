@@ -13,7 +13,8 @@ use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
 use dusk_hamt::Hamt;
 use microkelvin::{
-    BackendCtor, Compound, DiskBackend, PersistError, Persistance, PersistedId,
+    BackendCtor, Compound, DiskBackend, PersistError,
+    Persistance as Persistence, PersistedId,
 };
 
 use crate::call_context::CallContext;
@@ -64,22 +65,19 @@ impl NetworkState {
     }
 
     /// Persists the contracts stored on the [`NetworkState`] specifying a
-    /// path where they should be stored in the disk.
+    /// backend ctor function.
     pub fn persist(
         &self,
         ctor: fn() -> Result<DiskBackend, PersistError>,
     ) -> Result<PersistedId, PersistError> {
-        Persistance::persist(&BackendCtor::new(ctor), &self.contracts)
+        Persistence::persist(&BackendCtor::new(ctor), &self.contracts)
     }
 
     /// Given a [`PersistedId`] restores the [`Hamt`] which stores the contracts
     /// of the entire blockchain state.
-    pub fn restore(&self, id: PersistedId) -> Result<Self, PersistError> {
-        Ok(NetworkState {
-            block_height: self.block_height,
-            contracts: Hamt::from_generic(&id.restore()?)?,
-            modules: self.modules.clone(),
-        })
+    pub fn restore(mut self, id: PersistedId) -> Result<Self, PersistError> {
+        self.contracts = Hamt::from_generic(&id.restore()?)?;
+        Ok(self)
     }
 
     /// Deploys a contract to the state, returns the address of the created
