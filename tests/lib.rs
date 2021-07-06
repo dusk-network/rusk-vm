@@ -4,13 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
-
-// use dusk_bls12_381::BlsScalar;
-// use dusk_bytes::ParseHexStr;
-
-use dusk_abi::{Module, Transaction};
-
 use block_height::BlockHeight;
 use callee_1::Callee1;
 use callee_2::Callee2;
@@ -18,9 +11,10 @@ use caller::Caller;
 use counter::Counter;
 use counter_float::CounterFloat;
 use delegator::Delegator;
+use dusk_abi::{Module, Transaction};
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
-// use host_fn::HostFnTest;
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
@@ -609,7 +603,7 @@ fn deploy_fails_with_floats() {
 }
 
 #[test]
-fn persistance() {
+fn persistence() {
     use microkelvin::DiskBackend;
 
     let counter = Counter::new(99);
@@ -646,7 +640,12 @@ fn persistance() {
 
         (
             network
-                .persist(|| DiskBackend::new("./"))
+                .persist(|| {
+                    let dir = std::env::temp_dir().join("test_persist");
+                    std::fs::create_dir_all(&dir)
+                        .expect("Error on tmp dir creation");
+                    DiskBackend::new(dir)
+                })
                 .expect("Error in persistance"),
             contract_id,
         )
@@ -666,4 +665,8 @@ fn persistance() {
             .unwrap(),
         100
     );
+
+    // Teardown
+    std::fs::remove_dir_all(std::env::temp_dir().join("test_persist"))
+        .expect("teardown fn error");
 }
