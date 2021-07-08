@@ -58,4 +58,4 @@ members = [
 ]
 
 [features]
-default = ["dusk-hamt/persistance"]
+persistence = ["dusk-hamt/persistance", "microkelvin/persistance"]
