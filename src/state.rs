@@ -12,9 +12,10 @@ use std::rc::Rc;
 use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
 use dusk_hamt::Hamt;
+#[cfg(feature = "persistance")]
 use microkelvin::{
-    BackendCtor, Compound, DiskBackend, PersistError,
-    Persistance as Persistence, PersistedId,
+    BackendCtor, DiskBackend, PersistError, Persistance as Persistence,
+    PersistedId,
 };
 
 use crate::call_context::CallContext;
@@ -64,6 +65,15 @@ impl NetworkState {
         }
     }
 
+    /// Mutates the `block_height` attr of the current `NetworkState` instance.
+    ///
+    /// That method is temporary, and will not be mantained in the API on the
+    /// next versions.
+    pub fn set_block_height(&mut self, block_height: u64) {
+        self.block_height = block_height;
+    }
+
+    #[cfg(feature = "persistance")]
     /// Persists the contracts stored on the [`NetworkState`] specifying a
     /// backend ctor function.
     pub fn persist(
@@ -73,6 +83,7 @@ impl NetworkState {
         Persistence::persist(&BackendCtor::new(ctor), &self.contracts)
     }
 
+    #[cfg(feature = "persistance")]
     /// Given a [`PersistedId`] restores the [`Hamt`] which stores the contracts
     /// of the entire blockchain state.
     pub fn restore(mut self, id: PersistedId) -> Result<Self, PersistError> {
