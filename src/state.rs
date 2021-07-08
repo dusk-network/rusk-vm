@@ -12,9 +12,10 @@ use std::rc::Rc;
 use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
 use dusk_hamt::Hamt;
+#[cfg(feature = "persistance")]
 use microkelvin::{
-    BackendCtor, Compound, DiskBackend, PersistError,
-    Persistance as Persistence, PersistedId,
+    BackendCtor, DiskBackend, PersistError, Persistance as Persistence,
+    PersistedId,
 };
 
 use crate::call_context::CallContext;
@@ -64,6 +65,7 @@ impl NetworkState {
         }
     }
 
+    #[cfg(feature = "persistance")]
     /// Persists the contracts stored on the [`NetworkState`] specifying a
     /// backend ctor function.
     pub fn persist(
@@ -73,6 +75,7 @@ impl NetworkState {
         Persistence::persist(&BackendCtor::new(ctor), &self.contracts)
     }
 
+    #[cfg(feature = "persistance")]
     /// Given a [`PersistedId`] restores the [`Hamt`] which stores the contracts
     /// of the entire blockchain state.
     pub fn restore(mut self, id: PersistedId) -> Result<Self, PersistError> {

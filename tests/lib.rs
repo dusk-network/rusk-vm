@@ -602,6 +602,7 @@ fn deploy_fails_with_floats() {
     ));
 }
 
+#[cfg(feature = "persistance")]
 #[test]
 fn persistence() {
     use microkelvin::DiskBackend;
