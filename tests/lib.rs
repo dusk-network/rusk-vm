@@ -602,7 +602,7 @@ fn deploy_fails_with_floats() {
     ));
 }
 
-#[cfg(feature = "persistance")]
+#[cfg(feature = "persistence")]
 #[test]
 fn persistence() {
     use microkelvin::DiskBackend;
@@ -647,12 +647,12 @@ fn persistence() {
                         .expect("Error on tmp dir creation");
                     DiskBackend::new(dir)
                 })
-                .expect("Error in persistance"),
+                .expect("Error in persistence"),
             contract_id,
         )
     };
 
-    // If the persistance works, We should still read 100 with a freshly created
+    // If the persistence works, We should still read 100 with a freshly created
     // NetworkState.
     let mut network = NetworkState::with_block_height(10)
         .restore(persist_id)

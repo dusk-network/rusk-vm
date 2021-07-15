@@ -21,7 +21,10 @@ pub const POP: u8 = 1;
 pub const PEEK: u8 = 0;
 
 #[derive(Clone, Canon, Debug, Default)]
-pub struct Stack<T> {
+pub struct Stack<T>
+where
+    T: Canon,
+{
     inner: NStack<T, Cardinality>,
 }
 

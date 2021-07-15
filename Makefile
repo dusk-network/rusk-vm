@@ -6,7 +6,7 @@ help: ## Display this help screen
 all: $(SUBDIRS)
 
 test: $(SUBDIRS) ## Run the contracts' tests
-	cargo test -- features persistence
+	cargo test --all-features
 
 $(SUBDIRS):
 	$(MAKE) -C $@
