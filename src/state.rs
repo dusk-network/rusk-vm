@@ -64,14 +64,6 @@ impl NetworkState {
         }
     }
 
-    /// Mutates the `block_height` attr of the current `NetworkState` instance.
-    ///
-    /// That method is temporary, and will not be mantained in the API on the
-    /// next versions.
-    pub fn set_block_height(&mut self, block_height: u64) {
-        self.block_height = block_height;
-    }
-
     #[cfg(feature = "persistence")]
     /// Persists the contracts stored on the [`NetworkState`] specifying a
     /// backend ctor function.
