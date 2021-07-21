@@ -11,10 +11,10 @@ use caller::Caller;
 use counter::Counter;
 use counter_float::CounterFloat;
 use delegator::Delegator;
-use dusk_abi::{Module, Transaction};
+use dusk_abi::Transaction;
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
-use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
@@ -168,83 +168,6 @@ fn fibonacci() {
         );
     }
 }
-
-struct PoseidonModule;
-
-impl Module for PoseidonModule {
-    fn id() -> ContractId {
-        ContractId::reserved(11)
-    }
-}
-
-// impl HostModule for PoseidonModule
-// where
-//     S: Store,
-// {
-//     fn execute(&self, query: Query) -> Result<ReturnValue, CanonError> {
-//         let mut source = Source::new(query.as_bytes(), &self.store);
-
-//         let qid: u8 = Canon::::read(&mut source)?;
-
-//         match qid {
-//             0 => {
-//                 let scalars: Vec<BlsScalar> = Canon::::read(&mut source)?;
-//                 let ret = dusk_poseidon::sponge::hash(&scalars);
-
-//                 ReturnValue::from_canon(&ret, &self.store)
-//             }
-//             _ => todo!(),
-//         }
-//     }
-// }
-
-// #[test]
-// fn hash_as_host_fn() {
-//     let test_inputs = [
-//         "bb67ed265bf1db490ded2e1ede55c0d14c55521509dc73f9c354e98ab76c9625",
-//         "7e74220084d75e10c89e9435d47bb5b8075991b2e29be3b84421dac3b1ee6007",
-//         "5ce5481a4d78cca03498f72761da1b9f1d2aa8fb300be39f0e4fe2534f9d4308",
-//     ];
-
-//     let test_inputs: Vec<BlsScalar> = test_inputs
-//         .iter()
-//         .map(|input| BlsScalar::from_hex_str(input).unwrap())
-//         .collect();
-
-//     let hash = HostFnTest::new();
-
-//     let store = MS::new();
-
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/host_fn.
-// wasm");
-
-//     let contract = Contract::new(hash, code.to_vec()).unwrap();
-
-//     let mut network = NetworkState::default();
-
-//     let pos_mod = PoseidonModule::new(store.clone());
-
-//     network.register_host_module(pos_mod);
-
-//     let contract_id = network.deploy(contract).unwrap();
-
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-
-//     assert_eq!(
-//         "0xe36f4ea9b858d5c85b02770823c7c5d8253c28787d17f283ca348b906dca8528",
-//         format!(
-//             "{:#x}",
-//             network
-//                 .query::<_, BlsScalar>(
-//                     contract_id,
-//                     (host_fn::HASH, test_inputs),
-//                     &mut gas
-//                 )
-//                 .unwrap()
-//         )
-//     );
-// }
 
 #[test]
 fn block_height() {
@@ -600,6 +523,55 @@ fn deploy_fails_with_floats() {
         network.deploy(contract),
         Err(rusk_vm::VMError::InstrumentalizationError(_))
     ));
+}
+
+#[test]
+fn deploy_with_id() -> Result<(), VMError> {
+    // Smallest valid WASM module possible so `deploy` won't raise a
+    // `InvalidByteCode` error
+    let code = 0x0000_0001_6D73_6100_u64.to_le_bytes();
+
+    // Create a contract with a simple state
+    let contract = Contract::new(0xfeed_u16, code.to_vec());
+
+    // Reserve a `ContractId`
+    let id = ContractId::reserved(0x10);
+
+    // Deploy with the id given
+    let mut network = NetworkState::default();
+
+    // The id is the same returned by the deploy function
+    assert_eq!(id, network.deploy_with_id(id, contract)?);
+
+    // Get the contract deployed using the same id, and verify the state is also
+    // the same
+    let state: u16 = network
+        .get_contract(&id)?
+        .state()
+        .cast()
+        .expect("Cannot cast the state");
+    assert_eq!(state, 0xfeed);
+
+    // Deploy another contract at the same address
+    let contract = Contract::new(0xcafe_u16, code.to_vec());
+    network.deploy_with_id(id, contract)?;
+
+    // Get the contract deployed using the same id, and verify the state is NOT
+    // the same as before.
+    //
+    // TODO: This means a contract CAN BE overriden once deployed, we need to
+    // decided if we should raise an error if a contract already exists with
+    // the same address
+    network.get_contract(&id)?;
+
+    let state: u16 = network
+        .get_contract(&id)?
+        .state()
+        .cast()
+        .expect("Cannot cast the state");
+    assert_eq!(state, 0xcafe);
+
+    Ok(())
 }
 
 #[cfg(feature = "persistence")]

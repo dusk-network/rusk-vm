@@ -90,6 +90,15 @@ impl NetworkState {
     ) -> Result<ContractId, VMError> {
         let id: ContractId = Store::hash(contract.bytecode()).into();
 
+        self.deploy_with_id(id, contract)
+    }
+
+    /// Deploys a contract to the state with the given id / address
+    pub fn deploy_with_id(
+        &mut self,
+        id: ContractId,
+        contract: Contract,
+    ) -> Result<ContractId, VMError> {
         self.contracts
             .insert(id, contract.instrument()?)
             .map_err(VMError::from_store_error)?;
