@@ -1,6 +1,6 @@
 [package]
 name = "rusk-vm"
-version = "0.7.0-rc.0"
+version = "0.7.0-rc.1"
 authors = [
   "Kristoffer Ström <kristoffer@dusk.network>",
   "zer0 <matteo@dusk.network>"
