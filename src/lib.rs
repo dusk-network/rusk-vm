@@ -18,6 +18,8 @@ use failure::Fail;
 mod call_context;
 mod contract;
 mod gas;
+#[cfg(feature = "gasmonitor")]
+mod gasmonitor;
 mod module_config;
 mod ops;
 mod resolver;

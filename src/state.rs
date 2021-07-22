@@ -99,8 +99,12 @@ impl NetworkState {
         id: ContractId,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
+        let contract_instr = contract.instrument()?;
+        #[cfg(feature = "gasmonitor")]
+        super::gasmonitor::export_wat(contract_instr.bytecode())
+            .expect("Can not export wat.");
         self.contracts
-            .insert(id, contract.instrument()?)
+            .insert(id, contract_instr)
             .map_err(VMError::from_store_error)?;
         Ok(id)
     }
