@@ -5,12 +5,25 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_abi::ContractId;
-use wabt::{wasm2wat, Error as WabtError};
+use std::io::Write;
+use wabt::wasm2wat;
 
 pub fn export_wat<S: AsRef<[u8]>>(
     bytecode: S,
-    id: ContractId,
+    _id: ContractId,
     is_instr: bool,
-) -> Result<(), WabtError> {
-    unimplemented!();
+) {
+    //unimplemented!();
+    let wat = wasm2wat(bytecode).expect("failed to parse wasm to wat.");
+    let filename = {
+        if is_instr {
+            concat!("tests/", "_deployed.wat")
+        } else {
+            concat!("tests/", "_undeployed.wat")
+        }
+    };
+    let mut file =
+        std::fs::File::create(filename).expect("Couldn't create file");
+    file.write_all(wat.as_bytes())
+        .expect("Couldn't write into file");
 }
