@@ -4,8 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use dusk_abi::ContractId;
 use wabt::{wasm2wat, Error as WabtError};
 
-pub fn export_wat<S: AsRef<[u8]>>(bytecode: S) -> Result<(), WabtError> {
+pub fn export_wat<S: AsRef<[u8]>>(
+    bytecode: S,
+    id: ContractId,
+    is_instr: bool,
+) -> Result<(), WabtError> {
     unimplemented!();
 }

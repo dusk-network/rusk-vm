@@ -8,9 +8,10 @@ all: $(SUBDIRS)
 test: $(SUBDIRS) ## Run the contracts' tests
 	cargo test --features "persistence"
 
-gasmonitor: 
+gasmonitor:
+	cargo test --release --features "gasmonitor" --test gasmonitor
 
 $(SUBDIRS):
 	$(MAKE) -C $@
 
-.PHONY: help all test $(SUBDIRS)
+.PHONY: help all test $(SUBDIRS) gasmonitor
