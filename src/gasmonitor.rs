@@ -8,20 +8,16 @@ use dusk_abi::ContractId;
 use std::io::Write;
 use wabt::wasm2wat;
 
-pub fn export_wat<S: AsRef<[u8]>>(
-    bytecode: S,
-    _id: ContractId,
-    is_instr: bool,
-) {
-    //unimplemented!();
+pub fn export_wat<S: AsRef<[u8]>>(bytecode: S, id: ContractId, deployed: bool) {
     let wat = wasm2wat(bytecode).expect("failed to parse wasm to wat.");
-    let filename = {
-        if is_instr {
-            concat!("tests/", "_deployed.wat")
-        } else {
-            concat!("tests/", "_undeployed.wat")
-        }
-    };
+    let id = id.as_bytes();
+    let filename = format!(
+        "tests/{:03}{:03}{:03}_{}.wat",
+        id[0],
+        id[1],
+        id[2],
+        if deployed { "deployed" } else { "undeployed" }
+    );
     let mut file =
         std::fs::File::create(filename).expect("Couldn't create file");
     file.write_all(wat.as_bytes())
