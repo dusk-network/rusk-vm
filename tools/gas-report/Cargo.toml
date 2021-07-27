@@ -1,0 +1,10 @@
+[package]
+name = "gas-report"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+canonical = "0.6"
+nstack = "0.10"
+minimal = { path = "../../tests/contracts/minimal" }
+rusk-vm = { path = "../../" }

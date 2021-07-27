@@ -7,14 +7,11 @@
 #![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use canonical_derive::Canon;
-
-#[derive(Clone, Canon)]
-pub struct Minimal;
-
 #[cfg(target_arch = "wasm32")]
 mod hosted {
     use super::*;
+
+    use nstack::NStack;
 
     const PAGE_SIZE: usize = 1024 * 4;
 
@@ -23,7 +20,7 @@ mod hosted {
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
         let mut source = Source::new(&bytes[..]);
-        let _slf = Minimal::decode(&mut source)?;
+        let _slf: NStack<u32, ()> = Canon::decode(&mut source)?;
         let arg = u32::decode(&mut source)?;
         // return
         let mut sink = Sink::new(&mut bytes[..]);

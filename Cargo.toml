@@ -20,7 +20,7 @@ dusk-abi = "0.9"
 canonical = "0.6"
 canonical_derive = "0.6"
 dusk-hamt = "0.5.0-rc"
-microkelvin = "0.10.0-rc"
+microkelvin = "0.10"
 
 [dev-dependencies]
 dusk-bls12_381 = "0.8"
@@ -30,7 +30,6 @@ criterion = "0.3"
 
 # test contracts
 counter = { path = "tests/contracts/counter" }
-minimal = { path = "tests/contracts/minimal" }
 fibonacci = { path = "tests/contracts/fibonacci" }
 delegator = { path = "tests/contracts/delegator" }
 stack = { path = "tests/contracts/stack" }
@@ -43,6 +42,12 @@ callee_1 = { path = "tests/contracts/callee-1" }
 callee_2 = { path = "tests/contracts/callee-2" }
 gas_consumed = { path = "tests/contracts/gas_consumed" }
 counter_float = { path = "tests/contracts/counter_float" }
+
+minimal = { path = "tests/contracts/minimal" }
+minimal_nstack = { path = "tests/contracts/minimal_nstack" }
+
+# tools
+gas-report = { path = "tools/gas-report" }
 
 [[bench]]
 name = "fibonacci"
