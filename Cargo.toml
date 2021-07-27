@@ -30,6 +30,7 @@ criterion = "0.3"
 
 # test contracts
 counter = { path = "tests/contracts/counter" }
+minimal = { path = "tests/contracts/minimal" }
 fibonacci = { path = "tests/contracts/fibonacci" }
 delegator = { path = "tests/contracts/delegator" }
 stack = { path = "tests/contracts/stack" }

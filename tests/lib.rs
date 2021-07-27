@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
+
 use block_height::BlockHeight;
 use callee_1::Callee1;
 use callee_2::Callee2;
@@ -14,7 +16,7 @@ use delegator::Delegator;
 use dusk_abi::Transaction;
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
-use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
+use minimal::Minimal;
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
@@ -57,6 +59,29 @@ fn counter() {
             .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
             .unwrap(),
         100
+    );
+}
+
+#[test]
+fn minimal() {
+    let minimal = Minimal;
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/minimal.wasm");
+
+    let contract = Contract::new(minimal, code.to_vec());
+
+    let mut network = NetworkState::default();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        network
+            .query::<u32, u32>(contract_id, 28, &mut gas)
+            .unwrap(),
+        28
     );
 }
 
