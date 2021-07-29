@@ -1,11 +1,19 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) DUSK NETWORK. All rights reserved.
+
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 
 use canonical::Canon;
 use minimal::Minimal;
+use minimal_poseidon::Leaf;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 
+use dusk_poseidon::tree::{PoseidonAnnotation, PoseidonTree};
 use nstack::NStack;
 
 fn report_gas<S, A, R>(
@@ -41,12 +49,24 @@ where
     Ok(())
 }
 
+type Tree = PoseidonTree<Leaf, PoseidonAnnotation, 17>;
+
 fn main() -> Result<(), Box<dyn Error>> {
     report_gas::<_, _, ()>("minimal", Minimal, 32)?;
     report_gas::<NStack<u32, ()>, _, ()>(
         "minimal_nstack",
         Default::default(),
         32,
+    )?;
+    report_gas::<NStack<[u8; 64], ()>, _, ()>(
+        "minimal_nstack_large",
+        Default::default(),
+        32,
+    )?;
+    report_gas::<Tree, (), ()>(
+        "minimal_poseidon",
+        Default::default(),
+        Default::default(),
     )?;
     Ok(())
 }

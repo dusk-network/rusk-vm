@@ -9,6 +9,8 @@
 
 #[cfg(target_arch = "wasm32")]
 mod hosted {
+    use super::*;
+
     use nstack::NStack;
 
     const PAGE_SIZE: usize = 1024 * 4;
@@ -18,7 +20,7 @@ mod hosted {
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
         let mut source = Source::new(&bytes[..]);
-        let _slf: NStack<u32, ()> = Canon::decode(&mut source)?;
+        let _slf: NStack<[u8; 64], ()> = Canon::decode(&mut source)?;
         let arg = u32::decode(&mut source)?;
         // return
         let mut sink = Sink::new(&mut bytes[..]);
