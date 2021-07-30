@@ -33,6 +33,8 @@ where
     let mut code = Vec::new();
     file.read_to_end(&mut code)?;
 
+    let encoded_len = state.encoded_len();
+
     let contract = Contract::new(state, code.to_vec());
     let mut network = NetworkState::default();
     let contract_id = network.deploy(contract).unwrap();
@@ -41,9 +43,11 @@ where
     network.query::<A, R>(contract_id, arg, &mut gas).unwrap();
 
     println!(
-        "{:?}: wasm size: {:?} gas: {:?}",
+        "{0: <20} | {1: <10} | {2: <10} | {3: <10} | {4: <10}",
         name,
         code.len(),
+        core::mem::size_of::<S>(),
+        encoded_len,
         gas.spent()
     );
     Ok(())
@@ -52,6 +56,11 @@ where
 type Tree = PoseidonTree<Leaf, PoseidonAnnotation, 17>;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    println!(
+        "{0: <20} | {1: <10} | {2: <10} | {3: <10} | {4: <10}",
+        "name", "wasm", "mem", "encoded", "gas"
+    );
+
     report_gas::<_, _, ()>("minimal", Minimal, 32)?;
     report_gas::<NStack<u32, ()>, _, ()>(
         "minimal_nstack",
