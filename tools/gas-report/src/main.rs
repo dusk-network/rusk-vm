@@ -11,6 +11,7 @@ use std::io::Read;
 use canonical::Canon;
 use minimal::Minimal;
 use minimal_poseidon::Leaf;
+use minimal_transfer::MockTransfer;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 
 use dusk_poseidon::tree::{PoseidonAnnotation, PoseidonTree};
@@ -74,6 +75,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     report_gas::<Tree, (), ()>(
         "minimal_poseidon",
+        Default::default(),
+        Default::default(),
+    )?;
+    report_gas::<MockTransfer, (), ()>(
+        "minimal_transfer",
         Default::default(),
         Default::default(),
     )?;

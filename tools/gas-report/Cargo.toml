@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+rusk-vm = { path = "../../" }
 canonical = "0.6"
-nstack = "0.10"
+
 minimal = { path = "../../tests/contracts/minimal" }
 minimal_poseidon = { path = "../../tests/contracts/minimal_poseidon" }
-rusk-vm = { path = "../../" }
+minimal_transfer = { path = "../../tests/contracts/minimal_transfer" }
+
+nstack = "0.10"
 dusk-poseidon = { version = "0.22", features = ["canon"] }

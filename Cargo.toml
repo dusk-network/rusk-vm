@@ -47,6 +47,7 @@ minimal = { path = "tests/contracts/minimal" }
 minimal_nstack = { path = "tests/contracts/minimal_nstack" }
 minimal_nstack_large = { path = "tests/contracts/minimal_nstack_large" }
 minimal_poseidon = { path = "tests/contracts/minimal_poseidon" }
+minimal_transfer = { path = "tests/contracts/minimal_transfer" }
 
 # tools
 gas-report = { path = "tools/gas-report" }
