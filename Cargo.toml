@@ -47,11 +47,11 @@ harness = false
 name = "stack"
 harness = false
 
-[workspace]
+# [workspace]
 
-members = [
-    "tests/contracts/*",
-]
+# members = [
+#     "tests/contracts/*",
+# ]
 
 # [features]
 # persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]

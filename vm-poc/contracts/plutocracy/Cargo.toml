@@ -1,5 +1,5 @@
 [package]
-name = "complex"
+name = "plutocracy"
 version = "0.1.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
