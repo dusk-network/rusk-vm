@@ -12,7 +12,6 @@
 
 use std::{fmt, io};
 
-use canonical::CanonError;
 use failure::Fail;
 
 mod call_context;
@@ -67,8 +66,6 @@ pub enum VMError {
     IOError(io::Error),
     /// Invalid WASM Module
     InvalidWASMModule,
-    /// Error propagated from underlying store
-    StoreError(CanonError),
 }
 
 impl From<io::Error> for VMError {
@@ -92,15 +89,6 @@ impl From<wasmi::Trap> for VMError {
 impl From<module_config::InstrumentalizationError> for VMError {
     fn from(e: module_config::InstrumentalizationError) -> Self {
         VMError::InstrumentalizationError(e)
-    }
-}
-
-// The generic From<CanonError> is not specific enough and conflicts with
-// From<Self>.
-impl VMError {
-    /// Create a VMError from the associated stores
-    pub fn from_store_error(err: CanonError) -> Self {
-        VMError::StoreError(err)
     }
 }
 
@@ -131,7 +119,6 @@ impl fmt::Display for VMError {
             VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
-            VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
             VMError::InstrumentalizationError(e) => {
                 write!(f, "Instrumentalization error {:?}", e)?
             }

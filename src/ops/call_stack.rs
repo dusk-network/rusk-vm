@@ -24,13 +24,11 @@ impl AbiCall for Callee {
             let result_ofs = result_ofs as usize;
             let callee = *context.callee();
 
-            context
-                .memory_mut(|a| {
-                    a[result_ofs..result_ofs + 32]
-                        .copy_from_slice(callee.as_bytes());
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
+            context.memory_mut(|a| {
+                a[result_ofs..result_ofs + 32]
+                    .copy_from_slice(callee.as_bytes());
+                Ok(None)
+            })
         } else {
             Err(VMError::InvalidArguments)
         }
@@ -51,13 +49,11 @@ impl AbiCall for Caller {
             let result_ofs = result_ofs as usize;
             let caller = *context.caller();
 
-            context
-                .memory_mut(|a| {
-                    a[result_ofs..result_ofs + 32]
-                        .copy_from_slice(caller.as_bytes());
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
+            context.memory_mut(|a| {
+                a[result_ofs..result_ofs + 32]
+                    .copy_from_slice(caller.as_bytes());
+                Ok(None)
+            })
         } else {
             Err(VMError::InvalidArguments)
         }

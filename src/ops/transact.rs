@@ -8,8 +8,6 @@ use crate::call_context::CallContext;
 use crate::ops::AbiCall;
 use crate::VMError;
 
-use canonical::{Canon, Sink, Source};
-use dusk_abi::{ContractId, ContractState, Transaction};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct ApplyTransaction;
@@ -28,35 +26,33 @@ impl AbiCall for ApplyTransaction {
             let contract_id_ofs = contract_id_ofs as usize;
             let transaction_ofs = transaction_ofs as usize;
 
-            let (contract_id, state, transaction) = context
-                .memory(|m| {
-                    let contract_id = ContractId::from(
-                        &m[contract_id_ofs..contract_id_ofs + 32],
-                    );
+            // let (contract_id, state, transaction) = context.memory(|m| {
+            //     // let contract_id =
+            //     //     ContractId::from(&m[contract_id_ofs..contract_id_ofs +
+            //     // 32]);
 
-                    let mut source = Source::new(&m[transaction_ofs..]);
+            //     let state = todo!();
+            //     let transaction = todo!();
 
-                    let state = ContractState::decode(&mut source)?;
-                    let transaction = Transaction::decode(&mut source)?;
-
-                    Ok((contract_id, state, transaction))
-                })
-                .map_err(VMError::from_store_error)?;
+            //     todo!()
+            // });
 
             let callee = *context.callee();
-            *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
+            // *context
+            //     .state_mut()
+            //     .get_contract_mut(&callee)
+            //     .expect("todo")
+            //     .data_mut() = state;
 
-            let (state, result) = context.transact(contract_id, transaction)?;
+            // let (state, result) = context.transact(contract_id,
+            // transaction)?;
 
-            context
-                .memory_mut(|m| {
-                    // write back the return value
-                    let mut sink = Sink::new(&mut m[transaction_ofs..]);
-                    state.encode(&mut sink);
-                    result.encode(&mut sink);
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
+            // context.memory_mut(|m| {
+            //     // write back the return value
+            //     todo!();
+            //     Ok(None)
+            // })
+            todo!()
         } else {
             Err(VMError::InvalidArguments)
         }

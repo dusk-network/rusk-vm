@@ -1,0 +1,12 @@
+[package]
+name = "complex"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rkyv = { version = "0.7.10", default-features = false, features = ["size_32", "archive_le"] }
+vm-poc = { path = "../..", default-features = false }

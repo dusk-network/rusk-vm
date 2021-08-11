@@ -6,27 +6,24 @@
 
 use crate::module_config::ModuleConfig;
 use crate::VMError;
-use canonical::Canon;
-use canonical_derive::Canon;
 
 pub use dusk_abi::{ContractId, ContractState};
 
 /// A representation of a contract with a state and bytecode
-#[derive(Clone, Canon)]
+#[derive(Clone)]
 pub struct Contract {
-    state: ContractState,
     code: Vec<u8>,
+    data: Vec<u8>,
 }
 
 impl Contract {
     /// Create a new Contract with initial state and code
     pub fn new<State, Code>(state: State, code: Code) -> Self
     where
-        State: Canon,
         Code: Into<Vec<u8>>,
     {
         Contract {
-            state: ContractState::from_canon(&state),
+            data: todo!(),
             code: code.into(),
         }
     }
@@ -37,13 +34,13 @@ impl Contract {
     }
 
     /// Returns a reference to the contract state
-    pub fn state(&self) -> &ContractState {
-        &self.state
+    pub fn data(&self) -> &[u8] {
+        &self.data
     }
 
     /// Returns a mutable reference to the contract state
-    pub fn state_mut(&mut self) -> &mut ContractState {
-        &mut self.state
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        &mut self.data
     }
 
     pub(crate) fn instrument(mut self) -> Result<Self, VMError> {

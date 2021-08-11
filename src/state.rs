@@ -6,21 +6,13 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-
-use canonical::{Canon, CanonError, Sink, Source, Store};
-use dusk_abi::{HostModule, Query, Transaction};
-use dusk_hamt::Hamt;
-#[cfg(feature = "persistence")]
-use microkelvin::{
-    BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
-};
 
 use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::VMError;
+use dusk_abi::HostModule;
 
 type BoxedHostModule = Box<dyn HostModule>;
 
@@ -28,30 +20,7 @@ type BoxedHostModule = Box<dyn HostModule>;
 #[derive(Clone, Default)]
 pub struct NetworkState {
     block_height: u64,
-    contracts: Hamt<ContractId, Contract, ()>,
-    modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
-}
-
-// Manual implementation of `Canon` to ignore the "modules" which needs to be
-// re-instantiated on program initialization.
-impl Canon for NetworkState {
-    fn encode(&self, sink: &mut Sink) {
-        self.block_height.encode(sink);
-        self.contracts.encode(sink);
-    }
-
-    fn decode(source: &mut Source) -> Result<Self, CanonError> {
-        Ok(NetworkState {
-            block_height: u64::decode(source)?,
-            contracts: Hamt::decode(source)?,
-            modules: Rc::new(RefCell::new(HashMap::new())),
-        })
-    }
-
-    fn encoded_len(&self) -> usize {
-        Canon::encoded_len(&self.block_height)
-            + Canon::encoded_len(&self.contracts)
-    }
+    contracts: HashMap<ContractId, Contract>,
 }
 
 impl NetworkState {
@@ -59,8 +28,7 @@ impl NetworkState {
     pub fn with_block_height(block_height: u64) -> Self {
         Self {
             block_height,
-            contracts: Hamt::default(),
-            modules: Rc::new(RefCell::new(HashMap::new())),
+            contracts: HashMap::default(),
         }
     }
 
@@ -84,13 +52,11 @@ impl NetworkState {
 
     /// Deploys a contract to the state, returns the address of the created
     /// contract or an error
-    pub fn deploy(
-        &mut self,
-        contract: Contract,
-    ) -> Result<ContractId, VMError> {
-        let id: ContractId = Store::hash(contract.bytecode()).into();
+    pub fn deploy(&mut self, contract: Contract) -> ContractId {
+        // let id: ContractId = ContractId::sequential();
 
-        self.deploy_with_id(id, contract)
+        // self.deploy_with_id(id, contract)
+        todo!()
     }
 
     /// Deploys a contract to the state with the given id / address
@@ -98,35 +64,26 @@ impl NetworkState {
         &mut self,
         id: ContractId,
         contract: Contract,
-    ) -> Result<ContractId, VMError> {
+    ) -> ContractId {
         self.contracts
-            .insert(id, contract.instrument()?)
-            .map_err(VMError::from_store_error)?;
-        Ok(id)
+            .insert(id, contract.instrument().expect("todo"));
+        id
     }
 
     /// Returns a reference to the specified contracts state
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
-        self.contracts
-            .get(contract_id)
-            .map_err(VMError::from_store_error)
-            .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+    ) -> Option<&Contract> {
+        self.contracts.get(contract_id)
     }
 
     /// Returns a reference to the specified contracts state
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
-        self.contracts
-            .get_mut(contract_id)
-            .map_err(VMError::from_store_error)
-            .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+    ) -> Option<&mut Contract> {
+        self.contracts.get_mut(contract_id)
     }
 
     /// Returns a reference to the map of registered host modules
@@ -147,71 +104,34 @@ impl NetworkState {
         target: ContractId,
         query: A,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError>
-    where
-        A: Canon,
-        R: Canon,
-    {
-        let mut context = CallContext::new(self, gas_meter);
+    ) -> Result<R, VMError> {
+        // let mut context = CallContext::new(self, gas_meter);
 
-        let result = context.query(target, Query::from_canon(&query))?;
+        // let result = context.query(target, Query::from_canon(&query))?;
 
-        result.cast().map_err(VMError::from_store_error)
+        // result.cast().map_err(VMError::from_store_error)
+        todo!()
     }
 
     /// Transact with the contract at address `target`
-    pub fn transact<A, R>(
+    pub fn transact<R>(
         &mut self,
         target: ContractId,
-        transaction: A,
+        argument: &[u8],
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError>
-    where
-        A: Canon,
-        R: Canon,
-    {
+    ) -> Result<R, VMError> {
         // Fork the current network's state
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(&mut fork, gas_meter);
+        let mut context = CallContext::new(&mut fork, gas_meter, argument);
 
-        let (_, result) =
-            context.transact(target, Transaction::from_canon(&transaction))?;
-
-        let ret = result.cast().map_err(VMError::from_store_error)?;
+        let (_, result) = context.transact(target)?;
 
         // If we reach this point, everything went well and we can use the
         // updates made in the forked state.
         *self = fork;
 
-        Ok(ret)
-    }
-
-    /// Register a host-fn handler
-    pub fn register_host_module<M>(&mut self, module: M)
-    where
-        M: HostModule + 'static,
-    {
-        self.modules
-            .borrow_mut()
-            .insert(module.module_id(), Box::new(module));
-    }
-
-    /// Gets the state of the given contract
-    pub fn get_contract_cast_state<C>(
-        &self,
-        contract_id: &ContractId,
-    ) -> Result<C, VMError>
-    where
-        C: Canon,
-    {
-        self.contracts
-            .get(contract_id)
-            .map_err(VMError::from_store_error)?
-            .map_or(Err(VMError::UnknownContract), |contract| {
-                let mut source = Source::new((*contract).state().as_bytes());
-                C::decode(&mut source).map_err(VMError::from_store_error)
-            })
+        Ok(result)
     }
 }
