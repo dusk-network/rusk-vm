@@ -179,7 +179,7 @@ fn block_height() {
 
     let contract = Contract::new(bh, code.to_vec());
 
-    let mut network = NetworkState::with_block_height(99);
+    let mut network = NetworkState::new().with_block_height(99);
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -203,7 +203,7 @@ fn self_snapshot() {
 
     let contract = Contract::new(bh, code.to_vec());
 
-    let mut network = NetworkState::with_block_height(99);
+    let mut network = NetworkState::new().with_block_height(99);
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -524,7 +524,7 @@ fn deploy_fails_with_floats() {
 
     assert!(matches!(
         network.deploy(contract),
-        Err(rusk_vm::VMError::InstrumentalizationError(_))
+        Err(rusk_vm::VMError::InstrumentationError(_))
     ));
 }
 
@@ -629,7 +629,8 @@ fn persistence() {
 
     // If the persistence works, We should still read 100 with a freshly created
     // NetworkState.
-    let mut network = NetworkState::with_block_height(10)
+    let mut network = NetworkState::new()
+        .with_block_height(10)
         .restore(persist_id)
         .expect("Error reconstructing the NetworkState");
 

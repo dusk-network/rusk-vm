@@ -125,7 +125,8 @@ fn stack_persist() {
     };
 
     // If the persistence works, We should be able to correctly pop the stack
-    let mut network = NetworkState::with_block_height(10)
+    let mut network = NetworkState::new()
+        .with_block_height(10)
         .restore(persist_id)
         .expect("Error reconstructing the NetworkState");
 

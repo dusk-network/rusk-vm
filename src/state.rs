@@ -7,6 +7,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::path::Path;
 use std::rc::Rc;
 
 use canonical::{Canon, CanonError, Sink, Source, Store};
@@ -18,6 +19,7 @@ use microkelvin::{
 };
 
 use crate::call_context::CallContext;
+use crate::config::Config;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::VMError;
@@ -30,10 +32,11 @@ pub struct NetworkState {
     block_height: u64,
     contracts: Hamt<ContractId, Contract, ()>,
     modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
+    config: Config,
 }
 
-// Manual implementation of `Canon` to ignore the "modules" which needs to be
-// re-instantiated on program initialization.
+// Manual implementation of `Canon` to ignore the `modules`  and configurations,
+// which need to be re-instantiated on program initialization.
 impl Canon for NetworkState {
     fn encode(&self, sink: &mut Sink) {
         self.block_height.encode(sink);
@@ -45,6 +48,7 @@ impl Canon for NetworkState {
             block_height: u64::decode(source)?,
             contracts: Hamt::decode(source)?,
             modules: Rc::new(RefCell::new(HashMap::new())),
+            config: Config::default(),
         })
     }
 
@@ -55,13 +59,24 @@ impl Canon for NetworkState {
 }
 
 impl NetworkState {
-    /// Returns a [`NetworkState`] for a specific block height
-    pub fn with_block_height(block_height: u64) -> Self {
-        Self {
-            block_height,
-            contracts: Hamt::default(),
-            modules: Rc::new(RefCell::new(HashMap::new())),
-        }
+    /// Returns a new instance of [`NetworkState`]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Replaces the configurations of the [`NetworkState`] instance
+    pub fn with_config<P: AsRef<Path>>(
+        mut self,
+        config_file: P,
+    ) -> Result<Self, VMError> {
+        self.config = Config::new(config_file)?;
+        Ok(self)
+    }
+
+    /// Changes the block-height of the [`NetworkState`] instance
+    pub fn with_block_height(mut self, block_height: u64) -> Self {
+        self.block_height = block_height;
+        self
     }
 
     #[cfg(feature = "persistence")]
@@ -100,7 +115,7 @@ impl NetworkState {
         contract: Contract,
     ) -> Result<ContractId, VMError> {
         self.contracts
-            .insert(id, contract.instrument()?)
+            .insert(id, contract.instrument(&self.config)?)
             .map_err(VMError::from_store_error)?;
         Ok(id)
     }
@@ -141,7 +156,7 @@ impl NetworkState {
         self.block_height
     }
 
-    /// Queryn the contract at address `target`
+    /// Query the contract at address `target`
     pub fn query<A, R>(
         &mut self,
         target: ContractId,

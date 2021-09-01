@@ -16,9 +16,9 @@ use canonical::CanonError;
 use failure::Fail;
 
 mod call_context;
+mod config;
 mod contract;
 mod gas;
-mod module_config;
 mod ops;
 mod resolver;
 mod state;
@@ -39,8 +39,8 @@ pub enum VMError {
     ContractPanic(String),
     /// Could not find WASM memory
     MemoryNotFound,
-    /// Error during the instrumentalization
-    InstrumentalizationError(module_config::InstrumentalizationError),
+    /// Error during the instrumentation
+    InstrumentationError(config::InstrumentationError),
     /// Invalid ABI Call
     InvalidABICall,
     /// Invalid Utf8
@@ -59,7 +59,7 @@ pub enum VMError {
     UnknownContract,
     /// WASM threw an error
     WASMError(failure::Error),
-    /// wasmi trap triggered
+    /// Wasmi trap triggered
     Trap(wasmi::Trap),
     /// Wasmi threw an error
     WasmiError(wasmi::Error),
@@ -89,9 +89,9 @@ impl From<wasmi::Trap> for VMError {
     }
 }
 
-impl From<module_config::InstrumentalizationError> for VMError {
-    fn from(e: module_config::InstrumentalizationError) -> Self {
-        VMError::InstrumentalizationError(e)
+impl From<config::InstrumentationError> for VMError {
+    fn from(e: config::InstrumentationError) -> Self {
+        VMError::InstrumentationError(e)
     }
 }
 
@@ -132,8 +132,8 @@ impl fmt::Display for VMError {
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
             VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
-            VMError::InstrumentalizationError(e) => {
-                write!(f, "Instrumentalization error {:?}", e)?
+            VMError::InstrumentationError(e) => {
+                write!(f, "Instrumentation error {:?}", e)?
             }
         }
         Ok(())
@@ -143,93 +143,5 @@ impl fmt::Display for VMError {
 impl fmt::Debug for VMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
-    }
-}
-
-/// Definition of the cost schedule and other parameterizations for wasm vm.
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Clone, PartialEq, Eq)]
-pub struct Schedule {
-    /// Version of the schedule.
-    pub version: u32,
-
-    /// Cost of putting a byte of code into storage.
-    pub put_code_per_byte_cost: Gas,
-
-    /// Gas cost of a growing memory by single page.
-    pub grow_mem_cost: Gas,
-
-    /// Gas cost of a regular operation.
-    pub regular_op_cost: Gas,
-
-    /// Gas cost per one byte returned.
-    pub return_data_per_byte_cost: Gas,
-
-    /// Gas cost to deposit an event; the per-byte portion.
-    pub event_data_per_byte_cost: Gas,
-
-    /// Gas cost to deposit an event; the cost per topic.
-    pub event_per_topic_cost: Gas,
-
-    /// Gas cost to deposit an event; the base.
-    pub event_base_cost: Gas,
-
-    /// Base gas cost to call into a contract.
-    pub call_base_cost: Gas,
-
-    /// Base gas cost to instantiate a contract.
-    pub instantiate_base_cost: Gas,
-
-    /// Gas cost per one byte read from the sandbox memory.
-    pub sandbox_data_read_cost: Gas,
-
-    /// Gas cost per one byte written to the sandbox memory.
-    pub sandbox_data_write_cost: Gas,
-
-    /// The maximum number of topics supported by an event.
-    pub max_event_topics: u32,
-
-    /// Maximum allowed stack height.
-    ///
-    /// See https://wiki.parity.io/WebAssembly-StackHeight to find out
-    /// how the stack frame cost is calculated.
-    pub max_stack_height: u32,
-
-    /// Maximum number of memory pages allowed for a contract.
-    pub max_memory_pages: u32,
-
-    /// Maximum allowed size of a declared table.
-    pub max_table_size: u32,
-
-    /// Whether the `ext_println` function is allowed to be used contracts.
-    /// MUST only be enabled for `dev` chains, NOT for production chains
-    pub enable_println: bool,
-
-    /// The maximum length of a subject used for PRNG generation.
-    pub max_subject_len: u32,
-}
-
-impl Default for Schedule {
-    fn default() -> Schedule {
-        Schedule {
-            version: 0,
-            put_code_per_byte_cost: 1,
-            grow_mem_cost: 1,
-            regular_op_cost: 1,
-            return_data_per_byte_cost: 1,
-            event_data_per_byte_cost: 1,
-            event_per_topic_cost: 1,
-            event_base_cost: 1,
-            call_base_cost: 135,
-            instantiate_base_cost: 175,
-            sandbox_data_read_cost: 1,
-            sandbox_data_write_cost: 1,
-            max_event_topics: 4,
-            max_stack_height: 64 * 1024,
-            max_memory_pages: 16,
-            max_table_size: 16 * 1024,
-            enable_println: false,
-            max_subject_len: 32,
-        }
     }
 }
