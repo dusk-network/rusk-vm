@@ -7,6 +7,8 @@
 use crate::call_context::Resolver;
 use crate::ops::*;
 use crate::VMError;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use wasmi::{
     self, FuncInstance, FuncRef, ModuleImportResolver, RuntimeArgs,
@@ -14,6 +16,8 @@ use wasmi::{
 };
 
 use crate::call_context::{CallContext, Invoke};
+
+use wasmer::{Function, Store, Exports, WasmerEnv};
 
 macro_rules! abi_resolver {
     ( $visibility:vis $name:ident { $( $id:expr, $op_name:expr => $op:path ),* } ) => {
@@ -81,5 +85,51 @@ abi_resolver! {
         12, "gas_consumed" => gas::GasConsumed,
         13, "gas_left" => gas::GasLeft,
         14, "block_height" => block_height::BlockHeight
+    }
+}
+
+pub struct HostImportsResolver {
+    // imports: HashMap<&'static str, Function>
+}
+
+// impl HostImportsResolver {
+//     pub fn new() -> Self {
+//         let imports: HashMap<&'static str, Box<dyn AbiCall>> = [
+//             ("sig", panic::Panic),
+//             ("debug", debug::Debug),
+//             ("get", store::Get),
+//             ("put", store::Put),
+//             ("hash", store::Hash),
+//             ("query", query::ExecuteQuery),
+//             ("transact", transact::ApplyTransaction),
+//             ("callee", call_stack::Callee),
+//             ("caller", call_stack::Caller),
+//             ("gas", gas::Gas),
+//             ("gas_consumed", gas::GasConsumed),
+//             ("gas_left", gas::GasLeft),
+//             ("block_height", block_height::BlockHeight)
+//         ].iter().cloned().collect();
+//         HostImportsResolver{ imports }
+//     }
+//     pub fn resolve(&self, name: &str) -> Option<Box<dyn AbiCall>> {
+//         self.imports.get(name).map(|p| *p)
+//     }
+// }
+
+
+#[derive(WasmerEnv, Clone)]
+pub struct Env<'a> {
+    pub call_context: Arc<Box<CallContext<'a>>>
+}
+
+impl HostImportsResolver {
+    // pub fn register(&mut self, name: &str, store: &Store) {
+    //     let f = Function::new_native(store, panic::Panic::panic);
+    //     self.imports.insert(name, f);
+    // }
+    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, call_context: Box<CallContext>, name: &str) {
+        let env = Env{ call_context: Arc::new(call_context) };
+        let fun = panic::Panic::panic;
+        namespace.insert(name, Function::new_native_with_env(&store, env,fun))
     }
 }

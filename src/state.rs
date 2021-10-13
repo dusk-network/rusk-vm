@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
@@ -29,7 +30,7 @@ type BoxedHostModule = Box<dyn HostModule>;
 pub struct NetworkState {
     block_height: u64,
     contracts: Hamt<ContractId, Contract, ()>,
-    modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
+//    modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
 }
 
 // Manual implementation of `Canon` to ignore the "modules" which needs to be
@@ -44,7 +45,7 @@ impl Canon for NetworkState {
         Ok(NetworkState {
             block_height: u64::decode(source)?,
             contracts: Hamt::decode(source)?,
-            modules: Rc::new(RefCell::new(HashMap::new())),
+//            modules: Rc::new(RefCell::new(HashMap::new())),
         })
     }
 
@@ -60,7 +61,7 @@ impl NetworkState {
         Self {
             block_height,
             contracts: Hamt::default(),
-            modules: Rc::new(RefCell::new(HashMap::new())),
+//            modules: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -130,11 +131,11 @@ impl NetworkState {
     }
 
     /// Returns a reference to the map of registered host modules
-    pub fn modules(
-        &self,
-    ) -> &Rc<RefCell<HashMap<ContractId, BoxedHostModule>>> {
-        &self.modules
-    }
+    // pub fn modules(
+    //     &self,
+    // ) -> &Rc<RefCell<HashMap<ContractId, BoxedHostModule>>> {
+    //     &self.modules
+    // }
 
     /// Returns the state's block height
     pub fn block_height(&self) -> u64 {
@@ -189,14 +190,14 @@ impl NetworkState {
     }
 
     /// Register a host-fn handler
-    pub fn register_host_module<M>(&mut self, module: M)
-    where
-        M: HostModule + 'static,
-    {
-        self.modules
-            .borrow_mut()
-            .insert(module.module_id(), Box::new(module));
-    }
+    // pub fn register_host_module<M>(&mut self, module: M)
+    // where
+    //     M: HostModule + 'static,
+    // {
+    //     self.modules
+    //         .borrow_mut()
+    //         .insert(module.module_id(), Box::new(module));
+    // }
 
     /// Gets the state of the given contract
     pub fn get_contract_cast_state<C>(

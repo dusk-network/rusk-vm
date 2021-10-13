@@ -9,6 +9,7 @@ use crate::call_context::CallContext;
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
+use crate::resolver::Env;
 
 pub struct Panic;
 
@@ -39,5 +40,21 @@ impl AbiCall for Panic {
         } else {
             Err(VMError::InvalidArguments)
         }
+    }
+}
+
+impl Panic {
+    pub fn panic(env: &Env, panic_ofs: usize, panic_len: usize) -> Result<(), VMError> {
+        let context = *env.call_context;
+        context.memory(|a| {
+            Err(
+                match String::from_utf8(
+                    a[panic_ofs..panic_ofs + panic_len].to_vec(),
+                ) {
+                    Ok(panic_msg) => VMError::ContractPanic(panic_msg),
+                    Err(_) => VMError::InvalidUtf8,
+                },
+            )
+        })?
     }
 }
