@@ -9,6 +9,9 @@ use crate::call_context::CallContext;
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
+use crate::resolver::Env;
+use crate::NetworkState;
+use crate::gas::GasMeter;
 
 pub struct Panic;
 
@@ -39,5 +42,25 @@ impl AbiCall for Panic {
         } else {
             Err(VMError::InvalidArguments)
         }
+    }
+}
+
+impl Panic {
+    pub fn panic(env: &Env, panic_ofs: u32, panic_len: u32) -> Result<(), VMError> {
+        let network_state = NetworkState::with_block_height(env.height);
+        let mut restored_network_state = network_state.restore(env.persisted_id.clone())?;
+        let panic_ofs_u = panic_ofs as usize;
+        let panic_len_u = panic_len as usize;
+        let context = CallContext::new(&mut restored_network_state, env.gas_meter.clone());
+        context.memory(|a| {
+            Err(
+                match String::from_utf8(
+                    a[panic_ofs_u..panic_ofs_u + panic_len_u].to_vec(),
+                ) {
+                    Ok(panic_msg) => VMError::ContractPanic(panic_msg),
+                    Err(_) => VMError::InvalidUtf8,
+                },
+            )
+        })?
     }
 }

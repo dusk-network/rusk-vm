@@ -13,7 +13,7 @@
 use std::{fmt, io};
 
 use canonical::CanonError;
-use failure::Fail;
+//use failure::Fail;
 
 mod call_context;
 mod contract;
@@ -30,7 +30,11 @@ pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
-#[derive(Fail)]
+use thiserror::Error;
+use microkelvin::PersistError;
+
+#[derive(Error)]
+//#[derive(Fail)]
 /// The errors that can happen while executing the VM
 pub enum VMError {
     /// Invalid arguments in host call
@@ -69,6 +73,10 @@ pub enum VMError {
     InvalidWASMModule,
     /// Error propagated from underlying store
     StoreError(CanonError),
+    /// Serialization error from the state persistence mechanism
+    PersistenceSerializationError(CanonError),
+    /// Other error from the state persistence mechanism
+    PersistenceError(String),
 }
 
 impl From<io::Error> for VMError {
@@ -92,6 +100,16 @@ impl From<wasmi::Trap> for VMError {
 impl From<module_config::InstrumentalizationError> for VMError {
     fn from(e: module_config::InstrumentalizationError) -> Self {
         VMError::InstrumentalizationError(e)
+    }
+}
+
+impl From<PersistError> for VMError {
+    fn from(e: PersistError) -> Self {
+        match e {
+            PersistError::Io(io_error) => VMError::IOError(io_error),
+            PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
+            PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
+        }
     }
 }
 
@@ -135,6 +153,10 @@ impl fmt::Display for VMError {
             VMError::InstrumentalizationError(e) => {
                 write!(f, "Instrumentalization error {:?}", e)?
             }
+            VMError::PersistenceSerializationError(e) => write!(f, "Persistence serialization error {:?}", e)?,
+            VMError::PersistenceError(string) => {
+                write!(f, "Persistence error \"{}\"", string)?
+            },
         }
         Ok(())
     }

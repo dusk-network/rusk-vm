@@ -9,6 +9,7 @@ use crate::call_context::CallContext;
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
+use crate::resolver::Env;
 
 pub struct BlockHeight;
 
@@ -23,5 +24,11 @@ impl AbiCall for BlockHeight {
         let block_height = context.state().block_height();
 
         Ok(Some(RuntimeValue::from(block_height)))
+    }
+}
+
+impl BlockHeight {
+    pub fn block_height(env: &Env) -> Result<u64, VMError> {
+        Ok(env.height)
     }
 }

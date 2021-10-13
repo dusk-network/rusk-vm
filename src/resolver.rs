@@ -6,7 +6,8 @@
 
 use crate::call_context::Resolver;
 use crate::ops::*;
-use crate::VMError;
+use crate::{GasMeter, VMError};
+use microkelvin::PersistedId;
 
 use wasmi::{
     self, FuncInstance, FuncRef, ModuleImportResolver, RuntimeArgs,
@@ -14,6 +15,8 @@ use wasmi::{
 };
 
 use crate::call_context::{CallContext, Invoke};
+
+use wasmer::{Function, Store, Exports, WasmerEnv};
 
 macro_rules! abi_resolver {
     ( $visibility:vis $name:ident { $( $id:expr, $op_name:expr => $op:path ),* } ) => {
@@ -81,5 +84,61 @@ abi_resolver! {
         12, "gas_consumed" => gas::GasConsumed,
         13, "gas_left" => gas::GasLeft,
         14, "block_height" => block_height::BlockHeight
+    }
+}
+
+pub struct HostImportsResolver {
+    // imports: HashMap<&'static str, Function>
+}
+
+// impl HostImportsResolver {
+//     pub fn new() -> Self {
+//         let imports: HashMap<&'static str, Box<dyn AbiCall>> = [
+//             ("sig", panic::Panic),
+//             ("debug", debug::Debug),
+//             ("get", store::Get),
+//             ("put", store::Put),
+//             ("hash", store::Hash),
+//             ("query", query::ExecuteQuery),
+//             ("transact", transact::ApplyTransaction),
+//             ("callee", call_stack::Callee),
+//             ("caller", call_stack::Caller),
+//             ("gas", gas::Gas),
+//             ("gas_consumed", gas::GasConsumed),
+//             ("gas_left", gas::GasLeft),
+//             ("block_height", block_height::BlockHeight)
+//         ].iter().cloned().collect();
+//         HostImportsResolver{ imports }
+//     }
+//     pub fn resolve(&self, name: &str) -> Option<Box<dyn AbiCall>> {
+//         self.imports.get(name).map(|p| *p)
+//     }
+// }
+
+use std::sync::{Arc, Mutex};
+
+#[derive(WasmerEnv, Clone)]
+pub struct Env {
+    pub persisted_id: PersistedId,
+    pub height: u64,
+    pub gas_meter: Arc<Mutex<GasMeter>>
+}
+
+impl HostImportsResolver {
+    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, height: u64, gas_meter: Arc<Mutex<GasMeter>>) {
+        let env = Env{ persisted_id, height, gas_meter: gas_meter };
+        namespace.insert("sig", Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
+        namespace.insert("debug", Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
+        namespace.insert("block_height", Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));
+        namespace.insert("transact", Function::new_native_with_env(&store, env.clone(), transact::ApplyTransaction::transact));
+        namespace.insert("query", Function::new_native_with_env(&store, env.clone(), query::ExecuteQuery::query));
+        namespace.insert("callee", Function::new_native_with_env(&store, env.clone(), call_stack::Callee::callee));
+        namespace.insert("caller", Function::new_native_with_env(&store, env.clone(), call_stack::Caller::caller));
+        namespace.insert("get", Function::new_native_with_env(&store, env.clone(), store::Get::get));
+        namespace.insert("put", Function::new_native_with_env(&store, env.clone(), store::Put::put));
+        namespace.insert("hash", Function::new_native_with_env(&store, env.clone(), store::Hash::hash));
+        namespace.insert("gas", Function::new_native_with_env(&store, env.clone(), gas::Gas::gas));
+        namespace.insert("gas_consumed", Function::new_native_with_env(&store, env.clone(), gas::GasConsumed::gas_consumed));
+        namespace.insert("gas_left", Function::new_native_with_env(&store, env.clone(), gas::GasLeft::gas_left));
     }
 }

@@ -9,6 +9,9 @@ use crate::call_context::CallContext;
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
+use crate::resolver::Env;
+use crate::NetworkState;
+use crate::gas::GasMeter;
 
 pub struct Debug;
 
@@ -36,5 +39,22 @@ impl AbiCall for Debug {
         } else {
             Err(VMError::InvalidArguments)
         }
+    }
+}
+
+impl Debug {
+    pub fn debug(env: &Env, msg_ofs: u32, msg_len: u32) -> Result<(), VMError> {
+        let network_state = NetworkState::with_block_height(env.height);
+        let mut restored_network_state = network_state.restore(env.persisted_id.clone())?;
+        let msg_ofs_u = msg_ofs as usize;
+        let msg_len_u = msg_len as usize;
+        let context = CallContext::new(&mut restored_network_state, env.gas_meter.clone());
+        context.memory(|a| {
+            let slice = &a[msg_ofs_u..msg_ofs_u + msg_len_u];
+            let str = std::str::from_utf8(slice)
+                .map_err(|_| VMError::InvalidUtf8)?;
+            println!("CONTRACT DEBUG: {:?}", str);
+            Ok(())
+        })
     }
 }
