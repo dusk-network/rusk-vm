@@ -9,6 +9,7 @@ use crate::ops::*;
 use crate::VMError;
 use std::collections::HashMap;
 use std::sync::Arc;
+use microkelvin::PersistedId;
 
 use wasmi::{
     self, FuncInstance, FuncRef, ModuleImportResolver, RuntimeArgs,
@@ -116,10 +117,14 @@ pub struct HostImportsResolver {
 //     }
 // }
 
+use canonical::{Canon, CanonError, Id};
+
+#[derive(Clone)]
+pub struct MyPersistedId(Id);
 
 #[derive(WasmerEnv, Clone)]
-pub struct Env<'a> {
-    pub call_context: Arc<Box<CallContext<'a>>>
+pub struct Env {
+    pub persisted_id: MyPersistedId
 }
 
 impl HostImportsResolver {
@@ -127,9 +132,12 @@ impl HostImportsResolver {
     //     let f = Function::new_native(store, panic::Panic::panic);
     //     self.imports.insert(name, f);
     // }
-    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, call_context: Box<CallContext>, name: &str) {
-        let env = Env{ call_context: Arc::new(call_context) };
+    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: MyPersistedId, name: &str) {
+        let env = Env{ persisted_id };
         let fun = panic::Panic::panic;
-        namespace.insert(name, Function::new_native_with_env(&store, env,fun))
+        fn say_hello_world(env: &Env) {
+            println!("Hello, world!")
+        }
+        namespace.insert(name, Function::new_native_with_env(&store, env, say_hello_world))
     }
 }

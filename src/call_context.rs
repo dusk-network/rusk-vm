@@ -6,6 +6,7 @@
 
 use canonical::{Canon, CanonError, Sink, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
+use microkelvin::PersistedId;
 
 use wasmi::{
     Externals, ImportsBuilder, MemoryRef, ModuleImportResolver, RuntimeArgs,
@@ -117,17 +118,17 @@ impl<'a> CallContext<'a> {
         let instance;
         let wasmer_instance: Instance;
 
-        // if let Some(module) = self.state.modules().borrow().get(&target) {
-            // is this a reserved module call?
-            // return module.execute(query).map_err(VMError::from_store_error);
-        // } else {
+        if let Some(module) = self.state.modules().borrow().get(&target) {
+             // is this a reserved module call?
+             return module.execute(query).map_err(VMError::from_store_error);
+        } else {
             let contract = self.state.get_contract(&target)?;
 
             let module = wasmi::Module::from_buffer(contract.bytecode())?;
 
-            let wasmer_store = Store::new(&Universal::new(Cranelift::default()).engine());
+            //let wasmer_store = Store::new(&Universal::new(Cranelift::default()).engine());
 
-            let wasmer_module = Module::new(&wasmer_store, contract.bytecode()).expect("wasmer module creation error"); // todo convert 'expect' to '?'
+            //let wasmer_module = Module::new(&wasmer_store, contract.bytecode()).expect("wasmer module creation error"); // todo convert 'expect' to '?'
 
 
             instance = wasmi::ModuleInstance::new(&module, &imports)?
@@ -135,21 +136,20 @@ impl<'a> CallContext<'a> {
 
 
 
-            let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
-            println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
-            let mut wasmer_import_object = ImportObject::new();
-            for import_name in wasmer_import_names {
-                let mut namespace = Exports::new();
-                let name = import_name.clone();
+            //let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
+            //println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
+            //let mut wasmer_import_object = ImportObject::new();
+            //for import_name in wasmer_import_names {
+                //let mut namespace = Exports::new();
+                //let name = import_name.clone();
                 //namespace.insert(import_name, Function::new_native(&wasmer_store, say_hello_world)); // todo hookup resolver here !!
-                let host_import_resolver = HostImportsResolver {};
-                host_import_resolver.insert_into_namespace(&namespace, &wasmer_store, self, import_name);
-                wasmer_import_object.register(name, namespace);
-            }
+                // HostImportsResolver::insert_into_namespace(&mut namespace, &wasmer_store, persisted_id, import_name);
+                //wasmer_import_object.register(name, namespace);
+            //}
 
-            fn say_hello_world() {
-                println!("Hello, world!")
-            }
+            //fn say_hello_world() {
+                //println!("Hello, world!")
+            //}
 
             // let wasmer_import_object = imports! {
             //     "env" => {
@@ -194,7 +194,7 @@ impl<'a> CallContext<'a> {
                         .push(StackFrame::new_query(target, memref, query));
                 }
                 _ => return Err(VMError::MemoryNotFound),
-            // }
+            }
         }
 
         // Perform the query call
