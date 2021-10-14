@@ -137,7 +137,8 @@ pub struct HostImportsResolver {
 
 #[derive(WasmerEnv, Clone)]
 pub struct Env {
-    pub persisted_id: PersistedId
+    pub persisted_id: PersistedId,
+    pub height: u64,
 }
 
 impl HostImportsResolver {
@@ -145,8 +146,8 @@ impl HostImportsResolver {
     //     let f = Function::new_native(store, panic::Panic::panic);
     //     self.imports.insert(name, f);
     // }
-    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, name: &str) {
-        let env = Env{ persisted_id };
+    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, height: u64, name: &str) {
+        let env = Env{ persisted_id, height };
         namespace.insert(name, Function::new_native_with_env(&store, env, panic::Panic::panic))
     }
 }
