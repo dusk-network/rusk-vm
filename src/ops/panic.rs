@@ -64,7 +64,4 @@ impl Panic {
             )
         })?
     }
-    // pub fn panic(env: &Env, panic_ofs: u32, panic_len: u32) -> Result<(), VMError> {
-    //     Err(VMError::InvalidArguments)
-    // }
 }

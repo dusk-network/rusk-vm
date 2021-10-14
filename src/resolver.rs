@@ -148,6 +148,7 @@ impl HostImportsResolver {
     // }
     pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, height: u64, name: &str) {
         let env = Env{ persisted_id, height };
-        namespace.insert(name, Function::new_native_with_env(&store, env, panic::Panic::panic))
+        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
+        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
     }
 }
