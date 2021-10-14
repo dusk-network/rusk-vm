@@ -76,7 +76,7 @@ pub enum VMError {
     /// Serialization error from the state persistence mechanism
     PersistenceSerializationError(CanonError),
     /// Other error from the state persistence mechanism
-    PersistenceError(thiserror::Error),
+    PersistenceError(String),
 }
 
 type VMResult<T> = std::result::Result<T, VMError>;
@@ -110,7 +110,7 @@ impl From<PersistError> for VMError {
         match e {
             PersistError::Io(io_error) => VMError::IOError(io_error),
             PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
-            PersistError::Other(error) => VMError::PersistenceError(error),
+            PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
         }
     }
 }
@@ -155,6 +155,10 @@ impl fmt::Display for VMError {
             VMError::InstrumentalizationError(e) => {
                 write!(f, "Instrumentalization error {:?}", e)?
             }
+            VMError::PersistenceSerializationError(e) => write!(f, "Persistence serialization error {:?}", e)?,
+            VMError::PersistenceError(string) => {
+                write!(f, "Persistence error \"{}\"", string)?
+            },
         }
         Ok(())
     }
