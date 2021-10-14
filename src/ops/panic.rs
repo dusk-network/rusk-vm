@@ -44,20 +44,20 @@ impl AbiCall for Panic {
 }
 
 impl Panic {
-    // pub fn panic(env: &Env, panic_ofs: u32, panic_len: u32) -> Result<(), VMError> {
-    //     let context = *env.persisted_id.restore()?;
-    //     context.memory(|a| {
-    //         Err(
-    //             match String::from_utf8(
-    //                 a[panic_ofs..panic_ofs + panic_len].to_vec(),
-    //             ) {
-    //                 Ok(panic_msg) => VMError::ContractPanic(panic_msg),
-    //                 Err(_) => VMError::InvalidUtf8,
-    //             },
-    //         )
-    //     })?
-    // }
     pub fn panic(env: &Env, panic_ofs: u32, panic_len: u32) -> Result<(), VMError> {
-        Err(VMError::InvalidArguments)
+        let context = env.persisted_id.restore()?;
+        context.memory(|a| {
+            Err(
+                match String::from_utf8(
+                    a[panic_ofs..panic_ofs + panic_len].to_vec(),
+                ) {
+                    Ok(panic_msg) => VMError::ContractPanic(panic_msg),
+                    Err(_) => VMError::InvalidUtf8,
+                },
+            )
+        })?
     }
+    // pub fn panic(env: &Env, panic_ofs: u32, panic_len: u32) -> Result<(), VMError> {
+    //     Err(VMError::InvalidArguments)
+    // }
 }

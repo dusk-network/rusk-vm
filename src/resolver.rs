@@ -117,10 +117,22 @@ pub struct HostImportsResolver {
 //     }
 // }
 
+
+// we need MyPersistedId until PersistedId implements Clone
 use canonical::{Canon, CanonError, Id};
+use microkelvin::{GenericTree, Persistence, PersistError};
 
 #[derive(Clone)]
 pub struct MyPersistedId(Id);
+
+impl MyPersistedId {
+    /// Restore a GenericTree from a persistence backend.
+    pub fn restore(&self) -> Result<GenericTree, PersistError> {
+        Persistence::get(&self.0)
+    }
+}
+// end of code for MyPersistedId, remove and replace with PersistedId
+// everywhere MyPersistedId is used, once PersistedId implements Clone
 
 #[derive(WasmerEnv, Clone)]
 pub struct Env {

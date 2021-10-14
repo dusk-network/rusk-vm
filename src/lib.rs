@@ -31,6 +31,7 @@ pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
 use thiserror::Error;
+use microkelvin::PersistError;
 
 #[derive(Error)]
 //#[derive(Fail)]
@@ -72,6 +73,10 @@ pub enum VMError {
     InvalidWASMModule,
     /// Error propagated from underlying store
     StoreError(CanonError),
+    /// Serialization error from the state persistence mechanism
+    PersistenceSerializationError(CanonError),
+    /// Other error from the state persistence mechanism
+    PersistenceError(thiserror::Error),
 }
 
 type VMResult<T> = std::result::Result<T, VMError>;
@@ -97,6 +102,16 @@ impl From<wasmi::Trap> for VMError {
 impl From<module_config::InstrumentalizationError> for VMError {
     fn from(e: module_config::InstrumentalizationError) -> Self {
         VMError::InstrumentalizationError(e)
+    }
+}
+
+impl From<PersistError> for VMError {
+    fn from(e: PersistError) -> Self {
+        match e {
+            PersistError::Io(io_error) => VMError::IOError(io_error),
+            PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
+            PersistError::Other(error) => VMError::PersistenceError(error),
+        }
     }
 }
 
