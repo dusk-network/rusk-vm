@@ -6,7 +6,6 @@
 
 use canonical::{Canon, CanonError, Sink, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
-use microkelvin::PersistedId;
 
 use wasmi::{
     Externals, ImportsBuilder, MemoryRef, ModuleImportResolver, RuntimeArgs,
@@ -21,11 +20,10 @@ use crate::VMError;
 pub trait Resolver: Invoke + ModuleImportResolver + Clone + Default {}
 
 pub use crate::resolver::CompoundResolver as StandardABI;
-use crate::resolver::HostImportsResolver;
 
 use wasmer::{imports, wat2wasm, Function, Instance, Module, NativeFunc, Store, ImportObject, Exports};
-use wasmer_compiler_cranelift::Cranelift;
-use wasmer_engine_universal::Universal;
+// use wasmer_compiler_cranelift::Cranelift;
+// use wasmer_engine_universal::Universal;
 
 
 #[derive(Debug)]

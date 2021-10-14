@@ -7,8 +7,6 @@
 use crate::call_context::Resolver;
 use crate::ops::*;
 use crate::VMError;
-use std::collections::HashMap;
-use std::sync::Arc;
 use microkelvin::PersistedId;
 
 use wasmi::{
@@ -119,24 +117,27 @@ pub struct HostImportsResolver {
 
 
 // we need MyPersistedId until PersistedId implements Clone
-use canonical::{Canon, CanonError, Id};
-use microkelvin::{GenericTree, Persistence, PersistError};
-
-#[derive(Clone)]
-pub struct MyPersistedId(Id);
-
-impl MyPersistedId {
-    /// Restore a GenericTree from a persistence backend.
-    pub fn restore(&self) -> Result<GenericTree, PersistError> {
-        Persistence::get(&self.0)
-    }
-}
+//use canonical::{Canon, CanonError, Id};
+//use microkelvin::{GenericTree, Persistence, PersistError};
+//
+//#[derive(Clone)]
+//pub struct MyPersistedId(Id);
+//
+//impl MyPersistedId {
+    //Restore a GenericTree from a persistence backend.
+//    pub fn restore(&self) -> Result<GenericTree, PersistError> {
+//        Persistence::get(&self.0)
+//    }
+//    pub fn to_persisted_id(&self) -> PersistedId {
+//        PersistedId(self.0)
+//    }
+//}
 // end of code for MyPersistedId, remove and replace with PersistedId
 // everywhere MyPersistedId is used, once PersistedId implements Clone
 
 #[derive(WasmerEnv, Clone)]
 pub struct Env {
-    pub persisted_id: MyPersistedId
+    pub persisted_id: PersistedId
 }
 
 impl HostImportsResolver {
@@ -144,7 +145,7 @@ impl HostImportsResolver {
     //     let f = Function::new_native(store, panic::Panic::panic);
     //     self.imports.insert(name, f);
     // }
-    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: MyPersistedId, name: &str) {
+    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, name: &str) {
         let env = Env{ persisted_id };
         namespace.insert(name, Function::new_native_with_env(&store, env, panic::Panic::panic))
     }

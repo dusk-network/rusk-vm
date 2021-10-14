@@ -13,7 +13,7 @@
 use std::{fmt, io};
 
 use canonical::CanonError;
-use failure::Fail;
+//use failure::Fail;
 
 mod call_context;
 mod contract;

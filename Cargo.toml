@@ -64,3 +64,6 @@ members = [
 
 [features]
 persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]
+
+[patch.crates-io]
+microkelvin = { path = '../microkelvin' }
