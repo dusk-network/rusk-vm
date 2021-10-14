@@ -200,6 +200,8 @@ impl<'a> CallContext<'a> {
 
         // let wasmer_run_func: NativeFunc<(i32), ()> =wasmer_instance.exports.get_native_function("q").expect("wasmer invoking function error"); // todo convert 'expect' to '?';
         //
+        // here is the place to persist Network State as it will be restored during the call
+        //
         // wasmer_run_func.call(0);
 
         match instance.export_by_name("memory") {
@@ -257,6 +259,7 @@ impl<'a> CallContext<'a> {
             }
         }
         // Perform the transact call
+        // here is the place to persist Network State as it will be restored during the call
         instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
 
         let ret = {
