@@ -30,7 +30,10 @@ pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
-#[derive(Fail)]
+use thiserror::Error;
+
+#[derive(Error)]
+//#[derive(Fail)]
 /// The errors that can happen while executing the VM
 pub enum VMError {
     /// Invalid arguments in host call
@@ -70,6 +73,8 @@ pub enum VMError {
     /// Error propagated from underlying store
     StoreError(CanonError),
 }
+
+type VMResult<T> = std::result::Result<T, VMError>;
 
 impl From<io::Error> for VMError {
     fn from(e: io::Error) -> Self {

@@ -134,10 +134,6 @@ impl HostImportsResolver {
     // }
     pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: MyPersistedId, name: &str) {
         let env = Env{ persisted_id };
-        let fun = panic::Panic::panic;
-        fn say_hello_world(env: &Env) {
-            println!("Hello, world!")
-        }
-        namespace.insert(name, Function::new_native_with_env(&store, env, say_hello_world))
+        namespace.insert(name, Function::new_native_with_env(&store, env, panic::Panic::panic))
     }
 }

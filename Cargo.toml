@@ -24,6 +24,7 @@ microkelvin = "0.10.0-rc"
 wasmer = "2.0.0"
 wasmer-compiler-cranelift = "2.0.0"
 wasmer-engine-universal = "2.0.0"
+thiserror = "1.0.24"
 
 
 [dev-dependencies]
