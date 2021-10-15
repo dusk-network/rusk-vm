@@ -123,10 +123,6 @@ pub struct Env {
 }
 
 impl HostImportsResolver {
-    // pub fn register(&mut self, name: &str, store: &Store) {
-    //     let f = Function::new_native(store, panic::Panic::panic);
-    //     self.imports.insert(name, f);
-    // }
     pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, height: u64, name: &str) {
         let env = Env{ persisted_id, height };
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
@@ -134,5 +130,7 @@ impl HostImportsResolver {
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), transact::ApplyTransaction::transact));
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), query::ExecuteQuery::query));
+        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), call_stack::Callee::callee));
+        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), call_stack::Caller::caller));
     }
 }

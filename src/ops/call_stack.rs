@@ -9,6 +9,9 @@ use crate::call_context::CallContext;
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
+use crate::resolver::Env;
+use crate::NetworkState;
+use crate::gas::GasMeter;
 
 pub struct Callee;
 
@@ -37,6 +40,24 @@ impl AbiCall for Callee {
     }
 }
 
+impl Callee {
+    pub fn callee(env: &Env, result_ofs: u32) -> Result<(), VMError> {
+        let result_ofs = result_ofs as usize;
+        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
+        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
+        let mut context = CallContext::new(&mut network_state, &mut gas);
+        let callee = *context.callee();
+
+        context
+            .memory_mut(|a| {
+                a[result_ofs..result_ofs + 32]
+                    .copy_from_slice(callee.as_bytes());
+                Ok(())
+            })
+            .map_err(VMError::from_store_error)
+    }
+}
+
 pub struct Caller;
 
 impl AbiCall for Caller {
@@ -61,5 +82,23 @@ impl AbiCall for Caller {
         } else {
             Err(VMError::InvalidArguments)
         }
+    }
+}
+
+impl Caller {
+    pub fn caller(env: &Env, result_ofs: u32) -> Result<(), VMError> {
+        let result_ofs = result_ofs as usize;
+        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
+        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
+        let mut context = CallContext::new(&mut network_state, &mut gas);
+        let caller = *context.caller();
+
+        context
+            .memory_mut(|a| {
+                a[result_ofs..result_ofs + 32]
+                    .copy_from_slice(caller.as_bytes());
+                Ok(())
+            })
+            .map_err(VMError::from_store_error)
     }
 }
