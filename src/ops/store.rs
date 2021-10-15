@@ -10,6 +10,9 @@ use crate::VMError;
 
 use canonical::{Canon, IdHash, Sink, Source, Store};
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
+use crate::resolver::Env;
+use crate::NetworkState;
+use crate::gas::GasMeter;
 
 pub struct Get;
 
@@ -50,6 +53,32 @@ impl AbiCall for Get {
     }
 }
 
+impl Get {
+    pub fn get(env: &Env, hash_ofs: u32, write_buf: u32, write_len: u32) -> Result<(), VMError> {
+        let hash_ofs = hash_ofs as usize;
+        let write_buf = write_buf as usize;
+        let write_len = write_len as usize;
+        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
+        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
+        let mut context = CallContext::new(&mut network_state, &mut gas);
+        context
+            .memory_mut(|mem| {
+                let mut source = Source::new(&mem[hash_ofs..]);
+                let hash = IdHash::decode(&mut source)?;
+
+                // we don't allow get requests to fail in the bridge
+                // communication since that is the
+                // responsibility of the host.
+                Store::get(
+                    &hash,
+                    &mut mem[write_buf..write_buf + write_len],
+                )?;
+                Ok(())
+            })
+            .map_err(VMError::from_store_error)
+    }
+}
+
 pub struct Put;
 
 impl AbiCall for Put {
@@ -86,6 +115,30 @@ impl AbiCall for Put {
     }
 }
 
+impl Put {
+    pub fn put(env: &Env, ofs: u32, len: u32, ret: u32) -> Result<(), VMError> {
+        let ofs = ofs as usize;
+        let len = len as usize;
+        let ret = ret as usize;
+        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
+        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
+        let mut context = CallContext::new(&mut network_state, &mut gas);
+
+        context
+            .memory_mut(|mem| {
+                // only non-inlined values end up written here
+                debug_assert!(len > core::mem::size_of::<IdHash>());
+                let hash = Store::put(&mem[ofs..ofs + len]);
+
+                let mut sink = Sink::new(&mut mem[ret..]);
+                hash.encode(&mut sink);
+
+                Ok(())
+            })
+            .map_err(VMError::from_store_error)
+    }
+}
+
 pub struct Hash;
 
 impl AbiCall for Hash {
@@ -116,5 +169,26 @@ impl AbiCall for Hash {
         } else {
             Err(VMError::InvalidArguments)
         }
+    }
+}
+
+impl Hash {
+    pub fn hash(env: &Env, ofs: u32, len: u32, ret: u32) -> Result<(), VMError> {
+        let ofs = ofs as usize;
+        let len = len as usize;
+        let ret = ret as usize;
+        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
+        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
+        let mut context = CallContext::new(&mut network_state, &mut gas);
+
+        context
+            .memory_mut(|mem| {
+                let hash = Store::hash(&mem[ofs..ofs + len]);
+
+                // write id into wasm memory
+                mem[ret..ret + hash.len()].copy_from_slice(&hash);
+                Ok(())
+            })
+            .map_err(VMError::from_store_error)
     }
 }

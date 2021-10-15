@@ -132,5 +132,8 @@ impl HostImportsResolver {
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), query::ExecuteQuery::query));
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), call_stack::Callee::callee));
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), call_stack::Caller::caller));
+        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), store::Get::get));
+        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), store::Put::put));
+        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), store::Hash::hash));
     }
 }
