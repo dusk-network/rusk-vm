@@ -155,20 +155,6 @@ impl<'a> CallContext<'a> {
             HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, canon_persisted_id, self.state.block_height(), canon_temporary_gas_meter);
             wasmer_import_object.register("canon", canon_namespace);
 
-            // WASMER
-            wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
-
-            let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
-            unsafe {
-                let wasmer_m = wasmer_memory.data_unchecked_mut();
-                let mut wasmer_sink = Sink::new(&mut *wasmer_m);
-                // copy the raw bytes only, since the
-                // contract can infer
-                // it's own state and argument lengths
-                wasmer_sink.copy_bytes(contract.state().as_bytes());
-                wasmer_sink.copy_bytes(query.as_bytes());
-            }
-
             // match instance.export_by_name("memory") {
             //     Some(wasmi::ExternVal::Memory(memref)) => {
             //         // write contract state and argument to memory
@@ -190,13 +176,28 @@ impl<'a> CallContext<'a> {
             //     }
             //     _ => return Err(VMError::MemoryNotFound),
             // }
+
+            // WASMER
+            wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
+
+            let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
+            unsafe {
+                let wasmer_m = wasmer_memory.data_unchecked_mut();
+                let mut wasmer_sink = Sink::new(&mut *wasmer_m);
+                // copy the raw bytes only, since the
+                // contract can infer
+                // it's own state and argument lengths
+                wasmer_sink.copy_bytes(contract.state().as_bytes());
+                wasmer_sink.copy_bytes(query.as_bytes());
+            }
+
         }
 
         // Perform the query call
         //instance.invoke_export("q", &[wasmi::RuntimeValue::I32(0)], self)?;
 
         // WASMER
-        let wasmer_run_func: NativeFunc<(i32), ()> =wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
+        let wasmer_run_func: NativeFunc<(i32), ()> = wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
         wasmer_run_func.call(0);
 
         // match instance.export_by_name("memory") {
@@ -211,6 +212,8 @@ impl<'a> CallContext<'a> {
         //         .map_err(VMError::from_store_error),
         //     _ => Err(VMError::MemoryNotFound),
         // }
+
+        // WASMER
         let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
         unsafe {
             let wasmer_m = wasmer_memory.data_unchecked_mut();
@@ -232,61 +235,128 @@ impl<'a> CallContext<'a> {
             .with_resolver("env", &resolver)
             .with_resolver("canon", &resolver);
 
-        let instance;
+        //let instance;
+        let wasmer_instance;
 
         {
             let contract = self.state.get_contract(&target)?;
-            let module = wasmi::Module::from_buffer(contract.bytecode())?;
+            // let module = wasmi::Module::from_buffer(contract.bytecode())?;
 
-            instance = wasmi::ModuleInstance::new(&module, &imports)?
-                .assert_no_start();
+            // WASMER
+            let wasmer_store = Store::new(&Universal::new(Cranelift::default()).engine());
+            let wasmer_module = Module::new(&wasmer_store, contract.bytecode()).expect("wasmer module created");
 
-            match instance.export_by_name("memory") {
-                Some(wasmi::ExternVal::Memory(memref)) => {
-                    // write contract state and argument to memory
 
-                    memref.with_direct_access_mut(|m| {
-                        let mut sink = Sink::new(&mut *m);
-                        // copy the raw bytes only, since the contract can
-                        // infer it's own state and argument lengths.
-                        sink.copy_bytes(contract.state().as_bytes());
-                        sink.copy_bytes(transaction.as_bytes());
-                    });
 
-                    self.stack.push(StackFrame::new_transaction(
-                        target,
-                        memref,
-                        transaction,
-                    ));
-                }
-                _ => return Err(VMError::MemoryNotFound),
+            // instance = wasmi::ModuleInstance::new(&module, &imports)?
+            //     .assert_no_start();
+            // WASMER
+            let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
+            println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
+            let mut wasmer_import_object = ImportObject::new();
+            let env_persisted_id = self.state.persist(DiskBackend::ephemeral).expect("network state persisted");
+            let canon_persisted_id = env_persisted_id.clone();
+            // WASMER env namespace
+            let env_temporary_gas_meter = GasMeter::with_limit(1000000000); // todo temporary - remove this
+            let mut env_namespace = Exports::new();
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env_persisted_id, self.state.block_height(), env_temporary_gas_meter);
+            wasmer_import_object.register("env", env_namespace);
+            // WASMER canon namespace
+            let canon_temporary_gas_meter = GasMeter::with_limit(1000000000); // todo temporary - remove this
+            let mut canon_namespace = Exports::new();
+            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, canon_persisted_id, self.state.block_height(), canon_temporary_gas_meter);
+            wasmer_import_object.register("canon", canon_namespace);
+
+            // WASMER
+            wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
+
+
+            // match instance.export_by_name("memory") {
+            //     Some(wasmi::ExternVal::Memory(memref)) => {
+            //         // write contract state and argument to memory
+            //
+            //         memref.with_direct_access_mut(|m| {
+            //             let mut sink = Sink::new(&mut *m);
+            //             // copy the raw bytes only, since the contract can
+            //             // infer it's own state and argument lengths.
+            //             sink.copy_bytes(contract.state().as_bytes());
+            //             sink.copy_bytes(transaction.as_bytes());
+            //         });
+            //
+            //         self.stack.push(StackFrame::new_transaction(
+            //             target,
+            //             memref,
+            //             transaction,
+            //         ));
+            //     }
+            //     _ => return Err(VMError::MemoryNotFound),
+            // }
+
+            // WASMER
+            wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
+            let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
+            unsafe {
+                let wasmer_m = wasmer_memory.data_unchecked_mut();
+                let mut sink = Sink::new(&mut *wasmer_m);
+                // copy the raw bytes only, since the contract can
+                // infer it's own state and argument lengths.
+                sink.copy_bytes(contract.state().as_bytes());
+                sink.copy_bytes(transaction.as_bytes());
             }
+            self.stack.push(StackFrame::new_transaction(
+                target,
+                wasmer_memory,
+                transaction,
+            ));
+
         }
         // Perform the transact call
-        instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
+        // instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
+
+        // WASMER
+        let wasmer_run_func: NativeFunc<(i32), ()> = wasmer_instance.exports.get_native_function("t").expect("wasmer invoked function t");
+        wasmer_run_func.call(0);
+
 
         let ret = {
             let mut contract = self.state.get_contract_mut(&target)?;
 
-            match instance.export_by_name("memory") {
-                Some(wasmi::ExternVal::Memory(memref)) => {
-                    memref
-                        .with_direct_access_mut(|m| {
-                            let mut source = Source::new(&m[..]);
+            // match instance.export_by_name("memory") {
+            //     Some(wasmi::ExternVal::Memory(memref)) => {
+            //         memref
+            //             .with_direct_access_mut(|m| {
+            //                 let mut source = Source::new(&m[..]);
+            //
+            //                 // read new state
+            //                 let state = ContractState::decode(&mut source)?;
+            //
+            //                 // update new self state
+            //                 *(*contract).state_mut() = state;
+            //
+            //                 // read return value
+            //                 ReturnValue::decode(&mut source)
+            //             })
+            //             .map_err(VMError::from_store_error)
+            //     }
+            //     _ => return Err(VMError::MemoryNotFound),
+            // }
 
-                            // read new state
-                            let state = ContractState::decode(&mut source)?;
+            // WASMER
+            let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
+            unsafe {
+                let wasmer_m = wasmer_memory.data_unchecked_mut();
+                let mut source = Source::new(&wasmer_m[..]);
 
-                            // update new self state
-                            *(*contract).state_mut() = state;
+                // read new state
+                let state = ContractState::decode(&mut source).expect("contract state decoded");
 
-                            // read return value
-                            ReturnValue::decode(&mut source)
-                        })
-                        .map_err(VMError::from_store_error)
-                }
-                _ => return Err(VMError::MemoryNotFound),
+                // update new self state
+                *(*contract).state_mut() = state;
+
+                // read return value
+                ReturnValue::decode(&mut source)
             }
+
         };
 
         let state = if self.stack.len() > 1 {
