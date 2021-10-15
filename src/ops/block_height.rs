@@ -10,7 +10,6 @@ use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 use crate::resolver::Env;
-use crate::NetworkState;
 
 pub struct BlockHeight;
 
