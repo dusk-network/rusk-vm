@@ -151,5 +151,6 @@ impl HostImportsResolver {
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
         namespace.insert(name, Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));
+        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), transact::ApplyTransaction::transact));
     }
 }
