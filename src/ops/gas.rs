@@ -9,6 +9,9 @@ use crate::call_context::CallContext;
 use crate::VMError;
 
 use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
+use crate::resolver::Env;
+use crate::NetworkState;
+use crate::gas::GasMeter;
 
 pub struct Gas;
 
@@ -26,6 +29,19 @@ impl AbiCall for Gas {
             return Err(VMError::OutOfGas);
         }
         Ok(None)
+    }
+}
+
+impl Gas {
+    pub fn gas(env: &Env, gas_charged: u64) -> Result<(), VMError> {
+        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
+        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
+        let mut context = CallContext::new(&mut network_state, &mut gas);
+        let meter = context.gas_meter_mut();
+        if meter.charge(gas_charged).is_out_of_gas() {
+            return Err(VMError::OutOfGas);
+        }
+        Ok(())
     }
 }
 
@@ -52,6 +68,18 @@ impl AbiCall for GasConsumed {
     }
 }
 
+impl GasConsumed {
+    pub fn gas_consumed(env: &Env) -> Result<u64, VMError> {
+        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
+        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
+        let mut context = CallContext::new(&mut network_state, &mut gas);
+        // FIXME: This will not always be correct since if the `gas_consumed =
+        // ALL` the gas, this will add the extra cost of the call
+        // which can't be consumed since it's not even there.
+        Ok(context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST)
+    }
+}
+
 pub struct GasLeft;
 
 impl AbiCall for GasLeft {
@@ -63,5 +91,14 @@ impl AbiCall for GasLeft {
         _args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, VMError> {
         Ok(Some(RuntimeValue::from(context.gas_meter().left())))
+    }
+}
+
+impl GasLeft {
+    pub fn gas_left(env: &Env) -> Result<u64, VMError> {
+        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
+        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
+        let mut context = CallContext::new(&mut network_state, &mut gas);
+        Ok(context.gas_meter().left())
     }
 }

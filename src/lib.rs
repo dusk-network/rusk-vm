@@ -79,8 +79,6 @@ pub enum VMError {
     PersistenceError(String),
 }
 
-type VMResult<T> = std::result::Result<T, VMError>;
-
 impl From<io::Error> for VMError {
     fn from(e: io::Error) -> Self {
         VMError::IOError(e)

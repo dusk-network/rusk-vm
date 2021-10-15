@@ -6,7 +6,7 @@
 
 use crate::call_context::Resolver;
 use crate::ops::*;
-use crate::VMError;
+use crate::{GasMeter, VMError};
 use microkelvin::PersistedId;
 
 use wasmi::{
@@ -120,20 +120,24 @@ pub struct HostImportsResolver {
 pub struct Env {
     pub persisted_id: PersistedId,
     pub height: u64,
+    pub gas_meter: GasMeter
 }
 
 impl HostImportsResolver {
-    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, height: u64, name: &str) {
-        let env = Env{ persisted_id, height };
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), transact::ApplyTransaction::transact));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), query::ExecuteQuery::query));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), call_stack::Callee::callee));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), call_stack::Caller::caller));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), store::Get::get));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), store::Put::put));
-        namespace.insert(name, Function::new_native_with_env(&store, env.clone(), store::Hash::hash));
+    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, height: u64, gas_meter: GasMeter) {
+        let env = Env{ persisted_id, height, gas_meter };
+        namespace.insert("sig", Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
+        namespace.insert("debug", Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
+        namespace.insert("block_height", Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));
+        namespace.insert("transact", Function::new_native_with_env(&store, env.clone(), transact::ApplyTransaction::transact));
+        namespace.insert("query", Function::new_native_with_env(&store, env.clone(), query::ExecuteQuery::query));
+        namespace.insert("callee", Function::new_native_with_env(&store, env.clone(), call_stack::Callee::callee));
+        namespace.insert("caller", Function::new_native_with_env(&store, env.clone(), call_stack::Caller::caller));
+        namespace.insert("get", Function::new_native_with_env(&store, env.clone(), store::Get::get));
+        namespace.insert("put", Function::new_native_with_env(&store, env.clone(), store::Put::put));
+        namespace.insert("hash", Function::new_native_with_env(&store, env.clone(), store::Hash::hash));
+        namespace.insert("gas", Function::new_native_with_env(&store, env.clone(), gas::Gas::gas));
+        namespace.insert("gas_consumed", Function::new_native_with_env(&store, env.clone(), gas::GasConsumed::gas_consumed));
+        namespace.insert("gas_left", Function::new_native_with_env(&store, env.clone(), gas::GasLeft::gas_left));
     }
 }
