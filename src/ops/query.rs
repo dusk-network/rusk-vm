@@ -66,9 +66,8 @@ impl ExecuteQuery {
     pub fn query(env: &Env, contract_id_ofs: u32, query_ofs: u32) -> Result<(), VMError> {
         let contract_id_ofs = contract_id_ofs as usize;
         let query_ofs = query_ofs as usize;
-        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
         let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, &mut gas);
+        let mut context = CallContext::new(&mut network_state, env.gas_meter.clone());
         let (contract_id, query) = context
             .memory(|m| {
                 let contract_id = ContractId::from(

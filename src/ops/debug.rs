@@ -46,10 +46,9 @@ impl Debug {
     pub fn debug(env: &Env, msg_ofs: u32, msg_len: u32) -> Result<(), VMError> {
         let network_state = NetworkState::with_block_height(env.height);
         let mut restored_network_state = network_state.restore(env.persisted_id.clone())?;
-        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where gas meter should live ?
         let msg_ofs_u = msg_ofs as usize;
         let msg_len_u = msg_len as usize;
-        let context = CallContext::new(&mut restored_network_state, &mut gas);
+        let context = CallContext::new(&mut restored_network_state, env.gas_meter.clone());
         context.memory(|a| {
             let slice = &a[msg_ofs_u..msg_ofs_u + msg_len_u];
             let str = std::str::from_utf8(slice)

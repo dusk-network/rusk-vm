@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
@@ -146,7 +147,7 @@ impl NetworkState {
         &mut self,
         target: ContractId,
         query: A,
-        gas_meter: &mut GasMeter,
+        gas_meter: Arc<Mutex<GasMeter>>,
     ) -> Result<R, VMError>
     where
         A: Canon,
@@ -164,7 +165,7 @@ impl NetworkState {
         &mut self,
         target: ContractId,
         transaction: A,
-        gas_meter: &mut GasMeter,
+        gas_meter: Arc<Mutex<GasMeter>>,
     ) -> Result<R, VMError>
     where
         A: Canon,

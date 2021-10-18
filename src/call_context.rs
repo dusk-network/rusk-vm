@@ -30,6 +30,7 @@ use microkelvin::{
     BackendCtor, Compound, DiskBackend, Keyed, PersistError, Persistence,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc,Mutex};
 
 
 
@@ -115,13 +116,13 @@ impl WasmerMemoryRef<'_> {
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame<'a>>,
-    gas_meter: &'a mut GasMeter,
+    gas_meter: Arc<Mutex<GasMeter>>,
 }
 
 impl<'a> CallContext<'a> {
     pub fn new(
         state: &'a mut NetworkState,
-        gas_meter: &'a mut GasMeter,
+        gas_meter: Arc<Mutex<GasMeter>>,
     ) -> Self {
         CallContext {
             state,
@@ -163,17 +164,10 @@ impl<'a> CallContext<'a> {
             println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
             let env_persisted_id = self.state.persist(DiskBackend::ephemeral).expect("network state persisted");
-            let canon_persisted_id = env_persisted_id.clone();
             // WASMER env namespace
-            let env_temporary_gas_meter = GasMeter::with_limit(1000000000); // todo temporary - remove this
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env_persisted_id, self.state.block_height(), env_temporary_gas_meter);
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env_persisted_id, self.state.block_height(), self.gas_meter.clone());
             wasmer_import_object.register("env", env_namespace);
-            // WASMER canon namespace
-            let canon_temporary_gas_meter = GasMeter::with_limit(1000000000); // todo temporary - remove this
-            let mut canon_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, canon_persisted_id, self.state.block_height(), canon_temporary_gas_meter);
-            wasmer_import_object.register("canon", canon_namespace);
 
             // match instance.export_by_name("memory") {
             //     Some(wasmi::ExternVal::Memory(memref)) => {
@@ -212,8 +206,8 @@ impl<'a> CallContext<'a> {
                     Ok(())
                 });
 
-            self.stack
-                .push(StackFrame::new_query(target, wasmer_memref, query));
+            // self.stack // todo
+            //     .push(StackFrame::new_query(target, wasmer_memref, query));
         }
 
         // Perform the query call
@@ -278,17 +272,11 @@ impl<'a> CallContext<'a> {
             println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
             let env_persisted_id = self.state.persist(DiskBackend::ephemeral).expect("network state persisted");
-            let canon_persisted_id = env_persisted_id.clone();
             // WASMER env namespace
             let env_temporary_gas_meter = GasMeter::with_limit(1000000000); // todo temporary - remove this
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env_persisted_id, self.state.block_height(), env_temporary_gas_meter);
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env_persisted_id, self.state.block_height(), self.gas_meter.clone());
             wasmer_import_object.register("env", env_namespace);
-            // WASMER canon namespace
-            let canon_temporary_gas_meter = GasMeter::with_limit(1000000000); // todo temporary - remove this
-            let mut canon_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, canon_persisted_id, self.state.block_height(), canon_temporary_gas_meter);
-            wasmer_import_object.register("canon", canon_namespace);
 
             // WASMER
             wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
@@ -316,7 +304,6 @@ impl<'a> CallContext<'a> {
             // }
 
             // WASMER
-            wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
             let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
             wasmer_memref.with_direct_access_mut(|m| {
                 let mut sink = Sink::new(&mut *m);
@@ -325,11 +312,11 @@ impl<'a> CallContext<'a> {
                 sink.copy_bytes(contract.state().as_bytes());
                 sink.copy_bytes(transaction.as_bytes());
             });
-            self.stack.push(StackFrame::new_transaction(
-                target,
-                wasmer_memref,
-                transaction,
-            ));
+            // self.stack.push(StackFrame::new_transaction( // todo
+            //     target,
+            //     wasmer_memref,
+            //     transaction,
+            // ));
 
         }
         // Perform the transact call
@@ -392,12 +379,12 @@ impl<'a> CallContext<'a> {
         Ok((state, ret.expect("converted error")))
     }
 
-    pub fn gas_meter(&self) -> &GasMeter {
-        self.gas_meter
+    pub fn gas_meter(&self) -> Arc<Mutex<GasMeter>> {
+        self.gas_meter.clone()
     }
 
-    pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
-        self.gas_meter
+    pub fn gas_meter_mut(&mut self) -> Arc<Mutex<GasMeter>> {
+        self.gas_meter.clone()
     }
 
     pub fn top(&self) -> &StackFrame {

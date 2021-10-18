@@ -49,10 +49,9 @@ impl Panic {
     pub fn panic(env: &Env, panic_ofs: u32, panic_len: u32) -> Result<(), VMError> {
         let network_state = NetworkState::with_block_height(env.height);
         let mut restored_network_state = network_state.restore(env.persisted_id.clone())?;
-        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where gas meter should live ?
         let panic_ofs_u = panic_ofs as usize;
         let panic_len_u = panic_len as usize;
-        let context = CallContext::new(&mut restored_network_state, &mut gas);
+        let context = CallContext::new(&mut restored_network_state, env.gas_meter.clone());
         context.memory(|a| {
             Err(
                 match String::from_utf8(
