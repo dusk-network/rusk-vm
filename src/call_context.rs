@@ -39,21 +39,21 @@ enum Argument {
     Transaction(Transaction),
 }
 
-pub struct StackFrame {
+pub struct StackFrame<'a> {
     callee: ContractId,
     argument: Argument,
     ret: ReturnValue,
-    memory: MemoryRef,
+    memory: WasmerMemoryRef<'a>
 }
 
-impl std::fmt::Debug for StackFrame {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl std::fmt::Debug for StackFrame<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(arg: {:?} return: {:?})", self.argument, self.ret)
     }
 }
 
-impl StackFrame {
-    fn new_query(callee: ContractId, memory: MemoryRef, query: Query) -> Self {
+impl StackFrame<'_> {
+    fn new_query<'a>(callee: ContractId, memory: WasmerMemoryRef<'a>, query: Query) -> StackFrame<'a> {
         StackFrame {
             callee,
             memory,
@@ -62,11 +62,11 @@ impl StackFrame {
         }
     }
 
-    fn new_transaction(
+    fn new_transaction<'a>(
         callee: ContractId,
-        memory: MemoryRef,
+        memory: WasmerMemoryRef<'a>,
         transaction: Transaction,
-    ) -> Self {
+    ) -> StackFrame<'a> {
         StackFrame {
             callee,
             memory,
@@ -79,7 +79,7 @@ impl StackFrame {
         self.memory.with_direct_access(closure)
     }
 
-    fn memory_mut<R, C: FnOnce(&mut [u8]) -> R>(&self, closure: C) -> R {
+    fn memory_mut<R, C: FnOnce(&mut [u8]) -> R>(&mut self, closure: C) -> R {
         self.memory.with_direct_access_mut(closure)
     }
 }
@@ -92,9 +92,29 @@ pub trait Invoke: Sized {
     ) -> Result<Option<RuntimeValue>, VMError>;
 }
 
+pub struct WasmerMemoryRef<'a> {
+    memory_ref: &'a wasmer::Memory,
+}
+
+impl WasmerMemoryRef<'_> {
+    pub fn new(memory_ref: &wasmer::Memory) -> WasmerMemoryRef {
+        WasmerMemoryRef { memory_ref }
+    }
+    pub fn with_direct_access<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
+        let buf = unsafe { self.memory_ref.data_unchecked() };
+        f(buf)
+    }
+
+    pub fn with_direct_access_mut<R, F: FnOnce(&mut [u8]) -> R>(&mut self, f: F) -> R {
+        let buf = unsafe { self.memory_ref.data_unchecked_mut() };
+        f(buf)
+    }
+
+}
+
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
-    stack: Vec<StackFrame>,
+    stack: Vec<StackFrame<'a>>,
     gas_meter: &'a mut GasMeter,
 }
 
@@ -180,24 +200,27 @@ impl<'a> CallContext<'a> {
             // WASMER
             wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
 
-            let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
-            unsafe {
-                let wasmer_m = wasmer_memory.data_unchecked_mut();
-                let mut wasmer_sink = Sink::new(&mut *wasmer_m);
-                // copy the raw bytes only, since the
-                // contract can infer
-                // it's own state and argument lengths
-                wasmer_sink.copy_bytes(contract.state().as_bytes());
-                wasmer_sink.copy_bytes(query.as_bytes());
-            }
+            let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
+            wasmer_memref
+                // .with_direct_access_mut::<Result<(), VMError>, FnOnce(&mut [u8]) ->Result<(), VMError>>(|m| {
+                .with_direct_access_mut::<Result<(), VMError>, _>(|m| {
+                    let mut sink = Sink::new(&mut *m);
+                    // copy the raw bytes only, since the
+                    // contract can infer it's own state and argument lengths
+                    sink.copy_bytes(contract.state().as_bytes());
+                    sink.copy_bytes(query.as_bytes());
+                    Ok(())
+                });
 
+            self.stack
+                .push(StackFrame::new_query(target, wasmer_memref, query));
         }
 
         // Perform the query call
         //instance.invoke_export("q", &[wasmi::RuntimeValue::I32(0)], self)?;
 
         // WASMER
-        let wasmer_run_func: NativeFunc<(i32), ()> = wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
+        let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
         wasmer_run_func.call(0);
 
         // match instance.export_by_name("memory") {
@@ -214,15 +237,15 @@ impl<'a> CallContext<'a> {
         // }
 
         // WASMER
-        let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
-        unsafe {
-            let wasmer_m = wasmer_memory.data_unchecked_mut();
-            let mut source = Source::new(&wasmer_m[..]);
+        let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
+        let ret = wasmer_memref.with_direct_access_mut(|m| {
+            let mut source = Source::new(&m[..]);
             let result = ReturnValue::decode(&mut source).expect("query result decoded");
 
             self.stack.pop();
             Ok(result)
-        }
+        });
+        ret
     }
 
     pub fn transact(
@@ -294,18 +317,17 @@ impl<'a> CallContext<'a> {
 
             // WASMER
             wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
-            let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
-            unsafe {
-                let wasmer_m = wasmer_memory.data_unchecked_mut();
-                let mut sink = Sink::new(&mut *wasmer_m);
+            let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
+            wasmer_memref.with_direct_access_mut(|m| {
+                let mut sink = Sink::new(&mut *m);
                 // copy the raw bytes only, since the contract can
                 // infer it's own state and argument lengths.
                 sink.copy_bytes(contract.state().as_bytes());
                 sink.copy_bytes(transaction.as_bytes());
-            }
+            });
             self.stack.push(StackFrame::new_transaction(
                 target,
-                wasmer_memory,
+                wasmer_memref,
                 transaction,
             ));
 
@@ -342,10 +364,9 @@ impl<'a> CallContext<'a> {
             // }
 
             // WASMER
-            let wasmer_memory = wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported");
-            unsafe {
-                let wasmer_m = wasmer_memory.data_unchecked_mut();
-                let mut source = Source::new(&wasmer_m[..]);
+            let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
+            wasmer_memref.with_direct_access_mut(|m| {
+                let mut source = Source::new(&m[..]);
 
                 // read new state
                 let state = ContractState::decode(&mut source).expect("contract state decoded");
@@ -355,7 +376,7 @@ impl<'a> CallContext<'a> {
 
                 // read return value
                 ReturnValue::decode(&mut source)
-            }
+            })
 
         };
 
@@ -368,7 +389,7 @@ impl<'a> CallContext<'a> {
             state
         };
 
-        Ok((state, ret?))
+        Ok((state, ret.expect("converted error")))
     }
 
     pub fn gas_meter(&self) -> &GasMeter {

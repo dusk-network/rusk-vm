@@ -72,7 +72,7 @@ impl GasConsumed {
     pub fn gas_consumed(env: &Env) -> Result<u64, VMError> {
         let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
         let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, &mut gas);
+        let context = CallContext::new(&mut network_state, &mut gas);
         // FIXME: This will not always be correct since if the `gas_consumed =
         // ALL` the gas, this will add the extra cost of the call
         // which can't be consumed since it's not even there.
@@ -98,7 +98,7 @@ impl GasLeft {
     pub fn gas_left(env: &Env) -> Result<u64, VMError> {
         let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
         let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, &mut gas);
+        let context = CallContext::new(&mut network_state, &mut gas);
         Ok(context.gas_meter().left())
     }
 }

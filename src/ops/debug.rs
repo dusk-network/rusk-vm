@@ -44,7 +44,7 @@ impl AbiCall for Debug {
 
 impl Debug {
     pub fn debug(env: &Env, msg_ofs: u32, msg_len: u32) -> Result<(), VMError> {
-        let mut network_state = NetworkState::with_block_height(env.height);
+        let network_state = NetworkState::with_block_height(env.height);
         let mut restored_network_state = network_state.restore(env.persisted_id.clone())?;
         let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where gas meter should live ?
         let msg_ofs_u = msg_ofs as usize;
