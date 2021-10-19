@@ -20,7 +20,7 @@ use crate::VMError;
 pub trait Resolver: Invoke + ModuleImportResolver + Clone + Default {}
 
 pub use crate::resolver::CompoundResolver as StandardABI;
-use crate::resolver::{HostImportsResolver, Env};
+use crate::resolver::{HostImportsResolver, Env, ImportReference};
 
 use wasmer::{imports, wat2wasm, Function, Instance, Module, NativeFunc, Store, ImportObject, Exports};
 use wasmer_compiler_cranelift::Cranelift;
@@ -31,6 +31,7 @@ use microkelvin::{
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc,Mutex};
+use std::ffi::c_void;
 
 
 
@@ -115,28 +116,25 @@ impl WasmerMemoryRef<'_> {
 
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
-    stack: Arc<Mutex<Vec<StackFrame<'a>>>>,
-    gas_meter: Arc<Mutex<GasMeter>>,
+    stack: Vec<StackFrame<'a>>,
+    gas_meter: &'a mut GasMeter,
 }
 
 impl<'a> CallContext<'a> {
     pub fn new(
         state: &'a mut NetworkState,
-        gas_meter: Arc<Mutex<GasMeter>>,
+        gas_meter: &'a mut GasMeter,
     ) -> Self {
         CallContext {
             state,
-            stack: Arc::new(Mutex::new(vec![])),
+            stack: vec![],
             gas_meter,
         }
     }
 
-    pub fn create_env(&self, persisted_id: PersistedId) -> Env<'static> {
+    pub fn create_env(&mut self) -> Env {
         Env {
-            persisted_id,
-            height: self.state.block_height(),
-            gas_meter: self.gas_meter.clone(),
-            stack: self.stack.clone()
+            context: ImportReference(self as *mut _ as *mut c_void)
         }
     }
 
@@ -145,10 +143,6 @@ impl<'a> CallContext<'a> {
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError> {
-        let resolver = StandardABI::default();
-        // let imports = ImportsBuilder::new()
-        //     .with_resolver("env", &resolver)
-        //     .with_resolver("canon", &resolver);
 
         //let instance;
         let wasmer_instance: Instance;
@@ -172,10 +166,10 @@ impl<'a> CallContext<'a> {
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
             println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
-            let env_persisted_id = self.state.persist(DiskBackend::ephemeral).expect("network state persisted");
             // WASMER env namespace
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env(env_persisted_id));
+
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env());
             wasmer_import_object.register("env", env_namespace);
 
             // match instance.export_by_name("memory") {
@@ -215,7 +209,7 @@ impl<'a> CallContext<'a> {
                     Ok(())
                 });
 
-            self.stack.lock().unwrap() // todo
+            self.stack // todo
                 .push(StackFrame::new_query(target, wasmer_memref, query));
         }
 
@@ -245,7 +239,7 @@ impl<'a> CallContext<'a> {
             let mut source = Source::new(&m[..]);
             let result = ReturnValue::decode(&mut source).expect("query result decoded");
 
-            self.stack.lock().unwrap().pop();
+            self.stack.pop();
             Ok(result)
         });
         ret
@@ -256,10 +250,6 @@ impl<'a> CallContext<'a> {
         target: ContractId,
         transaction: Transaction,
     ) -> Result<(ContractState, ReturnValue), VMError> {
-        let resolver = StandardABI::default();
-        let imports = ImportsBuilder::new()
-            .with_resolver("env", &resolver)
-            .with_resolver("canon", &resolver);
 
         //let instance;
         let wasmer_instance;
@@ -280,11 +270,10 @@ impl<'a> CallContext<'a> {
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
             println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
-            let env_persisted_id = self.state.persist(DiskBackend::ephemeral).expect("network state persisted");
             // WASMER env namespace
-            let env_temporary_gas_meter = GasMeter::with_limit(1000000000); // todo temporary - remove this
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env(env_persisted_id));
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env());
+
             wasmer_import_object.register("env", env_namespace);
 
             // WASMER
@@ -303,7 +292,7 @@ impl<'a> CallContext<'a> {
             //             sink.copy_bytes(transaction.as_bytes());
             //         });
             //
-            //         self.stack.lock().unwrap().push(StackFrame::new_transaction(
+            //         self.stack.push(StackFrame::new_transaction(
             //             target,
             //             memref,
             //             transaction,
@@ -321,7 +310,7 @@ impl<'a> CallContext<'a> {
                 sink.copy_bytes(contract.state().as_bytes());
                 sink.copy_bytes(transaction.as_bytes());
             });
-            self.stack.lock().unwrap().push(StackFrame::new_transaction( // todo
+            self.stack.push(StackFrame::new_transaction( // todo
                 target,
                 wasmer_memref,
                 transaction,
@@ -376,28 +365,28 @@ impl<'a> CallContext<'a> {
 
         };
 
-        let state = if self.stack.lock().unwrap().len() > 1 {
-            self.stack.lock().unwrap().pop();
+        let state = if self.stack.len() > 1 {
+            self.stack.pop();
             self.state.get_contract(self.callee())?.state().clone()
         } else {
             let state = self.state.get_contract(self.callee())?.state().clone();
-            self.stack.lock().unwrap().pop();
+            self.stack.pop();
             state
         };
 
         Ok((state, ret.expect("converted error")))
     }
 
-    pub fn gas_meter(&self) -> Arc<Mutex<GasMeter>> {
-        self.gas_meter.clone()
+    pub fn gas_meter(&self) -> GasMeter {
+        self.gas_meter()
     }
 
-    pub fn gas_meter_mut(&mut self) -> Arc<Mutex<GasMeter>> {
-        self.gas_meter.clone()
+    pub fn gas_meter_mut(&mut self) -> GasMeter {
+        self.gas_meter()
     }
 
     pub fn top(&self) -> &StackFrame {
-        self.stack.lock().unwrap().last().expect("Invalid stack")
+        self.stack.last().expect("Invalid stack")
     }
 
     pub fn callee(&self) -> &ContractId {
@@ -405,8 +394,8 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn caller(&self) -> &ContractId {
-        if self.stack.lock().unwrap().len() > 1 {
-            &self.stack.lock().unwrap()[self.stack.lock().unwrap().len() - 2].callee
+        if self.stack.len() > 1 {
+            &self.stack[self.stack.len() - 2].callee
         } else {
             self.callee()
         }
@@ -420,7 +409,7 @@ impl<'a> CallContext<'a> {
         &mut self,
         closure: C,
     ) -> Result<R, CanonError> {
-        self.stack.lock().unwrap()
+        self.stack
             .last_mut()
             .expect("Invalid stack")
             .memory_mut(closure)

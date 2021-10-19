@@ -147,7 +147,7 @@ impl NetworkState {
         &mut self,
         target: ContractId,
         query: A,
-        gas_meter: Arc<Mutex<GasMeter>>,
+        gas_meter: &mut GasMeter,
     ) -> Result<R, VMError>
     where
         A: Canon,
@@ -165,7 +165,7 @@ impl NetworkState {
         &mut self,
         target: ContractId,
         transaction: A,
-        gas_meter: Arc<Mutex<GasMeter>>,
+        gas_meter: &mut GasMeter,
     ) -> Result<R, VMError>
     where
         A: Canon,

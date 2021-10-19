@@ -58,8 +58,7 @@ impl Get {
         let hash_ofs = hash_ofs as usize;
         let write_buf = write_buf as usize;
         let write_len = write_len as usize;
-        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, env.gas_meter.clone());
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
         context
             .memory_mut(|mem| {
                 let mut source = Source::new(&mem[hash_ofs..]);
@@ -119,8 +118,7 @@ impl Put {
         let ofs = ofs as usize;
         let len = len as usize;
         let ret = ret as usize;
-        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, env.gas_meter.clone());
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
 
         context
             .memory_mut(|mem| {
@@ -175,9 +173,7 @@ impl Hash {
         let ofs = ofs as usize;
         let len = len as usize;
         let ret = ret as usize;
-        let mut gas = GasMeter::with_limit(1_000_000_000); // todo think where the gas meter should live ?
-        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, env.gas_meter.clone());
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
 
         context
             .memory_mut(|mem| {

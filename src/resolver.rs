@@ -115,18 +115,21 @@ pub struct HostImportsResolver {
 //     }
 // }
 
-use std::sync::{Arc, Mutex};
+use std::ffi::c_void;
+
+#[derive(Clone)]
+pub struct ImportReference(pub *mut c_void);
+unsafe impl Send for ImportReference {}
+unsafe impl Sync for ImportReference {}
+
 
 #[derive(WasmerEnv, Clone)]
-pub struct Env<'a> {
-    pub persisted_id: PersistedId,
-    pub height: u64,
-    pub gas_meter: Arc<Mutex<GasMeter>>,
-    pub stack: Arc<Mutex<Vec<StackFrame<'a>>>>
+pub struct Env {
+    pub context: ImportReference
 }
 
 impl HostImportsResolver {
-    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, env: Env<'static>) {
+    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, env: Env) {
         namespace.insert("sig", Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
         namespace.insert("debug", Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
         namespace.insert("block_height", Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));

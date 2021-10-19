@@ -47,11 +47,9 @@ impl AbiCall for Panic {
 
 impl Panic {
     pub fn panic(env: &Env, panic_ofs: u32, panic_len: u32) -> Result<(), VMError> {
-        let network_state = NetworkState::with_block_height(env.height);
-        let mut restored_network_state = network_state.restore(env.persisted_id.clone())?;
         let panic_ofs_u = panic_ofs as usize;
         let panic_len_u = panic_len as usize;
-        let context = CallContext::new(&mut restored_network_state, env.gas_meter.clone());
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
         context.memory(|a| {
             Err(
                 match String::from_utf8(

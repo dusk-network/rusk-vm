@@ -445,14 +445,14 @@ fn gas_consumed_host_function_works() {
         )
         .expect("Query error");
 
-    assert_eq!(gas_left + gas.lock().unwrap().spent(), 1_000_000_000,
+    assert_eq!(gas_left + gas.spent(), 1_000_000_000,
         "The gas left plus the gas spent should be equal to the initial gas provided
         Debug info:
         GasMeter values: gas.spent() = {}, gas.left() = {}
-        queried values:  gas_consumed = {}, gas_left = {}", gas.lock().unwrap().spent(), gas.lock().unwrap().left(), gas_consumed, gas_left);
+        queried values:  gas_consumed = {}, gas_left = {}", gas.spent(), gas.left(), gas_consumed, gas_left);
 
     assert_eq!(
-        gas.lock().unwrap().spent() - gas_consumed,
+        gas.spent() - gas_consumed,
         2_050,
         "The gas spent minus the gas consumed should be equal to the gas held"
     );
@@ -484,8 +484,8 @@ fn gas_consumption_works() {
         100
     );
 
-    assert_ne!(gas.lock().unwrap().spent(), 100);
-    assert!(gas.lock().unwrap().left() < 1_000_000_000);
+    assert_ne!(gas.spent(), 100);
+    assert!(gas.left() < 1_000_000_000);
 }
 
 #[test]
@@ -508,7 +508,7 @@ fn out_of_gas_aborts_execution() {
     assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
 
     // Ensure all gas is consumed even the tx did not succeed.
-    assert_eq!(gas.lock().unwrap().left(), 0);
+    assert_eq!(gas.left(), 0);
 }
 
 #[test]
