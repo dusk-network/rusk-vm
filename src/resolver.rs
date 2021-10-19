@@ -14,7 +14,7 @@ use wasmi::{
     RuntimeValue, Signature,
 };
 
-use crate::call_context::{CallContext, Invoke};
+use crate::call_context::{CallContext, Invoke, StackFrame};
 
 use wasmer::{Function, Store, Exports, WasmerEnv};
 
@@ -118,15 +118,15 @@ pub struct HostImportsResolver {
 use std::sync::{Arc, Mutex};
 
 #[derive(WasmerEnv, Clone)]
-pub struct Env {
+pub struct Env<'a> {
     pub persisted_id: PersistedId,
     pub height: u64,
-    pub gas_meter: Arc<Mutex<GasMeter>>
+    pub gas_meter: Arc<Mutex<GasMeter>>,
+    pub stack: Arc<Mutex<Vec<StackFrame<'a>>>>
 }
 
 impl HostImportsResolver {
-    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, persisted_id: PersistedId, height: u64, gas_meter: Arc<Mutex<GasMeter>>) {
-        let env = Env{ persisted_id, height, gas_meter: gas_meter };
+    pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, env: Env<'static>) {
         namespace.insert("sig", Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
         namespace.insert("debug", Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
         namespace.insert("block_height", Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));
