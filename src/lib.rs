@@ -22,6 +22,7 @@ mod module_config;
 mod ops;
 mod resolver;
 mod state;
+mod memory;
 
 pub use dusk_abi;
 
@@ -32,6 +33,7 @@ pub use state::NetworkState;
 
 use thiserror::Error;
 use microkelvin::PersistError;
+use wasmer::ExportError;
 
 #[derive(Error)]
 //#[derive(Fail)]
@@ -77,6 +79,8 @@ pub enum VMError {
     PersistenceSerializationError(CanonError),
     /// Other error from the state persistence mechanism
     PersistenceError(String),
+    /// WASMER export error
+    WasmerExportError(wasmer::ExportError)
 }
 
 impl From<io::Error> for VMError {
@@ -110,6 +114,12 @@ impl From<PersistError> for VMError {
             PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
             PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
         }
+    }
+}
+
+impl From<wasmer::ExportError> for VMError {
+    fn from(e: wasmer::ExportError) -> Self {
+        VMError::WasmerExportError(e)
     }
 }
 
@@ -156,6 +166,12 @@ impl fmt::Display for VMError {
             VMError::PersistenceSerializationError(e) => write!(f, "Persistence serialization error {:?}", e)?,
             VMError::PersistenceError(string) => {
                 write!(f, "Persistence error \"{}\"", string)?
+            },
+            VMError::WasmerExportError(e) => {
+                match e {
+                    ExportError::IncompatibleType => write!(f, "WASMER Export Error - incompatible export type")?,
+                    ExportError::Missing(s) => write!(f, "WASMER Export Error - missing: \"{}\"", s)?
+                }
             },
         }
         Ok(())

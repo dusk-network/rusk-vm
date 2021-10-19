@@ -69,8 +69,7 @@ impl ApplyTransaction {
     pub fn transact(env: &Env, contract_id_ofs: u32, transaction_ofs: u32) -> Result<(), VMError> {
         let contract_id_ofs = contract_id_ofs as usize;
         let transaction_ofs = transaction_ofs as usize;
-        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, env.gas_meter.clone());
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
 
         let (contract_id, state, transaction) = context
             .memory(|m| {

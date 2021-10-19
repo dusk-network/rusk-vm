@@ -20,17 +20,19 @@ use crate::VMError;
 pub trait Resolver: Invoke + ModuleImportResolver + Clone + Default {}
 
 pub use crate::resolver::CompoundResolver as StandardABI;
-use crate::resolver::HostImportsResolver;
+use crate::resolver::{HostImportsResolver, Env, ImportReference};
+use crate::memory::WasmerMemory;
 
-use wasmer::{imports, wat2wasm, Function, Instance, Module, NativeFunc, Store, ImportObject, Exports};
+use wasmer::{imports, wat2wasm, Function, Instance, Module, NativeFunc, Store, ImportObject, Exports, Memory, LazyInit};
 use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_universal::Universal;
 
 use microkelvin::{
-    BackendCtor, Compound, DiskBackend, Keyed, PersistError, Persistence,
+    BackendCtor, Compound, DiskBackend, Keyed, PersistError, Persistence, PersistedId
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc,Mutex};
+use std::ffi::c_void;
 
 
 
@@ -40,21 +42,21 @@ enum Argument {
     Transaction(Transaction),
 }
 
-pub struct StackFrame<'a> {
+pub struct StackFrame {
     callee: ContractId,
     argument: Argument,
     ret: ReturnValue,
-    memory: WasmerMemoryRef<'a>
+    memory: WasmerMemory,
 }
 
-impl std::fmt::Debug for StackFrame<'_> {
+impl std::fmt::Debug for StackFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(arg: {:?} return: {:?})", self.argument, self.ret)
     }
 }
 
-impl StackFrame<'_> {
-    fn new_query<'a>(callee: ContractId, memory: WasmerMemoryRef<'a>, query: Query) -> StackFrame<'a> {
+impl StackFrame {
+    fn new_query(callee: ContractId, memory: WasmerMemory, query: Query) -> StackFrame {
         StackFrame {
             callee,
             memory,
@@ -63,11 +65,11 @@ impl StackFrame<'_> {
         }
     }
 
-    fn new_transaction<'a>(
+    fn new_transaction(
         callee: ContractId,
-        memory: WasmerMemoryRef<'a>,
+        memory: WasmerMemory,
         transaction: Transaction,
-    ) -> StackFrame<'a> {
+    ) -> StackFrame {
         StackFrame {
             callee,
             memory,
@@ -93,36 +95,17 @@ pub trait Invoke: Sized {
     ) -> Result<Option<RuntimeValue>, VMError>;
 }
 
-pub struct WasmerMemoryRef<'a> {
-    memory_ref: &'a wasmer::Memory,
-}
-
-impl WasmerMemoryRef<'_> {
-    pub fn new(memory_ref: &wasmer::Memory) -> WasmerMemoryRef {
-        WasmerMemoryRef { memory_ref }
-    }
-    pub fn with_direct_access<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-        let buf = unsafe { self.memory_ref.data_unchecked() };
-        f(buf)
-    }
-
-    pub fn with_direct_access_mut<R, F: FnOnce(&mut [u8]) -> R>(&mut self, f: F) -> R {
-        let buf = unsafe { self.memory_ref.data_unchecked_mut() };
-        f(buf)
-    }
-
-}
 
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
-    stack: Vec<StackFrame<'a>>,
-    gas_meter: Arc<Mutex<GasMeter>>,
+    stack: Vec<StackFrame>,
+    gas_meter: &'a mut GasMeter,
 }
 
 impl<'a> CallContext<'a> {
     pub fn new(
         state: &'a mut NetworkState,
-        gas_meter: Arc<Mutex<GasMeter>>,
+        gas_meter: &'a mut GasMeter,
     ) -> Self {
         CallContext {
             state,
@@ -131,15 +114,17 @@ impl<'a> CallContext<'a> {
         }
     }
 
+    pub fn create_env(&mut self) -> Env {
+        Env {
+            context: ImportReference(self as *mut _ as *mut c_void)
+        }
+    }
+
     pub fn query(
         &mut self,
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError> {
-        let resolver = StandardABI::default();
-        // let imports = ImportsBuilder::new()
-        //     .with_resolver("env", &resolver)
-        //     .with_resolver("canon", &resolver);
 
         //let instance;
         let wasmer_instance: Instance;
@@ -163,10 +148,10 @@ impl<'a> CallContext<'a> {
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
             println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
-            let env_persisted_id = self.state.persist(DiskBackend::ephemeral).expect("network state persisted");
             // WASMER env namespace
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env_persisted_id, self.state.block_height(), self.gas_meter.clone());
+
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env());
             wasmer_import_object.register("env", env_namespace);
 
             // match instance.export_by_name("memory") {
@@ -194,20 +179,13 @@ impl<'a> CallContext<'a> {
             // WASMER
             wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
 
-            let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
-            wasmer_memref
-                // .with_direct_access_mut::<Result<(), VMError>, FnOnce(&mut [u8]) ->Result<(), VMError>>(|m| {
-                .with_direct_access_mut::<Result<(), VMError>, _>(|m| {
-                    let mut sink = Sink::new(&mut *m);
-                    // copy the raw bytes only, since the
-                    // contract can infer it's own state and argument lengths
-                    sink.copy_bytes(contract.state().as_bytes());
-                    sink.copy_bytes(query.as_bytes());
-                    Ok(())
-                });
+            let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
+            wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes()) };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, query.as_bytes()) };
 
-            // self.stack // todo
-            //     .push(StackFrame::new_query(target, wasmer_memref, query));
+            self.stack
+                .push(StackFrame::new_query(target, wasmer_memory, query));
         }
 
         // Perform the query call
@@ -231,15 +209,13 @@ impl<'a> CallContext<'a> {
         // }
 
         // WASMER
-        let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
-        let ret = wasmer_memref.with_direct_access_mut(|m| {
-            let mut source = Source::new(&m[..]);
-            let result = ReturnValue::decode(&mut source).expect("query result decoded");
-
-            self.stack.pop();
-            Ok(result)
-        });
-        ret
+        let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
+        wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
+        let read_buffer = unsafe { WasmerMemory::read_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, wasmer_memory.inner.get_unchecked().data_size() as usize)? };
+        let mut source = Source::new(&read_buffer);
+        let result = ReturnValue::decode(&mut source).expect("query result decoded");
+        self.stack.pop();
+        Ok(result)
     }
 
     pub fn transact(
@@ -247,10 +223,6 @@ impl<'a> CallContext<'a> {
         target: ContractId,
         transaction: Transaction,
     ) -> Result<(ContractState, ReturnValue), VMError> {
-        let resolver = StandardABI::default();
-        let imports = ImportsBuilder::new()
-            .with_resolver("env", &resolver)
-            .with_resolver("canon", &resolver);
 
         //let instance;
         let wasmer_instance;
@@ -271,11 +243,10 @@ impl<'a> CallContext<'a> {
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
             println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
-            let env_persisted_id = self.state.persist(DiskBackend::ephemeral).expect("network state persisted");
             // WASMER env namespace
-            let env_temporary_gas_meter = GasMeter::with_limit(1000000000); // todo temporary - remove this
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env_persisted_id, self.state.block_height(), self.gas_meter.clone());
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env());
+
             wasmer_import_object.register("env", env_namespace);
 
             // WASMER
@@ -304,20 +275,16 @@ impl<'a> CallContext<'a> {
             // }
 
             // WASMER
-            let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
-            wasmer_memref.with_direct_access_mut(|m| {
-                let mut sink = Sink::new(&mut *m);
-                // copy the raw bytes only, since the contract can
-                // infer it's own state and argument lengths.
-                sink.copy_bytes(contract.state().as_bytes());
-                sink.copy_bytes(transaction.as_bytes());
-            });
-            // self.stack.push(StackFrame::new_transaction( // todo
-            //     target,
-            //     wasmer_memref,
-            //     transaction,
-            // ));
+            let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
+            wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes()) };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, transaction.as_bytes()) };
 
+            self.stack.push(StackFrame::new_transaction(
+                target,
+                wasmer_memory,
+                transaction,
+            ));
         }
         // Perform the transact call
         // instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
@@ -351,20 +318,13 @@ impl<'a> CallContext<'a> {
             // }
 
             // WASMER
-            let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
-            wasmer_memref.with_direct_access_mut(|m| {
-                let mut source = Source::new(&m[..]);
-
-                // read new state
-                let state = ContractState::decode(&mut source).expect("contract state decoded");
-
-                // update new self state
-                *(*contract).state_mut() = state;
-
-                // read return value
-                ReturnValue::decode(&mut source)
-            })
-
+            let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
+            wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
+            let read_buffer = unsafe { WasmerMemory::read_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, wasmer_memory.inner.get_unchecked().data_size() as usize)? };
+            let mut source = Source::new(&read_buffer);
+            let state = ContractState::decode(&mut source).expect("query result decoded");
+            *(*contract).state_mut() = state;
+            ReturnValue::decode(&mut source)
         };
 
         let state = if self.stack.len() > 1 {
@@ -379,12 +339,12 @@ impl<'a> CallContext<'a> {
         Ok((state, ret.expect("converted error")))
     }
 
-    pub fn gas_meter(&self) -> Arc<Mutex<GasMeter>> {
-        self.gas_meter.clone()
+    pub fn gas_meter(&self) -> GasMeter {
+        self.gas_meter()
     }
 
-    pub fn gas_meter_mut(&mut self) -> Arc<Mutex<GasMeter>> {
-        self.gas_meter.clone()
+    pub fn gas_meter_mut(&mut self) -> GasMeter {
+        self.gas_meter()
     }
 
     pub fn top(&self) -> &StackFrame {

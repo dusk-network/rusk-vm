@@ -29,6 +29,7 @@ impl AbiCall for BlockHeight {
 
 impl BlockHeight {
     pub fn block_height(env: &Env) -> Result<u64, VMError> {
-        Ok(env.height)
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
+        Ok(context.state().block_height())
     }
 }

@@ -42,8 +42,7 @@ impl AbiCall for Callee {
 impl Callee {
     pub fn callee(env: &Env, result_ofs: u32) -> Result<(), VMError> {
         let result_ofs = result_ofs as usize;
-        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, env.gas_meter.clone());
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
         let callee = *context.callee();
 
         context
@@ -86,8 +85,7 @@ impl AbiCall for Caller {
 impl Caller {
     pub fn caller(env: &Env, result_ofs: u32) -> Result<(), VMError> {
         let result_ofs = result_ofs as usize;
-        let mut network_state = NetworkState::with_block_height(env.height).restore(env.persisted_id.clone())?;
-        let mut context = CallContext::new(&mut network_state, env.gas_meter.clone());
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
         let caller = *context.caller();
 
         context
