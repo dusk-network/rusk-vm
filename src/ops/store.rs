@@ -118,7 +118,7 @@ impl Put {
         let ofs = ofs as usize;
         let len = len as usize;
         let ret = ret as usize;
-        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
+        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext) };
 
         context
             .memory_mut(|mem| {
