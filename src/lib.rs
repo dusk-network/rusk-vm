@@ -26,7 +26,6 @@ mod memory;
 
 pub use dusk_abi;
 
-pub use call_context::StandardABI;
 pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
@@ -121,6 +120,10 @@ impl From<wasmer::ExportError> for VMError {
     fn from(e: wasmer::ExportError) -> Self {
         VMError::WasmerExportError(e)
     }
+}
+
+impl From<CanonError> for VMError {
+    fn from(e: CanonError) -> Self { VMError::PersistenceSerializationError(e) }
 }
 
 // The generic From<CanonError> is not specific enough and conflicts with

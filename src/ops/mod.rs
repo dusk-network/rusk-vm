@@ -4,11 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
-use crate::VMError;
-
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
-
 pub mod block_height;
 pub mod call_stack;
 pub mod debug;
@@ -17,13 +12,3 @@ pub mod panic;
 pub mod query;
 pub mod store;
 pub mod transact;
-
-pub trait AbiCall {
-    const ARGUMENTS: &'static [ValueType];
-    const RETURN: Option<ValueType>;
-
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError>;
-}

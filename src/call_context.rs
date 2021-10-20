@@ -4,34 +4,21 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Canon, CanonError, Sink, Source};
+use canonical::{Canon, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
-
-use wasmi::{
-    Externals, ImportsBuilder, MemoryRef, ModuleImportResolver, RuntimeArgs,
-    RuntimeValue, Trap, TrapKind,
-};
 
 use crate::contract::ContractId;
 use crate::gas::GasMeter;
 use crate::state::NetworkState;
 use crate::VMError;
 
-pub trait Resolver: Invoke + ModuleImportResolver + Clone + Default {}
-
-pub use crate::resolver::CompoundResolver as StandardABI;
-use crate::resolver::{HostImportsResolver, Env, ImportReference};
+use crate::resolver::{Env, ImportReference, HostImportsResolver};
 use crate::memory::WasmerMemory;
 
-use wasmer::{imports, wat2wasm, Function, Instance, Module, NativeFunc, Store, ImportObject, Exports, Memory, LazyInit};
+use wasmer::{Instance, Module, NativeFunc, Store, ImportObject, Exports, LazyInit};
 use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_universal::Universal;
 
-use microkelvin::{
-    BackendCtor, Compound, DiskBackend, Keyed, PersistError, Persistence, PersistedId
-};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc,Mutex};
 use std::ffi::c_void;
 
 
@@ -78,23 +65,26 @@ impl StackFrame {
         }
     }
 
-    fn memory<R, C: FnOnce(&[u8]) -> R>(&self, closure: C) -> R {
-        self.memory.with_direct_access(closure)
+    // fn memory<R, C: FnOnce(&[u8]) -> R>(&self, closure: C) -> R {
+    //     self.memory.with_direct_access(closure)
+    // }
+    //
+    // fn memory_mut<R, C: FnOnce(&mut [u8]) -> R>(&mut self, closure: C) -> R {
+    //     self.memory.with_direct_access_mut(closure)
+    // }
+
+    fn write_memory(&mut self, source_slice: &[u8], offset: u64) -> Result<(), VMError>{
+        unsafe { WasmerMemory::write_memory_bytes(self.memory.inner.get_unchecked(), offset, source_slice) }
     }
 
-    fn memory_mut<R, C: FnOnce(&mut [u8]) -> R>(&mut self, closure: C) -> R {
-        self.memory.with_direct_access_mut(closure)
+    fn read_memory_from(&self, offset: u64) -> Result<Vec<u8>, VMError> {
+        unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), offset, self.memory.inner.get_unchecked().data_size() as usize) }
+    }
+
+    fn read_memory(&self, offset: u64, length: usize) -> Result<Vec<u8>, VMError> {
+        unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), offset, length) }
     }
 }
-
-pub trait Invoke: Sized {
-    fn invoke(
-        context: &mut CallContext,
-        index: usize,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError>;
-}
-
 
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
@@ -114,24 +104,21 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn create_env(&mut self) -> Env {
-        Env {
-            context: ImportReference(self as *mut _ as *mut c_void)
-        }
-    }
-
     pub fn query(
         &mut self,
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError> {
+        let env = Env {
+            context: ImportReference(self as *mut _ as *mut c_void)
+        };
 
         //let instance;
         let wasmer_instance: Instance;
 
         if let Some(module) = self.state.modules().borrow().get(&target) {
-             // is this a reserved module call?
-             return module.execute(query).map_err(VMError::from_store_error);
+            // is this a reserved module call?
+            return module.execute(query).map_err(VMError::from_store_error);
         } else {
             let contract = self.state.get_contract(&target)?;
 
@@ -151,7 +138,7 @@ impl<'a> CallContext<'a> {
             // WASMER env namespace
             let mut env_namespace = Exports::new();
 
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env());
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env);
             wasmer_import_object.register("env", env_namespace);
 
             // match instance.export_by_name("memory") {
@@ -181,8 +168,8 @@ impl<'a> CallContext<'a> {
 
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes()) };
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, query.as_bytes()) };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes())? };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, query.as_bytes())? };
 
             self.stack
                 .push(StackFrame::new_query(target, wasmer_memory, query));
@@ -193,7 +180,7 @@ impl<'a> CallContext<'a> {
 
         // WASMER
         let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
-        wasmer_run_func.call(0);
+        wasmer_run_func.call(0); // todo add ?
 
         // match instance.export_by_name("memory") {
         //     Some(wasmi::ExternVal::Memory(memref)) => memref
@@ -223,6 +210,9 @@ impl<'a> CallContext<'a> {
         target: ContractId,
         transaction: Transaction,
     ) -> Result<(ContractState, ReturnValue), VMError> {
+        let env = Env {
+            context: ImportReference(self as *mut _ as *mut c_void)
+        };
 
         //let instance;
         let wasmer_instance;
@@ -245,7 +235,7 @@ impl<'a> CallContext<'a> {
             let mut wasmer_import_object = ImportObject::new();
             // WASMER env namespace
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env());
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env);
 
             wasmer_import_object.register("env", env_namespace);
 
@@ -277,8 +267,8 @@ impl<'a> CallContext<'a> {
             // WASMER
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes()) };
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, transaction.as_bytes()) };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes())? };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, transaction.as_bytes())? };
 
             self.stack.push(StackFrame::new_transaction(
                 target,
@@ -290,8 +280,8 @@ impl<'a> CallContext<'a> {
         // instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
 
         // WASMER
-        let wasmer_run_func: NativeFunc<(i32), ()> = wasmer_instance.exports.get_native_function("t").expect("wasmer invoked function t");
-        wasmer_run_func.call(0);
+        let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("t").expect("wasmer invoked function t");
+        wasmer_run_func.call(0); // todo add ?
 
 
         let ret = {
@@ -339,12 +329,12 @@ impl<'a> CallContext<'a> {
         Ok((state, ret.expect("converted error")))
     }
 
-    pub fn gas_meter(&self) -> GasMeter {
-        self.gas_meter()
+    pub fn gas_meter(&self) -> &GasMeter {
+        self.gas_meter
     }
 
-    pub fn gas_meter_mut(&mut self) -> GasMeter {
-        self.gas_meter()
+    pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
+        self.gas_meter
     }
 
     pub fn top(&self) -> &StackFrame {
@@ -363,18 +353,20 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn memory<R, C: FnOnce(&[u8]) -> R>(&self, closure: C) -> R {
-        self.top().memory(closure)
+    pub fn read_memory_from(&self, offset: u64) -> Result<Vec<u8>, VMError> {
+        self.top().read_memory_from(offset)
     }
 
-    pub fn memory_mut<R, C: FnOnce(&mut [u8]) -> Result<R, CanonError>>(
-        &mut self,
-        closure: C,
-    ) -> Result<R, CanonError> {
+    pub fn read_memory(&self, offset: u64, length: usize) -> Result<Vec<u8>, VMError> {
+        self.top().read_memory(offset, length)
+    }
+
+    pub fn write_memory(&mut self, source_slice: &[u8], offset: u64) -> Result<(), VMError> {
         self.stack
             .last_mut()
             .expect("Invalid stack")
-            .memory_mut(closure)
+            .write_memory(source_slice, offset)?;
+        Ok(())
     }
 
     pub fn state(&self) -> &NetworkState {
@@ -386,26 +378,8 @@ impl<'a> CallContext<'a> {
     }
 }
 
-/// Convenience function to construct host traps
-pub fn host_trap(host: VMError) -> Trap {
-    Trap::new(TrapKind::Host(Box::new(host)))
-}
+// Convenience function to construct host traps
+// pub fn host_trap(host: VMError) -> Trap {
+//     Trap::new(TrapKind::Host(Box::new(host)))
+// }
 
-impl<'a> Externals for CallContext<'a> {
-    fn invoke_index(
-        &mut self,
-        index: usize,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, Trap> {
-        match StandardABI::invoke(self, index, args) {
-            Ok(ok) => Ok(ok),
-            Err(e) => {
-                if let VMError::Trap(t) = e {
-                    Err(t)
-                } else {
-                    Err(host_trap(e))
-                }
-            }
-        }
-    }
-}
