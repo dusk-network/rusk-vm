@@ -22,7 +22,7 @@ pub trait Resolver: Invoke + ModuleImportResolver + Clone + Default {}
 pub use crate::resolver::CompoundResolver as StandardABI;
 use crate::resolver::{HostImportsResolver, Env, ImportReference};
 
-use wasmer::{imports, wat2wasm, Function, Instance, Module, NativeFunc, Store, ImportObject, Exports};
+use wasmer::{imports, wat2wasm, Function, Instance, Module, NativeFunc, Store, ImportObject, Exports, Memory, LazyInit};
 use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_universal::Universal;
 
@@ -41,21 +41,21 @@ enum Argument {
     Transaction(Transaction),
 }
 
-pub struct StackFrame<'a> {
+pub struct StackFrame {
     callee: ContractId,
     argument: Argument,
     ret: ReturnValue,
-    memory: WasmerMemoryRef<'a>
+    memory: WasmerMemory,
 }
 
-impl std::fmt::Debug for StackFrame<'_> {
+impl std::fmt::Debug for StackFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(arg: {:?} return: {:?})", self.argument, self.ret)
     }
 }
 
-impl StackFrame<'_> {
-    fn new_query<'a>(callee: ContractId, memory: WasmerMemoryRef<'a>, query: Query) -> StackFrame<'a> {
+impl StackFrame {
+    fn new_query(callee: ContractId, memory: WasmerMemory, query: Query) -> StackFrame {
         StackFrame {
             callee,
             memory,
@@ -64,11 +64,11 @@ impl StackFrame<'_> {
         }
     }
 
-    fn new_transaction<'a>(
+    fn new_transaction(
         callee: ContractId,
-        memory: WasmerMemoryRef<'a>,
+        memory: WasmerMemory,
         transaction: Transaction,
-    ) -> StackFrame<'a> {
+    ) -> StackFrame {
         StackFrame {
             callee,
             memory,
@@ -94,29 +94,88 @@ pub trait Invoke: Sized {
     ) -> Result<Option<RuntimeValue>, VMError>;
 }
 
-pub struct WasmerMemoryRef<'a> {
-    memory_ref: &'a wasmer::Memory,
+/// Check that the given offset and length fits into the memory bounds. If not,
+/// it will try to grow the memory.
+fn check_bounds(memory: &Memory, offset: u64, len: usize) -> Result<(), VMError> {
+    if memory.data_size() < offset + len as u64 {
+        let cur_pages = memory.size().0;
+        let capacity = cur_pages as usize * wasmer::WASM_PAGE_SIZE;
+        let missing = offset as usize + len - capacity;
+        // Ceiling division
+        let req_pages = ((missing + wasmer::WASM_PAGE_SIZE - 1)
+            / wasmer::WASM_PAGE_SIZE) as u32;
+        memory.grow(req_pages).map_err(VMError::MemoryNotFound)?; // todo this grow will probably need to go away
+    }
+    Ok(())
 }
 
-impl WasmerMemoryRef<'_> {
-    pub fn new(memory_ref: &wasmer::Memory) -> WasmerMemoryRef {
-        WasmerMemoryRef { memory_ref }
-    }
-    pub fn with_direct_access<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-        let buf = unsafe { self.memory_ref.data_unchecked() };
-        f(buf)
-    }
-
-    pub fn with_direct_access_mut<R, F: FnOnce(&mut [u8]) -> R>(&mut self, f: F) -> R {
-        let buf = unsafe { self.memory_ref.data_unchecked_mut() };
-        f(buf)
-    }
-
+/// Read bytes from memory at the given offset and length
+fn read_memory_bytes(
+    memory: &Memory,
+    offset: u64,
+    len: usize,
+) -> Result<Vec<u8>, VMError> {
+    check_bounds(memory, offset, len)?;
+    let offset = offset as usize;
+    let vec: Vec<_> = memory.view()[offset..(offset + len)]
+        .iter()
+        .map(|cell| cell.get())
+        .collect();
+    Ok(vec)
 }
+
+/// Write bytes into memory at the given offset
+fn write_memory_bytes(
+    memory: &Memory,
+    offset: u64,
+    bytes: impl AsRef<[u8]>,
+) -> Result<(), VMError> {
+    let slice = bytes.as_ref();
+    let len = slice.len();
+    check_bounds(memory, offset, len as _)?;
+    let offset = offset as usize;
+    memory.view()[offset..(offset + len)]
+        .iter()
+        .zip(slice.iter())
+        .for_each(|(cell, v)| cell.set(*v));
+    Ok(())
+}
+
+pub struct WasmerMemory {
+    inner: LazyInit<Memory>,
+}
+
+impl WasmerMemory {
+    pub fn init_env_memory(
+        &mut self,
+        exports: &wasmer::Exports,
+    ) -> std::result::Result<(), VMError> {
+        let memory = exports.get_memory("memory")?;
+        self.inner.initialize(memory.clone());
+        Ok(())
+    }
+}
+
+
+// impl WasmerMemory {
+//     pub fn new(memory_ref: &wasmer::Memory) -> WasmerMemoryRef {
+//         WasmerMemoryRef { memory_ref }
+//     }
+//     pub fn with_direct_access<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
+//         let buf = unsafe { self.memory_ref.data_unchecked() };
+//         f(buf)
+//     }
+//
+//     pub fn with_direct_access_mut<R, F: FnOnce(&mut [u8]) -> R>(&mut self, f: F) -> R {
+//         let buf = unsafe { self.memory_ref.data_unchecked_mut() };
+//         f(buf)
+//     }
+//
+// }
 
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
-    stack: Vec<StackFrame<'a>>,
+    stack: Vec<StackFrame>,
     gas_meter: &'a mut GasMeter,
 }
 
@@ -197,20 +256,13 @@ impl<'a> CallContext<'a> {
             // WASMER
             wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
 
-            let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
-            wasmer_memref
-                // .with_direct_access_mut::<Result<(), VMError>, FnOnce(&mut [u8]) ->Result<(), VMError>>(|m| {
-                .with_direct_access_mut::<Result<(), VMError>, _>(|m| {
-                    let mut sink = Sink::new(&mut *m);
-                    // copy the raw bytes only, since the
-                    // contract can infer it's own state and argument lengths
-                    sink.copy_bytes(contract.state().as_bytes());
-                    sink.copy_bytes(query.as_bytes());
-                    Ok(())
-                });
+            let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
+            wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
+            unsafe { write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes()) };
+            unsafe { write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, query.as_bytes()) };
 
             self.stack // todo
-                .push(StackFrame::new_query(target, wasmer_memref, query));
+                .push(StackFrame::new_query(target, wasmer_memory, query));
         }
 
         // Perform the query call
@@ -234,15 +286,13 @@ impl<'a> CallContext<'a> {
         // }
 
         // WASMER
-        let mut wasmer_memref = WasmerMemoryRef::new(wasmer_instance.exports.get_memory("memory").expect("wasmer memory exported"));
-        let ret = wasmer_memref.with_direct_access_mut(|m| {
-            let mut source = Source::new(&m[..]);
-            let result = ReturnValue::decode(&mut source).expect("query result decoded");
-
-            self.stack.pop();
-            Ok(result)
-        });
-        ret
+        let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
+        wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
+        let read_buffer = unsafe { read_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, wasmer_memory.inner.data_size())? };
+        let mut source = Source::new(read_buffer.as_bytes());
+        let result = ReturnValue::decode(&mut source).expect("query result decoded");
+        self.stack.pop();
+        result
     }
 
     pub fn transact(
