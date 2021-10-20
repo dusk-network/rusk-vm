@@ -4,40 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::AbiCall;
 use crate::call_context::CallContext;
 use crate::VMError;
 
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 use crate::resolver::Env;
-use crate::NetworkState;
 
 pub struct Callee;
-
-impl AbiCall for Callee {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
-    const RETURN: Option<ValueType> = None;
-
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(result_ofs)] = *args.as_ref() {
-            let result_ofs = result_ofs as usize;
-            let callee = *context.callee();
-
-            context
-                .memory_mut(|a| {
-                    a[result_ofs..result_ofs + 32]
-                        .copy_from_slice(callee.as_bytes());
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
-        } else {
-            Err(VMError::InvalidArguments)
-        }
-    }
-}
 
 impl Callee {
     pub fn callee(env: &Env, result_ofs: u32) -> Result<(), VMError> {
@@ -46,41 +18,13 @@ impl Callee {
         let callee = *context.callee();
 
         context
-            .memory_mut(|a| {
-                a[result_ofs..result_ofs + 32]
-                    .copy_from_slice(callee.as_bytes());
-                Ok(())
-            })
-            .map_err(VMError::from_store_error)
+            .write_memory(callee.as_bytes(), result_ofs as u64);
+        Ok(())
+        //.map_err(VMError::from_store_error) // todo do we need error here?
     }
 }
 
 pub struct Caller;
-
-impl AbiCall for Caller {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
-    const RETURN: Option<ValueType> = None;
-
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(result_ofs)] = *args.as_ref() {
-            let result_ofs = result_ofs as usize;
-            let caller = *context.caller();
-
-            context
-                .memory_mut(|a| {
-                    a[result_ofs..result_ofs + 32]
-                        .copy_from_slice(caller.as_bytes());
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
-        } else {
-            Err(VMError::InvalidArguments)
-        }
-    }
-}
 
 impl Caller {
     pub fn caller(env: &Env, result_ofs: u32) -> Result<(), VMError> {
@@ -89,11 +33,8 @@ impl Caller {
         let caller = *context.caller();
 
         context
-            .memory_mut(|a| {
-                a[result_ofs..result_ofs + 32]
-                    .copy_from_slice(caller.as_bytes());
-                Ok(())
-            })
-            .map_err(VMError::from_store_error)
+            .write_memory(caller.as_bytes(), result_ofs as u64);
+        Ok(())
+        //.map_err(VMError::from_store_error) // todo do we need error here?
     }
 }

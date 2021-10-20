@@ -26,7 +26,6 @@ mod memory;
 
 pub use dusk_abi;
 
-pub use call_context::StandardABI;
 pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
