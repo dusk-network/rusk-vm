@@ -31,8 +31,9 @@ pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
 use thiserror::Error;
-use microkelvin::PersistError;
-use wasmer::ExportError;
+//use microkelvin::PersistError;
+use wasmer::{ExportError, InstantiationError};
+use wasmer_vm::TrapCode;
 
 #[derive(Error)]
 //#[derive(Fail)]
@@ -79,7 +80,13 @@ pub enum VMError {
     /// Other error from the state persistence mechanism
     PersistenceError(String),
     /// WASMER export error
-    WasmerExportError(wasmer::ExportError)
+    WasmerExportError(wasmer::ExportError),
+    /// WASMER runtime error
+    WasmerRuntimeError(wasmer::RuntimeError),
+    /// WASMER trap
+    WasmerTrap(TrapCode),
+    /// WASMER instantiation error
+    WasmerInstantiationError(InstantiationError)
 }
 
 impl From<io::Error> for VMError {
@@ -106,13 +113,19 @@ impl From<module_config::InstrumentalizationError> for VMError {
     }
 }
 
-impl From<PersistError> for VMError {
-    fn from(e: PersistError) -> Self {
-        match e {
-            PersistError::Io(io_error) => VMError::IOError(io_error),
-            PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
-            PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
-        }
+// impl From<PersistError> for VMError {
+//     fn from(e: PersistError) -> Self {
+//         match e {
+//             PersistError::Io(io_error) => VMError::IOError(io_error),
+//             PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
+//             PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
+//         }
+//     }
+// }
+
+impl From<InstantiationError> for VMError {
+    fn from(e: InstantiationError) -> Self {
+        VMError::WasmerInstantiationError(e)
     }
 }
 
@@ -124,6 +137,16 @@ impl From<wasmer::ExportError> for VMError {
 
 impl From<CanonError> for VMError {
     fn from(e: CanonError) -> Self { VMError::PersistenceSerializationError(e) }
+}
+
+impl From<wasmer::RuntimeError> for VMError {
+    fn from(e: wasmer::RuntimeError) -> Self {
+        let runtime_error = e.clone();
+        match e.to_trap() {
+            Some(trap_code) => VMError::WasmerTrap(trap_code),
+            _ => VMError::WasmerRuntimeError(runtime_error),
+        }
+    }
 }
 
 // The generic From<CanonError> is not specific enough and conflicts with
@@ -176,6 +199,9 @@ impl fmt::Display for VMError {
                     ExportError::Missing(s) => write!(f, "WASMER Export Error - missing: \"{}\"", s)?
                 }
             },
+            VMError::WasmerRuntimeError(e) => write!(f, "WASMER Runtime Error {:?}", e)?,
+            VMError::WasmerTrap(e) => write!(f, "WASMER Trap ({:?})", e)?,
+            VMError::WasmerInstantiationError(e) => write!(f, "WASMER Instantiation Error ({:?})", e)?,
         }
         Ok(())
     }

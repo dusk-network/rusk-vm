@@ -154,7 +154,10 @@ impl NetworkState {
     {
         let mut context = CallContext::new(self, gas_meter);
 
+        println!("network_state: query begin");
         let result = context.query(target, Query::from_canon(&query))?;
+        println!("network_state: query end");
+        println!("==");
 
         result.cast().map_err(VMError::from_store_error)
     }
@@ -176,8 +179,11 @@ impl NetworkState {
         // Use the forked state to execute the transaction
         let mut context = CallContext::new(&mut fork, gas_meter);
 
+        println!("network_state: transact begin");
         let (_, result) =
             context.transact(target, Transaction::from_canon(&transaction))?;
+        println!("network_state: transact end");
+        println!("==");
 
         let ret = result.cast().map_err(VMError::from_store_error)?;
 

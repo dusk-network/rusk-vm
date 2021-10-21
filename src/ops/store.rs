@@ -13,7 +13,7 @@ use crate::resolver::Env;
 pub struct Get;
 
 impl Get {
-    pub fn get(env: &Env, hash_ofs: u32, write_buf: u32, write_len: u32) -> Result<(), VMError> {
+    pub fn get(env: &Env, hash_ofs: i32, write_buf: i32, write_len: i32) -> Result<(), VMError> {
         let hash_ofs = hash_ofs as u64;
         let write_buf = write_buf as u64;
         let write_len = write_len as usize;
@@ -39,7 +39,7 @@ impl Get {
         // we don't allow get requests to fail in the bridge
         // communication since that is the
         // responsibility of the host.
-        let mut dest = Vec::with_capacity(write_len);
+        let mut dest = vec![0;write_len];
         Store::get(&hash, &mut dest)?;
         context.write_memory(&dest, write_buf)?;
         Ok(())
@@ -49,7 +49,7 @@ impl Get {
 pub struct Put;
 
 impl Put {
-    pub fn put(env: &Env, ofs: u32, len: u32, ret: u32) -> Result<(), VMError> {
+    pub fn put(env: &Env, ofs: i32, len: i32, ret: i32) -> Result<(), VMError> {
         let ofs = ofs as u64;
         let len = len as usize;
         let ret = ret as u64;
@@ -71,7 +71,7 @@ impl Put {
         debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
         let hash = Store::put(&mem);
 
-        let mut hash_buffer = Vec::with_capacity(hash.encoded_len()); // todo think of some better way
+        let mut hash_buffer = vec![0;hash.encoded_len()];
         let mut sink = Sink::new(&mut hash_buffer);
         hash.encode(&mut sink);
         context.write_memory(&hash_buffer, ret)?;
@@ -82,7 +82,7 @@ impl Put {
 pub struct Hash;
 
 impl Hash {
-    pub fn hash(env: &Env, ofs: u32, len: u32, ret: u32) -> Result<(), VMError> {
+    pub fn hash(env: &Env, ofs: i32, len: i32, ret: i32) -> Result<(), VMError> {
         let ofs = ofs as u64;
         let len = len as usize;
         let ret = ret as u64;
