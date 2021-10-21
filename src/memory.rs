@@ -31,7 +31,7 @@ impl WasmerMemory {
             // Ceiling division
             let req_pages = ((missing + wasmer::WASM_PAGE_SIZE - 1)
                 / wasmer::WASM_PAGE_SIZE) as u32;
-            memory.grow(req_pages).map_err(|a|VMError::MemoryNotFound)?; // todo this grow will probably need to go away
+            memory.grow(req_pages).map_err(|_|VMError::MemoryNotFound)?; // todo this grow will probably need to go away
         }
         Ok(())
     }

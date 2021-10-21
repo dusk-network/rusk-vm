@@ -16,8 +16,8 @@ pub struct ExecuteQuery;
 
 impl ExecuteQuery {
     pub fn query(env: &Env, contract_id_ofs: u32, query_ofs: u32) -> Result<(), VMError> {
-        let contract_id_ofs = contract_id_ofs as usize;
-        let query_ofs = query_ofs as usize;
+        let contract_id_ofs = contract_id_ofs as u64;
+        let query_ofs = query_ofs as u64;
         let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
         // let (contract_id, query) = context
         //     .memory(|m| {
@@ -31,9 +31,9 @@ impl ExecuteQuery {
         //         Ok((contract_id, query))
         //     })
         //     .map_err(VMError::from_store_error)?;
-        let v = context.read_memory()?;
-        let contract_id = ContractId::from(&v[contract_id_ofs..contract_id_ofs + 32]);
-        let mut source = Source::new(&v[query_ofs..]);
+        let v = context.read_memory(contract_id_ofs, 32)?;
+        let contract_id = ContractId::from(&v);
+        let mut source = Source::new(&v);
         let query = Query::decode(&mut source).map_err(VMError::from_store_error)?;
 
         let result = context.query(contract_id, query)?;
@@ -46,7 +46,6 @@ impl ExecuteQuery {
         //         Ok(())
         //     })
         //     .map_err(VMError::from_store_error)?;
-
         let mut v = Vec::with_capacity(result.as_bytes().len()); // todo think of some better way
         let mut sink = Sink::new(&mut v[..]);
         result.encode(&mut sink);

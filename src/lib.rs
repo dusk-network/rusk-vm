@@ -122,6 +122,10 @@ impl From<wasmer::ExportError> for VMError {
     }
 }
 
+impl From<CanonError> for VMError {
+    fn from(e: CanonError) -> Self { VMError::PersistenceSerializationError(e) }
+}
+
 // The generic From<CanonError> is not specific enough and conflicts with
 // From<Self>.
 impl VMError {

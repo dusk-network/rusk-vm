@@ -78,8 +78,16 @@ impl StackFrame {
         Ok(())
     }
 
-    fn read_memory(&self) -> Result<Vec<u8>, VMError> {
+    fn read_memory_all(&self) -> Result<Vec<u8>, VMError> {
         unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), 0, self.memory.inner.get_unchecked().data_size() as usize) }
+    }
+
+    fn read_memory_from(&self, offset: u64) -> Result<Vec<u8>, VMError> {
+        unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), offset, self.memory.inner.get_unchecked().data_size() as usize) }
+    }
+
+    fn read_memory(&self, offset: u64, length: usize) -> Result<Vec<u8>, VMError> {
+        unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), offset, length) }
     }
 }
 
@@ -350,8 +358,16 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn read_memory(&self) -> Result<Vec<u8>, VMError> {
-        self.top().read_memory()
+    pub fn read_memory_all(&self) -> Result<Vec<u8>, VMError> {
+        self.top().read_memory_all()
+    }
+
+    pub fn read_memory_from(&self, offset: u64) -> Result<Vec<u8>, VMError> {
+        self.top().read_memory_from(offset)
+    }
+
+    pub fn read_memory(&self, offset: u64, length: usize) -> Result<Vec<u8>, VMError> {
+        self.top().read_memory(offset, length)
     }
 
     pub fn write_memory(&mut self, source_slice: &[u8], offset: u64) -> Result<(), VMError> {
