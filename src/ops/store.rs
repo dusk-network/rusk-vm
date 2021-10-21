@@ -71,10 +71,10 @@ impl Put {
         debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
         let hash = Store::put(&mem);
 
-        let mut v = Vec::with_capacity(hash.encoded_len()); // todo think of some better way
-        let mut sink = Sink::new(&mut v);
+        let mut hash_buffer = Vec::with_capacity(hash.encoded_len()); // todo think of some better way
+        let mut sink = Sink::new(&mut hash_buffer);
         hash.encode(&mut sink);
-        context.write_memory(&v, ret)?;
+        context.write_memory(&hash_buffer, ret)?;
         Ok(())
     }
 }

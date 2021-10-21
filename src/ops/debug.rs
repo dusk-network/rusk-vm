@@ -16,8 +16,8 @@ impl Debug {
         let msg_ofs = msg_ofs as u64;
         let msg_len = msg_len as usize;
         let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
-        let v = context.read_memory(msg_ofs, msg_len)?;
-        let str = std::str::from_utf8(&v)
+        let messsage_memory = context.read_memory(msg_ofs, msg_len)?;
+        let str = std::str::from_utf8(&messsage_memory)
             .map_err(|_| VMError::InvalidUtf8)?;
         println!("CONTRACT DEBUG: {:?}", str);
         Ok(())

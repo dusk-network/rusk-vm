@@ -125,8 +125,8 @@ impl<'a> CallContext<'a> {
         let wasmer_instance: Instance;
 
         if let Some(module) = self.state.modules().borrow().get(&target) {
-             // is this a reserved module call?
-             return module.execute(query).map_err(VMError::from_store_error);
+            // is this a reserved module call?
+            return module.execute(query).map_err(VMError::from_store_error);
         } else {
             let contract = self.state.get_contract(&target)?;
 
