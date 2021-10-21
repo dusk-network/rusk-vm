@@ -169,30 +169,30 @@ fn counter_trivial() {
 //     }
 // }
 //
-// #[test]
-// fn block_height() {
-//     let bh = BlockHeight::new();
-//
-//     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/block_height.wasm"
-//     );
-//
-//     let contract = Contract::new(bh, code.to_vec());
-//
-//     let mut network = NetworkState::with_block_height(99);
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     assert_eq!(
-//         99,
-//         network
-//             .query::<_, u64>(contract_id, block_height::BLOCK_HEIGHT, &mut gas)
-//             .unwrap()
-//     )
-// }
-//
+#[test]
+fn block_height() {
+    let bh = BlockHeight::new();
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/block_height.wasm"
+    );
+
+    let contract = Contract::new(bh, code.to_vec());
+
+    let mut network = NetworkState::with_block_height(99);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        99,
+        network
+            .query::<_, u64>(contract_id, block_height::BLOCK_HEIGHT, &mut gas)
+            .unwrap()
+    )
+}
+
 // #[test]
 // fn self_snapshot() {
 //     let bh = SelfSnapshot::new(7);
