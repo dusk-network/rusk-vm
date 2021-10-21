@@ -109,17 +109,14 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn create_env(&mut self) -> Env {
-        Env {
-            context: ImportReference(self as *mut _ as *mut c_void)
-        }
-    }
-
     pub fn query(
         &mut self,
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError> {
+        let env = Env {
+            context: ImportReference(self as *mut _ as *mut c_void)
+        };
 
         //let instance;
         let wasmer_instance: Instance;
@@ -146,7 +143,7 @@ impl<'a> CallContext<'a> {
             // WASMER env namespace
             let mut env_namespace = Exports::new();
 
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env());
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env);
             wasmer_import_object.register("env", env_namespace);
 
             // match instance.export_by_name("memory") {
@@ -218,6 +215,9 @@ impl<'a> CallContext<'a> {
         target: ContractId,
         transaction: Transaction,
     ) -> Result<(ContractState, ReturnValue), VMError> {
+        let env = Env {
+            context: ImportReference(self as *mut _ as *mut c_void)
+        };
 
         //let instance;
         let wasmer_instance;
@@ -240,7 +240,7 @@ impl<'a> CallContext<'a> {
             let mut wasmer_import_object = ImportObject::new();
             // WASMER env namespace
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, self.create_env());
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env);
 
             wasmer_import_object.register("env", env_namespace);
 

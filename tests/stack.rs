@@ -10,8 +10,6 @@ use rusk_vm::{Contract, GasMeter, NetworkState};
 
 use stack::Stack;
 
-use  std::sync::{Arc, Mutex};
-
 #[test]
 fn stack() {
     type Leaf = u64;
@@ -27,14 +25,14 @@ fn stack() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = Arc::new(Mutex::new(GasMeter::with_limit(1_000_000_000)));
+    let mut gas = GasMeter::with_limit(1_000_000_000);
 
     for i in 0..N {
         network
             .transact::<_, Result<(), CanonError>>(
                 contract_id,
                 (stack::PUSH, i),
-                gas.clone(),
+                &mut gas,
             )
             .unwrap()
             .unwrap();
@@ -59,7 +57,7 @@ fn stack() {
                 .transact::<_, Result<Option<Leaf>, CanonError>>(
                     contract_id,
                     stack::POP,
-                    gas.clone()
+                    &mut gas
                 )
                 .unwrap()
                 .unwrap(),
@@ -72,7 +70,7 @@ fn stack() {
             .transact::<_, Result<Option<Leaf>, CanonError>>(
                 contract_id,
                 stack::POP,
-                gas.clone()
+                &mut gas
             )
             .unwrap()
             .unwrap(),
@@ -100,14 +98,14 @@ fn stack_persist() {
 
         let contract_id = network.deploy(contract).unwrap();
 
-        let mut gas = Arc::new(Mutex::new(GasMeter::with_limit(1_000_000_000)));
+        let mut gas = GasMeter::with_limit(1_000_000_000);
 
         for i in 0..N {
             network
                 .transact::<_, Result<(), CanonError>>(
                     contract_id,
                     (stack::PUSH, i),
-                    gas.clone(),
+                    &mut gas,
                 )
                 .unwrap()
                 .unwrap();
@@ -131,7 +129,7 @@ fn stack_persist() {
         .restore(persist_id)
         .expect("Error reconstructing the NetworkState");
 
-    let mut gas = Arc::new(Mutex::new(GasMeter::with_limit(1_000_000_000)));
+    let mut gas = GasMeter::with_limit(1_000_000_000);
 
     for i in 0..N {
         let i = N - i - 1;
@@ -141,7 +139,7 @@ fn stack_persist() {
                 .transact::<_, Result<Option<Leaf>, CanonError>>(
                     contract_id,
                     stack::POP,
-                    gas.clone()
+                    &mut gas
                 )
                 .unwrap()
                 .unwrap(),
@@ -154,7 +152,7 @@ fn stack_persist() {
             .transact::<_, Result<Option<Leaf>, CanonError>>(
                 contract_id,
                 stack::POP,
-                gas.clone()
+                &mut gas
             )
             .unwrap()
             .unwrap(),
