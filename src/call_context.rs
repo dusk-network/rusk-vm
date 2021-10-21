@@ -133,13 +133,18 @@ impl<'a> CallContext<'a> {
 
             // WASMER
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
-            println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
+            println!("import names for contract = {:?}", wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
             // WASMER env namespace
             let mut env_namespace = Exports::new();
+            let mut canon_namespace = Exports::new();
 
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env);
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone());
+            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone());
+            println!("register env and canon begin");
             wasmer_import_object.register("env", env_namespace);
+            wasmer_import_object.register("canon", canon_namespace);
+            println!("register env end");
 
             // match instance.export_by_name("memory") {
             //     Some(wasmi::ExternVal::Memory(memref)) => {
@@ -164,7 +169,9 @@ impl<'a> CallContext<'a> {
             // }
 
             // WASMER
-            wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
+            println!("instance creation begin");
+            wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object)?;
+            println!("instance creation end");
 
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
@@ -179,7 +186,9 @@ impl<'a> CallContext<'a> {
         //instance.invoke_export("q", &[wasmi::RuntimeValue::I32(0)], self)?;
 
         // WASMER
+        println!("before get native function q");
         let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
+        println!("after get native function q");
         wasmer_run_func.call(0)?;
 
         // match instance.export_by_name("memory") {
@@ -235,9 +244,12 @@ impl<'a> CallContext<'a> {
             let mut wasmer_import_object = ImportObject::new();
             // WASMER env namespace
             let mut env_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env);
+            let mut canon_namespace = Exports::new();
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone());
+            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone());
 
             wasmer_import_object.register("env", env_namespace);
+            wasmer_import_object.register("canon", canon_namespace);
 
             // WASMER
             wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");

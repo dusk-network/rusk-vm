@@ -32,7 +32,7 @@ pub use state::NetworkState;
 
 use thiserror::Error;
 use microkelvin::PersistError;
-use wasmer::ExportError;
+use wasmer::{ExportError, InstantiationError};
 use wasmer_vm::TrapCode;
 
 #[derive(Error)]
@@ -84,7 +84,9 @@ pub enum VMError {
     /// WASMER runtime error
     WasmerRuntimeError(wasmer::RuntimeError),
     /// WASMER trap
-    WasmerTrap(TrapCode)
+    WasmerTrap(TrapCode),
+    /// WASMER instantiation error
+    WasmerInstantiationError(InstantiationError)
 }
 
 impl From<io::Error> for VMError {
@@ -118,6 +120,12 @@ impl From<PersistError> for VMError {
             PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
             PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
         }
+    }
+}
+
+impl From<InstantiationError> for VMError {
+    fn from(e: InstantiationError) -> Self {
+        VMError::WasmerInstantiationError(e)
     }
 }
 
@@ -193,6 +201,7 @@ impl fmt::Display for VMError {
             },
             VMError::WasmerRuntimeError(e) => write!(f, "WASMER Runtime Error {:?}", e)?,
             VMError::WasmerTrap(e) => write!(f, "WASMER Trap ({:?})", e)?,
+            VMError::WasmerInstantiationError(e) => write!(f, "WASMER Instantiation Error ({:?})", e)?,
         }
         Ok(())
     }

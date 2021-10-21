@@ -13,7 +13,7 @@ use crate::resolver::Env;
 pub struct Get;
 
 impl Get {
-    pub fn get(env: &Env, hash_ofs: u32, write_buf: u32, write_len: u32) -> Result<(), VMError> {
+    pub fn get(env: &Env, hash_ofs: i32, write_buf: i32, write_len: i32) -> Result<(), VMError> {
         let hash_ofs = hash_ofs as u64;
         let write_buf = write_buf as u64;
         let write_len = write_len as usize;
@@ -49,7 +49,7 @@ impl Get {
 pub struct Put;
 
 impl Put {
-    pub fn put(env: &Env, ofs: u32, len: u32, ret: u32) -> Result<(), VMError> {
+    pub fn put(env: &Env, ofs: i32, len: i32, ret: i32) -> Result<(), VMError> {
         let ofs = ofs as u64;
         let len = len as usize;
         let ret = ret as u64;
@@ -82,7 +82,7 @@ impl Put {
 pub struct Hash;
 
 impl Hash {
-    pub fn hash(env: &Env, ofs: u32, len: u32, ret: u32) -> Result<(), VMError> {
+    pub fn hash(env: &Env, ofs: i32, len: i32, ret: i32) -> Result<(), VMError> {
         let ofs = ofs as u64;
         let len = len as usize;
         let ret = ret as u64;
