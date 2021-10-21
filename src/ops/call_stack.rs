@@ -18,7 +18,7 @@ impl Callee {
         let callee = *context.callee();
 
         context
-            .write_memory(callee.as_bytes(), result_ofs as u64);
+            .write_memory(callee.as_bytes(), result_ofs as u64)?;
         Ok(())
         //.map_err(VMError::from_store_error) // todo do we need error here?
     }
@@ -33,7 +33,7 @@ impl Caller {
         let caller = *context.caller();
 
         context
-            .write_memory(caller.as_bytes(), result_ofs as u64);
+            .write_memory(caller.as_bytes(), result_ofs as u64)?;
         Ok(())
         //.map_err(VMError::from_store_error) // todo do we need error here?
     }

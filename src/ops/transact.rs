@@ -5,14 +5,11 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::call_context::CallContext;
-use crate::ops::AbiCall;
 use crate::VMError;
 
 use canonical::{Canon, Sink, Source};
 use dusk_abi::{ContractId, ContractState, Transaction};
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 use crate::resolver::Env;
-use crate::NetworkState;
 
 pub struct ApplyTransaction;
 
@@ -47,7 +44,7 @@ impl ApplyTransaction {
         let callee = *context.callee();
         *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
 
-        let (state, result) = context.transact(contract_id, transaction)?;
+        let (_, result) = context.transact(contract_id, transaction)?;
 
         // context
         //     .memory_mut(|m| {

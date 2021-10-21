@@ -74,12 +74,7 @@ impl StackFrame {
     // }
 
     fn write_memory(&mut self, source_slice: &[u8], offset: u64) -> Result<(), VMError>{
-        unsafe { WasmerMemory::write_memory_bytes(self.memory.inner.get_unchecked(), offset, source_slice) };
-        Ok(())
-    }
-
-    fn read_memory_all(&self) -> Result<Vec<u8>, VMError> {
-        unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), 0, self.memory.inner.get_unchecked().data_size() as usize) }
+        unsafe { WasmerMemory::write_memory_bytes(self.memory.inner.get_unchecked(), offset, source_slice) }
     }
 
     fn read_memory_from(&self, offset: u64) -> Result<Vec<u8>, VMError> {
@@ -173,8 +168,8 @@ impl<'a> CallContext<'a> {
 
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes()) };
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, query.as_bytes()) };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes())? };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, query.as_bytes())? };
 
             self.stack
                 .push(StackFrame::new_query(target, wasmer_memory, query));
@@ -185,7 +180,7 @@ impl<'a> CallContext<'a> {
 
         // WASMER
         let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
-        wasmer_run_func.call(0);
+        wasmer_run_func.call(0); // todo add ?
 
         // match instance.export_by_name("memory") {
         //     Some(wasmi::ExternVal::Memory(memref)) => memref
@@ -272,8 +267,8 @@ impl<'a> CallContext<'a> {
             // WASMER
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes()) };
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, transaction.as_bytes()) };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes())? };
+            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, transaction.as_bytes())? };
 
             self.stack.push(StackFrame::new_transaction(
                 target,
@@ -286,7 +281,7 @@ impl<'a> CallContext<'a> {
 
         // WASMER
         let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("t").expect("wasmer invoked function t");
-        wasmer_run_func.call(0);
+        wasmer_run_func.call(0); // todo add ?
 
 
         let ret = {
@@ -334,12 +329,12 @@ impl<'a> CallContext<'a> {
         Ok((state, ret.expect("converted error")))
     }
 
-    pub fn gas_meter(&self) -> GasMeter {
-        self.gas_meter()
+    pub fn gas_meter(&self) -> &GasMeter {
+        self.gas_meter
     }
 
-    pub fn gas_meter_mut(&mut self) -> GasMeter {
-        self.gas_meter()
+    pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
+        self.gas_meter
     }
 
     pub fn top(&self) -> &StackFrame {
@@ -358,10 +353,6 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn read_memory_all(&self) -> Result<Vec<u8>, VMError> {
-        self.top().read_memory_all()
-    }
-
     pub fn read_memory_from(&self, offset: u64) -> Result<Vec<u8>, VMError> {
         self.top().read_memory_from(offset)
     }
@@ -374,7 +365,7 @@ impl<'a> CallContext<'a> {
         self.stack
             .last_mut()
             .expect("Invalid stack")
-            .write_memory(source_slice, offset);
+            .write_memory(source_slice, offset)?;
         Ok(())
     }
 

@@ -14,7 +14,7 @@ pub struct Gas;
 impl Gas {
     pub fn gas(env: &Env, gas_charged: u64) -> Result<(), VMError> {
         let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
-        let mut meter = context.gas_meter_mut();
+        let meter = context.gas_meter_mut();
         if meter.charge(gas_charged).is_out_of_gas() {
             return Err(VMError::OutOfGas);
         }

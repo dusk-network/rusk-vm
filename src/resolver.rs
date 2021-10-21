@@ -5,13 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::ops::*;
-use crate::{GasMeter, VMError};
-
 
 use wasmer::{Function, Store, Exports, WasmerEnv};
-
-
-
 use std::ffi::c_void;
 
 #[derive(Clone)]
