@@ -180,7 +180,7 @@ impl<'a> CallContext<'a> {
 
         // WASMER
         let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
-        wasmer_run_func.call(0); // todo add ?
+        wasmer_run_func.call(0)?;
 
         // match instance.export_by_name("memory") {
         //     Some(wasmi::ExternVal::Memory(memref)) => memref
@@ -281,7 +281,7 @@ impl<'a> CallContext<'a> {
 
         // WASMER
         let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("t").expect("wasmer invoked function t");
-        wasmer_run_func.call(0); // todo add ?
+        wasmer_run_func.call(0)?;
 
 
         let ret = {
