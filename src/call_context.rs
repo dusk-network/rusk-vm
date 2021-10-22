@@ -342,8 +342,8 @@ impl<'a> CallContext<'a> {
             *(*contract).state_mut() = state;
             let r = ReturnValue::decode(&mut source);
             match &r {
-                Ok(rr) => println!("ReturnValue::decode retured ok"),
-                Err(e) => println!("ReturnValue::decode retured err"),
+                Ok(rr) => println!("transact: ReturnValue::decode retured ok"),
+                Err(e) => println!("transact: ReturnValue::decode retured err"),
             }
             r
         };

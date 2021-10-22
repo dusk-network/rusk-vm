@@ -9,12 +9,12 @@ use crate::VMError;
 
 use canonical::{Canon, Sink, Source};
 use dusk_abi::{ContractId, ContractState, Transaction};
-use crate::resolver::Env;
+use crate::resolver::{Env, WasmerRuntimeValue};
 
 pub struct ApplyTransaction;
 
 impl ApplyTransaction {
-    pub fn transact(env: &Env, contract_id_ofs: u32, transaction_ofs: u32) -> Result<(), VMError> {
+    pub fn transact(env: &Env, contract_id_ofs: u32, transaction_ofs: u32) -> Result<i64, VMError> {
         println!("host transact: begin");
         let contract_id_ofs = contract_id_ofs as u64;
         let transaction_ofs = transaction_ofs as u64;
@@ -73,6 +73,6 @@ impl ApplyTransaction {
         context.write_memory(&result_buffer, transaction_ofs as u64)?;
         println!("host transact: writing result end");
         println!("host transact: end");
-        Ok(())
+        Ok(0)
     }
 }

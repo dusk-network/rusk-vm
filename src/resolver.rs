@@ -14,6 +14,10 @@ pub struct ImportReference(pub *mut c_void);
 unsafe impl Send for ImportReference {}
 unsafe impl Sync for ImportReference {}
 
+pub enum WasmerRuntimeValue {
+    I32(i32),
+    I64(i64),
+}
 
 #[derive(WasmerEnv, Clone)]
 pub struct Env {
