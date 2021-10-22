@@ -46,7 +46,7 @@ impl ExecuteQuery {
         //         Ok(())
         //     })
         //     .map_err(VMError::from_store_error)?;
-        let mut result_buffer = Vec::with_capacity(result.as_bytes().len()); // todo think of some better way
+        let mut result_buffer = vec![0;result.encoded_len()];
         let mut sink = Sink::new(&mut result_buffer[..]);
         result.encode(&mut sink);
         context.write_memory(&result_buffer, query_ofs as u64)?;

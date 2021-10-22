@@ -39,7 +39,7 @@ impl Get {
         // we don't allow get requests to fail in the bridge
         // communication since that is the
         // responsibility of the host.
-        let mut dest = Vec::with_capacity(write_len);
+        let mut dest = vec![0;write_len];
         Store::get(&hash, &mut dest)?;
         context.write_memory(&dest, write_buf)?;
         Ok(())
@@ -71,7 +71,7 @@ impl Put {
         debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
         let hash = Store::put(&mem);
 
-        let mut hash_buffer = Vec::with_capacity(hash.encoded_len()); // todo think of some better way
+        let mut hash_buffer = vec![0;hash.encoded_len()];
         let mut sink = Sink::new(&mut hash_buffer);
         hash.encode(&mut sink);
         context.write_memory(&hash_buffer, ret)?;

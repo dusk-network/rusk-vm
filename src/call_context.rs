@@ -133,7 +133,7 @@ impl<'a> CallContext<'a> {
 
             // WASMER
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
-            println!("import names for contract = {:?}", wasmer_import_names);
+            println!("query: import names for contract = {:?}", wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
             // WASMER env namespace
             let mut env_namespace = Exports::new();
@@ -141,10 +141,10 @@ impl<'a> CallContext<'a> {
 
             HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone());
             HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone());
-            println!("register env and canon begin");
+            println!("query: register env and canon begin");
             wasmer_import_object.register("env", env_namespace);
             wasmer_import_object.register("canon", canon_namespace);
-            println!("register env end");
+            println!("query: register env and canon end");
 
             // match instance.export_by_name("memory") {
             //     Some(wasmi::ExternVal::Memory(memref)) => {
@@ -169,9 +169,9 @@ impl<'a> CallContext<'a> {
             // }
 
             // WASMER
-            println!("instance creation begin");
+            println!("query: instance creation begin");
             wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object)?;
-            println!("instance creation end");
+            println!("query: instance creation end");
 
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
@@ -186,10 +186,12 @@ impl<'a> CallContext<'a> {
         //instance.invoke_export("q", &[wasmi::RuntimeValue::I32(0)], self)?;
 
         // WASMER
-        println!("before get native function q");
+        println!("query: before get native function q");
         let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("q").expect("wasmer invoked function q");
-        println!("after get native function q");
+        println!("query: after get native function q");
+        println!("query: before call q");
         wasmer_run_func.call(0)?;
+        println!("query: after call q");
 
         // match instance.export_by_name("memory") {
         //     Some(wasmi::ExternVal::Memory(memref)) => memref
@@ -216,7 +218,7 @@ impl<'a> CallContext<'a> {
 
     pub fn transact(
         &mut self,
-        target: ContractId,
+        target_contract_id: ContractId,
         transaction: Transaction,
     ) -> Result<(ContractState, ReturnValue), VMError> {
         let env = Env {
@@ -227,7 +229,7 @@ impl<'a> CallContext<'a> {
         let wasmer_instance;
 
         {
-            let contract = self.state.get_contract(&target)?;
+            let contract = self.state.get_contract(&target_contract_id)?;
             // let module = wasmi::Module::from_buffer(contract.bytecode())?;
 
             // WASMER
@@ -240,7 +242,7 @@ impl<'a> CallContext<'a> {
             //     .assert_no_start();
             // WASMER
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
-            println!("import names for contract id {:?} = {:?}", target, wasmer_import_names);
+            println!("transact: import names for contract = {:?}", wasmer_import_names);
             let mut wasmer_import_object = ImportObject::new();
             // WASMER env namespace
             let mut env_namespace = Exports::new();
@@ -248,11 +250,15 @@ impl<'a> CallContext<'a> {
             HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone());
             HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone());
 
+            println!("transact: register env and canon begin");
             wasmer_import_object.register("env", env_namespace);
             wasmer_import_object.register("canon", canon_namespace);
+            println!("transact: register env and canon end");
 
             // WASMER
+            println!("transact: instance creation begin");
             wasmer_instance = Instance::new(&wasmer_module, &wasmer_import_object).expect("wasmer module created");
+            println!("transact: instance creation end");
 
 
             // match instance.export_by_name("memory") {
@@ -283,7 +289,7 @@ impl<'a> CallContext<'a> {
             unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, transaction.as_bytes())? };
 
             self.stack.push(StackFrame::new_transaction(
-                target,
+                target_contract_id,
                 wasmer_memory,
                 transaction,
             ));
@@ -292,12 +298,18 @@ impl<'a> CallContext<'a> {
         // instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
 
         // WASMER
+        println!("transact: before get native function t");
         let wasmer_run_func: NativeFunc<i32, ()> = wasmer_instance.exports.get_native_function("t").expect("wasmer invoked function t");
+        println!("transact: before get native function t");
+        println!("transact: before call t");
         wasmer_run_func.call(0)?;
+        println!("transact: after call t");
 
 
         let ret = {
-            let mut contract = self.state.get_contract_mut(&target)?;
+            println!("transact: getting contract from state");
+            let mut contract = self.state.get_contract_mut(&target_contract_id)?;
+            println!("transact: gotten contract from state");
 
             // match instance.export_by_name("memory") {
             //     Some(wasmi::ExternVal::Memory(memref)) => {
@@ -322,11 +334,18 @@ impl<'a> CallContext<'a> {
             // WASMER
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
+            println!("transact: reading buffer from wasmer memory: {:?}", unsafe {wasmer_memory.inner.get_unchecked().data_size()} );
             let read_buffer = unsafe { WasmerMemory::read_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, wasmer_memory.inner.get_unchecked().data_size() as usize)? };
+            println!("transact: read buffer from wasmer memory: {:?}", read_buffer.len() );
             let mut source = Source::new(&read_buffer);
             let state = ContractState::decode(&mut source).expect("query result decoded");
             *(*contract).state_mut() = state;
-            ReturnValue::decode(&mut source)
+            let r = ReturnValue::decode(&mut source);
+            match &r {
+                Ok(rr) => println!("ReturnValue::decode retured ok"),
+                Err(e) => println!("ReturnValue::decode retured err"),
+            }
+            r
         };
 
         let state = if self.stack.len() > 1 {
