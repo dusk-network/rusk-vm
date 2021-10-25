@@ -13,7 +13,7 @@ pub struct Panic;
 
 
 impl Panic {
-    pub fn panic(env: &Env, panic_ofs: u32, panic_len: u32) -> Result<(), VMError> {
+    pub fn panic(env: &Env, panic_ofs: i32, panic_len: i32) -> Result<(), VMError> {
         let panic_ofs = panic_ofs as u64;
         let panic_len = panic_len as usize;
         let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};

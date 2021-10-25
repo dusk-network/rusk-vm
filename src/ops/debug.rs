@@ -12,7 +12,7 @@ use crate::resolver::Env;
 pub struct Debug;
 
 impl Debug {
-    pub fn debug(env: &Env, msg_ofs: u32, msg_len: u32) -> Result<(), VMError> {
+    pub fn debug(env: &Env, msg_ofs: i32, msg_len: i32) -> Result<(), VMError> {
         let msg_ofs = msg_ofs as u64;
         let msg_len = msg_len as usize;
         let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};

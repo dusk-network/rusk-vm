@@ -6,35 +6,32 @@
 
 use crate::call_context::CallContext;
 use crate::VMError;
-
 use crate::resolver::Env;
 
 pub struct Callee;
 
 impl Callee {
-    pub fn callee(env: &Env, result_ofs: u32) -> Result<(), VMError> {
+    pub fn callee(env: &Env, result_ofs: i32) -> Result<(), VMError> {
         let result_ofs = result_ofs as usize;
         let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
         let callee = *context.callee();
 
         context
-            .write_memory(callee.as_bytes(), result_ofs as u64)?;
+            .write_memory(callee.as_bytes(), result_ofs as u64);
         Ok(())
-        //.map_err(VMError::from_store_error) // todo do we need error here?
     }
 }
 
 pub struct Caller;
 
 impl Caller {
-    pub fn caller(env: &Env, result_ofs: u32) -> Result<(), VMError> {
+    pub fn caller(env: &Env, result_ofs: i32) -> Result<(), VMError> {
         let result_ofs = result_ofs as usize;
         let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
         let caller = *context.caller();
 
         context
-            .write_memory(caller.as_bytes(), result_ofs as u64)?;
+            .write_memory(caller.as_bytes(), result_ofs as u64);
         Ok(())
-        //.map_err(VMError::from_store_error) // todo do we need error here?
     }
 }

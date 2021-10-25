@@ -12,7 +12,7 @@ use crate::resolver::Env;
 pub struct Gas;
 
 impl Gas {
-    pub fn gas(env: &Env, gas_charged: u32) -> Result<(), VMError> {
+    pub fn gas(env: &Env, gas_charged: i32) -> Result<(), VMError> {
         let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
         let meter = context.gas_meter_mut();
         if meter.charge(gas_charged as u64).is_out_of_gas() {
