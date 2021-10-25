@@ -17,7 +17,7 @@ impl Callee {
         let callee = *context.callee();
 
         context
-            .write_memory(callee.as_bytes(), result_ofs as u64);
+            .write_memory(callee.as_bytes(), result_ofs as u64)?;
         Ok(())
     }
 }
@@ -31,7 +31,7 @@ impl Caller {
         let caller = *context.caller();
 
         context
-            .write_memory(caller.as_bytes(), result_ofs as u64);
+            .write_memory(caller.as_bytes(), result_ofs as u64)?;
         Ok(())
     }
 }
