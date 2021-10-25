@@ -340,12 +340,7 @@ impl<'a> CallContext<'a> {
             let mut source = Source::new(&read_buffer);
             let state = ContractState::decode(&mut source).expect("query result decoded");
             *(*contract).state_mut() = state;
-            let r = ReturnValue::decode(&mut source);
-            match &r {
-                Ok(rr) => println!("transact: ReturnValue::decode retured ok"),
-                Err(e) => println!("transact: ReturnValue::decode retured err"),
-            }
-            r
+            ReturnValue::decode(&mut source)
         };
 
         let state = if self.stack.len() > 1 {
