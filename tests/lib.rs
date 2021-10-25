@@ -27,61 +27,61 @@ fn fibonacci_reference(n: u64) -> u64 {
 }
 
 #[test]
-fn counter() {
-    let counter = Counter::new(99);
-
-    let code =
-        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
-
-    let contract = Contract::new(counter, code.to_vec());
-
-    let mut network = NetworkState::default();
-
-    let contract_id = network.deploy(contract).unwrap();
-
-    let mut gas = GasMeter::with_limit(1_000_000_000);
-
-    assert_eq!(
-        network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
-            .unwrap(),
-        99
-    );
-
-    network
-        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
-        .unwrap();
-
-    assert_eq!(
-        network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
-            .unwrap(),
-        100
-    );
-}
+// fn counter() {
+//     let counter = Counter::new(99);
+//
+//     let code =
+//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+//
+//     let contract = Contract::new(counter, code.to_vec());
+//
+//     let mut network = NetworkState::default();
+//
+//     let contract_id = network.deploy(contract).unwrap();
+//
+//     let mut gas = GasMeter::with_limit(1_000_000_000);
+//
+//     assert_eq!(
+//         network
+//             .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+//             .unwrap(),
+//         99
+//     );
+//
+//     network
+//         .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+//         .unwrap();
+//
+//     assert_eq!(
+//         network
+//             .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+//             .unwrap(),
+//         100
+//     );
+// }
 
 #[test]
-fn counter_trivial() {
-    let counter = Counter::new(99);
-
-    let code =
-        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
-
-    let contract = Contract::new(counter, code.to_vec());
-
-    let mut network = NetworkState::default();
-
-    let contract_id = network.deploy(contract).unwrap();
-
-    let mut gas = GasMeter::with_limit(1_000_000_000);
-
-    assert_eq!(
-        network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
-            .unwrap(),
-        99
-    );
-}
+// fn counter_trivial() {
+//     let counter = Counter::new(99);
+//
+//     let code =
+//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+//
+//     let contract = Contract::new(counter, code.to_vec());
+//
+//     let mut network = NetworkState::default();
+//
+//     let contract_id = network.deploy(contract).unwrap();
+//
+//     let mut gas = GasMeter::with_limit(1_000_000_000);
+//
+//     assert_eq!(
+//         network
+//             .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+//             .unwrap(),
+//         99
+//     );
+// }
 
 // #[test]
 // fn delegated_call() {
@@ -169,36 +169,12 @@ fn counter_trivial() {
 //     }
 // }
 //
-#[test]
-fn block_height() {
-    let bh = BlockHeight::new();
-
-    let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/block_height.wasm"
-    );
-
-    let contract = Contract::new(bh, code.to_vec());
-
-    let mut network = NetworkState::with_block_height(99);
-
-    let contract_id = network.deploy(contract).unwrap();
-
-    let mut gas = GasMeter::with_limit(1_000_000_000);
-
-    assert_eq!(
-        99,
-        network
-            .query::<_, u64>(contract_id, block_height::BLOCK_HEIGHT, &mut gas)
-            .unwrap()
-    )
-}
-
 // #[test]
-// fn self_snapshot() {
-//     let bh = SelfSnapshot::new(7);
+// fn block_height() {
+//     let bh = BlockHeight::new();
 //
 //     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/self_snapshot.wasm"
+//         "../target/wasm32-unknown-unknown/release/block_height.wasm"
 //     );
 //
 //     let contract = Contract::new(bh, code.to_vec());
@@ -210,202 +186,226 @@ fn block_height() {
 //     let mut gas = GasMeter::with_limit(1_000_000_000);
 //
 //     assert_eq!(
-//         7,
+//         99,
 //         network
-//             .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+//             .query::<_, u64>(contract_id, block_height::BLOCK_HEIGHT, &mut gas)
 //             .unwrap()
-//     );
-//
-//     // returns old value
-//     assert_eq!(
-//         network
-//             .transact::<_, i32>(
-//                 contract_id,
-//                 (self_snapshot::SET_CROSSOVER, 9),
-//                 &mut gas,
-//             )
-//             .unwrap(),
-//         7
-//     );
-//
-//     assert_eq!(
-//         9,
-//         network
-//             .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
-//             .unwrap()
-//     );
-//
-//     network
-//         .transact::<_, ()>(
-//             contract_id,
-//             (self_snapshot::SELF_CALL_TEST_A, 10),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     assert_eq!(
-//         10,
-//         network
-//             .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
-//             .unwrap()
-//     );
-//
-//     let result = network.transact::<_, ()>(
-//         contract_id,
-//         (self_snapshot::UPDATE_AND_PANIC, 11),
-//         &mut gas,
-//     );
-//
-//     assert!(result.is_err());
-//
-//     assert_eq!(
-//         10,
-//         network
-//             .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
-//             .unwrap()
-//     );
-//
-//     let transaction =
-//         Transaction::from_canon(&(self_snapshot::SET_CROSSOVER, 12));
-//
-//     network
-//         .transact::<_, ()>(
-//             contract_id,
-//             (self_snapshot::SELF_CALL_TEST_B, contract_id, transaction),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     assert_eq!(
-//         12,
-//         network
-//             .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
-//             .unwrap()
-//     );
+//     )
 // }
 
 #[test]
-fn tx_vec() {
-    let value = 15;
-    let tx_vec = TxVec::new(value);
+fn self_snapshot() {
+    let bh = SelfSnapshot::new(7);
 
-    let code =
-        include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
-    let contract = Contract::new(tx_vec, code.to_vec());
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/self_snapshot.wasm"
+    );
 
-    let mut network = NetworkState::default();
+    let contract = Contract::new(bh, code.to_vec());
+
+    let mut network = NetworkState::with_block_height(99);
+
     let contract_id = network.deploy(contract).unwrap();
+
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let v = network
-        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
-        .unwrap();
-    assert_eq!(value, v);
+    assert_eq!(
+        7,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
 
-    let values = vec![3u8, 5, 7];
-    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+    // returns old value
+    assert_eq!(
+        network
+            .transact::<_, i32>(
+                contract_id,
+                (self_snapshot::SET_CROSSOVER, 9),
+                &mut gas,
+            )
+            .unwrap(),
+        7
+    );
 
-    network
-        .transact::<_, ()>(contract_id, (tx_vec::SUM, values), &mut gas)
-        .unwrap();
+    assert_eq!(
+        9,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
 
-    let v = network
-        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
-        .unwrap();
-    assert_eq!(value, v);
-
-    let values = vec![11u8, 13, 17];
-    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
-
-    let tx = Transaction::from_canon(&(tx_vec::SUM, values));
     network
         .transact::<_, ()>(
             contract_id,
-            (tx_vec::DELEGATE_SUM, contract_id, tx),
+            (self_snapshot::SELF_CALL_TEST_A, 10),
             &mut gas,
         )
         .unwrap();
 
-    let v = network
-        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
-        .unwrap();
-    assert_eq!(value, v);
+    assert_eq!(
+        10,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
 
-    let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
-    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+    let result = network.transact::<_, ()>(
+        contract_id,
+        (self_snapshot::UPDATE_AND_PANIC, 11),
+        &mut gas,
+    );
 
-    let tx = Transaction::from_canon(&(tx_vec::SUM, values));
+    assert!(result.is_err());
+
+    assert_eq!(
+        10,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
+
+    let transaction =
+        Transaction::from_canon(&(self_snapshot::SET_CROSSOVER, 12));
+
     network
         .transact::<_, ()>(
             contract_id,
-            (tx_vec::DELEGATE_SUM, contract_id, tx),
+            (self_snapshot::SELF_CALL_TEST_B, contract_id, transaction),
             &mut gas,
         )
         .unwrap();
 
-    let v = network
-        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
-        .unwrap();
-    assert_eq!(value, v);
+    assert_eq!(
+        12,
+        network
+            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .unwrap()
+    );
 }
 
 // #[test]
-// fn calling() {
-//     let caller = Caller::new();
-//     let callee1 = Callee1::new();
-//     let callee2 = Callee2::new();
+// fn tx_vec() {
+//     let value = 15;
+//     let tx_vec = TxVec::new(value);
 //
-//     let code_caller =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/caller.wasm");
-//     let code_callee1 = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/callee_1.wasm"
-//     );
-//     let code_callee2 = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/callee_2.wasm"
-//     );
+//     let code =
+//         include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
+//     let contract = Contract::new(tx_vec, code.to_vec());
 //
 //     let mut network = NetworkState::default();
-//
-//     let caller_id = network
-//         .deploy(Contract::new(caller, code_caller.to_vec()))
-//         .unwrap();
-//     let callee1_id = network
-//         .deploy(Contract::new(callee1, code_callee1.to_vec()))
-//         .unwrap();
-//     let callee2_id = network
-//         .deploy(Contract::new(callee2, code_callee2.to_vec()))
-//         .unwrap();
-//
+//     let contract_id = network.deploy(contract).unwrap();
 //     let mut gas = GasMeter::with_limit(1_000_000_000);
 //
+//     let v = network
+//         .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+//         .unwrap();
+//     assert_eq!(value, v);
+//
+//     let values = vec![3u8, 5, 7];
+//     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+//
+//     network
+//         .transact::<_, ()>(contract_id, (tx_vec::SUM, values), &mut gas)
+//         .unwrap();
+//
+//     let v = network
+//         .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+//         .unwrap();
+//     assert_eq!(value, v);
+//
+//     let values = vec![11u8, 13, 17];
+//     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+//
+//     let tx = Transaction::from_canon(&(tx_vec::SUM, values));
 //     network
 //         .transact::<_, ()>(
-//             caller_id,
-//             (caller::SET_TARGET, callee1_id),
+//             contract_id,
+//             (tx_vec::DELEGATE_SUM, contract_id, tx),
 //             &mut gas,
 //         )
 //         .unwrap();
 //
+//     let v = network
+//         .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+//         .unwrap();
+//     assert_eq!(value, v);
+//
+//     let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
+//     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+//
+//     let tx = Transaction::from_canon(&(tx_vec::SUM, values));
 //     network
 //         .transact::<_, ()>(
-//             callee1_id,
-//             (caller::SET_TARGET, callee2_id),
+//             contract_id,
+//             (tx_vec::DELEGATE_SUM, contract_id, tx),
 //             &mut gas,
 //         )
 //         .unwrap();
 //
-//     assert_eq!(
-//         network
-//             .query::<_, (ContractId, ContractId, ContractId)>(
-//                 caller_id,
-//                 caller::CALL,
-//                 &mut gas
-//             )
-//             .unwrap(),
-//         (caller_id, callee1_id, callee2_id),
-//         "Expected Callers and Callees"
-//     )
+//     let v = network
+//         .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+//         .unwrap();
+//     assert_eq!(value, v);
 // }
+
+#[test]
+fn calling() {
+    let caller = Caller::new();
+    let callee1 = Callee1::new();
+    let callee2 = Callee2::new();
+
+    let code_caller =
+        include_bytes!("../target/wasm32-unknown-unknown/release/caller.wasm");
+    let code_callee1 = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/callee_1.wasm"
+    );
+    let code_callee2 = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/callee_2.wasm"
+    );
+
+    let mut network = NetworkState::default();
+
+    let caller_id = network
+        .deploy(Contract::new(caller, code_caller.to_vec()))
+        .unwrap();
+    let callee1_id = network
+        .deploy(Contract::new(callee1, code_callee1.to_vec()))
+        .unwrap();
+    let callee2_id = network
+        .deploy(Contract::new(callee2, code_callee2.to_vec()))
+        .unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact::<_, ()>(
+            caller_id,
+            (caller::SET_TARGET, callee1_id),
+            &mut gas,
+        )
+        .unwrap();
+
+    network
+        .transact::<_, ()>(
+            callee1_id,
+            (caller::SET_TARGET, callee2_id),
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        network
+            .query::<_, (ContractId, ContractId, ContractId)>(
+                caller_id,
+                caller::CALL,
+                &mut gas
+            )
+            .unwrap(),
+        (caller_id, callee1_id, callee2_id),
+        "Expected Callers and Callees"
+    )
+}
 //
 // #[test]
 // fn gas_consumed_host_function_works() {

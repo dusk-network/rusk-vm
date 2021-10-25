@@ -14,7 +14,7 @@ use crate::resolver::{Env, WasmerRuntimeValue};
 pub struct ApplyTransaction;
 
 impl ApplyTransaction {
-    pub fn transact(env: &Env, contract_id_ofs: u32, transaction_ofs: u32) -> Result<i64, VMError> {
+    pub fn transact(env: &Env, contract_id_ofs: u32, transaction_ofs: u32) -> Result<(), VMError> {
         println!("host transact: begin");
         let contract_id_ofs = contract_id_ofs as u64;
         let transaction_ofs = transaction_ofs as u64;
@@ -52,7 +52,7 @@ impl ApplyTransaction {
         println!("host transact: setting callee state end");
 
         println!("host transact: calling context transact begin");
-        let (_, result) = context.transact(contract_id, transaction)?;
+        let (state, result) = context.transact(contract_id, transaction)?;
         println!("host transact: calling context transact end");
 
         // context
@@ -65,14 +65,19 @@ impl ApplyTransaction {
         //     })
         //     .map_err(VMError::from_store_error)
         println!("host transact: writing result begin, result encoded_len = {}", result.encoded_len());
+        let state_encoded_len = state.encoded_len();
+        let mut state_buffer = vec![0; state_encoded_len];
+        let mut state_sink = Sink::new(&mut state_buffer);
         let mut result_buffer = vec![0; result.encoded_len()];
-        let mut sink = Sink::new(&mut result_buffer);
+        let mut result_sink = Sink::new(&mut result_buffer);
         println!("host transact: encoding result begin");
-        result.encode(&mut sink);
+        state.encode(&mut state_sink);
+        result.encode(&mut result_sink);
         println!("host transact: encoding result end");
-        context.write_memory(&result_buffer, transaction_ofs as u64)?;
+        context.write_memory(&state_buffer, transaction_ofs as u64)?;
+        context.write_memory(&result_buffer, transaction_ofs as u64 + state_encoded_len as u64)?;
         println!("host transact: writing result end");
         println!("host transact: end");
-        Ok(0)
+        Ok(())
     }
 }

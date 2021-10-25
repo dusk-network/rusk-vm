@@ -139,8 +139,8 @@ impl<'a> CallContext<'a> {
             let mut env_namespace = Exports::new();
             let mut canon_namespace = Exports::new();
 
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone());
-            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone());
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone(), &wasmer_import_names);
+            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone(), &wasmer_import_names);
             println!("query: register env and canon begin");
             wasmer_import_object.register("env", env_namespace);
             wasmer_import_object.register("canon", canon_namespace);
@@ -247,8 +247,8 @@ impl<'a> CallContext<'a> {
             // WASMER env namespace
             let mut env_namespace = Exports::new();
             let mut canon_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone());
-            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone());
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone(), &wasmer_import_names);
+            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone(), &wasmer_import_names);
 
             println!("transact: register env and canon begin");
             wasmer_import_object.register("env", env_namespace);

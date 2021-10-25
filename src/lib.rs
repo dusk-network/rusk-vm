@@ -31,7 +31,7 @@ pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
 use thiserror::Error;
-use microkelvin::PersistError;
+//use microkelvin::PersistError;
 use wasmer::{ExportError, InstantiationError};
 use wasmer_vm::TrapCode;
 
@@ -113,15 +113,15 @@ impl From<module_config::InstrumentalizationError> for VMError {
     }
 }
 
-impl From<PersistError> for VMError {
-    fn from(e: PersistError) -> Self {
-        match e {
-            PersistError::Io(io_error) => VMError::IOError(io_error),
-            PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
-            PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
-        }
-    }
-}
+// impl From<PersistError> for VMError {
+//     fn from(e: PersistError) -> Self {
+//         match e {
+//             PersistError::Io(io_error) => VMError::IOError(io_error),
+//             PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
+//             PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
+//         }
+//     }
+// }
 
 impl From<InstantiationError> for VMError {
     fn from(e: InstantiationError) -> Self {
