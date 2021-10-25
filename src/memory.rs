@@ -68,19 +68,3 @@ impl WasmerMemory {
         Ok(())
     }
 }
-
-// impl WasmerMemory {
-//     pub fn new(memory_ref: &wasmer::Memory) -> WasmerMemoryRef {
-//         WasmerMemoryRef { memory_ref }
-//     }
-//     pub fn with_direct_access<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-//         let buf = unsafe { self.memory_ref.data_unchecked() };
-//         f(buf)
-//     }
-//
-//     pub fn with_direct_access_mut<R, F: FnOnce(&mut [u8]) -> R>(&mut self, f: F) -> R {
-//         let buf = unsafe { self.memory_ref.data_unchecked_mut() };
-//         f(buf)
-//     }
-//
-// }

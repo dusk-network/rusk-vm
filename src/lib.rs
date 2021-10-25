@@ -13,7 +13,6 @@
 use std::{fmt, io};
 
 use canonical::CanonError;
-//use failure::Fail;
 
 mod call_context;
 mod contract;
@@ -31,7 +30,6 @@ pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
 use thiserror::Error;
-//use microkelvin::PersistError;
 use wasmer::{ExportError, InstantiationError};
 use wasmer_vm::TrapCode;
 
@@ -65,10 +63,6 @@ pub enum VMError {
     UnknownContract,
     /// WASM threw an error
     WASMError(failure::Error),
-    /// wasmi trap triggered
-    Trap(wasmi::Trap),
-    /// Wasmi threw an error
-    WasmiError(wasmi::Error),
     /// Input output error
     IOError(io::Error),
     /// Invalid WASM Module
@@ -92,18 +86,6 @@ pub enum VMError {
 impl From<io::Error> for VMError {
     fn from(e: io::Error) -> Self {
         VMError::IOError(e)
-    }
-}
-
-impl From<wasmi::Error> for VMError {
-    fn from(e: wasmi::Error) -> Self {
-        VMError::WasmiError(e)
-    }
-}
-
-impl From<wasmi::Trap> for VMError {
-    fn from(e: wasmi::Trap) -> Self {
-        VMError::Trap(e)
     }
 }
 
@@ -158,8 +140,6 @@ impl VMError {
     }
 }
 
-impl wasmi::HostError for VMError {}
-
 impl fmt::Display for VMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -181,8 +161,6 @@ impl fmt::Display for VMError {
             VMError::MemoryNotFound => write!(f, "Memory not found")?,
             VMError::InvalidABICall => write!(f, "Invalid ABI Call")?,
             VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
-            VMError::Trap(e) => write!(f, "Trap ({:?})", e)?,
-            VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
             VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
