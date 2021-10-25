@@ -10,7 +10,7 @@
 use canonical_derive::Canon;
 
 // query ids
-pub const GET: u8 = 0;
+pub const GET: u8 = 2;
 
 #[derive(Clone, Canon, Debug, Default)]
 pub struct Callee2;

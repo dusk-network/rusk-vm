@@ -3,7 +3,8 @@ name = "rusk-vm"
 version = "0.7.0-rc.1"
 authors = [
   "Kristoffer Ström <kristoffer@dusk.network>",
-  "zer0 <matteo@dusk.network>"
+  "zer0 <matteo@dusk.network>",
+  "Milosz Muszynski <milosz@dusk.network>",
 ]
 edition = "2018"
 repository = "https://github.com/dusk-network/rusk-vm"
@@ -11,18 +12,15 @@ description = "Rusk VM is the virtual machine running Dusk Network's Smart contr
 license = "MPL-2.0"
 
 [dependencies]
-wasmi = "0.7"
-wasmi-validation = "0.3"
+wasmparser = "0.81.0"
 parity-wasm = "0.41"
 pwasm-utils = "0.16"
 failure = "0.1"
 dusk-abi = "0.9"
 canonical = "0.6"
 canonical_derive = "0.6"
-#dusk-hamt = "0.5.0-rc"
-dusk-hamt = { path = "../dusk-hamt"}
-#microkelvin = "0.10.0-rc"
-microkelvin = { path = "../microkelvin", version = "0.10.1" }
+dusk-hamt = "0.5.0-rc"
+microkelvin = "0.10.0"
 wasmer = "2.0.0"
 wasmer-vm = "2.0.0"
 wasmer-compiler-cranelift = "2.0.0"
@@ -67,6 +65,3 @@ members = [
 
 [features]
 persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]
-
-[patch.crates-io]
-microkelvin = { path = '../microkelvin' }

@@ -4,15 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
 use crate::VMError;
+use crate::env::Env;
 
-use crate::resolver::Env;
 pub struct BlockHeight;
 
 impl BlockHeight {
     pub fn block_height(env: &Env) -> Result<u64, VMError> {
-        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
-        Ok(context.state().block_height())
+        Ok(env.get_context().state().block_height())
     }
 }

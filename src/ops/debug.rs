@@ -4,20 +4,19 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
 use crate::VMError;
 
-use crate::resolver::Env;
+use crate::env::Env;
 
 pub struct Debug;
 
 impl Debug {
-    pub fn debug(env: &Env, msg_ofs: u32, msg_len: u32) -> Result<(), VMError> {
+    pub fn debug(env: &Env, msg_ofs: i32, msg_len: i32) -> Result<(), VMError> {
         let msg_ofs = msg_ofs as u64;
         let msg_len = msg_len as usize;
-        let context: &mut CallContext = unsafe { &mut *(env.context.0 as *mut CallContext)};
-        let messsage_memory = context.read_memory(msg_ofs, msg_len)?;
-        let str = std::str::from_utf8(&messsage_memory)
+        let context = env.get_context();
+        let message_memory = context.read_memory(msg_ofs, msg_len)?;
+        let str = std::str::from_utf8(&message_memory)
             .map_err(|_| VMError::InvalidUtf8)?;
         println!("CONTRACT DEBUG: {:?}", str);
         Ok(())

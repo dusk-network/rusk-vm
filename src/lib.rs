@@ -13,16 +13,17 @@
 use std::{fmt, io};
 
 use canonical::CanonError;
-//use failure::Fail;
 
 mod call_context;
+mod env;
 mod contract;
 mod gas;
+mod memory;
 mod module_config;
 mod ops;
 mod resolver;
 mod state;
-mod memory;
+mod compiler;
 
 pub use dusk_abi;
 
@@ -31,8 +32,6 @@ pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
 use thiserror::Error;
-//use microkelvin::PersistError;
-use wasmer::{ExportError, InstantiationError};
 use wasmer_vm::TrapCode;
 
 #[derive(Error)]
@@ -46,7 +45,7 @@ pub enum VMError {
     /// Could not find WASM memory
     MemoryNotFound,
     /// Error during the instrumentalization
-    InstrumentalizationError(module_config::InstrumentalizationError),
+    InstrumentationError(module_config::InstrumentationError),
     /// Invalid ABI Call
     InvalidABICall,
     /// Invalid Utf8
@@ -65,10 +64,6 @@ pub enum VMError {
     UnknownContract,
     /// WASM threw an error
     WASMError(failure::Error),
-    /// wasmi trap triggered
-    Trap(wasmi::Trap),
-    /// Wasmi threw an error
-    WasmiError(wasmi::Error),
     /// Input output error
     IOError(io::Error),
     /// Invalid WASM Module
@@ -83,10 +78,12 @@ pub enum VMError {
     WasmerExportError(wasmer::ExportError),
     /// WASMER runtime error
     WasmerRuntimeError(wasmer::RuntimeError),
+    /// WASMER compile error
+    WasmerCompileError(wasmer::CompileError),
     /// WASMER trap
     WasmerTrap(TrapCode),
     /// WASMER instantiation error
-    WasmerInstantiationError(InstantiationError)
+    WasmerInstantiationError(wasmer::InstantiationError),
 }
 
 impl From<io::Error> for VMError {
@@ -95,36 +92,14 @@ impl From<io::Error> for VMError {
     }
 }
 
-impl From<wasmi::Error> for VMError {
-    fn from(e: wasmi::Error) -> Self {
-        VMError::WasmiError(e)
+impl From<module_config::InstrumentationError> for VMError {
+    fn from(e: module_config::InstrumentationError) -> Self {
+        VMError::InstrumentationError(e)
     }
 }
 
-impl From<wasmi::Trap> for VMError {
-    fn from(e: wasmi::Trap) -> Self {
-        VMError::Trap(e)
-    }
-}
-
-impl From<module_config::InstrumentalizationError> for VMError {
-    fn from(e: module_config::InstrumentalizationError) -> Self {
-        VMError::InstrumentalizationError(e)
-    }
-}
-
-// impl From<PersistError> for VMError {
-//     fn from(e: PersistError) -> Self {
-//         match e {
-//             PersistError::Io(io_error) => VMError::IOError(io_error),
-//             PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
-//             PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
-//         }
-//     }
-// }
-
-impl From<InstantiationError> for VMError {
-    fn from(e: InstantiationError) -> Self {
+impl From<wasmer::InstantiationError> for VMError {
+    fn from(e: wasmer::InstantiationError) -> Self {
         VMError::WasmerInstantiationError(e)
     }
 }
@@ -135,8 +110,10 @@ impl From<wasmer::ExportError> for VMError {
     }
 }
 
-impl From<CanonError> for VMError {
-    fn from(e: CanonError) -> Self { VMError::PersistenceSerializationError(e) }
+impl From<wasmer::CompileError> for VMError {
+    fn from(e: wasmer::CompileError) -> Self {
+        VMError::WasmerCompileError(e)
+    }
 }
 
 impl From<wasmer::RuntimeError> for VMError {
@@ -157,8 +134,6 @@ impl VMError {
         VMError::StoreError(err)
     }
 }
-
-impl wasmi::HostError for VMError {}
 
 impl fmt::Display for VMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -181,27 +156,36 @@ impl fmt::Display for VMError {
             VMError::MemoryNotFound => write!(f, "Memory not found")?,
             VMError::InvalidABICall => write!(f, "Invalid ABI Call")?,
             VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
-            VMError::Trap(e) => write!(f, "Trap ({:?})", e)?,
-            VMError::WasmiError(e) => write!(f, "WASMI Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
             VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
-            VMError::InstrumentalizationError(e) => {
+            VMError::InstrumentationError(e) => {
                 write!(f, "Instrumentalization error {:?}", e)?
             }
-            VMError::PersistenceSerializationError(e) => write!(f, "Persistence serialization error {:?}", e)?,
+            VMError::PersistenceSerializationError(e) => {
+                write!(f, "Persistence serialization error {:?}", e)?
+            }
             VMError::PersistenceError(string) => {
                 write!(f, "Persistence error \"{}\"", string)?
-            },
-            VMError::WasmerExportError(e) => {
-                match e {
-                    ExportError::IncompatibleType => write!(f, "WASMER Export Error - incompatible export type")?,
-                    ExportError::Missing(s) => write!(f, "WASMER Export Error - missing: \"{}\"", s)?
+            }
+            VMError::WasmerExportError(e) => match e {
+                wasmer::ExportError::IncompatibleType => {
+                    write!(f, "WASMER Export Error - incompatible export type")?
+                }
+                wasmer::ExportError::Missing(s) => {
+                    write!(f, "WASMER Export Error - missing: \"{}\"", s)?
                 }
             },
-            VMError::WasmerRuntimeError(e) => write!(f, "WASMER Runtime Error {:?}", e)?,
+            VMError::WasmerRuntimeError(e) => {
+                write!(f, "WASMER Runtime Error {:?}", e)?
+            }
             VMError::WasmerTrap(e) => write!(f, "WASMER Trap ({:?})", e)?,
-            VMError::WasmerInstantiationError(e) => write!(f, "WASMER Instantiation Error ({:?})", e)?,
+            VMError::WasmerInstantiationError(e) => {
+                write!(f, "WASMER Instantiation Error ({:?})", e)?
+            }
+            VMError::WasmerCompileError(e) => {
+                write!(f, "WASMER Compile Error {:?}", e)?
+            }
         }
         Ok(())
     }

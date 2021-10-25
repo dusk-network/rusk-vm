@@ -524,7 +524,7 @@ fn deploy_fails_with_floats() {
 
     assert!(matches!(
         network.deploy(contract),
-        Err(rusk_vm::VMError::InstrumentalizationError(_))
+        Err(rusk_vm::VMError::InstrumentationError(_))
     ));
 }
 
