@@ -19,7 +19,28 @@ use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_universal::Universal;
 
 use std::ffi::c_void;
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use lazy_static::lazy_static;
 
+lazy_static! {
+    static ref module_cache: Mutex<HashMap<ContractId, Module>> = {
+        let mut m = HashMap::new();
+        Mutex::new(m)
+    };
+}
+
+fn get_module(contract_id: &ContractId, store: &Store, bytecode: &[u8]) -> Module {
+    let mut map = module_cache.lock().unwrap();
+    match map.get(contract_id) {
+        Some(module) => module.clone(),
+        None => {
+            let m = Module::new(&store, bytecode).expect("wasmer module created");
+            map.insert(contract_id.clone(), m);
+            map.get(contract_id).expect("module must be in cache after insert").clone()
+        }
+    }
+}
 
 #[derive(Debug)]
 enum Argument {
@@ -118,7 +139,7 @@ impl<'a> CallContext<'a> {
             let contract = self.state.get_contract(&target)?;
 
             let wasmer_store = Store::new(&Universal::new(Cranelift::default()).engine());
-            let wasmer_module = Module::new(&wasmer_store, contract.bytecode()).expect("wasmer module created");
+            let wasmer_module= get_module(&target, &wasmer_store, contract.bytecode());
 
 
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
@@ -170,7 +191,7 @@ impl<'a> CallContext<'a> {
             let contract = self.state.get_contract(&target_contract_id)?;
 
             let wasmer_store = Store::new(&Universal::new(Cranelift::default()).engine());
-            let wasmer_module = Module::new(&wasmer_store, contract.bytecode()).expect("wasmer module created");
+            let wasmer_module = get_module(&target_contract_id, &wasmer_store, contract.bytecode());
 
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
             let mut wasmer_import_object = ImportObject::new();
