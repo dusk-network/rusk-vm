@@ -77,6 +77,8 @@ pub enum VMError {
     WasmerExportError(wasmer::ExportError),
     /// WASMER runtime error
     WasmerRuntimeError(wasmer::RuntimeError),
+    /// WASMER compile error
+    WasmerCompileError(wasmer::CompileError),
     /// WASMER trap
     WasmerTrap(TrapCode),
     /// WASMER instantiation error
@@ -114,6 +116,12 @@ impl From<InstantiationError> for VMError {
 impl From<wasmer::ExportError> for VMError {
     fn from(e: wasmer::ExportError) -> Self {
         VMError::WasmerExportError(e)
+    }
+}
+
+impl From<wasmer::CompileError> for VMError {
+    fn from(e: wasmer::CompileError) -> Self {
+        VMError::WasmerCompileError(e)
     }
 }
 
@@ -180,6 +188,7 @@ impl fmt::Display for VMError {
             VMError::WasmerRuntimeError(e) => write!(f, "WASMER Runtime Error {:?}", e)?,
             VMError::WasmerTrap(e) => write!(f, "WASMER Trap ({:?})", e)?,
             VMError::WasmerInstantiationError(e) => write!(f, "WASMER Instantiation Error ({:?})", e)?,
+            VMError::WasmerCompileError(e) => write!(f, "WASMER Compile Error {:?}", e)?,
         }
         Ok(())
     }

@@ -16,7 +16,7 @@ unsafe impl Sync for ImportReference {}
 
 #[derive(WasmerEnv, Clone)]
 pub struct Env {
-    pub context: ImportReference
+    pub context: ImportReference,
 }
 
 pub struct HostImportsResolver;

@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
@@ -16,6 +17,9 @@ use dusk_hamt::Hamt;
 use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
 };
+use wasmer::Module;
+use wasmer_compiler_cranelift::Cranelift;
+use wasmer_engine_universal::Universal;
 
 use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
@@ -30,6 +34,7 @@ pub struct NetworkState {
     block_height: u64,
     contracts: Hamt<ContractId, Contract, ()>,
     modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
+    module_cache: Arc<Mutex<HashMap<ContractId, Module>>>,
 }
 
 // Manual implementation of `Canon` to ignore the "modules" which needs to be
@@ -45,6 +50,7 @@ impl Canon for NetworkState {
             block_height: u64::decode(source)?,
             contracts: Hamt::decode(source)?,
             modules: Rc::new(RefCell::new(HashMap::new())),
+            module_cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -61,6 +67,7 @@ impl NetworkState {
             block_height,
             contracts: Hamt::default(),
             modules: Rc::new(RefCell::new(HashMap::new())),
+            module_cache: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -102,6 +109,10 @@ impl NetworkState {
         self.contracts
             .insert(id, contract.instrument()?)
             .map_err(VMError::from_store_error)?;
+        let store = wasmer::Store::new(&Universal::new(Cranelift::default()).engine());
+        let inserted_contract = self.get_contract(&id)?;
+        let module = Module::new(&store, inserted_contract.bytecode())?;
+        self.module_cache.lock().unwrap().insert(id, module);
         Ok(id)
     }
 
@@ -213,5 +224,10 @@ impl NetworkState {
                 let mut source = Source::new((*contract).state().as_bytes());
                 C::decode(&mut source).map_err(VMError::from_store_error)
             })
+    }
+
+    /// Gets module cache
+    pub fn get_module_cache(&self) -> Arc<Mutex<HashMap<ContractId, Module>>> {
+        self.module_cache.clone()
     }
 }

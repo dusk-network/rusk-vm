@@ -21,26 +21,6 @@ use wasmer_engine_universal::Universal;
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use lazy_static::lazy_static;
-
-lazy_static! {
-    static ref module_cache: Mutex<HashMap<ContractId, Module>> = {
-        let mut m = HashMap::new();
-        Mutex::new(m)
-    };
-}
-
-fn get_module(contract_id: &ContractId, store: &Store, bytecode: &[u8]) -> Module {
-    let mut map = module_cache.lock().unwrap();
-    match map.get(contract_id) {
-        Some(module) => module.clone(),
-        None => {
-            let m = Module::new(&store, bytecode).expect("wasmer module created");
-            map.insert(contract_id.clone(), m);
-            map.get(contract_id).expect("module must be in cache after insert").clone()
-        }
-    }
-}
 
 #[derive(Debug)]
 enum Argument {
@@ -121,13 +101,30 @@ impl<'a> CallContext<'a> {
         }
     }
 
+    fn get_module_from_cache(&self, contract_id: &ContractId, bytecode: &[u8]) -> Result<Module, VMError> {
+        let module_cache = self.state.get_module_cache();
+        let mut map = module_cache.lock().unwrap();
+        match map.get(contract_id) {
+            Some(module) => Ok(module.clone()),
+            None => {
+                let store = Store::new(&Universal::new(Cranelift::default()).engine());
+                let new_module = Module::new(&store, bytecode)?;
+                map.insert(contract_id.clone(), new_module);
+                match map.get(contract_id) {
+                    Some(module) => Ok(module.clone()),
+                    None => Err(VMError::ContractPanic("Module could not be found".to_string()))
+                }
+            }
+        }
+    }
+
     pub fn query(
         &mut self,
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError> {
         let env = Env {
-            context: ImportReference(self as *mut _ as *mut c_void)
+            context: ImportReference(self as *mut _ as *mut c_void),
         };
 
         let wasmer_instance: Instance;
@@ -138,17 +135,15 @@ impl<'a> CallContext<'a> {
         } else {
             let contract = self.state.get_contract(&target)?;
 
-            let wasmer_store = Store::new(&Universal::new(Cranelift::default()).engine());
-            let wasmer_module= get_module(&target, &wasmer_store, contract.bytecode());
-
+            let wasmer_module= self.get_module_from_cache(&target, contract.bytecode())?.clone();
 
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
             let mut wasmer_import_object = ImportObject::new();
             let mut env_namespace = Exports::new();
             let mut canon_namespace = Exports::new();
 
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone(), &wasmer_import_names);
-            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone(), &wasmer_import_names);
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, wasmer_module.store(), env.clone(), &wasmer_import_names);
+            HostImportsResolver::insert_into_namespace(&mut canon_namespace, wasmer_module.store(), env.clone(), &wasmer_import_names);
             wasmer_import_object.register("env", env_namespace);
             wasmer_import_object.register("canon", canon_namespace);
 
@@ -182,7 +177,7 @@ impl<'a> CallContext<'a> {
         transaction: Transaction,
     ) -> Result<(ContractState, ReturnValue), VMError> {
         let env = Env {
-            context: ImportReference(self as *mut _ as *mut c_void)
+            context: ImportReference(self as *mut _ as *mut c_void),
         };
 
         let wasmer_instance;
@@ -190,15 +185,14 @@ impl<'a> CallContext<'a> {
         {
             let contract = self.state.get_contract(&target_contract_id)?;
 
-            let wasmer_store = Store::new(&Universal::new(Cranelift::default()).engine());
-            let wasmer_module = get_module(&target_contract_id, &wasmer_store, contract.bytecode());
+            let wasmer_module = self.get_module_from_cache(&target_contract_id, contract.bytecode())?.clone();
 
             let wasmer_import_names: Vec<String> = wasmer_module.imports().map(|i| i.name().to_string()).collect();
             let mut wasmer_import_object = ImportObject::new();
             let mut env_namespace = Exports::new();
             let mut canon_namespace = Exports::new();
-            HostImportsResolver::insert_into_namespace(&mut env_namespace, &wasmer_store, env.clone(), &wasmer_import_names);
-            HostImportsResolver::insert_into_namespace(&mut canon_namespace, &wasmer_store, env.clone(), &wasmer_import_names);
+            HostImportsResolver::insert_into_namespace(&mut env_namespace, wasmer_module.store(), env.clone(), &wasmer_import_names);
+            HostImportsResolver::insert_into_namespace(&mut canon_namespace, wasmer_module.store(), env.clone(), &wasmer_import_names);
 
             wasmer_import_object.register("env", env_namespace);
             wasmer_import_object.register("canon", canon_namespace);
