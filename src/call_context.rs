@@ -64,15 +64,21 @@ impl StackFrame {
     }
 
     fn write_memory(&mut self, source_slice: &[u8], offset: u64) -> Result<(), VMError>{
-        unsafe { WasmerMemory::write_memory_bytes(self.memory.inner.get_unchecked(), offset, source_slice) }
+        //unsafe { WasmerMemory::write_memory_bytes(self.memory.inner.get_unchecked(), offset, source_slice) }
+        let offset = offset as usize;
+        Ok(unsafe { self.memory.inner.get_unchecked().data_unchecked_mut()[offset..(offset+source_slice.len())].copy_from_slice(source_slice) })
     }
 
-    fn read_memory_from(&self, offset: u64) -> Result<Vec<u8>, VMError> {
-        unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), offset, self.memory.inner.get_unchecked().data_size() as usize) }
+    fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
+        //unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), offset, self.memory.inner.get_unchecked().data_size() as usize) }
+        let offset = offset as usize;
+        Ok(unsafe { &self.memory.inner.get_unchecked().data_unchecked()[offset..] })
     }
 
-    fn read_memory(&self, offset: u64, length: usize) -> Result<Vec<u8>, VMError> {
-        unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), offset, length) }
+    fn read_memory(&self, offset: u64, length: usize) -> Result<&[u8], VMError> {
+        //unsafe { WasmerMemory::read_memory_bytes(self.memory.inner.get_unchecked(), offset, length) }
+        let offset = offset as usize;
+        Ok(unsafe { &self.memory.inner.get_unchecked().data_unchecked()[offset..(offset+length)] })
     }
 }
 
@@ -129,8 +135,8 @@ impl<'a> CallContext<'a> {
 
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes())? };
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, query.as_bytes())? };
+            unsafe { WasmerMemory::write_memory_bytes2(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes())? };
+            unsafe { WasmerMemory::write_memory_bytes2(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, query.as_bytes())? };
 
             self.stack
                 .push(StackFrame::new_query(target, wasmer_memory, query));
@@ -141,7 +147,8 @@ impl<'a> CallContext<'a> {
 
         let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
         wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
-        let read_buffer = unsafe { WasmerMemory::read_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, wasmer_memory.inner.get_unchecked().data_size() as usize)? };
+        // let read_buffer = unsafe { WasmerMemory::read_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, wasmer_memory.inner.get_unchecked().data_size() as usize)? };
+        let read_buffer = unsafe { wasmer_memory.inner.get_unchecked().data_unchecked() };
         let mut source = Source::new(&read_buffer);
         let result = ReturnValue::decode(&mut source).expect("query result decoded");
         self.stack.pop();
@@ -179,8 +186,8 @@ impl<'a> CallContext<'a> {
 
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes())? };
-            unsafe { WasmerMemory::write_memory_bytes(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, transaction.as_bytes())? };
+            unsafe { WasmerMemory::write_memory_bytes2(wasmer_memory.inner.get_unchecked(), 0, contract.state().as_bytes())? };
+            unsafe { WasmerMemory::write_memory_bytes2(wasmer_memory.inner.get_unchecked(), contract.state().as_bytes().len() as u64, transaction.as_bytes())? };
 
             self.stack.push(StackFrame::new_transaction(
                 target_contract_id,
@@ -196,7 +203,8 @@ impl<'a> CallContext<'a> {
             let mut contract = self.state.get_contract_mut(&target_contract_id)?;
             let mut wasmer_memory = WasmerMemory { inner: LazyInit::new() };
             wasmer_memory.init_env_memory(&wasmer_instance.exports)?;
-            let read_buffer = unsafe { WasmerMemory::read_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, wasmer_memory.inner.get_unchecked().data_size() as usize)? };
+            //let read_buffer = unsafe { WasmerMemory::read_memory_bytes(wasmer_memory.inner.get_unchecked(), 0, wasmer_memory.inner.get_unchecked().data_size() as usize)? };
+            let read_buffer = unsafe { wasmer_memory.inner.get_unchecked().data_unchecked() };
             let mut source = Source::new(&read_buffer);
             let state = ContractState::decode(&mut source).expect("query result decoded");
             *(*contract).state_mut() = state;
@@ -239,11 +247,11 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn read_memory_from(&self, offset: u64) -> Result<Vec<u8>, VMError> {
+    pub fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
         self.top().read_memory_from(offset)
     }
 
-    pub fn read_memory(&self, offset: u64, length: usize) -> Result<Vec<u8>, VMError> {
+    pub fn read_memory(&self, offset: u64, length: usize) -> Result<&[u8], VMError> {
         self.top().read_memory(offset, length)
     }
 

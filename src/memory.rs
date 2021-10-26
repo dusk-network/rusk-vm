@@ -43,6 +43,7 @@ impl WasmerMemory {
         len: usize,
     ) -> Result<Vec<u8>, VMError> {
         Self::check_bounds(memory, offset, len)?;
+        println!("read_memory_bytes {}", len);
         let offset = offset as usize;
         let vec: Vec<_> = memory.view()[offset..(offset + len)]
             .iter()
@@ -59,6 +60,7 @@ impl WasmerMemory {
     ) -> Result<(), VMError> {
         let slice = bytes.as_ref();
         let len = slice.len();
+        println!("write_memory_bytes {}", len);
         Self::check_bounds(memory, offset, len as _)?;
         let offset = offset as usize;
         memory.view()[offset..(offset + len)]
@@ -66,5 +68,15 @@ impl WasmerMemory {
             .zip(slice.iter())
             .for_each(|(cell, v)| cell.set(*v));
         Ok(())
+    }
+
+    pub fn write_memory_bytes2(
+        memory: &Memory,
+        offset: u64,
+        bytes: impl AsRef<[u8]>,
+    ) -> Result<(), VMError> {
+        let offset = offset as usize;
+        let slice = bytes.as_ref();
+        Ok(unsafe { memory.data_unchecked_mut()[offset..(offset + slice.len())].copy_from_slice(slice) })
     }
 }

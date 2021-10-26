@@ -24,7 +24,7 @@ impl ApplyTransaction {
             context.read_memory(contract_id_offset, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);
         let transaction_memory = context.read_memory_from(transaction_offset)?;
-        let mut source = Source::new(&transaction_memory);
+        let mut source = Source::new(transaction_memory);
         let state = ContractState::decode(&mut source).map_err(VMError::from_store_error)?;
         let transaction = Transaction::decode(&mut source).map_err(VMError::from_store_error)?;
 
