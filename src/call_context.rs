@@ -223,8 +223,7 @@ impl<'a> CallContext<'a> {
                 .get_module_from_cache(
                     &target_contract_id,
                     contract.bytecode(),
-                )?
-                .clone();
+                )?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
