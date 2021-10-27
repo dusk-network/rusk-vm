@@ -17,11 +17,11 @@ use canonical::CanonError;
 mod call_context;
 mod contract;
 mod gas;
+mod memory;
 mod module_config;
 mod ops;
 mod resolver;
 mod state;
-mod memory;
 
 pub use dusk_abi;
 
@@ -82,7 +82,7 @@ pub enum VMError {
     /// WASMER trap
     WasmerTrap(TrapCode),
     /// WASMER instantiation error
-    WasmerInstantiationError(InstantiationError)
+    WasmerInstantiationError(InstantiationError),
 }
 
 impl From<io::Error> for VMError {
@@ -96,16 +96,6 @@ impl From<module_config::InstrumentalizationError> for VMError {
         VMError::InstrumentalizationError(e)
     }
 }
-
-// impl From<PersistError> for VMError {
-//     fn from(e: PersistError) -> Self {
-//         match e {
-//             PersistError::Io(io_error) => VMError::IOError(io_error),
-//             PersistError::Canon(canon_error) => VMError::PersistenceSerializationError(canon_error),
-//             PersistError::Other(error) => VMError::PersistenceError(error.to_string()), // todo check if this is OK
-//         }
-//     }
-// }
 
 impl From<InstantiationError> for VMError {
     fn from(e: InstantiationError) -> Self {
@@ -126,7 +116,9 @@ impl From<wasmer::CompileError> for VMError {
 }
 
 impl From<CanonError> for VMError {
-    fn from(e: CanonError) -> Self { VMError::PersistenceSerializationError(e) }
+    fn from(e: CanonError) -> Self {
+        VMError::PersistenceSerializationError(e)
+    }
 }
 
 impl From<wasmer::RuntimeError> for VMError {
@@ -175,20 +167,30 @@ impl fmt::Display for VMError {
             VMError::InstrumentalizationError(e) => {
                 write!(f, "Instrumentalization error {:?}", e)?
             }
-            VMError::PersistenceSerializationError(e) => write!(f, "Persistence serialization error {:?}", e)?,
+            VMError::PersistenceSerializationError(e) => {
+                write!(f, "Persistence serialization error {:?}", e)?
+            }
             VMError::PersistenceError(string) => {
                 write!(f, "Persistence error \"{}\"", string)?
-            },
-            VMError::WasmerExportError(e) => {
-                match e {
-                    ExportError::IncompatibleType => write!(f, "WASMER Export Error - incompatible export type")?,
-                    ExportError::Missing(s) => write!(f, "WASMER Export Error - missing: \"{}\"", s)?
+            }
+            VMError::WasmerExportError(e) => match e {
+                ExportError::IncompatibleType => {
+                    write!(f, "WASMER Export Error - incompatible export type")?
+                }
+                ExportError::Missing(s) => {
+                    write!(f, "WASMER Export Error - missing: \"{}\"", s)?
                 }
             },
-            VMError::WasmerRuntimeError(e) => write!(f, "WASMER Runtime Error {:?}", e)?,
+            VMError::WasmerRuntimeError(e) => {
+                write!(f, "WASMER Runtime Error {:?}", e)?
+            }
             VMError::WasmerTrap(e) => write!(f, "WASMER Trap ({:?})", e)?,
-            VMError::WasmerInstantiationError(e) => write!(f, "WASMER Instantiation Error ({:?})", e)?,
-            VMError::WasmerCompileError(e) => write!(f, "WASMER Compile Error {:?}", e)?,
+            VMError::WasmerInstantiationError(e) => {
+                write!(f, "WASMER Instantiation Error ({:?})", e)?
+            }
+            VMError::WasmerCompileError(e) => {
+                write!(f, "WASMER Compile Error {:?}", e)?
+            }
         }
         Ok(())
     }

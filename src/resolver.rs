@@ -22,60 +22,24 @@ pub struct Env {
 pub struct HostImportsResolver;
 
 impl HostImportsResolver {
-    // pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, env: Env) {
-    //     namespace.insert("sig", Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
-    //     namespace.insert("debug", Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
-    //     namespace.insert("block_height", Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));
-    //     namespace.insert("transact", Function::new_native_with_env(&store, env.clone(), transact::ApplyTransaction::transact));
-    //     namespace.insert("query", Function::new_native_with_env(&store, env.clone(), query::ExecuteQuery::query));
-    //     namespace.insert("callee", Function::new_native_with_env(&store, env.clone(), call_stack::Callee::callee));
-    //     namespace.insert("caller", Function::new_native_with_env(&store, env.clone(), call_stack::Caller::caller));
-    //     namespace.insert("get", Function::new_native_with_env(&store, env.clone(), store::Get::get));
-    //     namespace.insert("put", Function::new_native_with_env(&store, env.clone(), store::Put::put));
-    //     namespace.insert("hash", Function::new_native_with_env(&store, env.clone(), store::Hash::hash));
-    //     namespace.insert("gas", Function::new_native_with_env(&store, env.clone(), gas::Gas::gas));
-    //     namespace.insert("gas_consumed", Function::new_native_with_env(&store, env.clone(), gas::GasConsumed::gas_consumed));
-    //     namespace.insert("gas_left", Function::new_native_with_env(&store, env.clone(), gas::GasLeft::gas_left));
-    // }
     pub fn insert_into_namespace(namespace: &mut Exports, store: &Store, env: Env, names: &Vec<String>) {
-        if names.contains(&"sig".to_string()) {
-            namespace.insert("sig", Function::new_native_with_env(&store, env.clone(), panic::Panic::panic));
-        };
-        if names.contains(&"debug".to_string()) {
-            namespace.insert("debug", Function::new_native_with_env(&store, env.clone(), debug::Debug::debug));
-        };
-        if names.contains(&"block_height".to_string()) {
-            namespace.insert("block_height", Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height));
-        };
-        if names.contains(&"transact".to_string()) {
-            namespace.insert("transact", Function::new_native_with_env(&store, env.clone(), transact::ApplyTransaction::transact));
-        };
-        if names.contains(&"query".to_string()) {
-            namespace.insert("query", Function::new_native_with_env(&store, env.clone(), query::ExecuteQuery::query));
-        };
-        if names.contains(&"callee".to_string()) {
-            namespace.insert("callee", Function::new_native_with_env(&store, env.clone(), call_stack::Callee::callee));
-        };
-        if names.contains(&"caller".to_string()) {
-            namespace.insert("caller", Function::new_native_with_env(&store, env.clone(), call_stack::Caller::caller));
-        };
-        if names.contains(&"get".to_string()) {
-            namespace.insert("get", Function::new_native_with_env(&store, env.clone(), store::Get::get));
-        };
-        if names.contains(&"put".to_string()) {
-            namespace.insert("put", Function::new_native_with_env(&store, env.clone(), store::Put::put));
-        };
-        if names.contains(&"hash".to_string()) {
-            namespace.insert("hash", Function::new_native_with_env(&store, env.clone(), store::Hash::hash));
-        };
-        if names.contains(&"gas".to_string()) {
-            namespace.insert("gas", Function::new_native_with_env(&store, env.clone(), gas::Gas::gas));
-        };
-        if names.contains(&"gas_consumed".to_string()) {
-            namespace.insert("gas_consumed", Function::new_native_with_env(&store, env.clone(), gas::GasConsumed::gas_consumed));
-        };
-        if names.contains(&"gas_left".to_string()) {
-            namespace.insert("gas_left", Function::new_native_with_env(&store, env.clone(), gas::GasLeft::gas_left));
-        };
+        for name in names {
+            match name.as_str() {
+                "sig"           =>    namespace.insert("sig", Function::new_native_with_env(&store, env.clone(), panic::Panic::panic)),
+                "debug"         =>    namespace.insert("debug", Function::new_native_with_env(&store, env.clone(), debug::Debug::debug)),
+                "block_height"  =>    namespace.insert("block_height", Function::new_native_with_env(&store, env.clone(), block_height::BlockHeight::block_height)),
+                "transact"      =>    namespace.insert("transact", Function::new_native_with_env(&store, env.clone(), transact::ApplyTransaction::transact)),
+                "query"         =>    namespace.insert("query", Function::new_native_with_env(&store, env.clone(), query::ExecuteQuery::query)),
+                "callee"        =>    namespace.insert("callee", Function::new_native_with_env(&store, env.clone(), call_stack::Callee::callee)),
+                "caller"        =>    namespace.insert("caller", Function::new_native_with_env(&store, env.clone(), call_stack::Caller::caller)),
+                "get"           =>    namespace.insert("get", Function::new_native_with_env(&store, env.clone(), store::Get::get)),
+                "put"           =>    namespace.insert("put", Function::new_native_with_env(&store, env.clone(), store::Put::put)),
+                "hash"          =>    namespace.insert("hash", Function::new_native_with_env(&store, env.clone(), store::Hash::hash)),
+                "gas"           =>    namespace.insert("gas", Function::new_native_with_env(&store, env.clone(), gas::Gas::gas)),
+                "gas_consumed"  =>    namespace.insert("gas_consumed", Function::new_native_with_env(&store, env.clone(), gas::GasConsumed::gas_consumed)),
+                "gas_left"      =>    namespace.insert("gas_left", Function::new_native_with_env(&store, env.clone(), gas::GasLeft::gas_left)),
+                _ => debug_assert!(false, "unknown wasm module import {}", name),
+            }
+        }
     }
 }
