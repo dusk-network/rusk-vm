@@ -72,11 +72,11 @@ impl StackFrame {
         source_slice: &[u8],
         offset: u64,
     ) -> Result<(), VMError> {
-        self.memory.write_memory_bytes(offset, source_slice)
+        self.memory.write_memory(offset, source_slice)
     }
 
     fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
-        self.memory.read_memory_bytes(offset)
+        self.memory.read_memory_from(offset)
     }
 
     fn read_memory(
@@ -84,7 +84,7 @@ impl StackFrame {
         offset: u64,
         length: usize,
     ) -> Result<&[u8], VMError> {
-        self.memory.read_memory_bytes_with_length(offset, length)
+        self.memory.read_memory(offset, length)
     }
 }
 
@@ -181,8 +181,8 @@ impl<'a> CallContext<'a> {
                 inner: LazyInit::new(),
             };
             memory.init_env_memory(&instance.exports)?;
-            memory.write_memory_bytes(0, contract.state().as_bytes())?;
-            memory.write_memory_bytes(
+            memory.write_memory(0, contract.state().as_bytes())?;
+            memory.write_memory(
                 contract.state().as_bytes().len() as u64,
                 query.as_bytes(),
             )?;
@@ -193,16 +193,14 @@ impl<'a> CallContext<'a> {
 
         let run_func: NativeFunc<i32, ()> = instance
             .exports
-            .get_native_function("q")
-            .expect("wasmer invoked function q");
+            .get_native_function("q")?;
         run_func.call(0)?;
 
         let mut memory = WasmerMemory::new();
         memory.init_env_memory(&instance.exports)?;
-        let read_buffer = memory.read_memory_bytes(0)?;
+        let read_buffer = memory.read_memory_from(0)?;
         let mut source = Source::new(&read_buffer);
-        let result =
-            ReturnValue::decode(&mut source).expect("query result decoded");
+        let result = ReturnValue::decode(&mut source)?;
         self.stack.pop();
         Ok(result)
     }
@@ -246,8 +244,8 @@ impl<'a> CallContext<'a> {
                 inner: LazyInit::new(),
             };
             memory.init_env_memory(&instance.exports)?;
-            memory.write_memory_bytes(0, contract.state().as_bytes())?;
-            memory.write_memory_bytes(
+            memory.write_memory(0, contract.state().as_bytes())?;
+            memory.write_memory(
                 contract.state().as_bytes().len() as u64,
                 transaction.as_bytes(),
             )?;
@@ -260,8 +258,7 @@ impl<'a> CallContext<'a> {
 
         let run_func: NativeFunc<i32, ()> = instance
             .exports
-            .get_native_function("t")
-            .expect("wasmer invoked function t");
+            .get_native_function("t")?;
         run_func.call(0)?;
 
         let ret = {
@@ -269,12 +266,11 @@ impl<'a> CallContext<'a> {
                 self.state.get_contract_mut(&target_contract_id)?;
             let mut memory = WasmerMemory::new();
             memory.init_env_memory(&instance.exports)?;
-            let read_buffer = memory.read_memory_bytes(0)?;
+            let read_buffer = memory.read_memory_from(0)?;
             let mut source = Source::new(&read_buffer);
-            let state = ContractState::decode(&mut source)
-                .expect("query result decoded");
+            let state = ContractState::decode(&mut source)?;
             *(*contract).state_mut() = state;
-            ReturnValue::decode(&mut source)
+            ReturnValue::decode(&mut source)?
         };
 
         let state = if self.stack.len() > 1 {
@@ -286,7 +282,7 @@ impl<'a> CallContext<'a> {
             state
         };
 
-        Ok((state, ret.expect("converted error")))
+        Ok((state, ret))
     }
 
     pub fn gas_meter(&self) -> &GasMeter {

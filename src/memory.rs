@@ -27,13 +27,13 @@ impl WasmerMemory {
     }
 
     /// Read bytes from memory at the given offset
-    pub fn read_memory_bytes(&self, offset: u64) -> Result<&[u8], VMError> {
+    pub fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
         let offset = offset as usize;
         Ok(unsafe { &self.inner.get_unchecked().data_unchecked()[offset..] })
     }
 
     /// Read bytes from memory at the given offset and length
-    pub fn read_memory_bytes_with_length(
+    pub fn read_memory(
         &self,
         offset: u64,
         length: usize,
@@ -46,7 +46,7 @@ impl WasmerMemory {
     }
 
     /// Write bytes into memory at the given offset
-    pub fn write_memory_bytes(
+    pub fn write_memory(
         &self,
         offset: u64,
         bytes: impl AsRef<[u8]>,
