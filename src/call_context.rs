@@ -72,13 +72,7 @@ impl StackFrame {
         source_slice: &[u8],
         offset: u64,
     ) -> Result<(), VMError> {
-        unsafe {
-            WasmerMemory::write_memory_bytes(
-                self.memory.inner.get_unchecked(),
-                offset,
-                source_slice,
-            )
-        }
+        self.memory.write_memory_bytes(offset, source_slice)
     }
 
     fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
@@ -198,26 +192,14 @@ impl<'a> CallContext<'a> {
                 inner: LazyInit::new(),
             };
             memory.init_env_memory(&instance.exports)?;
-            unsafe {
-                WasmerMemory::write_memory_bytes(
-                    memory.inner.get_unchecked(),
-                    0,
-                    contract.state().as_bytes(),
-                )?
-            };
-            unsafe {
-                WasmerMemory::write_memory_bytes(
-                    memory.inner.get_unchecked(),
-                    contract.state().as_bytes().len() as u64,
-                    query.as_bytes(),
-                )?
-            };
+            memory.write_memory_bytes(0, contract.state().as_bytes())?;
+            memory.write_memory_bytes(
+                contract.state().as_bytes().len() as u64,
+                query.as_bytes(),
+            )?;
 
-            self.stack.push(StackFrame::new_query(
-                target,
-                memory,
-                query,
-            ));
+            self.stack
+                .push(StackFrame::new_query(target, memory, query));
         }
 
         let run_func: NativeFunc<i32, ()> = instance
@@ -231,10 +213,7 @@ impl<'a> CallContext<'a> {
         };
         memory.init_env_memory(&instance.exports)?;
         let read_buffer = unsafe {
-            WasmerMemory::read_memory_bytes(
-                memory.inner.get_unchecked(),
-                0,
-            )?
+            WasmerMemory::read_memory_bytes(memory.inner.get_unchecked(), 0)?
         };
         let mut source = Source::new(&read_buffer);
         let result =
@@ -264,10 +243,8 @@ impl<'a> CallContext<'a> {
                 )?
                 .clone();
 
-            let import_names: Vec<String> = module
-                .imports()
-                .map(|i| i.name().to_string())
-                .collect();
+            let import_names: Vec<String> =
+                module.imports().map(|i| i.name().to_string()).collect();
             let mut import_object = ImportObject::new();
             for namespace_name in ["env", "canon"] {
                 CallContext::register_namespace(
@@ -284,21 +261,11 @@ impl<'a> CallContext<'a> {
                 inner: LazyInit::new(),
             };
             memory.init_env_memory(&instance.exports)?;
-            unsafe {
-                WasmerMemory::write_memory_bytes(
-                    memory.inner.get_unchecked(),
-                    0,
-                    contract.state().as_bytes(),
-                )?
-            };
-            unsafe {
-                WasmerMemory::write_memory_bytes(
-                    memory.inner.get_unchecked(),
-                    contract.state().as_bytes().len() as u64,
-                    transaction.as_bytes(),
-                )?
-            };
-
+            memory.write_memory_bytes(0, contract.state().as_bytes())?;
+            memory.write_memory_bytes(
+                contract.state().as_bytes().len() as u64,
+                transaction.as_bytes(),
+            )?;
             self.stack.push(StackFrame::new_transaction(
                 target_contract_id,
                 memory,

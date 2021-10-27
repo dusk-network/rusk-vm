@@ -43,12 +43,12 @@ impl WasmerMemory {
 
     /// Write bytes into memory at the given offset
     pub fn write_memory_bytes(
-        memory: &Memory,
+        &self,
         offset: u64,
         bytes: impl AsRef<[u8]>,
     ) -> Result<(), VMError> {
         let offset = offset as usize;
         let slice = bytes.as_ref();
-        Ok(unsafe { memory.data_unchecked_mut()[offset..(offset + slice.len())].copy_from_slice(slice) })
+        Ok(unsafe { self.inner.get_unchecked().data_unchecked_mut()[offset..(offset + slice.len())].copy_from_slice(slice) })
     }
 }
