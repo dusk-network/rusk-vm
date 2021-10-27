@@ -76,12 +76,7 @@ impl StackFrame {
     }
 
     fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
-        unsafe {
-            WasmerMemory::read_memory_bytes(
-                self.memory.inner.get_unchecked(),
-                offset,
-            )
-        }
+        self.memory.read_memory_bytes(offset)
     }
 
     fn read_memory(
@@ -89,13 +84,7 @@ impl StackFrame {
         offset: u64,
         length: usize,
     ) -> Result<&[u8], VMError> {
-        unsafe {
-            WasmerMemory::read_memory_bytes_with_length(
-                self.memory.inner.get_unchecked(),
-                offset,
-                length,
-            )
-        }
+        self.memory.read_memory_bytes_with_length(offset, length)
     }
 }
 
@@ -208,13 +197,9 @@ impl<'a> CallContext<'a> {
             .expect("wasmer invoked function q");
         run_func.call(0)?;
 
-        let mut memory = WasmerMemory {
-            inner: LazyInit::new(),
-        };
+        let mut memory = WasmerMemory::new();
         memory.init_env_memory(&instance.exports)?;
-        let read_buffer = unsafe {
-            WasmerMemory::read_memory_bytes(memory.inner.get_unchecked(), 0)?
-        };
+        let read_buffer = memory.read_memory_bytes(0)?;
         let mut source = Source::new(&read_buffer);
         let result =
             ReturnValue::decode(&mut source).expect("query result decoded");
@@ -282,16 +267,9 @@ impl<'a> CallContext<'a> {
         let ret = {
             let mut contract =
                 self.state.get_contract_mut(&target_contract_id)?;
-            let mut wasmer_memory = WasmerMemory {
-                inner: LazyInit::new(),
-            };
-            wasmer_memory.init_env_memory(&instance.exports)?;
-            let read_buffer = unsafe {
-                WasmerMemory::read_memory_bytes(
-                    wasmer_memory.inner.get_unchecked(),
-                    0,
-                )?
-            };
+            let mut memory = WasmerMemory::new();
+            memory.init_env_memory(&instance.exports)?;
+            let read_buffer = memory.read_memory_bytes(0)?;
             let mut source = Source::new(&read_buffer);
             let state = ContractState::decode(&mut source)
                 .expect("query result decoded");
