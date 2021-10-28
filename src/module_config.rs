@@ -4,10 +4,28 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::VMError;
+
 use parity_wasm::elements;
-use wasmi_validation::{validate_module, PlainValidator};
+//use wasmi_validation::{validate_module, PlainValidator};
+use wasmparser::{Validator, WasmFeatures};
+
 
 pub use dusk_abi::{ContractId, ContractState};
+
+const UNTRUSTED_WASM_FEATURES: WasmFeatures = WasmFeatures {
+    reference_types: false,
+    multi_value: false,
+    bulk_memory: false,
+    module_linking: false,
+    simd: false,
+    threads: false,
+    tail_call: false,
+    deterministic_only: true,
+    multi_memory: false,
+    exceptions: false,
+    memory64: false,
+};
 
 #[derive(Debug)]
 pub enum InstrumentalizationError {
@@ -56,11 +74,21 @@ impl ModuleConfig {
         self
     }
 
+    pub fn validate_wasm(
+        wasm_code: impl AsRef<[u8]>,
+    ) -> Result<(), VMError> {
+        let mut validator = Validator::new();
+        validator.wasm_features(UNTRUSTED_WASM_FEATURES);
+        validator
+            .validate_all(wasm_code.as_ref())
+            .map_err(|e|VMError::WASMError(failure::Error::from(e)))
+    }
+
     pub fn apply(
         &self,
         code: &[u8],
     ) -> Result<Vec<u8>, InstrumentalizationError> {
-        let mut module = elements::deserialize_buffer(code)
+        let mut module : parity_wasm::elements::Module = elements::deserialize_buffer(code)
             .or(Err(InstrumentalizationError::InvalidByteCode))?;
 
         let schedule = crate::Schedule::default();
@@ -108,11 +136,14 @@ impl ModuleConfig {
             }
         }
 
-        validate_module::<PlainValidator>(&module)
+        let code_bytes = module
+            .to_bytes()
             .or(Err(InstrumentalizationError::InvalidByteCode))?;
 
-        module
-            .to_bytes()
-            .or(Err(InstrumentalizationError::InvalidByteCode))
+        ModuleConfig::validate_wasm(&code_bytes)
+        // validate_module::<PlainValidator>(&module)
+            .or(Err(InstrumentalizationError::InvalidByteCode))?;  // todo add new error code
+
+        Ok(code_bytes)
     }
 }
