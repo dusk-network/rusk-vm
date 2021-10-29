@@ -23,6 +23,7 @@ mod module_config;
 mod ops;
 mod resolver;
 mod state;
+mod compiler;
 
 pub use dusk_abi;
 

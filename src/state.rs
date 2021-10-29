@@ -17,13 +17,12 @@ use dusk_hamt::Hamt;
 use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
 };
-use wasmer::{CompileError, Module};
-use wasmer_compiler_cranelift::Cranelift;
-use wasmer_engine_universal::Universal;
+use wasmer::Module;
 
 use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
+use crate::compiler::WasmerCompiler;
 use crate::VMError;
 
 type BoxedHostModule = Box<dyn HostModule>;
@@ -224,13 +223,6 @@ impl NetworkState {
             })
     }
 
-    fn create_module(bytes: impl AsRef<[u8]>) -> Result<Module, CompileError> {
-        let store = wasmer::Store::new(
-            &Universal::new(Cranelift::default()).engine(),
-        );
-        Module::new(&store, bytes)
-    }
-
     /// Retrieves module from cache possibly creating and storing a new one if not found
     pub fn get_module_from_cache(
         &self,
@@ -241,7 +233,7 @@ impl NetworkState {
         match map.get(contract_id) {
             Some(module) => Ok(module.clone()),
             None => {
-                let new_module = NetworkState::create_module(bytecode)?;
+                let new_module = WasmerCompiler::create_module(bytecode)?;
                 map.insert(contract_id.clone(), new_module.clone());
                 Ok(new_module)
             }
