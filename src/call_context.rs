@@ -7,10 +7,8 @@
 use canonical::{Canon, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
 use wasmer::{
-    Exports, ImportObject, Instance, LazyInit, Module, NativeFunc, Store,
+    Exports, ImportObject, Instance, LazyInit, Module, NativeFunc,
 };
-use wasmer_compiler_cranelift::Cranelift;
-use wasmer_engine_universal::Universal;
 
 use crate::contract::ContractId;
 use crate::env::Env;
@@ -105,25 +103,6 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    fn get_module_from_cache(
-        &self,
-        contract_id: &ContractId,
-        bytecode: &[u8],
-    ) -> Result<Module, VMError> {
-        let module_cache = self.state.get_module_cache();
-        let mut map = module_cache.lock().unwrap();
-        match map.get(contract_id) {
-            Some(module) => Ok(module.clone()),
-            None => {
-                let store =
-                    Store::new(&Universal::new(Cranelift::default()).engine());
-                let new_module = Module::new(&store, bytecode)?;
-                map.insert(contract_id.clone(), new_module.clone());
-                Ok(new_module)
-            }
-        }
-    }
-
     fn register_namespace(
         namespace_name: &str,
         env: &Env,
@@ -156,7 +135,7 @@ impl<'a> CallContext<'a> {
         } else {
             let contract = self.state.get_contract(&target)?;
 
-            let module = self
+            let module = self.state
                 .get_module_from_cache(&target, contract.bytecode())?
                 .clone();
 
@@ -214,7 +193,7 @@ impl<'a> CallContext<'a> {
         {
             let contract = self.state.get_contract(&target_contract_id)?;
 
-            let module = self.get_module_from_cache(
+            let module = self.state.get_module_from_cache(
                 &target_contract_id,
                 contract.bytecode(),
             )?;

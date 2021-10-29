@@ -17,7 +17,7 @@ use dusk_hamt::Hamt;
 use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
 };
-use wasmer::Module;
+use wasmer::{CompileError, Module};
 use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_universal::Universal;
 
@@ -109,10 +109,8 @@ impl NetworkState {
         self.contracts
             .insert(id, contract.instrument()?)
             .map_err(VMError::from_store_error)?;
-        let store = wasmer::Store::new(&Universal::new(Cranelift::default()).engine());
         let inserted_contract = self.get_contract(&id)?;
-        let module = Module::new(&store, inserted_contract.bytecode())?;
-        self.module_cache.lock().unwrap().insert(id, module);
+        self.get_module_from_cache(&id, inserted_contract.bytecode())?;
         Ok(id)
     }
 
@@ -226,8 +224,27 @@ impl NetworkState {
             })
     }
 
-    /// Gets module cache
-    pub fn get_module_cache(&self) -> Arc<Mutex<HashMap<ContractId, Module>>> {
-        self.module_cache.clone()
+    fn create_module(bytes: impl AsRef<[u8]>) -> Result<Module, CompileError> {
+        let store = wasmer::Store::new(
+            &Universal::new(Cranelift::default()).engine(),
+        );
+        Module::new(&store, bytes)
+    }
+
+    /// Retrieves module from cache possibly creating and storing a new one if not found
+    pub fn get_module_from_cache(
+        &self,
+        contract_id: &ContractId,
+        bytecode: &[u8],
+    ) -> Result<Module, VMError> {
+        let mut map = self.module_cache.lock().unwrap();
+        match map.get(contract_id) {
+            Some(module) => Ok(module.clone()),
+            None => {
+                let new_module = NetworkState::create_module(bytecode)?;
+                map.insert(contract_id.clone(), new_module.clone());
+                Ok(new_module)
+            }
+        }
     }
 }
