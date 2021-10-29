@@ -7,25 +7,10 @@
 use crate::VMError;
 
 use parity_wasm::elements;
-//use wasmi_validation::{validate_module, PlainValidator};
-use wasmparser::{Validator, WasmFeatures};
+use wasmparser::Validator;
 
 
 pub use dusk_abi::{ContractId, ContractState};
-
-const UNTRUSTED_WASM_FEATURES: WasmFeatures = WasmFeatures {
-    reference_types: false,
-    multi_value: false,
-    bulk_memory: false,
-    module_linking: false,
-    simd: false,
-    threads: false,
-    tail_call: false,
-    deterministic_only: true,
-    multi_memory: false,
-    exceptions: false,
-    memory64: false,
-};
 
 #[derive(Debug)]
 pub enum InstrumentalizationError {
@@ -78,7 +63,6 @@ impl ModuleConfig {
         wasm_code: impl AsRef<[u8]>,
     ) -> Result<(), VMError> {
         let mut validator = Validator::new();
-        validator.wasm_features(UNTRUSTED_WASM_FEATURES);
         validator
             .validate_all(wasm_code.as_ref())
             .map_err(|e|VMError::WASMError(failure::Error::from(e)))
@@ -141,8 +125,7 @@ impl ModuleConfig {
             .or(Err(InstrumentalizationError::InvalidByteCode))?;
 
         ModuleConfig::validate_wasm(&code_bytes)
-        // validate_module::<PlainValidator>(&module)
-            .or(Err(InstrumentalizationError::InvalidByteCode))?;  // todo add new error code
+            .or(Err(InstrumentalizationError::InvalidByteCode))?;
 
         Ok(code_bytes)
     }
