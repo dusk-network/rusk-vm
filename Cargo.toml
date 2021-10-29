@@ -12,8 +12,6 @@ description = "Rusk VM is the virtual machine running Dusk Network's Smart contr
 license = "MPL-2.0"
 
 [dependencies]
-#wasmi = "0.7"
-#wasmi-validation = "0.3"
 wasmparser = "0.81.0"
 parity-wasm = "0.41"
 pwasm-utils = "0.16"
@@ -69,6 +67,3 @@ members = [
 
 [features]
 persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]
-
-[patch.crates-io]
-microkelvin = { path = '../microkelvin' }

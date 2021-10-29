@@ -14,6 +14,3 @@ canonical_derive = "0.6"
 nstack = "0.10.0-rc"
 microkelvin = "0.10.0-rc"
 dusk-abi = "0.9.0-rc"
-
-[patch.crates-io]
-microkelvin = { path = '/Users/miloszm/rust/microkelvin' }
