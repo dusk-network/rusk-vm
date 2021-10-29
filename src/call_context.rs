@@ -69,11 +69,11 @@ impl StackFrame {
         source_slice: &[u8],
         offset: u64,
     ) -> Result<(), VMError> {
-        self.memory.write_memory(offset, source_slice)
+        self.memory.write(offset, source_slice)
     }
 
     fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
-        self.memory.read_memory_from(offset)
+        self.memory.read_from(offset)
     }
 
     fn read_memory(
@@ -81,7 +81,7 @@ impl StackFrame {
         offset: u64,
         length: usize,
     ) -> Result<&[u8], VMError> {
-        self.memory.read_memory(offset, length)
+        self.memory.read(offset, length)
     }
 }
 
@@ -156,9 +156,9 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
             };
-            memory.init_env_memory(&instance.exports)?;
-            memory.write_memory(0, contract.state().as_bytes())?;
-            memory.write_memory(
+            memory.init(&instance.exports)?;
+            memory.write(0, contract.state().as_bytes())?;
+            memory.write(
                 contract.state().as_bytes().len() as u64,
                 query.as_bytes(),
             )?;
@@ -172,8 +172,8 @@ impl<'a> CallContext<'a> {
         run_func.call(0)?;
 
         let mut memory = WasmerMemory::new();
-        memory.init_env_memory(&instance.exports)?;
-        let read_buffer = memory.read_memory_from(0)?;
+        memory.init(&instance.exports)?;
+        let read_buffer = memory.read_from(0)?;
         let mut source = Source::new(&read_buffer);
         let result = ReturnValue::decode(&mut source)
             .map_err(VMError::from_store_error)?;
@@ -215,9 +215,9 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
             };
-            memory.init_env_memory(&instance.exports)?;
-            memory.write_memory(0, contract.state().as_bytes())?;
-            memory.write_memory(
+            memory.init(&instance.exports)?;
+            memory.write(0, contract.state().as_bytes())?;
+            memory.write(
                 contract.state().as_bytes().len() as u64,
                 transaction.as_bytes(),
             )?;
@@ -236,8 +236,8 @@ impl<'a> CallContext<'a> {
             let mut contract =
                 self.state.get_contract_mut(&target_contract_id)?;
             let mut memory = WasmerMemory::new();
-            memory.init_env_memory(&instance.exports)?;
-            let read_buffer = memory.read_memory_from(0)?;
+            memory.init(&instance.exports)?;
+            let read_buffer = memory.read_from(0)?;
             let mut source = Source::new(&read_buffer);
             let state = ContractState::decode(&mut source)
                 .map_err(VMError::from_store_error)?;
