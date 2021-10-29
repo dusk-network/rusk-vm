@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::ffi::c_void;
-
 use canonical::{Canon, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
 use wasmer::{
@@ -17,8 +15,9 @@ use wasmer_engine_universal::Universal;
 use crate::contract::ContractId;
 use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
-use crate::resolver::{Env, HostImportsResolver, ImportReference};
+use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
+use crate::env::Env;
 use crate::VMError;
 
 #[derive(Debug)]
@@ -147,9 +146,7 @@ impl<'a> CallContext<'a> {
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError> {
-        let env = Env {
-            context: ImportReference(self as *mut _ as *mut c_void),
-        };
+        let env = Env::new(self);
 
         let instance: Instance;
 
@@ -210,9 +207,7 @@ impl<'a> CallContext<'a> {
         target_contract_id: ContractId,
         transaction: Transaction,
     ) -> Result<(ContractState, ReturnValue), VMError> {
-        let env = Env {
-            context: ImportReference(self as *mut _ as *mut c_void),
-        };
+        let env = Env::new(self);
 
         let instance;
 

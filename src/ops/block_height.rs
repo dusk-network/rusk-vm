@@ -6,7 +6,7 @@
 
 use crate::call_context::CallContext;
 use crate::VMError;
-use crate::resolver::Env;
+use crate::env::Env;
 
 pub struct BlockHeight;
 

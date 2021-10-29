@@ -7,7 +7,7 @@
 use crate::call_context::CallContext;
 use crate::VMError;
 
-use crate::resolver::Env;
+use crate::env::Env;
 use canonical::{Canon, Sink, Source};
 use core::mem::size_of;
 use dusk_abi::{ContractId, Query};

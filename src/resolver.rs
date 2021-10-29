@@ -5,19 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::ops::*;
+use crate::env::Env;
 
-use wasmer::{Function, Store, Exports, WasmerEnv};
-use std::ffi::c_void;
-
-#[derive(Clone)]
-pub struct ImportReference(pub *mut c_void);
-unsafe impl Send for ImportReference {}
-unsafe impl Sync for ImportReference {}
-
-#[derive(WasmerEnv, Clone)]
-pub struct Env {
-    pub context: ImportReference,
-}
+use wasmer::{Function, Store, Exports};
 
 pub struct HostImportsResolver;
 

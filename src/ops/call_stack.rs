@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::call_context::CallContext;
-use crate::resolver::Env;
+use crate::env::Env;
 use crate::VMError;
 
 pub struct Callee;

@@ -15,6 +15,7 @@ use std::{fmt, io};
 use canonical::CanonError;
 
 mod call_context;
+mod env;
 mod contract;
 mod gas;
 mod memory;
