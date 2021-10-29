@@ -19,10 +19,8 @@ failure = "0.1"
 dusk-abi = "0.9"
 canonical = "0.6"
 canonical_derive = "0.6"
-#dusk-hamt = "0.5.0-rc"
-dusk-hamt = { path = "../dusk-hamt"}
-#microkelvin = "0.10.0-rc"
-microkelvin = { path = "../microkelvin", version = "0.10.1" }
+dusk-hamt = "0.5.0-rc"
+microkelvin = "0.10.0"
 wasmer = "2.0.0"
 wasmer-vm = "2.0.0"
 wasmer-compiler-cranelift = "2.0.0"
