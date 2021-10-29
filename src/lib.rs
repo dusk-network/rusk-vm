@@ -31,7 +31,6 @@ pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
 use thiserror::Error;
-use wasmer::{ExportError, InstantiationError};
 use wasmer_vm::TrapCode;
 
 #[derive(Error)]
@@ -45,7 +44,7 @@ pub enum VMError {
     /// Could not find WASM memory
     MemoryNotFound,
     /// Error during the instrumentalization
-    InstrumentalizationError(module_config::InstrumentalizationError),
+    InstrumentationError(module_config::InstrumentationError),
     /// Invalid ABI Call
     InvalidABICall,
     /// Invalid Utf8
@@ -83,7 +82,7 @@ pub enum VMError {
     /// WASMER trap
     WasmerTrap(TrapCode),
     /// WASMER instantiation error
-    WasmerInstantiationError(InstantiationError),
+    WasmerInstantiationError(wasmer::InstantiationError),
 }
 
 impl From<io::Error> for VMError {
@@ -92,14 +91,14 @@ impl From<io::Error> for VMError {
     }
 }
 
-impl From<module_config::InstrumentalizationError> for VMError {
-    fn from(e: module_config::InstrumentalizationError) -> Self {
-        VMError::InstrumentalizationError(e)
+impl From<module_config::InstrumentationError> for VMError {
+    fn from(e: module_config::InstrumentationError) -> Self {
+        VMError::InstrumentationError(e)
     }
 }
 
-impl From<InstantiationError> for VMError {
-    fn from(e: InstantiationError) -> Self {
+impl From<wasmer::InstantiationError> for VMError {
+    fn from(e: wasmer::InstantiationError) -> Self {
         VMError::WasmerInstantiationError(e)
     }
 }
@@ -159,7 +158,7 @@ impl fmt::Display for VMError {
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
             VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
-            VMError::InstrumentalizationError(e) => {
+            VMError::InstrumentationError(e) => {
                 write!(f, "Instrumentalization error {:?}", e)?
             }
             VMError::PersistenceSerializationError(e) => {
@@ -169,10 +168,10 @@ impl fmt::Display for VMError {
                 write!(f, "Persistence error \"{}\"", string)?
             }
             VMError::WasmerExportError(e) => match e {
-                ExportError::IncompatibleType => {
+                wasmer::ExportError::IncompatibleType => {
                     write!(f, "WASMER Export Error - incompatible export type")?
                 }
-                ExportError::Missing(s) => {
+                wasmer::ExportError::Missing(s) => {
                     write!(f, "WASMER Export Error - missing: \"{}\"", s)?
                 }
             },
