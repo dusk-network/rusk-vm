@@ -35,8 +35,7 @@ mod hosted {
 
     impl BlockHeight {
         pub fn block_height(&self) -> u64 {
-            99
-            //dusk_abi::block_height()
+            dusk_abi::block_height()
         }
     }
 
