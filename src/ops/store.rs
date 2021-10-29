@@ -31,7 +31,7 @@ impl Get {
         // communication since that is the
         // responsibility of the host.
         let mut dest = vec![0; write_len];
-        Store::get(&hash, &mut dest)?;
+        Store::get(&hash, &mut dest).map_err(VMError::from_store_error)?;
         context.write_memory(&dest, write_buf)?;
         Ok(())
     }

@@ -16,16 +16,16 @@ pub struct ExecuteQuery;
 impl ExecuteQuery {
     pub fn query(
         env: &Env,
-        contract_id_offs: i32,
-        query_offs: i32,
+        contract_id_ofs: i32,
+        query_ofs: i32,
     ) -> Result<(), VMError> {
-        let contract_id_offs = contract_id_offs as u64;
-        let query_offs = query_offs as u64;
+        let contract_id_ofs = contract_id_ofs as u64;
+        let query_ofs = query_ofs as u64;
         let context = env.get_context();
         let contract_id_memory =
-            context.read_memory(contract_id_offs, size_of::<ContractId>())?;
+            context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);
-        let query_memory = context.read_memory_from(query_offs)?;
+        let query_memory = context.read_memory_from(query_ofs)?;
         let mut source = Source::new(query_memory);
         let query =
             Query::decode(&mut source).map_err(VMError::from_store_error)?;
@@ -35,6 +35,6 @@ impl ExecuteQuery {
         let mut result_buffer = vec![0; result.encoded_len()];
         let mut sink = Sink::new(&mut result_buffer[..]);
         result.encode(&mut sink);
-        context.write_memory(&result_buffer, query_offs as u64)
+        context.write_memory(&result_buffer, query_ofs as u64)
     }
 }

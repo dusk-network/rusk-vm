@@ -13,11 +13,11 @@ use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_universal::Universal;
 
 use crate::contract::ContractId;
+use crate::env::Env;
 use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
 use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
-use crate::env::Env;
 use crate::VMError;
 
 #[derive(Debug)]
@@ -188,16 +188,16 @@ impl<'a> CallContext<'a> {
                 .push(StackFrame::new_query(target, memory, query));
         }
 
-        let run_func: NativeFunc<i32, ()> = instance
-            .exports
-            .get_native_function("q")?;
+        let run_func: NativeFunc<i32, ()> =
+            instance.exports.get_native_function("q")?;
         run_func.call(0)?;
 
         let mut memory = WasmerMemory::new();
         memory.init_env_memory(&instance.exports)?;
         let read_buffer = memory.read_memory_from(0)?;
         let mut source = Source::new(&read_buffer);
-        let result = ReturnValue::decode(&mut source)?;
+        let result = ReturnValue::decode(&mut source)
+            .map_err(VMError::from_store_error)?;
         self.stack.pop();
         Ok(result)
     }
@@ -214,11 +214,10 @@ impl<'a> CallContext<'a> {
         {
             let contract = self.state.get_contract(&target_contract_id)?;
 
-            let module = self
-                .get_module_from_cache(
-                    &target_contract_id,
-                    contract.bytecode(),
-                )?;
+            let module = self.get_module_from_cache(
+                &target_contract_id,
+                contract.bytecode(),
+            )?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -250,9 +249,8 @@ impl<'a> CallContext<'a> {
             ));
         }
 
-        let run_func: NativeFunc<i32, ()> = instance
-            .exports
-            .get_native_function("t")?;
+        let run_func: NativeFunc<i32, ()> =
+            instance.exports.get_native_function("t")?;
         run_func.call(0)?;
 
         let ret = {
@@ -262,9 +260,11 @@ impl<'a> CallContext<'a> {
             memory.init_env_memory(&instance.exports)?;
             let read_buffer = memory.read_memory_from(0)?;
             let mut source = Source::new(&read_buffer);
-            let state = ContractState::decode(&mut source)?;
+            let state = ContractState::decode(&mut source)
+                .map_err(VMError::from_store_error)?;
             *(*contract).state_mut() = state;
-            ReturnValue::decode(&mut source)?
+            ReturnValue::decode(&mut source)
+                .map_err(VMError::from_store_error)?
         };
 
         let state = if self.stack.len() > 1 {

@@ -116,12 +116,6 @@ impl From<wasmer::CompileError> for VMError {
     }
 }
 
-impl From<CanonError> for VMError {
-    fn from(e: CanonError) -> Self {
-        VMError::PersistenceSerializationError(e)
-    }
-}
-
 impl From<wasmer::RuntimeError> for VMError {
     fn from(e: wasmer::RuntimeError) -> Self {
         let runtime_error = e.clone();
