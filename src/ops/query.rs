@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
 use crate::VMError;
 
 use crate::env::Env;
@@ -22,8 +21,7 @@ impl ExecuteQuery {
     ) -> Result<(), VMError> {
         let contract_id_offs = contract_id_offs as u64;
         let query_offs = query_offs as u64;
-        let context: &mut CallContext =
-            unsafe { &mut *(env.context.0 as *mut CallContext) };
+        let context = env.get_context();
         let contract_id_memory =
             context.read_memory(contract_id_offs, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);

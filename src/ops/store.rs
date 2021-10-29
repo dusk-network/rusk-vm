@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
 use crate::VMError;
 
 use crate::env::Env;
@@ -22,8 +21,7 @@ impl Get {
         let hash_ofs = hash_ofs as u64;
         let write_buf = write_buf as u64;
         let write_len = write_len as usize;
-        let context: &mut CallContext =
-            unsafe { &mut *(env.context.0 as *mut CallContext) };
+        let context = env.get_context();
         let mem =
             context.read_memory(hash_ofs, core::mem::size_of::<IdHash>())?;
         let mut source = Source::new(&mem);
@@ -46,8 +44,7 @@ impl Put {
         let ofs = ofs as u64;
         let len = len as usize;
         let ret = ret as u64;
-        let context: &mut CallContext =
-            unsafe { &mut *(env.context.0 as *mut CallContext) };
+        let context = env.get_context();
 
         let mem = context.read_memory(ofs, len)?;
         debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
@@ -73,8 +70,7 @@ impl Hash {
         let ofs = ofs as u64;
         let len = len as usize;
         let ret = ret as u64;
-        let context: &mut CallContext =
-            unsafe { &mut *(env.context.0 as *mut CallContext) };
+        let context = env.get_context();
 
         let mem = context.read_memory(ofs, len)?;
         let hash = Store::hash(&mem);

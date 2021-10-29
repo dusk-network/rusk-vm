@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
 use crate::VMError;
 
 use crate::env::Env;
@@ -22,8 +21,7 @@ impl ApplyTransaction {
     ) -> Result<(), VMError> {
         let contract_id_offset = contract_id_offset as u64;
         let transaction_offset = transaction_offset as u64;
-        let context: &mut CallContext =
-            unsafe { &mut *(env.context.0 as *mut CallContext) };
+        let context = env.get_context();
 
         let contract_id_memory =
             context.read_memory(contract_id_offset, size_of::<ContractId>())?;

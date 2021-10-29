@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
 use crate::VMError;
 
 use crate::env::Env;
@@ -19,8 +18,7 @@ impl Panic {
     ) -> Result<(), VMError> {
         let panic_ofs = panic_ofs as u64;
         let panic_len = panic_len as usize;
-        let context: &mut CallContext =
-            unsafe { &mut *(env.context.0 as *mut CallContext) };
+        let context = env.get_context();
         let slice = context.read_memory(panic_ofs, panic_len)?;
         Err(match String::from_utf8(slice.to_vec()) {
             Ok(panic_msg) => VMError::ContractPanic(panic_msg),

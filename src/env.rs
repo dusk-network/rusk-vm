@@ -24,4 +24,8 @@ impl Env {
             context: ImportReference(call_context as *mut _ as *mut c_void),
         }
     }
+
+    pub fn get_context<'a>(&self) -> &'a mut CallContext {
+        unsafe { &mut *(self.context.0 as *mut CallContext) }
+    }
 }
