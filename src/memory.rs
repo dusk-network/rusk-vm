@@ -17,6 +17,7 @@ impl WasmerMemory {
             inner: LazyInit::new(),
         }
     }
+    /// Initializes the object with exported memory
     pub fn init(
         &mut self,
         exports: &wasmer::Exports,
@@ -26,13 +27,13 @@ impl WasmerMemory {
         Ok(())
     }
 
-    /// Read bytes from memory at the given offset
+    /// Read bytes from memory at a given offset
     pub fn read_from(&self, offset: u64) -> Result<&[u8], VMError> {
         let offset = offset as usize;
         Ok(unsafe { &self.inner.get_unchecked().data_unchecked()[offset..] })
     }
 
-    /// Read bytes from memory at the given offset and length
+    /// Read bytes from memory at a given offset and length
     pub fn read(
         &self,
         offset: u64,
@@ -45,7 +46,7 @@ impl WasmerMemory {
         })
     }
 
-    /// Write bytes into memory at the given offset
+    /// Write bytes into memory at a given offset
     pub fn write(
         &self,
         offset: u64,
