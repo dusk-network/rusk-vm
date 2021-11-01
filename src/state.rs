@@ -10,6 +10,7 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+use cached::proc_macro::cached;
 use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
 use dusk_hamt::Hamt;
@@ -18,12 +19,11 @@ use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
 };
 use wasmer::Module;
-use cached::proc_macro::cached;
 
 use crate::call_context::CallContext;
+use crate::compiler::WasmerCompiler;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
-use crate::compiler::WasmerCompiler;
 use crate::VMError;
 
 type BoxedHostModule = Box<dyn HostModule>;
@@ -60,10 +60,8 @@ impl Canon for NetworkState {
     }
 }
 
-#[cached(size=2048, time=86400, result = true, sync_writes = true)]
-fn get_or_create_module(
-    bytecode: Vec<u8>,
-) -> Result<Module, VMError> {
+#[cached(size = 2048, time = 86400, result = true, sync_writes = true)]
+fn get_or_create_module(bytecode: Vec<u8>) -> Result<Module, VMError> {
     let new_module = WasmerCompiler::create_module(bytecode)?;
     Ok(new_module.clone())
 }
@@ -232,7 +230,8 @@ impl NetworkState {
             })
     }
 
-    /// Retrieves module from cache possibly creating and storing a new one if not found
+    /// Retrieves module from cache possibly creating and storing a new one if
+    /// not found
     pub fn get_module_from_cache(
         &self,
         _contract_id: &ContractId,

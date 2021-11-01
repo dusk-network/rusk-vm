@@ -6,9 +6,7 @@
 
 use canonical::{Canon, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
-use wasmer::{
-    Exports, ImportObject, Instance, LazyInit, Module, NativeFunc,
-};
+use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 
 use crate::contract::ContractId;
 use crate::env::Env;
@@ -135,7 +133,8 @@ impl<'a> CallContext<'a> {
         } else {
             let contract = self.state.get_contract(&target)?;
 
-            let module = self.state
+            let module = self
+                .state
                 .get_module_from_cache(&target, contract.bytecode())?
                 .clone();
 

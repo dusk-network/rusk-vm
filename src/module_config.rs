@@ -9,7 +9,6 @@ use crate::VMError;
 use parity_wasm::elements;
 use wasmparser::Validator;
 
-
 pub use dusk_abi::{ContractId, ContractState};
 
 #[derive(Debug)]
@@ -59,21 +58,17 @@ impl ModuleConfig {
         self
     }
 
-    pub fn validate_wasm(
-        wasm_code: impl AsRef<[u8]>,
-    ) -> Result<(), VMError> {
+    pub fn validate_wasm(wasm_code: impl AsRef<[u8]>) -> Result<(), VMError> {
         let mut validator = Validator::new();
         validator
             .validate_all(wasm_code.as_ref())
-            .map_err(|e|VMError::WASMError(failure::Error::from(e)))
+            .map_err(|e| VMError::WASMError(failure::Error::from(e)))
     }
 
-    pub fn apply(
-        &self,
-        code: &[u8],
-    ) -> Result<Vec<u8>, InstrumentationError> {
-        let mut module : parity_wasm::elements::Module = elements::deserialize_buffer(code)
-            .or(Err(InstrumentationError::InvalidByteCode))?;
+    pub fn apply(&self, code: &[u8]) -> Result<Vec<u8>, InstrumentationError> {
+        let mut module: parity_wasm::elements::Module =
+            elements::deserialize_buffer(code)
+                .or(Err(InstrumentationError::InvalidByteCode))?;
 
         let schedule = crate::Schedule::default();
         let mut ruleset = pwasm_utils::rules::Set::new(

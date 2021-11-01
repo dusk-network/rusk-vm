@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::VMError;
 use crate::env::Env;
+use crate::VMError;
 
 pub struct BlockHeight;
 

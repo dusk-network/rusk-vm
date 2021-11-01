@@ -15,15 +15,15 @@ use std::{fmt, io};
 use canonical::CanonError;
 
 mod call_context;
-mod env;
+mod compiler;
 mod contract;
+mod env;
 mod gas;
 mod memory;
 mod module_config;
 mod ops;
 mod resolver;
 mod state;
-mod compiler;
 
 pub use dusk_abi;
 

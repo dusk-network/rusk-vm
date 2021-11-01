@@ -12,10 +12,11 @@ pub struct WasmerCompiler;
 
 impl WasmerCompiler {
     /// Creates module out of bytecode
-    pub fn create_module(bytecode: impl AsRef<[u8]>) -> Result<Module, CompileError> {
-        let store = wasmer::Store::new(
-            &Universal::new(Cranelift::default()).engine(),
-        );
+    pub fn create_module(
+        bytecode: impl AsRef<[u8]>,
+    ) -> Result<Module, CompileError> {
+        let store =
+            wasmer::Store::new(&Universal::new(Cranelift::default()).engine());
         Module::new(&store, bytecode)
     }
 }

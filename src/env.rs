@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::ffi::c_void;
 use crate::call_context::CallContext;
+use std::ffi::c_void;
 use wasmer::WasmerEnv;
 
 #[derive(Clone)]
