@@ -18,6 +18,7 @@ use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
 };
 use wasmer::Module;
+use cached::proc_macro::cached;
 
 use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
@@ -57,6 +58,14 @@ impl Canon for NetworkState {
         Canon::encoded_len(&self.block_height)
             + Canon::encoded_len(&self.contracts)
     }
+}
+
+#[cached(size=2048, time=86400, result = true, sync_writes = true)]
+fn get_or_create_module(
+    bytecode: Vec<u8>,
+) -> Result<Module, VMError> {
+    let new_module = WasmerCompiler::create_module(bytecode)?;
+    Ok(new_module.clone())
 }
 
 impl NetworkState {
@@ -226,17 +235,9 @@ impl NetworkState {
     /// Retrieves module from cache possibly creating and storing a new one if not found
     pub fn get_module_from_cache(
         &self,
-        contract_id: &ContractId,
+        _contract_id: &ContractId,
         bytecode: &[u8],
     ) -> Result<Module, VMError> {
-        let mut map = self.module_cache.lock().unwrap();
-        match map.get(contract_id) {
-            Some(module) => Ok(module.clone()),
-            None => {
-                let new_module = WasmerCompiler::create_module(bytecode)?;
-                map.insert(contract_id.clone(), new_module.clone());
-                Ok(new_module)
-            }
-        }
+        get_or_create_module(bytecode.to_vec())
     }
 }
