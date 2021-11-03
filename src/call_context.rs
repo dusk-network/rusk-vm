@@ -168,12 +168,12 @@ impl<'a> CallContext<'a> {
             )?;
 
             self.stack
-                .push(StackFrame::new_query(target, memory, query, self.gas_meter().clone()));
+                .push(StackFrame::new_query(target, memory, query, self.gas_meter().clone_for_callee(None)));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
-        run_func.call(0).map_err(|e| { let gas_meter = self.gas_meter().clone();self.stack.pop();*self.gas_meter_mut() = gas_meter; e} )?;
+        run_func.call(0).map_err(|e| { let gas_meter = self.gas_meter().clone(); self.stack.pop(); self.gas_meter_mut().merge_with_callee(&gas_meter); e} )?;
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
@@ -183,7 +183,7 @@ impl<'a> CallContext<'a> {
             .map_err(VMError::from_store_error)?;
         let gas_meter = self.gas_meter().clone();
         self.stack.pop();
-        *self.gas_meter_mut() = gas_meter;
+        self.gas_meter_mut().merge_with_callee(&gas_meter);
         Ok(result)
     }
 
@@ -231,13 +231,13 @@ impl<'a> CallContext<'a> {
                 target_contract_id,
                 memory,
                 transaction,
-                self.gas_meter().clone()
+                self.gas_meter().clone_for_callee(None)
             ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
-        run_func.call(0).map_err(|e| { let gas_meter = self.gas_meter().clone();self.stack.pop();*self.gas_meter_mut() = gas_meter; e} )?;
+        run_func.call(0).map_err(|e| { let gas_meter = self.gas_meter().clone(); self.stack.pop(); self.gas_meter_mut().merge_with_callee(&gas_meter); e} )?;
 
         let ret = {
             let mut contract =
@@ -262,7 +262,7 @@ impl<'a> CallContext<'a> {
             self.stack.pop();
             state
         };
-        *self.gas_meter_mut() = gas_meter;
+        self.gas_meter_mut().merge_with_callee(&gas_meter);
 
         Ok((state, ret))
     }
