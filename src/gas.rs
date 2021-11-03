@@ -27,7 +27,7 @@ impl GasMeterResult {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Struct to keep track of gas usage
 pub struct GasMeter {
     /// Gas held but not spent yet

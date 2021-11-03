@@ -27,6 +27,7 @@ pub struct StackFrame {
     argument: Argument,
     ret: ReturnValue,
     memory: WasmerMemory,
+    gas_meter: GasMeter,
 }
 
 impl std::fmt::Debug for StackFrame {
@@ -40,12 +41,14 @@ impl StackFrame {
         callee: ContractId,
         memory: WasmerMemory,
         query: Query,
+        gas_meter: GasMeter,
     ) -> StackFrame {
         StackFrame {
             callee,
             memory,
             argument: Argument::Query(query),
             ret: Default::default(),
+            gas_meter,
         }
     }
 
@@ -53,12 +56,14 @@ impl StackFrame {
         callee: ContractId,
         memory: WasmerMemory,
         transaction: Transaction,
+        gas_meter: GasMeter,
     ) -> StackFrame {
         StackFrame {
             callee,
             memory,
             argument: Argument::Transaction(transaction),
             ret: Default::default(),
+            gas_meter,
         }
     }
 
@@ -163,12 +168,12 @@ impl<'a> CallContext<'a> {
             )?;
 
             self.stack
-                .push(StackFrame::new_query(target, memory, query));
+                .push(StackFrame::new_query(target, memory, query, self.gas_meter().clone()));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
-        run_func.call(0)?;
+        run_func.call(0).map_err(|e| { let gas_meter = self.gas_meter().clone();self.stack.pop();*self.gas_meter_mut() = gas_meter; e} )?;
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
@@ -176,7 +181,9 @@ impl<'a> CallContext<'a> {
         let mut source = Source::new(&read_buffer);
         let result = ReturnValue::decode(&mut source)
             .map_err(VMError::from_store_error)?;
+        let gas_meter = self.gas_meter().clone();
         self.stack.pop();
+        *self.gas_meter_mut() = gas_meter;
         Ok(result)
     }
 
@@ -224,12 +231,13 @@ impl<'a> CallContext<'a> {
                 target_contract_id,
                 memory,
                 transaction,
+                self.gas_meter().clone()
             ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
-        run_func.call(0)?;
+        run_func.call(0).map_err(|e| { let gas_meter = self.gas_meter().clone();self.stack.pop();*self.gas_meter_mut() = gas_meter; e} )?;
 
         let ret = {
             let mut contract =
@@ -245,6 +253,7 @@ impl<'a> CallContext<'a> {
                 .map_err(VMError::from_store_error)?
         };
 
+        let gas_meter = self.gas_meter().clone();
         let state = if self.stack.len() > 1 {
             self.stack.pop();
             self.state.get_contract(self.callee())?.state().clone()
@@ -253,16 +262,23 @@ impl<'a> CallContext<'a> {
             self.stack.pop();
             state
         };
+        *self.gas_meter_mut() = gas_meter;
 
         Ok((state, ret))
     }
 
     pub fn gas_meter(&self) -> &GasMeter {
-        self.gas_meter
+        match self.stack.last() {
+            Some(stack_frame) => &stack_frame.gas_meter,
+            None => self.gas_meter
+        }
     }
 
     pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
-        self.gas_meter
+        match self.stack.last_mut() {
+            Some(stack_frame) => &mut stack_frame.gas_meter,
+            None => self.gas_meter
+        }
     }
 
     pub fn top(&self) -> &StackFrame {
