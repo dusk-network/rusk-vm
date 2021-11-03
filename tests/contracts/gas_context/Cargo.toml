@@ -1,7 +1,10 @@
 [package]
-name = "fibonacci"
+name = "gas_context"
 version = "0.1.0"
-authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+authors = [
+    "Kristoffer Ström <kristoffer@dusk.network>",
+    "Milosz Muszynski <milosz@dusk.network>",
+]
 edition = "2018"
 
 [lib]

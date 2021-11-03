@@ -18,6 +18,7 @@ impl ApplyTransaction {
         env: &Env,
         contract_id_offset: i32,
         transaction_offset: i32,
+        gas_limit: u64,
     ) -> Result<(), VMError> {
         let contract_id_offset = contract_id_offset as u64;
         let transaction_offset = transaction_offset as u64;
@@ -37,7 +38,7 @@ impl ApplyTransaction {
         let callee = *context.callee();
         *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
 
-        let (state, result) = context.transact(contract_id, transaction)?;
+        let (state, result) = context.transact(contract_id, transaction, gas_limit)?;
 
         let state_encoded_length = state.encoded_len();
         let (mut state_buffer, mut result_buffer) =

@@ -40,7 +40,7 @@ mod hosted {
             const POSEIDON_MODULE_ID: ContractId = ContractId::reserved(11);
             const HASH: u8 = 0;
 
-            dusk_abi::query(&POSEIDON_MODULE_ID, &(HASH, scalars)).unwrap()
+            dusk_abi::query(&POSEIDON_MODULE_ID, &(HASH, scalars), 0).unwrap()
         }
     }
 

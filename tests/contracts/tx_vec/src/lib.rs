@@ -55,7 +55,7 @@ mod hosted {
             target: &ContractId,
             transaction: &Transaction,
         ) -> ReturnValue {
-            dusk_abi::transact_raw::<_>(self, target, transaction).unwrap()
+            dusk_abi::transact_raw::<_>(self, target, transaction, 0).unwrap()
         }
     }
 

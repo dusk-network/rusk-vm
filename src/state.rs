@@ -169,7 +169,7 @@ impl NetworkState {
     {
         let mut context = CallContext::new(self, gas_meter);
 
-        let result = context.query(target, Query::from_canon(&query))?;
+        let result = context.query(target, Query::from_canon(&query), 0)?;
 
         result.cast().map_err(VMError::from_store_error)
     }
@@ -192,7 +192,7 @@ impl NetworkState {
         let mut context = CallContext::new(&mut fork, gas_meter);
 
         let (_, result) =
-            context.transact(target, Transaction::from_canon(&transaction))?;
+            context.transact(target, Transaction::from_canon(&transaction), 0)?;
 
         let ret = result.cast().map_err(VMError::from_store_error)?;
 

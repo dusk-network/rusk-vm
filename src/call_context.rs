@@ -10,7 +10,7 @@ use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 
 use crate::contract::ContractId;
 use crate::env::Env;
-use crate::gas::GasMeter;
+use crate::gas::{GasMeter, Gas};
 use crate::memory::WasmerMemory;
 use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
@@ -27,6 +27,7 @@ pub struct StackFrame {
     argument: Argument,
     ret: ReturnValue,
     memory: WasmerMemory,
+    gas_meter: GasMeter,
 }
 
 impl std::fmt::Debug for StackFrame {
@@ -40,12 +41,14 @@ impl StackFrame {
         callee: ContractId,
         memory: WasmerMemory,
         query: Query,
+        gas_meter: GasMeter,
     ) -> StackFrame {
         StackFrame {
             callee,
             memory,
             argument: Argument::Query(query),
             ret: Default::default(),
+            gas_meter,
         }
     }
 
@@ -53,12 +56,14 @@ impl StackFrame {
         callee: ContractId,
         memory: WasmerMemory,
         transaction: Transaction,
+        gas_meter: GasMeter,
     ) -> StackFrame {
         StackFrame {
             callee,
             memory,
             argument: Argument::Transaction(transaction),
             ret: Default::default(),
+            gas_meter,
         }
     }
 
@@ -122,6 +127,7 @@ impl<'a> CallContext<'a> {
         &mut self,
         target: ContractId,
         query: Query,
+        gas_limit: Gas,
     ) -> Result<ReturnValue, VMError> {
         let env = Env::new(self);
 
@@ -162,13 +168,21 @@ impl<'a> CallContext<'a> {
                 query.as_bytes(),
             )?;
 
-            self.stack
-                .push(StackFrame::new_query(target, memory, query));
+            self.stack.push(StackFrame::new_query(
+                target,
+                memory,
+                query,
+                self.gas_meter().clone_for_callee(Some(gas_limit).filter(|l| *l != 0 )),
+            ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
-        run_func.call(0)?;
+        run_func.call(0).map_err(|e| {
+            self.gas_merge();
+            e
+        })?;
+        self.gas_merge();
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
@@ -184,6 +198,7 @@ impl<'a> CallContext<'a> {
         &mut self,
         target_contract_id: ContractId,
         transaction: Transaction,
+        gas_limit: Gas,
     ) -> Result<(ContractState, ReturnValue), VMError> {
         let env = Env::new(self);
 
@@ -224,12 +239,17 @@ impl<'a> CallContext<'a> {
                 target_contract_id,
                 memory,
                 transaction,
+                self.gas_meter().clone_for_callee(Some(gas_limit).filter(|l| *l != 0 )),
             ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
-        run_func.call(0)?;
+        run_func.call(0).map_err(|e| {
+            self.gas_merge();
+            e
+        })?;
+        self.gas_merge();
 
         let ret = {
             let mut contract =
@@ -258,11 +278,17 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn gas_meter(&self) -> &GasMeter {
-        self.gas_meter
+        match self.stack.last() {
+            Some(stack_frame) => &stack_frame.gas_meter,
+            None => self.gas_meter,
+        }
     }
 
     pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
-        self.gas_meter
+        match self.stack.last_mut() {
+            Some(stack_frame) => &mut stack_frame.gas_meter,
+            None => self.gas_meter,
+        }
     }
 
     pub fn top(&self) -> &StackFrame {
@@ -311,5 +337,14 @@ impl<'a> CallContext<'a> {
 
     pub fn state_mut(&mut self) -> &mut NetworkState {
         &mut self.state
+    }
+
+    /// Propagates gas usage to the caller
+    fn gas_merge(&mut self) {
+        let callee_gas_meter = self.gas_meter().clone();
+        if let Some(callee_stack_frame) = self.stack.pop() {
+            self.gas_meter_mut().merge_with_callee(&callee_gas_meter);
+            self.stack.push(callee_stack_frame);
+        }
     }
 }

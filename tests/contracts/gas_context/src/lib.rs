@@ -8,27 +8,22 @@
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use canonical_derive::Canon;
-use dusk_abi::ContractId;
+extern crate alloc;
+use alloc::vec::Vec;
 
 // transaction ids
-pub const SET_TARGET: u8 = 0;
-
+pub const COMPUTE: u8 = 0;
 // query ids
-pub const CALL: u8 = 0;
-pub const CALLEE_1_CALL: u8 = 1;
+pub const READ_GAS_LIMITS: u8 = 1;
 
-#[derive(Clone, Canon, Debug, Default)]
-pub struct Caller {
-    target_address: ContractId,
+#[derive(Clone, Canon, Debug)]
+pub struct GasContextData {
+    gas_limits: Vec<u64>,
 }
 
-impl Caller {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn set_target(&mut self, address: ContractId) {
-        self.target_address = address;
+impl GasContextData {
+    pub fn new() -> GasContextData {
+        GasContextData{ gas_limits: Vec::new()}
     }
 }
 
@@ -39,31 +34,31 @@ mod hosted {
     use canonical::{Canon, CanonError, Sink, Source};
     use dusk_abi::{ContractState, ReturnValue};
 
-    const PAGE_SIZE: usize = 1024 * 64;
+    const PAGE_SIZE: usize = 1024 * 4;
+
+    impl GasContextData {
+        pub fn compute(&mut self, n: u64) -> u64 {
+            if n < 1 {
+                0
+            } else {
+                let callee = dusk_abi::callee();
+                dusk_abi::transact::<_, u64, Self>(self, &callee, &(COMPUTE, n - 1), 0)
+                    .unwrap();
+                self.gas_limits.insert(0, dusk_abi::gas_left());
+                n
+            }
+        }
+    }
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
         let mut source = Source::new(&bytes[..]);
-
-        // read self.
-        let slf = Caller::decode(&mut source)?;
-
-        // read query id
+        let slf = GasContextData::decode(&mut source)?;
         let qid = u8::decode(&mut source)?;
         match qid {
-            CALL => {
+            READ_GAS_LIMITS => {
+                let ret = slf.gas_limits;
                 let mut sink = Sink::new(&mut bytes[..]);
-
-                let ret =
-                    dusk_abi::query::<_, (ContractId, ContractId, ContractId)>(
-                        &slf.target_address,
-                        &(CALLEE_1_CALL, dusk_abi::callee()),
-                        0,
-                    )
-                    .expect("Query Succeeded");
-
-                // return value
                 ReturnValue::from_canon(&ret).encode(&mut sink);
-
                 Ok(())
             }
             _ => panic!(""),
@@ -72,29 +67,20 @@ mod hosted {
 
     #[no_mangle]
     fn q(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
         let _ = query(bytes);
     }
 
     fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
-        let mut source = Source::new(bytes);
-
-        // read self.
-        let mut slf = Caller::decode(&mut source)?;
-        // read transaction id
+        let mut source = Source::new(&bytes[..]);
+        let mut slf = GasContextData::decode(&mut source)?;
         let tid = u8::decode(&mut source)?;
-        // read the target contract id
-        let target = ContractId::decode(&mut source)?;
-
         match tid {
-            SET_TARGET => {
-                slf.set_target(target);
-
+            COMPUTE => {
+                let input = u64::decode(&mut source)?;
+                let ret: u64 = slf.compute(input);
                 let mut sink = Sink::new(&mut bytes[..]);
-
                 ContractState::from_canon(&slf).encode(&mut sink);
-                ReturnValue::from_canon(&()).encode(&mut sink);
-
+                ReturnValue::from_canon(&ret).encode(&mut sink);
                 Ok(())
             }
             _ => panic!(""),
@@ -103,7 +89,6 @@ mod hosted {
 
     #[no_mangle]
     fn t(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
         let _ = transaction(bytes);
     }
 }

@@ -31,10 +31,10 @@ mod hosted {
             } else {
                 let callee = dusk_abi::callee();
 
-                let a = dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 1))
+                let a = dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 1), 0)
                     .unwrap();
 
-                let b = dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 2))
+                let b = dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 2), 0)
                     .unwrap();
 
                 a + b

@@ -35,7 +35,7 @@ mod hosted {
             target: &ContractId,
             query: &Query,
         ) -> ReturnValue {
-            dusk_abi::query_raw(target, query).unwrap()
+            dusk_abi::query_raw(target, query, 0).unwrap()
         }
 
         pub fn delegate_transaction(
@@ -43,7 +43,7 @@ mod hosted {
             target: &ContractId,
             transaction: &Transaction,
         ) -> ReturnValue {
-            dusk_abi::transact_raw::<_>(self, target, transaction).unwrap()
+            dusk_abi::transact_raw::<_>(self, target, transaction, 0).unwrap()
         }
     }
 
