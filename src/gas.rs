@@ -8,6 +8,7 @@
 // instructions can operate on them efficiently.
 
 use core::ops::Range;
+use std::cmp::max;
 
 /// Type alias for gas
 pub type Gas = u64;
@@ -99,5 +100,36 @@ impl GasMeter {
     /// This does not consider [`GasMeter::held`] since it's not spent yet.
     pub fn spent(&self) -> Gas {
         self.limit - self.left
+    }
+
+    fn clone_for_inter_contract_call(&self) -> GasMeter {
+        let new_held = self.held + (((self.left - self.held) as f64 * 0.07) as Gas);
+        GasMeter {
+            held: new_held,
+            limit: self.left,
+            left: self.left
+        }
+    }
+
+    fn clone_for_call_with_limit(&self, limit: Gas) -> GasMeter {
+        let new_held = max(self.left - limit, self.held);
+        GasMeter {
+            held: new_held,
+            limit: self.left,
+            left: self.left
+        }
+    }
+
+    pub fn clone_for_call(&self, limit_option: Option<Gas>) -> GasMeter {
+        match limit_option {
+            Some(limit) =>
+                self.clone_for_call_with_limit(limit),
+            None =>
+                self.clone_for_inter_contract_call(),
+        }
+    }
+
+    pub fn merge_with_callee(&mut self, callee_gas_meter: &GasMeter) {
+        self.left = callee_gas_meter.left;
     }
 }
