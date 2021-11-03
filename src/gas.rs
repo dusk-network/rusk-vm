@@ -102,7 +102,7 @@ impl GasMeter {
         self.limit - self.left
     }
 
-    fn clone_for_inter_contract_call(&self) -> GasMeter {
+    fn clone_for_callee_default(&self) -> GasMeter {
         let new_held = self.held + (((self.left - self.held) as f64 * 0.07) as Gas);
         GasMeter {
             held: new_held,
@@ -111,7 +111,7 @@ impl GasMeter {
         }
     }
 
-    fn clone_for_call_with_limit(&self, limit: Gas) -> GasMeter {
+    fn clone_for_callee_with_limit(&self, limit: Gas) -> GasMeter {
         let new_held = max(self.left - limit, self.held);
         GasMeter {
             held: new_held,
@@ -120,12 +120,12 @@ impl GasMeter {
         }
     }
 
-    pub fn clone_for_call(&self, limit_option: Option<Gas>) -> GasMeter {
+    pub fn clone_for_callee(&self, limit_option: Option<Gas>) -> GasMeter {
         match limit_option {
             Some(limit) =>
-                self.clone_for_call_with_limit(limit),
+                self.clone_for_callee_with_limit(limit),
             None =>
-                self.clone_for_inter_contract_call(),
+                self.clone_for_callee_default(),
         }
     }
 
