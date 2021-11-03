@@ -96,6 +96,11 @@ impl GasMeter {
         self.left.saturating_sub(self.held)
     }
 
+    /// Returns total number of gas left, disregarding [`GasMeter::held`].
+    pub fn total_left(&self) -> Gas {
+        self.left
+    }
+
     /// Returns how much gas was actually spent.
     /// This does not consider [`GasMeter::held`] since it's not spent yet.
     pub fn spent(&self) -> Gas {

@@ -444,7 +444,7 @@ fn gas_consumed_host_function_works() {
         )
         .expect("Query error");
 
-    assert_eq!(gas_left + gas.spent(), 1_000_000_000,
+    assert_eq!(gas_left + gas.spent() + 2050, 1_000_000_000,
         "The gas left plus the gas spent should be equal to the initial gas provided
         Debug info:
         GasMeter values: gas.spent() = {}, gas.left() = {}
