@@ -4,62 +4,29 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::AbiCall;
-use crate::call_context::CallContext;
+use crate::env::Env;
 use crate::VMError;
-
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Callee;
 
-impl AbiCall for Callee {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
-    const RETURN: Option<ValueType> = None;
+impl Callee {
+    pub fn callee(env: &Env, result_ofs: i32) -> Result<(), VMError> {
+        let result_ofs = result_ofs as usize;
+        let context = env.get_context();
+        let callee = *context.callee();
 
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(result_ofs)] = *args.as_ref() {
-            let result_ofs = result_ofs as usize;
-            let callee = *context.callee();
-
-            context
-                .memory_mut(|a| {
-                    a[result_ofs..result_ofs + 32]
-                        .copy_from_slice(callee.as_bytes());
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
-        } else {
-            Err(VMError::InvalidArguments)
-        }
+        context.write_memory(callee.as_bytes(), result_ofs as u64)
     }
 }
 
 pub struct Caller;
 
-impl AbiCall for Caller {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32];
-    const RETURN: Option<ValueType> = None;
+impl Caller {
+    pub fn caller(env: &Env, result_ofs: i32) -> Result<(), VMError> {
+        let result_ofs = result_ofs as usize;
+        let context = env.get_context();
+        let caller = *context.caller();
 
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(result_ofs)] = *args.as_ref() {
-            let result_ofs = result_ofs as usize;
-            let caller = *context.caller();
-
-            context
-                .memory_mut(|a| {
-                    a[result_ofs..result_ofs + 32]
-                        .copy_from_slice(caller.as_bytes());
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
-        } else {
-            Err(VMError::InvalidArguments)
-        }
+        context.write_memory(caller.as_bytes(), result_ofs as u64)
     }
 }

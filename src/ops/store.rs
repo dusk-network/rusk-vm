@@ -4,117 +4,77 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
-use crate::ops::AbiCall;
 use crate::VMError;
 
+use crate::env::Env;
 use canonical::{Canon, IdHash, Sink, Source, Store};
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct Get;
 
-impl AbiCall for Get {
-    const ARGUMENTS: &'static [ValueType] =
-        &[ValueType::I32, ValueType::I32, ValueType::I32];
-    const RETURN: Option<ValueType> = None;
-
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(hash_ofs), RuntimeValue::I32(write_buf), RuntimeValue::I32(write_len)] =
-            *args.as_ref()
-        {
-            let hash_ofs = hash_ofs as usize;
-            let write_buf = write_buf as usize;
-            let write_len = write_len as usize;
-
-            context
-                .memory_mut(|mem| {
-                    let mut source = Source::new(&mem[hash_ofs..]);
-                    let hash = IdHash::decode(&mut source)?;
-
-                    // we don't allow get requests to fail in the bridge
-                    // communication since that is the
-                    // responsibility of the host.
-                    Store::get(
-                        &hash,
-                        &mut mem[write_buf..write_buf + write_len],
-                    )?;
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
-        } else {
-            Err(VMError::InvalidArguments)
-        }
+impl Get {
+    pub fn get(
+        env: &Env,
+        hash_ofs: i32,
+        write_buf: i32,
+        write_len: i32,
+    ) -> Result<(), VMError> {
+        let hash_ofs = hash_ofs as u64;
+        let write_buf = write_buf as u64;
+        let write_len = write_len as usize;
+        let context = env.get_context();
+        let mem =
+            context.read_memory(hash_ofs, core::mem::size_of::<IdHash>())?;
+        let mut source = Source::new(&mem);
+        let hash =
+            IdHash::decode(&mut source).map_err(VMError::from_store_error)?;
+        // we don't allow get requests to fail in the bridge
+        // communication since that is the
+        // responsibility of the host.
+        let mut dest = vec![0; write_len];
+        Store::get(&hash, &mut dest).map_err(VMError::from_store_error)?;
+        context.write_memory(&dest, write_buf)?;
+        Ok(())
     }
 }
 
 pub struct Put;
 
-impl AbiCall for Put {
-    const ARGUMENTS: &'static [ValueType] =
-        &[ValueType::I32, ValueType::I32, ValueType::I32];
-    const RETURN: Option<ValueType> = None;
+impl Put {
+    pub fn put(env: &Env, ofs: i32, len: i32, ret: i32) -> Result<(), VMError> {
+        let ofs = ofs as u64;
+        let len = len as usize;
+        let ret = ret as u64;
+        let context = env.get_context();
 
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(ofs), RuntimeValue::I32(len), RuntimeValue::I32(ret)] =
-            *args.as_ref()
-        {
-            let ofs = ofs as usize;
-            let len = len as usize;
-            let ret = ret as usize;
+        let mem = context.read_memory(ofs, len)?;
+        debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
+        let hash = Store::put(&mem);
 
-            context
-                .memory_mut(|mem| {
-                    // only non-inlined values end up written here
-                    debug_assert!(len > core::mem::size_of::<IdHash>());
-                    let hash = Store::put(&mem[ofs..ofs + len]);
-
-                    let mut sink = Sink::new(&mut mem[ret..]);
-                    hash.encode(&mut sink);
-
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
-        } else {
-            Err(VMError::InvalidArguments)
-        }
+        let mut hash_buffer = vec![0; hash.encoded_len()];
+        let mut sink = Sink::new(&mut hash_buffer);
+        hash.encode(&mut sink);
+        context.write_memory(&hash_buffer, ret)?;
+        Ok(())
     }
 }
 
 pub struct Hash;
 
-impl AbiCall for Hash {
-    const ARGUMENTS: &'static [ValueType] =
-        &[ValueType::I32, ValueType::I32, ValueType::I32];
-    const RETURN: Option<ValueType> = None;
+impl Hash {
+    pub fn hash(
+        env: &Env,
+        ofs: i32,
+        len: i32,
+        ret: i32,
+    ) -> Result<(), VMError> {
+        let ofs = ofs as u64;
+        let len = len as usize;
+        let ret = ret as u64;
+        let context = env.get_context();
 
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(ofs), RuntimeValue::I32(len), RuntimeValue::I32(ret)] =
-            *args.as_ref()
-        {
-            let ofs = ofs as usize;
-            let len = len as usize;
-            let ret = ret as usize;
+        let mem = context.read_memory(ofs, len)?;
+        let hash = Store::hash(&mem);
 
-            context
-                .memory_mut(|mem| {
-                    let hash = Store::hash(&mem[ofs..ofs + len]);
-
-                    // write id into wasm memory
-                    mem[ret..ret + hash.len()].copy_from_slice(&hash);
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
-        } else {
-            Err(VMError::InvalidArguments)
-        }
+        context.write_memory(&hash, ret)
     }
 }

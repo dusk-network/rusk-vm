@@ -4,22 +4,17 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Canon, CanonError, Sink, Source};
+use canonical::{Canon, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
-
-use wasmi::{
-    Externals, ImportsBuilder, MemoryRef, ModuleImportResolver, RuntimeArgs,
-    RuntimeValue, Trap, TrapKind,
-};
+use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 
 use crate::contract::ContractId;
+use crate::env::Env;
 use crate::gas::GasMeter;
+use crate::memory::WasmerMemory;
+use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
 use crate::VMError;
-
-pub trait Resolver: Invoke + ModuleImportResolver + Clone + Default {}
-
-pub use crate::resolver::CompoundResolver as StandardABI;
 
 #[derive(Debug)]
 enum Argument {
@@ -31,17 +26,21 @@ pub struct StackFrame {
     callee: ContractId,
     argument: Argument,
     ret: ReturnValue,
-    memory: MemoryRef,
+    memory: WasmerMemory,
 }
 
 impl std::fmt::Debug for StackFrame {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(arg: {:?} return: {:?})", self.argument, self.ret)
     }
 }
 
 impl StackFrame {
-    fn new_query(callee: ContractId, memory: MemoryRef, query: Query) -> Self {
+    fn new_query(
+        callee: ContractId,
+        memory: WasmerMemory,
+        query: Query,
+    ) -> StackFrame {
         StackFrame {
             callee,
             memory,
@@ -52,9 +51,9 @@ impl StackFrame {
 
     fn new_transaction(
         callee: ContractId,
-        memory: MemoryRef,
+        memory: WasmerMemory,
         transaction: Transaction,
-    ) -> Self {
+    ) -> StackFrame {
         StackFrame {
             callee,
             memory,
@@ -63,21 +62,25 @@ impl StackFrame {
         }
     }
 
-    fn memory<R, C: FnOnce(&[u8]) -> R>(&self, closure: C) -> R {
-        self.memory.with_direct_access(closure)
+    fn write_memory(
+        &mut self,
+        source_slice: &[u8],
+        offset: u64,
+    ) -> Result<(), VMError> {
+        self.memory.write(offset, source_slice)
     }
 
-    fn memory_mut<R, C: FnOnce(&mut [u8]) -> R>(&self, closure: C) -> R {
-        self.memory.with_direct_access_mut(closure)
+    fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
+        self.memory.read_from(offset)
     }
-}
 
-pub trait Invoke: Sized {
-    fn invoke(
-        context: &mut CallContext,
-        index: usize,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError>;
+    fn read_memory(
+        &self,
+        offset: u64,
+        length: usize,
+    ) -> Result<&[u8], VMError> {
+        self.memory.read(offset, length)
+    }
 }
 
 pub struct CallContext<'a> {
@@ -98,17 +101,31 @@ impl<'a> CallContext<'a> {
         }
     }
 
+    fn register_namespace(
+        namespace_name: &str,
+        env: &Env,
+        module: &Module,
+        import_names: &Vec<String>,
+        import_object: &mut ImportObject,
+    ) {
+        let mut namespace = Exports::new();
+        HostImportsResolver::insert_into_namespace(
+            &mut namespace,
+            module.store(),
+            env.clone(),
+            &import_names,
+        );
+        import_object.register(namespace_name, namespace);
+    }
+
     pub fn query(
         &mut self,
         target: ContractId,
         query: Query,
     ) -> Result<ReturnValue, VMError> {
-        let resolver = StandardABI::default();
-        let imports = ImportsBuilder::new()
-            .with_resolver("env", &resolver)
-            .with_resolver("canon", &resolver);
+        let env = Env::new(self);
 
-        let instance;
+        let instance: Instance;
 
         if let Some(module) = self.state.modules().borrow().get(&target) {
             // is this a reserved module call?
@@ -116,116 +133,116 @@ impl<'a> CallContext<'a> {
         } else {
             let contract = self.state.get_contract(&target)?;
 
-            let module = wasmi::Module::from_buffer(contract.bytecode())?;
+            let module = self
+                .state
+                .get_module_from_cache(&target, contract.bytecode())?
+                .clone();
 
-            instance = wasmi::ModuleInstance::new(&module, &imports)?
-                .assert_no_start();
-
-            match instance.export_by_name("memory") {
-                Some(wasmi::ExternVal::Memory(memref)) => {
-                    // write contract state and argument to memory
-                    memref
-                        .with_direct_access_mut(|m| {
-                            let mut sink = Sink::new(&mut *m);
-                            // copy the raw bytes only, since the
-                            // contract
-                            // can infer
-                            // it's own state and argument lengths
-                            sink.copy_bytes(contract.state().as_bytes());
-                            sink.copy_bytes(query.as_bytes());
-                            Ok(())
-                        })
-                        .map_err(VMError::from_store_error)?;
-
-                    self.stack
-                        .push(StackFrame::new_query(target, memref, query));
-                }
-                _ => return Err(VMError::MemoryNotFound),
+            let import_names: Vec<String> =
+                module.imports().map(|i| i.name().to_string()).collect();
+            let mut import_object = ImportObject::new();
+            for namespace_name in ["env", "canon"] {
+                CallContext::register_namespace(
+                    namespace_name,
+                    &env,
+                    &module,
+                    &import_names,
+                    &mut import_object,
+                );
             }
+            instance = Instance::new(&module, &import_object)?;
+
+            let mut memory = WasmerMemory {
+                inner: LazyInit::new(),
+            };
+            memory.init(&instance.exports)?;
+            memory.write(0, contract.state().as_bytes())?;
+            memory.write(
+                contract.state().as_bytes().len() as u64,
+                query.as_bytes(),
+            )?;
+
+            self.stack
+                .push(StackFrame::new_query(target, memory, query));
         }
 
-        // Perform the query call
-        instance.invoke_export("q", &[wasmi::RuntimeValue::I32(0)], self)?;
+        let run_func: NativeFunc<i32, ()> =
+            instance.exports.get_native_function("q")?;
+        run_func.call(0)?;
 
-        match instance.export_by_name("memory") {
-            Some(wasmi::ExternVal::Memory(memref)) => memref
-                .with_direct_access_mut(|m| {
-                    let mut source = Source::new(&m[..]);
-                    let result = ReturnValue::decode(&mut source)?;
-
-                    self.stack.pop();
-                    Ok(result)
-                })
-                .map_err(VMError::from_store_error),
-            _ => Err(VMError::MemoryNotFound),
-        }
+        let mut memory = WasmerMemory::new();
+        memory.init(&instance.exports)?;
+        let read_buffer = memory.read_from(0)?;
+        let mut source = Source::new(&read_buffer);
+        let result = ReturnValue::decode(&mut source)
+            .map_err(VMError::from_store_error)?;
+        self.stack.pop();
+        Ok(result)
     }
 
     pub fn transact(
         &mut self,
-        target: ContractId,
+        target_contract_id: ContractId,
         transaction: Transaction,
     ) -> Result<(ContractState, ReturnValue), VMError> {
-        let resolver = StandardABI::default();
-        let imports = ImportsBuilder::new()
-            .with_resolver("env", &resolver)
-            .with_resolver("canon", &resolver);
+        let env = Env::new(self);
 
         let instance;
 
         {
-            let contract = self.state.get_contract(&target)?;
-            let module = wasmi::Module::from_buffer(contract.bytecode())?;
+            let contract = self.state.get_contract(&target_contract_id)?;
 
-            instance = wasmi::ModuleInstance::new(&module, &imports)?
-                .assert_no_start();
+            let module = self.state.get_module_from_cache(
+                &target_contract_id,
+                contract.bytecode(),
+            )?;
 
-            match instance.export_by_name("memory") {
-                Some(wasmi::ExternVal::Memory(memref)) => {
-                    // write contract state and argument to memory
-
-                    memref.with_direct_access_mut(|m| {
-                        let mut sink = Sink::new(&mut *m);
-                        // copy the raw bytes only, since the contract can
-                        // infer it's own state and argument lengths.
-                        sink.copy_bytes(contract.state().as_bytes());
-                        sink.copy_bytes(transaction.as_bytes());
-                    });
-
-                    self.stack.push(StackFrame::new_transaction(
-                        target,
-                        memref,
-                        transaction,
-                    ));
-                }
-                _ => return Err(VMError::MemoryNotFound),
+            let import_names: Vec<String> =
+                module.imports().map(|i| i.name().to_string()).collect();
+            let mut import_object = ImportObject::new();
+            for namespace_name in ["env", "canon"] {
+                CallContext::register_namespace(
+                    namespace_name,
+                    &env,
+                    &module,
+                    &import_names,
+                    &mut import_object,
+                );
             }
+            instance = Instance::new(&module, &import_object)?;
+
+            let mut memory = WasmerMemory {
+                inner: LazyInit::new(),
+            };
+            memory.init(&instance.exports)?;
+            memory.write(0, contract.state().as_bytes())?;
+            memory.write(
+                contract.state().as_bytes().len() as u64,
+                transaction.as_bytes(),
+            )?;
+            self.stack.push(StackFrame::new_transaction(
+                target_contract_id,
+                memory,
+                transaction,
+            ));
         }
-        // Perform the transact call
-        instance.invoke_export("t", &[wasmi::RuntimeValue::I32(0)], self)?;
+
+        let run_func: NativeFunc<i32, ()> =
+            instance.exports.get_native_function("t")?;
+        run_func.call(0)?;
 
         let ret = {
-            let mut contract = self.state.get_contract_mut(&target)?;
-
-            match instance.export_by_name("memory") {
-                Some(wasmi::ExternVal::Memory(memref)) => {
-                    memref
-                        .with_direct_access_mut(|m| {
-                            let mut source = Source::new(&m[..]);
-
-                            // read new state
-                            let state = ContractState::decode(&mut source)?;
-
-                            // update new self state
-                            *(*contract).state_mut() = state;
-
-                            // read return value
-                            ReturnValue::decode(&mut source)
-                        })
-                        .map_err(VMError::from_store_error)
-                }
-                _ => return Err(VMError::MemoryNotFound),
-            }
+            let mut contract =
+                self.state.get_contract_mut(&target_contract_id)?;
+            let mut memory = WasmerMemory::new();
+            memory.init(&instance.exports)?;
+            let read_buffer = memory.read_from(0)?;
+            let mut source = Source::new(&read_buffer);
+            let state = ContractState::decode(&mut source)
+                .map_err(VMError::from_store_error)?;
+            *(*contract).state_mut() = state;
+            ReturnValue::decode(&mut source)
+                .map_err(VMError::from_store_error)?
         };
 
         let state = if self.stack.len() > 1 {
@@ -237,7 +254,7 @@ impl<'a> CallContext<'a> {
             state
         };
 
-        Ok((state, ret?))
+        Ok((state, ret))
     }
 
     pub fn gas_meter(&self) -> &GasMeter {
@@ -264,18 +281,28 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn memory<R, C: FnOnce(&[u8]) -> R>(&self, closure: C) -> R {
-        self.top().memory(closure)
+    pub fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
+        self.top().read_memory_from(offset)
     }
 
-    pub fn memory_mut<R, C: FnOnce(&mut [u8]) -> Result<R, CanonError>>(
+    pub fn read_memory(
+        &self,
+        offset: u64,
+        length: usize,
+    ) -> Result<&[u8], VMError> {
+        self.top().read_memory(offset, length)
+    }
+
+    pub fn write_memory(
         &mut self,
-        closure: C,
-    ) -> Result<R, CanonError> {
+        source_slice: &[u8],
+        offset: u64,
+    ) -> Result<(), VMError> {
         self.stack
             .last_mut()
             .expect("Invalid stack")
-            .memory_mut(closure)
+            .write_memory(source_slice, offset)?;
+        Ok(())
     }
 
     pub fn state(&self) -> &NetworkState {
@@ -284,29 +311,5 @@ impl<'a> CallContext<'a> {
 
     pub fn state_mut(&mut self) -> &mut NetworkState {
         &mut self.state
-    }
-}
-
-/// Convenience function to construct host traps
-pub fn host_trap(host: VMError) -> Trap {
-    Trap::new(TrapKind::Host(Box::new(host)))
-}
-
-impl<'a> Externals for CallContext<'a> {
-    fn invoke_index(
-        &mut self,
-        index: usize,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, Trap> {
-        match StandardABI::invoke(self, index, args) {
-            Ok(ok) => Ok(ok),
-            Err(e) => {
-                if let VMError::Trap(t) = e {
-                    Err(t)
-                } else {
-                    Err(host_trap(e))
-                }
-            }
-        }
     }
 }

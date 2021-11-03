@@ -4,40 +4,25 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::AbiCall;
-use crate::call_context::CallContext;
 use crate::VMError;
 
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
+use crate::env::Env;
 
 pub struct Panic;
 
-impl AbiCall for Panic {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
-    const RETURN: Option<ValueType> = None;
-
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(panic_ofs), RuntimeValue::I32(panic_len)] =
-            *args.as_ref()
-        {
-            let panic_ofs = panic_ofs as usize;
-            let panic_len = panic_len as usize;
-
-            context.memory(|a| {
-                Err(
-                    match String::from_utf8(
-                        a[panic_ofs..panic_ofs + panic_len].to_vec(),
-                    ) {
-                        Ok(panic_msg) => VMError::ContractPanic(panic_msg),
-                        Err(_) => VMError::InvalidUtf8,
-                    },
-                )
-            })?
-        } else {
-            Err(VMError::InvalidArguments)
-        }
+impl Panic {
+    pub fn panic(
+        env: &Env,
+        panic_ofs: i32,
+        panic_len: i32,
+    ) -> Result<(), VMError> {
+        let panic_ofs = panic_ofs as u64;
+        let panic_len = panic_len as usize;
+        let context = env.get_context();
+        let slice = context.read_memory(panic_ofs, panic_len)?;
+        Err(match String::from_utf8(slice.to_vec()) {
+            Ok(panic_msg) => VMError::ContractPanic(panic_msg),
+            Err(_) => VMError::InvalidUtf8,
+        })
     }
 }

@@ -4,13 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::VMError;
+
 use parity_wasm::elements;
-use wasmi_validation::{validate_module, PlainValidator};
+use wasmparser::Validator;
 
 pub use dusk_abi::{ContractId, ContractState};
 
 #[derive(Debug)]
-pub enum InstrumentalizationError {
+pub enum InstrumentationError {
     GasMeteringInjection,
     StackHeightInjection,
     MultipleTables,
@@ -56,12 +58,17 @@ impl ModuleConfig {
         self
     }
 
-    pub fn apply(
-        &self,
-        code: &[u8],
-    ) -> Result<Vec<u8>, InstrumentalizationError> {
-        let mut module = elements::deserialize_buffer(code)
-            .or(Err(InstrumentalizationError::InvalidByteCode))?;
+    pub fn validate_wasm(wasm_code: impl AsRef<[u8]>) -> Result<(), VMError> {
+        let mut validator = Validator::new();
+        validator
+            .validate_all(wasm_code.as_ref())
+            .map_err(|e| VMError::WASMError(failure::Error::from(e)))
+    }
+
+    pub fn apply(&self, code: &[u8]) -> Result<Vec<u8>, InstrumentationError> {
+        let mut module: parity_wasm::elements::Module =
+            elements::deserialize_buffer(code)
+                .or(Err(InstrumentationError::InvalidByteCode))?;
 
         let schedule = crate::Schedule::default();
         let mut ruleset = pwasm_utils::rules::Set::new(
@@ -79,13 +86,13 @@ impl ModuleConfig {
 
         if self.has_metering {
             module = pwasm_utils::inject_gas_counter(module, &ruleset, "env")
-                .or(Err(InstrumentalizationError::GasMeteringInjection))?;
+                .or(Err(InstrumentationError::GasMeteringInjection))?;
 
             module = pwasm_utils::stack_height::inject_limiter(
                 module,
                 schedule.max_stack_height,
             )
-            .or(Err(InstrumentalizationError::StackHeightInjection))?;
+            .or(Err(InstrumentationError::StackHeightInjection))?;
         }
 
         if self.has_table_size_limit {
@@ -94,7 +101,7 @@ impl ModuleConfig {
                 // Double check this explicitly just in case the
                 // Wasm version changes.
                 if table_section.entries().len() > 1 {
-                    return Err(InstrumentalizationError::MultipleTables);
+                    return Err(InstrumentationError::MultipleTables);
                 }
 
                 if let Some(table_type) = table_section.entries().first() {
@@ -102,17 +109,19 @@ impl ModuleConfig {
                     // or environment function capable of
                     // growing the table.
                     if table_type.limits().initial() > schedule.max_table_size {
-                        return Err(InstrumentalizationError::MaxTableSize);
+                        return Err(InstrumentationError::MaxTableSize);
                     }
                 }
             }
         }
 
-        validate_module::<PlainValidator>(&module)
-            .or(Err(InstrumentalizationError::InvalidByteCode))?;
-
-        module
+        let code_bytes = module
             .to_bytes()
-            .or(Err(InstrumentalizationError::InvalidByteCode))
+            .or(Err(InstrumentationError::InvalidByteCode))?;
+
+        ModuleConfig::validate_wasm(&code_bytes)
+            .or(Err(InstrumentationError::InvalidByteCode))?;
+
+        Ok(code_bytes)
     }
 }
