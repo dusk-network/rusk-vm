@@ -4,27 +4,27 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use fibonacci::Fibonacci;
+use factorial::Factorial;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 
 
-fn fibonacci_reference(n: u64) -> u64 {
+fn factorial_reference(n: u64) -> u64 {
     if n < 2 {
-        n
+        1
     } else {
-        fibonacci_reference(n - 1) + fibonacci_reference(n - 2)
+        factorial_reference(n - 1) * n
     }
 }
 
 #[test]
-fn fibonacci2() {
-    let fib = Fibonacci;
+fn gas_context() {
+    let factorial = Factorial;
 
     let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/fibonacci.wasm"
+        "../target/wasm32-unknown-unknown/release/factorial.wasm"
     );
 
-    let contract = Contract::new(fib, code.to_vec());
+    let contract = Contract::new(factorial, code.to_vec());
 
     let mut network = NetworkState::default();
 
@@ -32,14 +32,12 @@ fn fibonacci2() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let n = 5;
+    let n = 7;
 
-    for i in 0..n {
-        assert_eq!(
-            network
-                .query::<_, u64>(contract_id, (fibonacci::COMPUTE, i), &mut gas)
-                .unwrap(),
-            fibonacci_reference(i)
-        );
-    }
+    assert_eq!(
+        network
+            .query::<_, u64>(contract_id, (factorial::COMPUTE, n), &mut gas)
+            .unwrap(),
+        factorial_reference(n)
+    );
 }
