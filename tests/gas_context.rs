@@ -4,19 +4,18 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use factorial::Factorial;
+use gas_context::GasContextData;
 use rusk_vm::{Contract, GasMeter, NetworkState};
-use canonical::CanonError;
 
 #[test]
 fn gas_context() {
-    let factorial = Factorial::new();
+    let gas_context_data = GasContextData::new();
 
     let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/factorial.wasm"
+        "../target/wasm32-unknown-unknown/release/gas_context.wasm"
     );
 
-    let contract = Contract::new(factorial, code.to_vec());
+    let contract = Contract::new(gas_context_data, code.to_vec());
 
     let mut network = NetworkState::default();
 
@@ -27,11 +26,14 @@ fn gas_context() {
     let n = 7;
 
     network
-        .transact::<_, u64>(contract_id, (factorial::COMPUTE, n as u64), &mut gas)
+        .transact::<_, u64>(contract_id, (gas_context::COMPUTE, n as u64), &mut gas)
         .unwrap();
 
     // for i in 1..7 {
-        let limit = network.query::<_, u64>(contract_id, (factorial::READ_GAS_LIMIT, 1 as u64), &mut gas).unwrap();
-        assert_eq!(limit, 600307734);
+        let limit_7 = network.query::<_, u64>(contract_id, (gas_context::READ_GAS_LIMIT, 7 as u64), &mut gas).unwrap();
+        assert_eq!(limit_7, 927999922);
+        let limit_6 = network.query::<_, u64>(contract_id, (gas_context::READ_GAS_LIMIT, 6 as u64), &mut gas).unwrap();
+        assert_eq!(limit_6, 862971175);
     // }
+    // 600307734, 645469102, 694048040, 746303296, 802511685, 862971175, 927999922
 }

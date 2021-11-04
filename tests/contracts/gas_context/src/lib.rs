@@ -17,17 +17,16 @@ pub const READ_GAS_LIMIT: u8 = 1;
 pub const GAS_LIMITS_SIZE: usize = 10;
 
 #[derive(Clone, Canon, Debug)]
-pub struct Factorial {
+pub struct GasContextData {
     gas_limits: [u64; GAS_LIMITS_SIZE],
 }
 
-impl Factorial {
-    pub fn new() -> Factorial {
-        Factorial{ gas_limits: [0; GAS_LIMITS_SIZE]}
+impl GasContextData {
+    pub fn new() -> GasContextData {
+        GasContextData{ gas_limits: [0; GAS_LIMITS_SIZE]}
     }
     pub fn nth_limit(&self, n: usize) -> u64 {
-        let default = 0u64;
-        self.gas_limits[n] //.get(n).unwrap_or(&default)
+        self.gas_limits[n]
     }
 }
 
@@ -40,7 +39,7 @@ mod hosted {
 
     const PAGE_SIZE: usize = 1024 * 4;
 
-    impl Factorial {
+    impl GasContextData {
         pub fn compute(&mut self, n: u64) -> u64 {
             if n < 1 {
                 dusk_abi::debug!("here 1 {}", n);
@@ -66,7 +65,7 @@ mod hosted {
         let mut source = Source::new(&bytes[..]);
 
         // read self
-        let slf = Factorial::decode(&mut source)?;
+        let slf = GasContextData::decode(&mut source)?;
         // read query id
         let qid = u8::decode(&mut source)?;
         match qid {
@@ -95,7 +94,7 @@ mod hosted {
         let mut source = Source::new(&bytes[..]);
 
         // read self.
-        let mut slf = Factorial::decode(&mut source)?;
+        let mut slf = GasContextData::decode(&mut source)?;
         // read transaction id
         let tid = u8::decode(&mut source)?;
         match tid {

@@ -1,5 +1,5 @@
 [package]
-name = "factorial"
+name = "gas_context"
 version = "0.1.0"
 authors = [
     "Kristoffer Ström <kristoffer@dusk.network>",
