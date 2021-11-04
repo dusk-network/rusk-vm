@@ -6,15 +6,7 @@
 
 use factorial::Factorial;
 use rusk_vm::{Contract, GasMeter, NetworkState};
-
-
-fn factorial_reference(n: u64) -> u64 {
-    if n < 2 {
-        1
-    } else {
-        factorial_reference(n - 1) * n
-    }
-}
+use canonical::CanonError;
 
 #[test]
 fn gas_context() {
@@ -34,15 +26,12 @@ fn gas_context() {
 
     let n = 7;
 
-    assert_eq!(
-        network
-            .query::<_, u64>(contract_id, (factorial::COMPUTE, n), &mut gas)
-            .unwrap(),
-        factorial_reference(n)
-    );
+    network
+        .transact::<_, u64>(contract_id, (factorial::COMPUTE, n as u64), &mut gas)
+        .unwrap();
 
-    for i in 0..6 {
-        let limit = network.query::<_, u64>(contract_id, (factorial::READ_GAS_LIMIT, i), &mut gas).unwrap();
-        assert_eq!(limit, 0);
-    }
+    // for i in 1..7 {
+        let limit = network.query::<_, u64>(contract_id, (factorial::READ_GAS_LIMIT, 1 as u64), &mut gas).unwrap();
+        assert_eq!(limit, 600307734);
+    // }
 }
