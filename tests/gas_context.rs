@@ -18,7 +18,7 @@ fn factorial_reference(n: u64) -> u64 {
 
 #[test]
 fn gas_context() {
-    let factorial = Factorial;
+    let factorial = Factorial::new();
 
     let code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/factorial.wasm"
@@ -40,4 +40,9 @@ fn gas_context() {
             .unwrap(),
         factorial_reference(n)
     );
+
+    for i in 0..6 {
+        let limit = network.query::<_, u64>(contract_id, (factorial::READ_GAS_LIMIT, i), &mut gas).unwrap();
+        assert_eq!(limit, 0);
+    }
 }

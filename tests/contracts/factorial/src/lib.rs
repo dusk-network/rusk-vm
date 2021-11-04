@@ -11,9 +11,23 @@ use canonical_derive::Canon;
 
 // query ids
 pub const COMPUTE: u8 = 0;
+pub const READ_GAS_LIMIT: u8 = 1;
+pub const GAS_LIMITS_SIZE: usize = 10;
 
 #[derive(Clone, Canon, Debug)]
-pub struct Factorial;
+pub struct Factorial {
+    gas_limits: [u64; GAS_LIMITS_SIZE],
+}
+
+impl Factorial {
+    pub fn new() -> Factorial {
+        Factorial{ gas_limits: [0; GAS_LIMITS_SIZE] }
+    }
+    pub fn nth_limit(&self, n: usize) -> u64 {
+        let default = 0u64;
+        *self.gas_limits.get(n).unwrap_or(&default)
+    }
+}
 
 #[cfg(target_arch = "wasm32")]
 mod hosted {
@@ -25,7 +39,7 @@ mod hosted {
     const PAGE_SIZE: usize = 1024 * 4;
 
     impl Factorial {
-        pub fn compute(&self, n: u64) -> u64 {
+        pub fn compute(&mut self, n: u64) -> u64 {
             if n < 2 {
                 1
             } else {
@@ -33,6 +47,12 @@ mod hosted {
 
                 let a = dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 1))
                     .unwrap();
+
+                let gas_left = dusk_abi::gas_left();
+
+                self.gas_limits[n as usize] = gas_left;
+
+                dusk_abi::debug!("storing gas left {} at index {}", gas_left, n);
 
                 a * n
             }
@@ -43,7 +63,7 @@ mod hosted {
         let mut source = Source::new(&bytes[..]);
 
         // read self (noop).
-        let slf = Factorial::decode(&mut source)?;
+        let mut slf = Factorial::decode(&mut source)?;
 
         // read query id
         let qid = u8::decode(&mut source)?;
@@ -53,6 +73,16 @@ mod hosted {
                 // read arg
                 let input = u64::decode(&mut source)?;
                 let ret = slf.compute(input);
+
+                let mut sink = Sink::new(&mut bytes[..]);
+
+                ReturnValue::from_canon(&ret).encode(&mut sink);
+                Ok(())
+            }
+            READ_GAS_LIMIT => {
+                // read arg
+                let input = u64::decode(&mut source)?;
+                let ret = slf.nth_limit(input as usize);
 
                 let mut sink = Sink::new(&mut bytes[..]);
 
