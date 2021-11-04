@@ -447,19 +447,18 @@ fn gas_consumed_host_function_works() {
     assert_eq!(gas.total_left() + gas.spent(), 1_000_000_000,
         "The gas left plus the gas spent should be equal to the initial gas provided
         Debug info:
-        GasMeter values: gas.spent() = {}, gas.left() = {}
-        queried values:  gas_consumed = {}, gas_left = {}", gas.spent(), gas.left(), gas_consumed, gas_left);
+        GasMeter values: gas.total_left() = {}, gas.spent() = {}", gas.total_left(), gas.spent());
 
     // todo use constant for the factor below
-    assert_eq!((gas_left as f64) < (1_000_000_000 as f64 * 0.93), true, "Nested call should have gas limit decreased by predefined factor");
+    assert_eq!((gas_left as f64) < (1_000_000_000 as f64 * 0.93) && (gas_left as f64) > (1_000_000_000 as f64 * 0.92), true,
+        "Nested call should have gas limit decreased by predefined factor
+        Debug info:
+        gas_left = {}", gas_left);
 
-    assert_eq!(gas_consumed < 1000, true, "Gas context is local and gas consumed takes into account only the current nested call")
-
-    // assert_eq!(
-    //     gas.spent() - gas_consumed,
-    //     2_050,
-    //     "The gas spent minus the gas consumed should be equal to the gas held"
-    // );
+    assert_eq!(gas_consumed < 1000 && gas_consumed > 100, true,
+        "Gas context is local and gas consumed takes into account only the current nested call
+        Debug info:
+        gas_consumed = {}", gas_consumed);
 }
 
 #[test]
