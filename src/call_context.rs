@@ -178,11 +178,10 @@ impl<'a> CallContext<'a> {
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
         run_func.call(0).map_err(|e| {
-            let callee_gas_meter = self.gas_meter().clone();
-            self.stack.pop();
-            self.gas_meter_mut().merge_with_callee(&callee_gas_meter);
+            self.gas_merge();
             e
         })?;
+        self.gas_merge();
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
@@ -190,9 +189,7 @@ impl<'a> CallContext<'a> {
         let mut source = Source::new(&read_buffer);
         let result = ReturnValue::decode(&mut source)
             .map_err(VMError::from_store_error)?;
-        let callee_gas_meter = self.gas_meter().clone();
         self.stack.pop();
-        self.gas_meter_mut().merge_with_callee(&callee_gas_meter);
         Ok(result)
     }
 
@@ -247,11 +244,10 @@ impl<'a> CallContext<'a> {
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
         run_func.call(0).map_err(|e| {
-            let callee_gas_meter = self.gas_meter().clone();
-            self.stack.pop();
-            self.gas_meter_mut().merge_with_callee(&callee_gas_meter);
+            self.gas_merge();
             e
         })?;
+        self.gas_merge();
 
         let ret = {
             let mut contract =
@@ -267,7 +263,6 @@ impl<'a> CallContext<'a> {
                 .map_err(VMError::from_store_error)?
         };
 
-        let callee_gas_meter = self.gas_meter().clone();
         let state = if self.stack.len() > 1 {
             self.stack.pop();
             self.state.get_contract(self.callee())?.state().clone()
@@ -276,7 +271,6 @@ impl<'a> CallContext<'a> {
             self.stack.pop();
             state
         };
-        self.gas_meter_mut().merge_with_callee(&callee_gas_meter);
 
         Ok((state, ret))
     }
@@ -341,5 +335,14 @@ impl<'a> CallContext<'a> {
 
     pub fn state_mut(&mut self) -> &mut NetworkState {
         &mut self.state
+    }
+
+    /// Propagates gas usage to the caller
+    fn gas_merge(&mut self) {
+        let callee_gas_meter = self.gas_meter().clone();
+        if let Some(callee_stack_frame) = self.stack.pop() {
+            self.gas_meter_mut().merge_with_callee(&callee_gas_meter);
+            self.stack.push(callee_stack_frame);
+        }
     }
 }
