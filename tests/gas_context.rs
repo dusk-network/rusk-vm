@@ -23,17 +23,12 @@ fn gas_context() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let n = 7;
+    let n: u64 = 7u64;
 
     network
-        .transact::<_, u64>(contract_id, (gas_context::COMPUTE, n as u64), &mut gas)
+        .transact::<_, u64>(contract_id, (gas_context::COMPUTE, n), &mut gas)
         .unwrap();
 
-    // for i in 1..7 {
-        let limit_7 = network.query::<_, u64>(contract_id, (gas_context::READ_GAS_LIMIT, 7 as u64), &mut gas).unwrap();
-        assert_eq!(limit_7, 927999922);
-        let limit_6 = network.query::<_, u64>(contract_id, (gas_context::READ_GAS_LIMIT, 6 as u64), &mut gas).unwrap();
-        assert_eq!(limit_6, 862971175);
-    // }
-    // 600307734, 645469102, 694048040, 746303296, 802511685, 862971175, 927999922
+    let limits = network.query::<_, [u64; gas_context::GAS_LIMITS_SIZE]>(contract_id, (gas_context::READ_GAS_LIMIT, n), &mut gas).unwrap();
+    println!("limit {:?}", limits);
 }
