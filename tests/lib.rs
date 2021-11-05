@@ -14,7 +14,7 @@ use delegator::Delegator;
 use dusk_abi::Transaction;
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
-use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
+use rusk_vm::{Contract, ContractId, GasMeter, GasConstants, NetworkState, VMError};
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
@@ -423,7 +423,9 @@ fn gas_consumed_host_function_works() {
 
     // 2050 is the gas held that is known will be spent in the contract
     // after the `dusk_abi::gas_left()` call
-    let mut gas = GasMeter::with_range(2_050..1_000_000_000);
+    const CALLER_GAS_LIMIT: u64 = 1_000_000_000;
+    const CALLER_GAS_HELD: u64 = 2050;
+    let mut gas = GasMeter::with_range(CALLER_GAS_HELD..CALLER_GAS_LIMIT);
 
     network
         .transact::<_, ()>(contract_id, gas_consumed::INCREMENT, &mut gas)
@@ -444,13 +446,16 @@ fn gas_consumed_host_function_works() {
         )
         .expect("Query error");
 
-    assert_eq!(gas.total_left() + gas.spent(), 1_000_000_000,
-        "The gas left plus the gas spent should be equal to the initial gas provided
+    assert_eq!(gas.total_left() + gas.spent(), CALLER_GAS_LIMIT,
+               "The gas left plus the gas spent should be equal to the initial gas provided
         Debug info:
         GasMeter values: gas.total_left() = {}, gas.spent() = {}", gas.total_left(), gas.spent());
 
-    // todo use constant for the factor below
-    assert_eq!((gas_left as f64) < (1_000_000_000 as f64 * 0.93) && (gas_left as f64) > (1_000_000_000 as f64 * 0.92), true,
+    let gas_left = gas_left as f64;
+    const GAS_RESERVE_UPPER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR;
+    const GAS_RESERVE_LOWER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR - GasConstants::GAS_RESERVE_FACTOR_TOLERANCE;
+    let caller_limit = CALLER_GAS_LIMIT as f64;
+    assert_eq!((gas_left < caller_limit * GAS_RESERVE_UPPER_BOUND_FACTOR && gas_left > caller_limit * GAS_RESERVE_LOWER_BOUND_FACTOR), true,
         "Nested call should have gas limit decreased by predefined factor
         Debug info:
         gas_left = {}", gas_left);
