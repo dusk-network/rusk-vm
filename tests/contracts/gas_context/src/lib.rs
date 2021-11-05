@@ -44,7 +44,7 @@ mod hosted {
                 let callee = dusk_abi::callee();
                 dusk_abi::transact::<_, u64, Self>(self, &callee, &(COMPUTE, n - 1))
                     .unwrap();
-                self.gas_limits[n as usize] = dusk_abi::gas_left();
+                self.gas_limits[(n - 1) as usize] = dusk_abi::gas_left();
                 n
             }
         }
@@ -56,7 +56,7 @@ mod hosted {
         let qid = u8::decode(&mut source)?;
         match qid {
             READ_GAS_LIMIT => {
-                let input = u64::decode(&mut source)?;
+                let _input = u64::decode(&mut source)?;
                 let ret = slf.gas_limits;
                 let mut sink = Sink::new(&mut bytes[..]);
                 ReturnValue::from_canon(&ret).encode(&mut sink);
@@ -74,7 +74,6 @@ mod hosted {
 
     fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
         let mut source = Source::new(&bytes[..]);
-
         let mut slf = GasContextData::decode(&mut source)?;
         let tid = u8::decode(&mut source)?;
         match tid {
