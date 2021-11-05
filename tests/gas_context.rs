@@ -21,12 +21,12 @@ fn gas_context() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    const INITIAL_LIMIT: Gas = 1_000_000_000;
+    const INITIAL_GAS_LIMIT: Gas = 1_000_000_000;
 
     const GAS_RESERVE_UPPER_BOUND: f64 = 0.93;
     const GAS_RESERVE_LOWER_BOUND: f64 = 0.92;
 
-    let mut gas = GasMeter::with_limit(INITIAL_LIMIT);
+    let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
 
     let n: u64 = gas_context::GAS_LIMITS_SIZE as u64;
 
@@ -42,17 +42,17 @@ fn gas_context() {
         )
         .unwrap();
 
-    let mut limit = INITIAL_LIMIT;
-    for i in 1..gas_context::GAS_LIMITS_SIZE {
-        let j = gas_context::GAS_LIMITS_SIZE - i;
+    let mut caller_limit = INITIAL_GAS_LIMIT;
+    for i in (0..gas_context::GAS_LIMITS_SIZE).rev() {
+        let lower_bound = caller_limit as f64 * GAS_RESERVE_LOWER_BOUND;
+        let upper_bound = caller_limit as f64 * GAS_RESERVE_UPPER_BOUND;
+        let callee_limit = limits[i] as f64;
         assert_eq!(
-            (limits[j] as f64) < (limit as f64 * GAS_RESERVE_UPPER_BOUND)
-                && (limits[j] as f64)
-                    > (limit as f64 * GAS_RESERVE_LOWER_BOUND),
+            callee_limit < upper_bound && callee_limit > lower_bound,
             true,
-            "Gas context reserve should not be out of range {}",
-            limits[j]
+            "Gas context limit {} should not be out of range {} - {}",
+            callee_limit, lower_bound, upper_bound
         );
-        limit = limits[j];
+        caller_limit = limits[i];
     }
 }
