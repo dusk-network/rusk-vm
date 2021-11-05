@@ -13,6 +13,15 @@ use std::cmp::{min, max};
 /// Type alias for gas
 pub type Gas = u64;
 
+/// Constants for inter-contract call gas reserve calculations
+pub struct GasConstants;
+impl GasConstants {
+    /// Factor for fraction of gas to be given to a callee
+    pub const GAS_RESERVE_FACTOR: f64 = 0.93;
+    /// Factor needed to create range when checking gas reserve
+    pub const GAS_RESERVE_FACTOR_TOLERANCE: f64 = 0.01;
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum GasMeterResult {
     Proceed,
@@ -109,7 +118,7 @@ impl GasMeter {
 
     fn clone_for_callee_default(&self) -> GasMeter {
         let new_held = if self.left > self.held {
-            self.held + (((self.left - self.held) as f64 * 0.07) as Gas)
+            self.held + (((self.left - self.held) as f64 * (1.0 - GasConstants::GAS_RESERVE_FACTOR)) as Gas)
         } else {
             self.held
         };

@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use gas_context::GasContextData;
-use rusk_vm::{Contract, Gas, GasMeter, NetworkState};
+use rusk_vm::{Contract, Gas, GasMeter, NetworkState, GasConstants};
 
 #[test]
 fn gas_context() {
@@ -23,8 +23,8 @@ fn gas_context() {
 
     const INITIAL_GAS_LIMIT: Gas = 1_000_000_000;
 
-    const GAS_RESERVE_UPPER_BOUND: f64 = 0.93;
-    const GAS_RESERVE_LOWER_BOUND: f64 = 0.92;
+    const GAS_RESERVE_UPPER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR;
+    const GAS_RESERVE_LOWER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR - GasConstants::GAS_RESERVE_FACTOR_TOLERANCE;
 
     let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
 
@@ -44,8 +44,8 @@ fn gas_context() {
 
     let mut caller_limit = INITIAL_GAS_LIMIT;
     for i in (0..gas_context::GAS_LIMITS_SIZE).rev() {
-        let lower_bound = caller_limit as f64 * GAS_RESERVE_LOWER_BOUND;
-        let upper_bound = caller_limit as f64 * GAS_RESERVE_UPPER_BOUND;
+        let lower_bound = caller_limit as f64 * GAS_RESERVE_LOWER_BOUND_FACTOR;
+        let upper_bound = caller_limit as f64 * GAS_RESERVE_UPPER_BOUND_FACTOR;
         let callee_limit = limits[i] as f64;
         assert_eq!(
             callee_limit < upper_bound && callee_limit > lower_bound,
