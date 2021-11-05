@@ -8,22 +8,22 @@
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use canonical_derive::Canon;
+extern crate alloc;
+use alloc::vec::Vec;
 
 // transaction ids
 pub const COMPUTE: u8 = 0;
 // query ids
-pub const READ_GAS_LIMIT: u8 = 1;
-
-pub const GAS_LIMITS_SIZE: usize = 8;
+pub const READ_GAS_LIMITS: u8 = 1;
 
 #[derive(Clone, Canon, Debug)]
 pub struct GasContextData {
-    gas_limits: [u64; GAS_LIMITS_SIZE],
+    gas_limits: Vec<u64>,
 }
 
 impl GasContextData {
     pub fn new() -> GasContextData {
-        GasContextData{ gas_limits: [0; GAS_LIMITS_SIZE]}
+        GasContextData{ gas_limits: Vec::new()}
     }
 }
 
@@ -44,7 +44,7 @@ mod hosted {
                 let callee = dusk_abi::callee();
                 dusk_abi::transact::<_, u64, Self>(self, &callee, &(COMPUTE, n - 1))
                     .unwrap();
-                self.gas_limits[(n - 1) as usize] = dusk_abi::gas_left();
+                self.gas_limits.push(dusk_abi::gas_left());
                 n
             }
         }
@@ -55,8 +55,7 @@ mod hosted {
         let slf = GasContextData::decode(&mut source)?;
         let qid = u8::decode(&mut source)?;
         match qid {
-            READ_GAS_LIMIT => {
-                let _input = u64::decode(&mut source)?;
+            READ_GAS_LIMITS => {
                 let ret = slf.gas_limits;
                 let mut sink = Sink::new(&mut bytes[..]);
                 ReturnValue::from_canon(&ret).encode(&mut sink);
@@ -68,7 +67,6 @@ mod hosted {
 
     #[no_mangle]
     fn q(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
         let _ = query(bytes);
     }
 
@@ -91,7 +89,6 @@ mod hosted {
 
     #[no_mangle]
     fn t(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
         let _ = transaction(bytes);
     }
 }

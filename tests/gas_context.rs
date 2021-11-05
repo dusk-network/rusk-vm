@@ -28,31 +28,32 @@ fn gas_context() {
 
     let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
 
-    let n: u64 = gas_context::GAS_LIMITS_SIZE as u64;
+    let number_of_nested_calls: u64 = 10u64;
 
     network
-        .transact::<_, u64>(contract_id, (gas_context::COMPUTE, n), &mut gas)
+        .transact::<_, u64>(contract_id, (gas_context::COMPUTE, number_of_nested_calls), &mut gas)
         .unwrap();
 
-    let limits = network
-        .query::<_, [u64; gas_context::GAS_LIMITS_SIZE]>(
+    let mut limits = network
+        .query::<_, Vec<u64>>(
             contract_id,
-            (gas_context::READ_GAS_LIMIT, n),
+            (gas_context::READ_GAS_LIMITS, ()),
             &mut gas,
         )
         .unwrap();
+    limits.reverse();
 
-    let mut caller_limit = INITIAL_GAS_LIMIT;
-    for i in (0..gas_context::GAS_LIMITS_SIZE).rev() {
-        let lower_bound = caller_limit as f64 * GAS_RESERVE_LOWER_BOUND_FACTOR;
-        let upper_bound = caller_limit as f64 * GAS_RESERVE_UPPER_BOUND_FACTOR;
-        let callee_limit = limits[i] as f64;
+    let mut caller_limit = INITIAL_GAS_LIMIT as f64;
+    for callee_limit in limits {
+        let lower_bound = caller_limit * GAS_RESERVE_LOWER_BOUND_FACTOR;
+        let upper_bound = caller_limit * GAS_RESERVE_UPPER_BOUND_FACTOR;
+        let callee_limit = callee_limit as f64;
         assert_eq!(
             callee_limit < upper_bound && callee_limit > lower_bound,
             true,
             "Gas context limit {} should not be out of range {} - {}",
             callee_limit, lower_bound, upper_bound
         );
-        caller_limit = limits[i];
+        caller_limit = callee_limit;
     }
 }
