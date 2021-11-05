@@ -44,7 +44,7 @@ mod hosted {
                 let callee = dusk_abi::callee();
                 dusk_abi::transact::<_, u64, Self>(self, &callee, &(COMPUTE, n - 1))
                     .unwrap();
-                self.gas_limits.push(dusk_abi::gas_left());
+                self.gas_limits.insert(0, dusk_abi::gas_left());
                 n
             }
         }

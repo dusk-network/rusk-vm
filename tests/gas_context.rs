@@ -34,14 +34,13 @@ fn gas_context() {
         .transact::<_, u64>(contract_id, (gas_context::COMPUTE, number_of_nested_calls), &mut gas)
         .unwrap();
 
-    let mut limits = network
+    let limits = network
         .query::<_, Vec<u64>>(
             contract_id,
             (gas_context::READ_GAS_LIMITS, ()),
             &mut gas,
         )
         .unwrap();
-    limits.reverse();
 
     let mut caller_limit = INITIAL_GAS_LIMIT as f64;
     for callee_limit in limits {
