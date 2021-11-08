@@ -13,17 +13,22 @@ use alloc::vec::Vec;
 
 // transaction ids
 pub const COMPUTE: u8 = 0;
+pub const SET_GAS_LIMITS: u8 = 1;
 // query ids
 pub const READ_GAS_LIMITS: u8 = 1;
 
 #[derive(Clone, Canon, Debug)]
 pub struct GasContextData {
-    gas_limits: Vec<u64>,
+    actual_gas_limits: Vec<u64>,
+    call_gas_limits: Vec<u64>,
 }
 
 impl GasContextData {
     pub fn new() -> GasContextData {
-        GasContextData{ gas_limits: Vec::new()}
+        GasContextData {
+            actual_gas_limits: Vec::new(),
+            call_gas_limits: Vec::new(),
+        }
     }
 }
 
@@ -42,9 +47,18 @@ mod hosted {
                 0
             } else {
                 let callee = dusk_abi::callee();
-                dusk_abi::transact::<_, u64, Self>(self, &callee, &(COMPUTE, n - 1), 0)
-                    .unwrap();
-                self.gas_limits.insert(0, dusk_abi::gas_left());
+                let call_limit = *self
+                    .call_gas_limits
+                    .get(n as usize - 1)
+                    .expect("Call limit out of bounds");
+                dusk_abi::transact::<_, u64, Self>(
+                    self,
+                    &callee,
+                    &(COMPUTE, n - 1),
+                    call_limit,
+                )
+                .unwrap();
+                self.actual_gas_limits.insert(0, dusk_abi::gas_left());
                 n
             }
         }
@@ -56,7 +70,7 @@ mod hosted {
         let qid = u8::decode(&mut source)?;
         match qid {
             READ_GAS_LIMITS => {
-                let ret = slf.gas_limits;
+                let ret = slf.actual_gas_limits;
                 let mut sink = Sink::new(&mut bytes[..]);
                 ReturnValue::from_canon(&ret).encode(&mut sink);
                 Ok(())
@@ -81,6 +95,12 @@ mod hosted {
                 let mut sink = Sink::new(&mut bytes[..]);
                 ContractState::from_canon(&slf).encode(&mut sink);
                 ReturnValue::from_canon(&ret).encode(&mut sink);
+                Ok(())
+            }
+            SET_GAS_LIMITS => {
+                slf.call_gas_limits = Vec::<u64>::decode(&mut source)?;
+                let mut sink = Sink::new(&mut bytes[..]);
+                ContractState::from_canon(&slf).encode(&mut sink);
                 Ok(())
             }
             _ => panic!(""),

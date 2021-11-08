@@ -130,7 +130,7 @@ impl GasMeter {
     }
 
     fn clone_for_callee_with_limit(&self, limit: Gas) -> GasMeter {
-        let new_held = max(self.left - limit, self.held);
+        let new_held = max(self.left.saturating_sub(limit), self.held);
         GasMeter {
             held: new_held,
             limit: self.left,
