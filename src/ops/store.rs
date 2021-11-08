@@ -24,7 +24,7 @@ impl Get {
         let context = env.get_context();
         let mem =
             context.read_memory(hash_ofs, core::mem::size_of::<IdHash>())?;
-        let mut source = Source::new(&mem);
+        let mut source = Source::new(mem);
         let hash =
             IdHash::decode(&mut source).map_err(VMError::from_store_error)?;
         // we don't allow get requests to fail in the bridge
@@ -48,7 +48,7 @@ impl Put {
 
         let mem = context.read_memory(ofs, len)?;
         debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
-        let hash = Store::put(&mem);
+        let hash = Store::put(mem);
 
         let mut hash_buffer = vec![0; hash.encoded_len()];
         let mut sink = Sink::new(&mut hash_buffer);
@@ -73,7 +73,7 @@ impl Hash {
         let context = env.get_context();
 
         let mem = context.read_memory(ofs, len)?;
-        let hash = Store::hash(&mem);
+        let hash = Store::hash(mem);
 
         context.write_memory(&hash, ret)
     }

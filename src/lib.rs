@@ -28,7 +28,7 @@ mod state;
 pub use dusk_abi;
 
 pub use contract::{Contract, ContractId};
-pub use gas::{Gas, GasMeter, GasConstants};
+pub use gas::{Gas, GasConstants, GasMeter};
 pub use state::NetworkState;
 
 use thiserror::Error;

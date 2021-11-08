@@ -14,7 +14,9 @@ use delegator::Delegator;
 use dusk_abi::Transaction;
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
-use rusk_vm::{Contract, ContractId, GasMeter, GasConstants, NetworkState, VMError};
+use rusk_vm::{
+    Contract, ContractId, GasConstants, GasMeter, NetworkState, VMError,
+};
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
@@ -452,13 +454,19 @@ fn gas_consumed_host_function_works() {
         GasMeter values: gas.total_left() = {}, gas.spent() = {}", gas.total_left(), gas.spent());
 
     let gas_left = gas_left as f64;
-    const GAS_RESERVE_UPPER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR;
-    const GAS_RESERVE_LOWER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR - GasConstants::GAS_RESERVE_FACTOR_TOLERANCE;
-    let caller_limit = CALLER_GAS_LIMIT as f64;
-    assert_eq!((gas_left < caller_limit * GAS_RESERVE_UPPER_BOUND_FACTOR && gas_left > caller_limit * GAS_RESERVE_LOWER_BOUND_FACTOR), true,
+    let upper_bound = CALLER_GAS_LIMIT as f64;
+    let lower_bound = CALLER_GAS_LIMIT as f64
+        * (1.0 - GasConstants::GAS_RESERVE_FACTOR_TOLERANCE);
+    assert_eq!(
+        (gas_left < upper_bound && gas_left > lower_bound),
+        true,
         "Nested call should have gas limit decreased by predefined factor
         Debug info:
-        gas_left = {}", gas_left);
+        gas_left = {}, lower_bound = {}, upper_bound = {}",
+        gas_left,
+        lower_bound,
+        upper_bound
+    );
 
     assert_eq!(gas_consumed < 1000 && gas_consumed > 100, true,
         "Gas context is local and gas consumed takes into account only the current nested call

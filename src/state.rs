@@ -62,8 +62,7 @@ impl Canon for NetworkState {
 
 #[cached(size = 2048, time = 86400, result = true, sync_writes = true)]
 fn get_or_create_module(bytecode: Vec<u8>) -> Result<Module, VMError> {
-    let new_module = WasmerCompiler::create_module(bytecode)?;
-    Ok(new_module.clone())
+    Ok(WasmerCompiler::create_module(bytecode)?)
 }
 
 impl NetworkState {
@@ -167,9 +166,11 @@ impl NetworkState {
         A: Canon,
         R: Canon,
     {
+        let gas_left = gas_meter.left();
         let mut context = CallContext::new(self, gas_meter);
 
-        let result = context.query(target, Query::from_canon(&query), 0)?;
+        let result =
+            context.query(target, Query::from_canon(&query), gas_left)?;
 
         result.cast().map_err(VMError::from_store_error)
     }
@@ -188,11 +189,15 @@ impl NetworkState {
         // Fork the current network's state
         let mut fork = self.clone();
 
+        let gas_left = gas_meter.left();
         // Use the forked state to execute the transaction
         let mut context = CallContext::new(&mut fork, gas_meter);
 
-        let (_, result) =
-            context.transact(target, Transaction::from_canon(&transaction), 0)?;
+        let (_, result) = context.transact(
+            target,
+            Transaction::from_canon(&transaction),
+            gas_left,
+        )?;
 
         let ret = result.cast().map_err(VMError::from_store_error)?;
 

@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use gas_context::GasContextData;
-use rusk_vm::{Contract, Gas, GasMeter, NetworkState, GasConstants};
+use rusk_vm::{Contract, Gas, GasConstants, GasMeter, NetworkState};
 
 #[test]
 fn gas_context() {
@@ -22,22 +22,30 @@ fn gas_context() {
     let contract_id = network.deploy(contract).unwrap();
 
     const INITIAL_GAS_LIMIT: Gas = 1_000_000_000;
-
-    const GAS_RESERVE_UPPER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR;
-    const GAS_RESERVE_LOWER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR - GasConstants::GAS_RESERVE_FACTOR_TOLERANCE;
+    const GAS_RESERVE_UPPER_BOUND_FACTOR: f64 =
+        GasConstants::GAS_RESERVE_FACTOR;
+    const GAS_RESERVE_LOWER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR
+        - GasConstants::GAS_RESERVE_FACTOR_TOLERANCE;
+    const NUMBER_OF_NESTED_CALLS: usize = 10;
 
     let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
-
-    const NUMBER_OF_NESTED_CALLS: usize = 10;
 
     let call_gas_limits = vec![0; NUMBER_OF_NESTED_CALLS];
 
     network
-        .transact::<_, Vec<u64>>(contract_id, (gas_context::SET_GAS_LIMITS, call_gas_limits), &mut gas)
+        .transact::<_, Vec<u64>>(
+            contract_id,
+            (gas_context::SET_GAS_LIMITS, call_gas_limits),
+            &mut gas,
+        )
         .unwrap();
 
     network
-        .transact::<_, u64>(contract_id, (gas_context::COMPUTE, NUMBER_OF_NESTED_CALLS as u64), &mut gas)
+        .transact::<_, u64>(
+            contract_id,
+            (gas_context::COMPUTE, NUMBER_OF_NESTED_CALLS as u64),
+            &mut gas,
+        )
         .unwrap();
 
     let limits = network
@@ -48,18 +56,34 @@ fn gas_context() {
         )
         .unwrap();
 
-    let mut caller_limit = INITIAL_GAS_LIMIT as f64;
-    for callee_limit in limits {
-        let lower_bound = caller_limit * GAS_RESERVE_LOWER_BOUND_FACTOR;
-        let upper_bound = caller_limit * GAS_RESERVE_UPPER_BOUND_FACTOR;
-        let callee_limit = callee_limit as f64;
-        assert_eq!(
-            callee_limit < upper_bound && callee_limit > lower_bound,
-            true,
+    let mut bounds: Vec<(f64, f64)> = limits
+        .iter()
+        .map(|limit| {
+            (
+                *limit as f64 * GAS_RESERVE_LOWER_BOUND_FACTOR,
+                *limit as f64 * GAS_RESERVE_UPPER_BOUND_FACTOR,
+            )
+        })
+        .collect();
+    bounds.insert(
+        0,
+        (
+            INITIAL_GAS_LIMIT as f64
+                * (1.0 - GasConstants::GAS_RESERVE_FACTOR_TOLERANCE),
+            INITIAL_GAS_LIMIT as f64,
+        ),
+    );
+
+    let zipped = limits.iter().map(|limit| *limit as f64).zip(bounds.iter());
+
+    for (callee_limit, (lower_bound, upper_bound)) in zipped {
+        assert!(
+            callee_limit > *lower_bound && callee_limit < *upper_bound,
             "Gas context limit {} should not be out of range {} - {}",
-            callee_limit, lower_bound, upper_bound
+            callee_limit,
+            lower_bound,
+            upper_bound
         );
-        caller_limit = callee_limit;
     }
 }
 
@@ -77,23 +101,30 @@ fn gas_context_with_call_limit() {
 
     let contract_id = network.deploy(contract).unwrap();
 
-    const INITIAL_GAS_LIMIT: Gas = 1_000_000_000;
-
-    const GAS_RESERVE_UPPER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR;
-    const GAS_RESERVE_LOWER_BOUND_FACTOR: f64 = GasConstants::GAS_RESERVE_FACTOR - GasConstants::GAS_RESERVE_FACTOR_TOLERANCE;
+    const INITIAL_GAS_LIMIT: Gas = 900_000_000;
 
     let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
 
-    let call_gas_limits: Vec<u64> = vec!(1_000_000_000, 800_000_000, 600_000_000);
+    let call_gas_limits: Vec<u64> =
+        (100_000_000..800_000_000).step_by(100_000_000).collect();
+    let mut upper_bounds = call_gas_limits.clone();
 
     let number_of_nested_calls: usize = call_gas_limits.len();
 
     network
-        .transact::<_, Vec<u64>>(contract_id, (gas_context::SET_GAS_LIMITS, call_gas_limits), &mut gas)
+        .transact::<_, Vec<u64>>(
+            contract_id,
+            (gas_context::SET_GAS_LIMITS, call_gas_limits),
+            &mut gas,
+        )
         .unwrap();
 
     network
-        .transact::<_, u64>(contract_id, (gas_context::COMPUTE, number_of_nested_calls as u64), &mut gas)
+        .transact::<_, u64>(
+            contract_id,
+            (gas_context::COMPUTE, number_of_nested_calls as u64),
+            &mut gas,
+        )
         .unwrap();
 
     let limits = network
@@ -104,17 +135,16 @@ fn gas_context_with_call_limit() {
         )
         .unwrap();
 
-    let mut caller_limit = INITIAL_GAS_LIMIT as f64;
-    for callee_limit in limits {
-        let lower_bound = caller_limit * GAS_RESERVE_LOWER_BOUND_FACTOR;
-        let upper_bound = caller_limit * GAS_RESERVE_UPPER_BOUND_FACTOR;
-        let callee_limit = callee_limit as f64;
-        assert_eq!(
-            callee_limit < upper_bound && callee_limit > lower_bound,
-            true,
-            "Gas context limit {} should not be out of range {} - {}",
-            callee_limit, lower_bound, upper_bound
+    upper_bounds.remove(0);
+    upper_bounds.reverse();
+    upper_bounds.insert(0, INITIAL_GAS_LIMIT);
+    for (index, limit) in limits.iter().enumerate() {
+        assert!(
+            limit < &upper_bounds[index],
+            "Limit {} equal to {} should be below {}",
+            index,
+            limit,
+            upper_bounds[index]
         );
-        caller_limit = callee_limit;
     }
 }

@@ -8,7 +8,7 @@
 // instructions can operate on them efficiently.
 
 use core::ops::Range;
-use std::cmp::{min, max};
+use std::cmp::{max, min};
 
 /// Type alias for gas
 pub type Gas = u64;
@@ -118,14 +118,17 @@ impl GasMeter {
 
     fn clone_for_callee_default(&self) -> GasMeter {
         let new_held = if self.left > self.held {
-            self.held + (((self.left - self.held) as f64 * (1.0 - GasConstants::GAS_RESERVE_FACTOR)) as Gas)
+            self.held
+                + (((self.left - self.held) as f64
+                    * (1.0 - GasConstants::GAS_RESERVE_FACTOR))
+                    as Gas)
         } else {
             self.held
         };
         GasMeter {
             held: new_held,
             limit: self.left,
-            left: self.left
+            left: self.left,
         }
     }
 
@@ -134,41 +137,35 @@ impl GasMeter {
         GasMeter {
             held: new_held,
             limit: self.left,
-            left: self.left
+            left: self.left,
         }
     }
 
-    /// Clones gas meter for use by a callee, modifying its held field
-    /// so that it satisfies a given limit (if a limit is present) or
-    /// (if a limit is not present) satisfies the requirement for an
-    /// obligatory gas reserve.
+    /// Clones gas meter for the use by a callee, modifying its held field
+    /// so that it satisfies a limit parameter is given.
+    /// If limit parameter is none, default limit is assumed that satisfies
+    /// the requirement for obligatory gas reserve.
     /// Held field is set to the following value:
     ///     If limit is given:
     ///         held = this_left - limit
-    ///     If a limit is not given:
-    ///         held = this_held + (this_left - this_held) * 0.07
+    ///     If limit is not given:
+    ///         held = this_held + (this_left - this_held) * (1 - GAS_RESERVE_FACTOR)
     /// Limit field is set to the following value:
-    ///     For both cases, if limit is given or not:
+    ///     (For both limit given or default):
     ///         limit = this_left
-    /// Limit is equal to left upon beginning of callee's code so that
-    /// its spent function (spent = limit - left) can work correctly
-    /// in its gas context.
     pub fn clone_for_callee(&self, limit_option: Option<Gas>) -> GasMeter {
         match limit_option {
-            Some(limit) =>
-                self.clone_for_callee_with_limit(limit),
-            None =>
-                self.clone_for_callee_default(),
+            Some(limit) => self.clone_for_callee_with_limit(limit),
+            None => self.clone_for_callee_default(),
         }
     }
 
     /// Merges this gas meter with a gas meter obtained from a finished callee.
-    /// It takes new lower left field value as the callee has used some gas.
-    /// Does nothing if callee's left field value is higher that this gas
-    /// meter' left value as it is impossibe for a callee to increase the
-    /// amount of gas.
+    /// It updates the 'left' field value from the callee.
+    /// Update is only done if callee's 'left' field value is higher that this gas
+    /// meter 'left' value.
     /// Fields limit and held are not changed as the are local for every
-    /// gas context - propagate up the stack but never down the stack.
+    /// gas context - they propagate up the stack but never down the stack.
     pub fn merge_with_callee(&mut self, callee_gas_meter: &GasMeter) {
         self.left = min(callee_gas_meter.left, self.left);
     }

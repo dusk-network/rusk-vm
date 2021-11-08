@@ -13,4 +13,4 @@ canonical_derive = "0.6"
 
 nstack = "0.10.0-rc"
 microkelvin = "0.10.0-rc"
-dusk-abi = { path = "/Users/miloszm/rust/dusk-abi" }
+dusk-abi = "0.10"

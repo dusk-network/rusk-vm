@@ -10,7 +10,7 @@ use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 
 use crate::contract::ContractId;
 use crate::env::Env;
-use crate::gas::{GasMeter, Gas};
+use crate::gas::{Gas, GasMeter};
 use crate::memory::WasmerMemory;
 use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
@@ -110,7 +110,7 @@ impl<'a> CallContext<'a> {
         namespace_name: &str,
         env: &Env,
         module: &Module,
-        import_names: &Vec<String>,
+        import_names: &[String],
         import_object: &mut ImportObject,
     ) {
         let mut namespace = Exports::new();
@@ -118,7 +118,7 @@ impl<'a> CallContext<'a> {
             &mut namespace,
             module.store(),
             env.clone(),
-            &import_names,
+            import_names,
         );
         import_object.register(namespace_name, namespace);
     }
@@ -141,8 +141,7 @@ impl<'a> CallContext<'a> {
 
             let module = self
                 .state
-                .get_module_from_cache(&target, contract.bytecode())?
-                .clone();
+                .get_module_from_cache(&target, contract.bytecode())?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -172,22 +171,22 @@ impl<'a> CallContext<'a> {
                 target,
                 memory,
                 query,
-                self.gas_meter().clone_for_callee(Some(gas_limit).filter(|l| *l != 0 )),
+                self.gas_meter()
+                    .clone_for_callee(Some(gas_limit).filter(|l| *l != 0)),
             ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
-        run_func.call(0).map_err(|e| {
-            self.gas_merge();
-            e
-        })?;
+
+        let r = run_func.call(0);
         self.gas_merge();
+        r?;
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
         let read_buffer = memory.read_from(0)?;
-        let mut source = Source::new(&read_buffer);
+        let mut source = Source::new(read_buffer);
         let result = ReturnValue::decode(&mut source)
             .map_err(VMError::from_store_error)?;
         self.stack.pop();
@@ -239,17 +238,16 @@ impl<'a> CallContext<'a> {
                 target_contract_id,
                 memory,
                 transaction,
-                self.gas_meter().clone_for_callee(Some(gas_limit).filter(|l| *l != 0 )),
+                self.gas_meter()
+                    .clone_for_callee(Some(gas_limit).filter(|l| *l != 0)),
             ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
-        run_func.call(0).map_err(|e| {
-            self.gas_merge();
-            e
-        })?;
+        let r = run_func.call(0);
         self.gas_merge();
+        r?;
 
         let ret = {
             let mut contract =
@@ -257,7 +255,7 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
             let read_buffer = memory.read_from(0)?;
-            let mut source = Source::new(&read_buffer);
+            let mut source = Source::new(read_buffer);
             let state = ContractState::decode(&mut source)
                 .map_err(VMError::from_store_error)?;
             *(*contract).state_mut() = state;

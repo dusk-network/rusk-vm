@@ -50,10 +50,11 @@ impl WasmerMemory {
     ) -> Result<(), VMError> {
         let offset = offset as usize;
         let slice = bytes.as_ref();
-        Ok(unsafe {
+        unsafe {
             self.inner.get_unchecked().data_unchecked_mut()
                 [offset..(offset + slice.len())]
-                .copy_from_slice(slice)
-        })
+                .copy_from_slice(slice);
+        }
+        Ok(())
     }
 }

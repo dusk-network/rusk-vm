@@ -81,7 +81,8 @@ mod hosted {
         ) -> i32 {
             self.set_crossover(self.crossover * 2);
 
-            dusk_abi::transact_raw::<_>(self, &target, &transaction, 0).unwrap();
+            dusk_abi::transact_raw::<_>(self, &target, &transaction, 0)
+                .unwrap();
 
             self.crossover
         }

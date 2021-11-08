@@ -19,14 +19,14 @@ pub const READ_GAS_LIMITS: u8 = 1;
 
 #[derive(Clone, Canon, Debug)]
 pub struct GasContextData {
-    actual_gas_limits: Vec<u64>,
+    after_call_gas_limits: Vec<u64>,
     call_gas_limits: Vec<u64>,
 }
 
 impl GasContextData {
     pub fn new() -> GasContextData {
         GasContextData {
-            actual_gas_limits: Vec::new(),
+            after_call_gas_limits: Vec::new(),
             call_gas_limits: Vec::new(),
         }
     }
@@ -42,7 +42,7 @@ mod hosted {
     const PAGE_SIZE: usize = 1024 * 4;
 
     impl GasContextData {
-        pub fn compute(&mut self, n: u64) -> u64 {
+        pub fn compute_with_transact(&mut self, n: u64) -> u64 {
             if n < 1 {
                 0
             } else {
@@ -58,7 +58,26 @@ mod hosted {
                     call_limit,
                 )
                 .unwrap();
-                self.actual_gas_limits.insert(0, dusk_abi::gas_left());
+                self.after_call_gas_limits.insert(0, dusk_abi::gas_left());
+                n
+            }
+        }
+        pub fn compute_with_query(&mut self, n: u64) -> u64 {
+            if n < 1 {
+                0
+            } else {
+                let callee = dusk_abi::callee();
+                let call_limit = *self
+                    .call_gas_limits
+                    .get(n as usize - 1)
+                    .expect("Call limit out of bounds");
+                dusk_abi::query::<_, u64>(
+                    &callee,
+                    &(COMPUTE, n - 1),
+                    call_limit,
+                )
+                .unwrap();
+                self.after_call_gas_limits.insert(0, dusk_abi::gas_left());
                 n
             }
         }
@@ -66,12 +85,20 @@ mod hosted {
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
         let mut source = Source::new(&bytes[..]);
-        let slf = GasContextData::decode(&mut source)?;
+        let mut slf = GasContextData::decode(&mut source)?;
         let qid = u8::decode(&mut source)?;
         match qid {
             READ_GAS_LIMITS => {
-                let ret = slf.actual_gas_limits;
+                let ret = slf.after_call_gas_limits;
                 let mut sink = Sink::new(&mut bytes[..]);
+                ReturnValue::from_canon(&ret).encode(&mut sink);
+                Ok(())
+            }
+            COMPUTE => {
+                let input = u64::decode(&mut source)?;
+                let ret: u64 = slf.compute_with_transact(input);
+                let mut sink = Sink::new(&mut bytes[..]);
+                ContractState::from_canon(&slf).encode(&mut sink);
                 ReturnValue::from_canon(&ret).encode(&mut sink);
                 Ok(())
             }
@@ -91,7 +118,7 @@ mod hosted {
         match tid {
             COMPUTE => {
                 let input = u64::decode(&mut source)?;
-                let ret: u64 = slf.compute(input);
+                let ret: u64 = slf.compute_with_query(input);
                 let mut sink = Sink::new(&mut bytes[..]);
                 ContractState::from_canon(&slf).encode(&mut sink);
                 ReturnValue::from_canon(&ret).encode(&mut sink);
@@ -101,6 +128,8 @@ mod hosted {
                 slf.call_gas_limits = Vec::<u64>::decode(&mut source)?;
                 let mut sink = Sink::new(&mut bytes[..]);
                 ContractState::from_canon(&slf).encode(&mut sink);
+                let ret = 0;
+                ReturnValue::from_canon(&ret).encode(&mut sink);
                 Ok(())
             }
             _ => panic!(""),
