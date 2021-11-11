@@ -149,8 +149,8 @@ impl GasMeter {
     ///     If limit is given:
     ///         held = this_left - limit
     ///     If limit is not given:
-    ///         held = this_held + (this_left - this_held) * (1 - GAS_RESERVE_FACTOR)
-    /// Limit field is set to the following value:
+    ///         held = this_held + (this_left - this_held) * (1 -
+    /// GAS_RESERVE_FACTOR) Limit field is set to the following value:
     ///     (For both limit given or default):
     ///         limit = this_left
     pub fn clone_for_callee(&self, limit_option: Option<Gas>) -> GasMeter {
@@ -162,8 +162,8 @@ impl GasMeter {
 
     /// Merges this gas meter with a gas meter obtained from a finished callee.
     /// It updates the 'left' field value from the callee.
-    /// Update is only done if callee's 'left' field value is higher that this gas
-    /// meter 'left' value.
+    /// Update is only done if callee's 'left' field value is higher that this
+    /// gas meter 'left' value.
     /// Fields limit and held are not changed as the are local for every
     /// gas context - they propagate up the stack but never down the stack.
     pub fn merge_with_callee(&mut self, callee_gas_meter: &GasMeter) {
