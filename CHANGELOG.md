@@ -7,18 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Add cache for `wasmer` modules [#251]
+- Add `wasmer` instrumentation [#247]
 - Add CHANGELOG [#236]
 - Add persistence test to stack contract [#201]
 - Add `deploy_with_id` method to NetworkState [#210]
 
 ### Changed
+- Port from `wasmi` to `wasmer` [#245]
 - Update dependencies
 
 ### Removed
+- Remove Rust toolchain overrides from CI [#229]
 - Remove `set_block_height` from NetworkState [#203]
 
 ### Fixed
-- Fix failing CI [#229]
+- Fix running tests with `wasmer` [#248]
 
 ## [0.6.1] - 2021-07-08
 ### Added
@@ -45,7 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix overflow in `fibonacci` contract
-- 
 
 ## [0.5.1] - 2021-03-12
 ### Added
@@ -178,6 +181,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2019-08-02
 - Initial
 
+[#251]: https://github.com/dusk-network/rusk-vm/issues/251
+[#248]: https://github.com/dusk-network/rusk-vm/issues/248
+[#247]: https://github.com/dusk-network/rusk-vm/issues/247
+[#245]: https://github.com/dusk-network/rusk-vm/issues/245
 [#236]: https://github.com/dusk-network/rusk-vm/issues/236
 [#201]: https://github.com/dusk-network/rusk-vm/issues/201
 [#210]: https://github.com/dusk-network/rusk-vm/issues/210
