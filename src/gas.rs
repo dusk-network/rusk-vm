@@ -8,7 +8,7 @@
 // instructions can operate on them efficiently.
 
 use core::ops::Range;
-use std::cmp::{max, min};
+use core::cmp::{max, min};
 use gas_constants::*;
 
 /// Type alias for gas
