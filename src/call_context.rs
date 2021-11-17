@@ -10,58 +10,34 @@ use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 
 use crate::contract::ContractId;
 use crate::env::Env;
-use crate::gas::{Gas, GasMeter};
+use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
 use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
 use crate::VMError;
 
-#[derive(Debug)]
-enum Argument {
-    Query(Query),
-    Transaction(Transaction),
-}
-
-pub struct StackFrame {
+pub struct StackFrame<'a> {
     callee: ContractId,
-    argument: Argument,
     ret: ReturnValue,
     memory: WasmerMemory,
-    gas_meter: GasMeter,
+    gas_meter: &'a mut GasMeter,
 }
 
-impl std::fmt::Debug for StackFrame {
+impl<'a> std::fmt::Debug for StackFrame<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(arg: {:?} return: {:?})", self.argument, self.ret)
+        write!(f, "(return: {:?})", self.ret)
     }
 }
 
-impl StackFrame {
-    fn new_query(
+impl<'a> StackFrame<'a> {
+    fn new(
         callee: ContractId,
         memory: WasmerMemory,
-        query: Query,
-        gas_meter: GasMeter,
-    ) -> StackFrame {
+        gas_meter: &'a mut GasMeter,
+    ) -> StackFrame<'a> {
         StackFrame {
             callee,
             memory,
-            argument: Argument::Query(query),
-            ret: Default::default(),
-            gas_meter,
-        }
-    }
-
-    fn new_transaction(
-        callee: ContractId,
-        memory: WasmerMemory,
-        transaction: Transaction,
-        gas_meter: GasMeter,
-    ) -> StackFrame {
-        StackFrame {
-            callee,
-            memory,
-            argument: Argument::Transaction(transaction),
             ret: Default::default(),
             gas_meter,
         }
@@ -90,19 +66,14 @@ impl StackFrame {
 
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
-    stack: Vec<StackFrame>,
-    gas_meter: &'a mut GasMeter,
+    stack: Vec<StackFrame<'a>>,
 }
 
 impl<'a> CallContext<'a> {
-    pub fn new(
-        state: &'a mut NetworkState,
-        gas_meter: &'a mut GasMeter,
-    ) -> Self {
+    pub fn new(state: &'a mut NetworkState) -> Self {
         CallContext {
             state,
             stack: vec![],
-            gas_meter,
         }
     }
 
@@ -127,7 +98,7 @@ impl<'a> CallContext<'a> {
         &mut self,
         target: ContractId,
         query: Query,
-        gas_limit: Gas,
+        gas_meter: &'a mut GasMeter,
     ) -> Result<ReturnValue, VMError> {
         let env = Env::new(self);
 
@@ -167,20 +138,14 @@ impl<'a> CallContext<'a> {
                 query.as_bytes(),
             )?;
 
-            self.stack.push(StackFrame::new_query(
-                target,
-                memory,
-                query,
-                self.gas_meter()
-                    .clone_for_callee(Some(gas_limit).filter(|l| *l != 0)),
-            ));
+            self.stack.push(StackFrame::new(target, memory, gas_meter));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
 
         let r = run_func.call(0);
-        self.gas_merge();
+        self.gas_reconciliation()?;
         r?;
 
         let mut memory = WasmerMemory::new();
@@ -197,7 +162,7 @@ impl<'a> CallContext<'a> {
         &mut self,
         target_contract_id: ContractId,
         transaction: Transaction,
-        gas_limit: Gas,
+        gas_meter: &'a mut GasMeter,
     ) -> Result<(ContractState, ReturnValue), VMError> {
         let env = Env::new(self);
 
@@ -234,19 +199,17 @@ impl<'a> CallContext<'a> {
                 contract.state().as_bytes().len() as u64,
                 transaction.as_bytes(),
             )?;
-            self.stack.push(StackFrame::new_transaction(
+            self.stack.push(StackFrame::new(
                 target_contract_id,
                 memory,
-                transaction,
-                self.gas_meter()
-                    .clone_for_callee(Some(gas_limit).filter(|l| *l != 0)),
+                gas_meter,
             ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
         let r = run_func.call(0);
-        self.gas_merge();
+        self.gas_reconciliation()?;
         r?;
 
         let ret = {
@@ -276,17 +239,11 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn gas_meter(&self) -> &GasMeter {
-        match self.stack.last() {
-            Some(stack_frame) => &stack_frame.gas_meter,
-            None => self.gas_meter,
-        }
+        self.top().gas_meter
     }
 
     pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
-        match self.stack.last_mut() {
-            Some(stack_frame) => &mut stack_frame.gas_meter,
-            None => self.gas_meter,
-        }
+        &mut self.stack.last_mut().expect("Invalid Stack").gas_meter
     }
 
     pub fn top(&self) -> &StackFrame {
@@ -337,12 +294,18 @@ impl<'a> CallContext<'a> {
         &mut self.state
     }
 
-    /// Propagates gas usage to the caller
-    fn gas_merge(&mut self) {
-        let callee_gas_meter = self.gas_meter().clone();
-        if let Some(callee_stack_frame) = self.stack.pop() {
-            self.gas_meter_mut().merge_with_callee(&callee_gas_meter);
-            self.stack.push(callee_stack_frame);
+    /// Reconcile the gas usage across the stack.
+    fn gas_reconciliation(&mut self) -> Result<(), VMError> {
+        // If there is more than one [`StackFrame`] on the stack, then the
+        // gas needs to be reconciled.
+        if self.stack.len() > 1 {
+            let len = self.stack.len() - 2;
+            let spent = self.gas_meter().spent();
+            let parent_meter = &mut self.stack[len].gas_meter;
+
+            parent_meter.charge(spent)?
         }
+
+        Ok(())
     }
 }

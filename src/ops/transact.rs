@@ -38,8 +38,9 @@ impl ApplyTransaction {
         let callee = *context.callee();
         *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
 
+        let mut gas_meter = context.gas_meter().limited(gas_limit);
         let (state, result) =
-            context.transact(contract_id, transaction, gas_limit)?;
+            context.transact(contract_id, transaction, &mut gas_meter)?;
 
         let state_encoded_length = state.encoded_len();
         let (mut state_buffer, mut result_buffer) =
