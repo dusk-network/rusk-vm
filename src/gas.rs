@@ -9,17 +9,17 @@
 
 use core::ops::Range;
 use std::cmp::{max, min};
+use gas_constants::*;
 
 /// Type alias for gas
 pub type Gas = u64;
 
 /// Constants for inter-contract call gas reserve calculations
-pub struct GasConstants;
-impl GasConstants {
-    /// Factor for fraction of gas to be given to a callee
-    pub const GAS_RESERVE_FACTOR: f64 = 0.93;
-    /// Factor needed to create range when checking gas reserve
-    pub const GAS_RESERVE_FACTOR_TOLERANCE: f64 = 0.01;
+pub mod gas_constants {
+    /// Percentage of gas to be given to a callee
+    pub const GAS_RESERVE_PERCENTAGE: u64 = 93;
+    /// Constant needed for percentage calculations
+    pub const HUNDRED_PERCENT: u64 = 100;
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -119,9 +119,9 @@ impl GasMeter {
     fn clone_for_callee_default(&self) -> GasMeter {
         let new_held = if self.left > self.held {
             self.held
-                + (((self.left - self.held) as f64
-                    * (1.0 - GasConstants::GAS_RESERVE_FACTOR))
-                    as Gas)
+                + ((self.left - self.held)
+                    * (HUNDRED_PERCENT - GAS_RESERVE_PERCENTAGE)
+                    / HUNDRED_PERCENT)
         } else {
             self.held
         };
@@ -149,8 +149,9 @@ impl GasMeter {
     ///     If limit is given:
     ///         held = this_left - limit
     ///     If limit is not given:
-    ///         held = this_held + (this_left - this_held) * (1 -
-    /// GAS_RESERVE_FACTOR) Limit field is set to the following value:
+    ///         held = this_held + (this_left - this_held) *
+    ///             (100 - GAS_RESERVE_PERCENTAGE) / 100
+    /// Limit field is set to the following value:
     ///     (For both limit given or default):
     ///         limit = this_left
     pub fn clone_for_callee(&self, limit_option: Option<Gas>) -> GasMeter {
