@@ -17,7 +17,7 @@ pub const SET_GAS_LIMITS: u8 = 1;
 // query ids
 pub const READ_GAS_LIMITS: u8 = 1;
 
-#[derive(Clone, Canon, Debug)]
+#[derive(Clone, Canon, Debug, Default)]
 pub struct GasContextData {
     after_call_gas_limits: Vec<u64>,
     call_gas_limits: Vec<u64>,

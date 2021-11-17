@@ -14,9 +14,7 @@ impl Gas {
     pub fn gas(env: &Env, gas_charged: i32) -> Result<(), VMError> {
         let context = env.get_context();
         let meter = context.gas_meter_mut();
-        if meter.charge(gas_charged as u64).is_out_of_gas() {
-            return Err(VMError::OutOfGas);
-        }
+        meter.charge(gas_charged as u64)?;
         Ok(())
     }
 }

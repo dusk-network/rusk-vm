@@ -31,7 +31,8 @@ impl ExecuteQuery {
         let query =
             Query::decode(&mut source).map_err(VMError::from_store_error)?;
 
-        let result = context.query(contract_id, query, gas_limit)?;
+        let mut gas_meter = context.gas_meter().limited(gas_limit);
+        let result = context.query(contract_id, query, &mut gas_meter)?;
 
         let mut result_buffer = vec![0; result.encoded_len()];
         let mut sink = Sink::new(&mut result_buffer[..]);

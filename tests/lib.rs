@@ -13,11 +13,8 @@ use counter_float::CounterFloat;
 use delegator::Delegator;
 use dusk_abi::Transaction;
 use fibonacci::Fibonacci;
-use gas_constants::*;
 use gas_consumed::GasConsumed;
-use rusk_vm::{
-    gas_constants, Contract, ContractId, GasMeter, NetworkState, VMError,
-};
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
@@ -427,9 +424,7 @@ fn gas_consumed_host_function_works() {
     // 2050 is the gas held that is known will be spent in the contract
     // after the `dusk_abi::gas_left()` call
     const CALLER_GAS_LIMIT: u64 = 1_000_000_000;
-    const CALLER_GAS_HELD: u64 = 2050;
-    const GAS_RESERVE_TOLERANCE_PERCENTAGE: u64 = 1;
-    let mut gas = GasMeter::with_range(CALLER_GAS_HELD..CALLER_GAS_LIMIT);
+    let mut gas = GasMeter::with_limit(CALLER_GAS_LIMIT);
 
     network
         .transact::<_, ()>(contract_id, gas_consumed::INCREMENT, &mut gas)
@@ -442,7 +437,7 @@ fn gas_consumed_host_function_works() {
         100
     );
 
-    let (gas_consumed, gas_left) = network
+    network
         .query::<_, (u64, u64)>(
             contract_id,
             gas_consumed::GAS_CONSUMED,
@@ -450,30 +445,10 @@ fn gas_consumed_host_function_works() {
         )
         .expect("Query error");
 
-    assert_eq!(gas.total_left() + gas.spent(), CALLER_GAS_LIMIT,
+    assert_eq!(gas.left() + gas.spent(), CALLER_GAS_LIMIT,
                "The gas left plus the gas spent should be equal to the initial gas provided
         Debug info:
-        GasMeter values: gas.total_left() = {}, gas.spent() = {}", gas.total_left(), gas.spent());
-
-    let upper_bound = CALLER_GAS_LIMIT;
-    let lower_bound = CALLER_GAS_LIMIT
-        * (HUNDRED_PERCENT - GAS_RESERVE_TOLERANCE_PERCENTAGE)
-        / HUNDRED_PERCENT;
-    assert_eq!(
-        (gas_left < upper_bound && gas_left > lower_bound),
-        true,
-        "Nested call should have gas limit decreased by predefined factor
-        Debug info:
-        gas_left = {}, lower_bound = {}, upper_bound = {}",
-        gas_left,
-        lower_bound,
-        upper_bound
-    );
-
-    assert_eq!(gas_consumed < 1000 && gas_consumed > 100, true,
-        "Gas context is local and gas consumed takes into account only the current nested call
-        Debug info:
-        gas_consumed = {}", gas_consumed);
+        GasMeter values: gas.left() = {}, gas.spent() = {}", gas.left(), gas.spent());
 }
 
 #[test]

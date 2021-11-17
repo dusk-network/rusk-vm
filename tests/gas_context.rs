@@ -4,9 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use gas_constants::*;
 use gas_context::GasContextData;
-use rusk_vm::{gas_constants, Contract, Gas, GasMeter, NetworkState};
+use rusk_vm::{Contract, Gas, GasMeter, NetworkState};
 
 #[test]
 fn gas_context() {
@@ -24,9 +23,10 @@ fn gas_context() {
 
     const INITIAL_GAS_LIMIT: Gas = 1_000_000_000;
     const GAS_RESERVE_TOLERANCE_PERCENTAGE: u64 = 1;
-    const GAS_RESERVE_UPPER_BOUND_PERCENTAGE: u64 = GAS_RESERVE_PERCENTAGE;
+    const GAS_RESERVE_UPPER_BOUND_PERCENTAGE: u64 =
+        GasMeter::RESERVE_PERCENTAGE;
     const GAS_RESERVE_LOWER_BOUND_PERCENTAGE: u64 =
-        GAS_RESERVE_PERCENTAGE - GAS_RESERVE_TOLERANCE_PERCENTAGE;
+        GasMeter::RESERVE_PERCENTAGE - GAS_RESERVE_TOLERANCE_PERCENTAGE;
     const NUMBER_OF_NESTED_CALLS: usize = 10;
 
     let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
@@ -61,17 +61,15 @@ fn gas_context() {
         .iter()
         .map(|limit| {
             (
-                *limit * GAS_RESERVE_LOWER_BOUND_PERCENTAGE / HUNDRED_PERCENT,
-                *limit * GAS_RESERVE_UPPER_BOUND_PERCENTAGE / HUNDRED_PERCENT,
+                *limit * GAS_RESERVE_LOWER_BOUND_PERCENTAGE / 100,
+                *limit * GAS_RESERVE_UPPER_BOUND_PERCENTAGE / 100,
             )
         })
         .collect();
     bounds.insert(
         0,
         (
-            INITIAL_GAS_LIMIT
-                * (HUNDRED_PERCENT - GAS_RESERVE_TOLERANCE_PERCENTAGE)
-                / HUNDRED_PERCENT,
+            INITIAL_GAS_LIMIT * (100 - GAS_RESERVE_TOLERANCE_PERCENTAGE) / 100,
             INITIAL_GAS_LIMIT,
         ),
     );
