@@ -1,4 +1,5 @@
-[![Build Status](https://travis-ci.com/dusk-network/rusk-vm.svg?token=h3rscYNqTnqYVQKspVPT&branch=master)](https://travis-ci.com/dusk-network/rusk-vm)
+![Dusk CI](https://github.com/dusk-network/rusk-vm/actions/workflows/dusk_ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/dusk-network/rusk-vm/branch/master/graph/badge.svg?token=FdcdAfyk0C)](https://codecov.io/gh/dusk-network/rusk-vm)
 
 # Rust WASM Virtual Machine
 
