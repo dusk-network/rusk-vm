@@ -1,4 +1,4 @@
-on: [pull_request]
+on: [ pull_request ]
 
 name: Continuous integration
 
@@ -32,12 +32,43 @@ jobs:
     name: Nightly tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - run: rustup target add wasm32-unknown-unknown
-      - run: make test
+
+      - name: Install WASM32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install kcov
+        run: sudo apt install -y kcov
+
+      - name: Build test contracts
+        run: make test-contracts
+
+      - name: Build test executables
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-Cinline-threshold=0 -Clink-dead-code'
+          RUSTDOCFLAGS: '-Cinline-threshold=0 -Clink-dead-code'
+        with:
+          command: test
+          args: --all-features --no-run
+
+      - name: Test with kcov
+        # Find every executable resulting from building the tests and run each
+        # one of them with kcov. This ensures all the code we cover is measured.
+        run: >
+          find target/debug/deps -type f -executable ! -name "*.*" -exec
+          kcov --exclude-pattern=/.cargo,/usr/lib,/target,/tests --verify target/cov {} \;
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
 
   fmt:
     name: Rustfmt
