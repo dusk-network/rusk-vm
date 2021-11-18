@@ -16,25 +16,25 @@ use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
 use crate::VMError;
 
-pub struct StackFrame<'a> {
+pub struct StackFrame {
     callee: ContractId,
     ret: ReturnValue,
     memory: WasmerMemory,
-    gas_meter: &'a mut GasMeter,
+    gas_meter: GasMeter,
 }
 
-impl<'a> std::fmt::Debug for StackFrame<'a> {
+impl<'a> std::fmt::Debug for StackFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(return: {:?})", self.ret)
     }
 }
 
-impl<'a> StackFrame<'a> {
+impl<'a> StackFrame {
     fn new(
         callee: ContractId,
         memory: WasmerMemory,
-        gas_meter: &'a mut GasMeter,
-    ) -> StackFrame<'a> {
+        gas_meter: GasMeter,
+    ) -> StackFrame {
         StackFrame {
             callee,
             memory,
@@ -66,7 +66,7 @@ impl<'a> StackFrame<'a> {
 
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
-    stack: Vec<StackFrame<'a>>,
+    stack: Vec<StackFrame>,
 }
 
 impl<'a> CallContext<'a> {
@@ -138,14 +138,14 @@ impl<'a> CallContext<'a> {
                 query.as_bytes(),
             )?;
 
-            self.stack.push(StackFrame::new(target, memory, gas_meter));
+            self.stack.push(StackFrame::new(target, memory, *gas_meter));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
 
         let r = run_func.call(0);
-        self.gas_reconciliation()?;
+        self.gas_reconciliation(gas_meter)?;
         r?;
 
         let mut memory = WasmerMemory::new();
@@ -202,14 +202,14 @@ impl<'a> CallContext<'a> {
             self.stack.push(StackFrame::new(
                 target_contract_id,
                 memory,
-                gas_meter,
+                *gas_meter,
             ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
         let r = run_func.call(0);
-        self.gas_reconciliation()?;
+        self.gas_reconciliation(gas_meter)?;
         r?;
 
         let ret = {
@@ -239,7 +239,7 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn gas_meter(&self) -> &GasMeter {
-        self.top().gas_meter
+        &self.top().gas_meter
     }
 
     pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
@@ -295,7 +295,7 @@ impl<'a> CallContext<'a> {
     }
 
     /// Reconcile the gas usage across the stack.
-    fn gas_reconciliation(&mut self) -> Result<(), VMError> {
+    fn gas_reconciliation(&mut self, gas_meter: &mut GasMeter) -> Result<(), VMError> {
         // If there is more than one [`StackFrame`] on the stack, then the
         // gas needs to be reconciled.
         if self.stack.len() > 1 {
@@ -305,6 +305,7 @@ impl<'a> CallContext<'a> {
 
             parent_meter.charge(spent)?
         }
+        *gas_meter = *self.gas_meter();
 
         Ok(())
     }

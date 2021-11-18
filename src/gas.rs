@@ -15,7 +15,7 @@ pub enum GasError {
     GasLimitExceeded,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 /// Struct to keep track of gas usage
 pub struct GasMeter {
     /// Initial gas limit
