@@ -295,7 +295,10 @@ impl<'a> CallContext<'a> {
     }
 
     /// Reconcile the gas usage across the stack.
-    fn gas_reconciliation(&mut self, gas_meter: &mut GasMeter) -> Result<(), VMError> {
+    fn gas_reconciliation(
+        &mut self,
+        gas_meter: &mut GasMeter,
+    ) -> Result<(), VMError> {
         // If there is more than one [`StackFrame`] on the stack, then the
         // gas needs to be reconciled.
         if self.stack.len() > 1 {
