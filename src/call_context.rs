@@ -23,13 +23,13 @@ pub struct StackFrame {
     gas_meter: GasMeter,
 }
 
-impl<'a> std::fmt::Debug for StackFrame {
+impl std::fmt::Debug for StackFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(return: {:?})", self.ret)
     }
 }
 
-impl<'a> StackFrame {
+impl StackFrame {
     fn new(
         callee: ContractId,
         memory: WasmerMemory,
