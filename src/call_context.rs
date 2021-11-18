@@ -138,7 +138,8 @@ impl<'a> CallContext<'a> {
                 query.as_bytes(),
             )?;
 
-            self.stack.push(StackFrame::new(target, memory, gas_meter.clone()));
+            self.stack
+                .push(StackFrame::new(target, memory, gas_meter.clone()));
         }
 
         let run_func: NativeFunc<i32, ()> =
