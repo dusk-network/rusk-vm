@@ -138,7 +138,7 @@ impl<'a> CallContext<'a> {
                 query.as_bytes(),
             )?;
 
-            self.stack.push(StackFrame::new(target, memory, *gas_meter));
+            self.stack.push(StackFrame::new(target, memory, gas_meter.clone()));
         }
 
         let run_func: NativeFunc<i32, ()> =
@@ -202,7 +202,7 @@ impl<'a> CallContext<'a> {
             self.stack.push(StackFrame::new(
                 target_contract_id,
                 memory,
-                *gas_meter,
+                gas_meter.clone(),
             ));
         }
 
@@ -308,7 +308,7 @@ impl<'a> CallContext<'a> {
 
             parent_meter.charge(spent)?
         }
-        *gas_meter = *self.gas_meter();
+        *gas_meter = self.gas_meter().clone();
 
         Ok(())
     }
