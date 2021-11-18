@@ -146,7 +146,7 @@ impl<'a> CallContext<'a> {
             instance.exports.get_native_function("q")?;
 
         let r = run_func.call(0);
-        self.gas_reconciliation(gas_meter)?;
+        *gas_meter = self.gas_reconciliation()?;
         r?;
 
         let mut memory = WasmerMemory::new();
@@ -210,7 +210,7 @@ impl<'a> CallContext<'a> {
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
         let r = run_func.call(0);
-        self.gas_reconciliation(gas_meter)?;
+        *gas_meter = self.gas_reconciliation()?;
         r?;
 
         let ret = {
@@ -296,10 +296,7 @@ impl<'a> CallContext<'a> {
     }
 
     /// Reconcile the gas usage across the stack.
-    fn gas_reconciliation(
-        &mut self,
-        gas_meter: &mut GasMeter,
-    ) -> Result<(), VMError> {
+    fn gas_reconciliation(&mut self) -> Result<GasMeter, VMError> {
         // If there is more than one [`StackFrame`] on the stack, then the
         // gas needs to be reconciled.
         if self.stack.len() > 1 {
@@ -309,8 +306,6 @@ impl<'a> CallContext<'a> {
 
             parent_meter.charge(spent)?
         }
-        *gas_meter = self.gas_meter().clone();
-
-        Ok(())
+        Ok(self.gas_meter().clone())
     }
 }
