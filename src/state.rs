@@ -68,6 +68,11 @@ impl NetworkState {
         Self::default()
     }
 
+    /// Returns a [`NetworkState`] based on a specific configuration
+    pub fn with_config() -> Self {
+        Self::default()
+    }
+
     #[cfg(feature = "persistence")]
     /// Persists the contracts stored on the [`NetworkState`] specifying a
     /// backend ctor function.
