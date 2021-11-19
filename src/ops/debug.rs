@@ -16,7 +16,7 @@ impl Debug {
         let msg_len = msg_len as usize;
         let context = env.get_context();
         let message_memory = context.read_memory(msg_ofs, msg_len)?;
-        let str = std::str::from_utf8(&message_memory)
+        let str = std::str::from_utf8(message_memory)
             .map_err(|_| VMError::InvalidUtf8)?;
         println!("CONTRACT DEBUG: {:?}", str);
         Ok(())

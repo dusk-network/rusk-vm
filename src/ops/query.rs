@@ -18,6 +18,7 @@ impl ExecuteQuery {
         env: &Env,
         contract_id_ofs: i32,
         query_ofs: i32,
+        gas_limit: u64,
     ) -> Result<(), VMError> {
         let contract_id_ofs = contract_id_ofs as u64;
         let query_ofs = query_ofs as u64;
@@ -30,7 +31,8 @@ impl ExecuteQuery {
         let query =
             Query::decode(&mut source).map_err(VMError::from_store_error)?;
 
-        let result = context.query(contract_id, query)?;
+        let mut gas_meter = context.gas_meter().limited(gas_limit);
+        let result = context.query(contract_id, query, &mut gas_meter)?;
 
         let mut result_buffer = vec![0; result.encoded_len()];
         let mut sink = Sink::new(&mut result_buffer[..]);

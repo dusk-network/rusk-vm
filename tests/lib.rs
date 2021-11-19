@@ -423,7 +423,8 @@ fn gas_consumed_host_function_works() {
 
     // 2050 is the gas held that is known will be spent in the contract
     // after the `dusk_abi::gas_left()` call
-    let mut gas = GasMeter::with_range(2_050..1_000_000_000);
+    const CALLER_GAS_LIMIT: u64 = 1_000_000_000;
+    let mut gas = GasMeter::with_limit(CALLER_GAS_LIMIT);
 
     network
         .transact::<_, ()>(contract_id, gas_consumed::INCREMENT, &mut gas)
@@ -436,7 +437,7 @@ fn gas_consumed_host_function_works() {
         100
     );
 
-    let (gas_consumed, gas_left) = network
+    network
         .query::<_, (u64, u64)>(
             contract_id,
             gas_consumed::GAS_CONSUMED,
@@ -444,17 +445,10 @@ fn gas_consumed_host_function_works() {
         )
         .expect("Query error");
 
-    assert_eq!(gas_left + gas.spent(), 1_000_000_000,
-        "The gas left plus the gas spent should be equal to the initial gas provided
+    assert_eq!(gas.left() + gas.spent(), CALLER_GAS_LIMIT,
+               "The gas left plus the gas spent should be equal to the initial gas provided
         Debug info:
-        GasMeter values: gas.spent() = {}, gas.left() = {}
-        queried values:  gas_consumed = {}, gas_left = {}", gas.spent(), gas.left(), gas_consumed, gas_left);
-
-    assert_eq!(
-        gas.spent() - gas_consumed,
-        2_050,
-        "The gas spent minus the gas consumed should be equal to the gas held"
-    );
+        GasMeter values: gas.left() = {}, gas.spent() = {}", gas.left(), gas.spent());
 }
 
 #[test]

@@ -16,14 +16,14 @@ impl HostImportsResolver {
         namespace: &mut Exports,
         store: &Store,
         env: Env,
-        names: &Vec<String>,
+        names: &[String],
     ) {
         for name in names {
             match name.as_str() {
                 "sig" => namespace.insert(
                     "sig",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         panic::Panic::panic,
                     ),
@@ -31,7 +31,7 @@ impl HostImportsResolver {
                 "debug" => namespace.insert(
                     "debug",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         debug::Debug::debug,
                     ),
@@ -39,7 +39,7 @@ impl HostImportsResolver {
                 "block_height" => namespace.insert(
                     "block_height",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         block_height::BlockHeight::block_height,
                     ),
@@ -47,7 +47,7 @@ impl HostImportsResolver {
                 "transact" => namespace.insert(
                     "transact",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         transact::ApplyTransaction::transact,
                     ),
@@ -55,7 +55,7 @@ impl HostImportsResolver {
                 "query" => namespace.insert(
                     "query",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         query::ExecuteQuery::query,
                     ),
@@ -63,7 +63,7 @@ impl HostImportsResolver {
                 "callee" => namespace.insert(
                     "callee",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         call_stack::Callee::callee,
                     ),
@@ -71,7 +71,7 @@ impl HostImportsResolver {
                 "caller" => namespace.insert(
                     "caller",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         call_stack::Caller::caller,
                     ),
@@ -79,7 +79,7 @@ impl HostImportsResolver {
                 "get" => namespace.insert(
                     "get",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         store::Get::get,
                     ),
@@ -87,7 +87,7 @@ impl HostImportsResolver {
                 "put" => namespace.insert(
                     "put",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         store::Put::put,
                     ),
@@ -95,7 +95,7 @@ impl HostImportsResolver {
                 "hash" => namespace.insert(
                     "hash",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         store::Hash::hash,
                     ),
@@ -103,7 +103,7 @@ impl HostImportsResolver {
                 "gas" => namespace.insert(
                     "gas",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         gas::Gas::gas,
                     ),
@@ -111,7 +111,7 @@ impl HostImportsResolver {
                 "gas_consumed" => namespace.insert(
                     "gas_consumed",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         gas::GasConsumed::gas_consumed,
                     ),
@@ -119,7 +119,7 @@ impl HostImportsResolver {
                 "gas_left" => namespace.insert(
                     "gas_left",
                     Function::new_native_with_env(
-                        &store,
+                        store,
                         env.clone(),
                         gas::GasLeft::gas_left,
                     ),

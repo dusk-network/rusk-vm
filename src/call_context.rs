@@ -16,49 +16,30 @@ use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
 use crate::VMError;
 
-#[derive(Debug)]
-enum Argument {
-    Query(Query),
-    Transaction(Transaction),
-}
-
 pub struct StackFrame {
     callee: ContractId,
-    argument: Argument,
     ret: ReturnValue,
     memory: WasmerMemory,
+    gas_meter: GasMeter,
 }
 
 impl std::fmt::Debug for StackFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(arg: {:?} return: {:?})", self.argument, self.ret)
+        write!(f, "(return: {:?})", self.ret)
     }
 }
 
 impl StackFrame {
-    fn new_query(
+    fn new(
         callee: ContractId,
         memory: WasmerMemory,
-        query: Query,
+        gas_meter: GasMeter,
     ) -> StackFrame {
         StackFrame {
             callee,
             memory,
-            argument: Argument::Query(query),
             ret: Default::default(),
-        }
-    }
-
-    fn new_transaction(
-        callee: ContractId,
-        memory: WasmerMemory,
-        transaction: Transaction,
-    ) -> StackFrame {
-        StackFrame {
-            callee,
-            memory,
-            argument: Argument::Transaction(transaction),
-            ret: Default::default(),
+            gas_meter,
         }
     }
 
@@ -86,18 +67,13 @@ impl StackFrame {
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
-    gas_meter: &'a mut GasMeter,
 }
 
 impl<'a> CallContext<'a> {
-    pub fn new(
-        state: &'a mut NetworkState,
-        gas_meter: &'a mut GasMeter,
-    ) -> Self {
+    pub fn new(state: &'a mut NetworkState) -> Self {
         CallContext {
             state,
             stack: vec![],
-            gas_meter,
         }
     }
 
@@ -105,7 +81,7 @@ impl<'a> CallContext<'a> {
         namespace_name: &str,
         env: &Env,
         module: &Module,
-        import_names: &Vec<String>,
+        import_names: &[String],
         import_object: &mut ImportObject,
     ) {
         let mut namespace = Exports::new();
@@ -113,7 +89,7 @@ impl<'a> CallContext<'a> {
             &mut namespace,
             module.store(),
             env.clone(),
-            &import_names,
+            import_names,
         );
         import_object.register(namespace_name, namespace);
     }
@@ -122,6 +98,7 @@ impl<'a> CallContext<'a> {
         &mut self,
         target: ContractId,
         query: Query,
+        gas_meter: &'a mut GasMeter,
     ) -> Result<ReturnValue, VMError> {
         let env = Env::new(self);
 
@@ -135,8 +112,7 @@ impl<'a> CallContext<'a> {
 
             let module = self
                 .state
-                .get_module_from_cache(&target, contract.bytecode())?
-                .clone();
+                .get_module_from_cache(&target, contract.bytecode())?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -163,17 +139,20 @@ impl<'a> CallContext<'a> {
             )?;
 
             self.stack
-                .push(StackFrame::new_query(target, memory, query));
+                .push(StackFrame::new(target, memory, gas_meter.clone()));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
-        run_func.call(0)?;
+
+        let r = run_func.call(0);
+        *gas_meter = self.gas_reconciliation()?;
+        r?;
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
         let read_buffer = memory.read_from(0)?;
-        let mut source = Source::new(&read_buffer);
+        let mut source = Source::new(read_buffer);
         let result = ReturnValue::decode(&mut source)
             .map_err(VMError::from_store_error)?;
         self.stack.pop();
@@ -184,6 +163,7 @@ impl<'a> CallContext<'a> {
         &mut self,
         target_contract_id: ContractId,
         transaction: Transaction,
+        gas_meter: &'a mut GasMeter,
     ) -> Result<(ContractState, ReturnValue), VMError> {
         let env = Env::new(self);
 
@@ -220,16 +200,18 @@ impl<'a> CallContext<'a> {
                 contract.state().as_bytes().len() as u64,
                 transaction.as_bytes(),
             )?;
-            self.stack.push(StackFrame::new_transaction(
+            self.stack.push(StackFrame::new(
                 target_contract_id,
                 memory,
-                transaction,
+                gas_meter.clone(),
             ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
-        run_func.call(0)?;
+        let r = run_func.call(0);
+        *gas_meter = self.gas_reconciliation()?;
+        r?;
 
         let ret = {
             let mut contract =
@@ -237,7 +219,7 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
             let read_buffer = memory.read_from(0)?;
-            let mut source = Source::new(&read_buffer);
+            let mut source = Source::new(read_buffer);
             let state = ContractState::decode(&mut source)
                 .map_err(VMError::from_store_error)?;
             *(*contract).state_mut() = state;
@@ -258,11 +240,11 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn gas_meter(&self) -> &GasMeter {
-        self.gas_meter
+        &self.top().gas_meter
     }
 
     pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
-        self.gas_meter
+        &mut self.stack.last_mut().expect("Invalid Stack").gas_meter
     }
 
     pub fn top(&self) -> &StackFrame {
@@ -311,5 +293,19 @@ impl<'a> CallContext<'a> {
 
     pub fn state_mut(&mut self) -> &mut NetworkState {
         &mut self.state
+    }
+
+    /// Reconcile the gas usage across the stack.
+    fn gas_reconciliation(&mut self) -> Result<GasMeter, VMError> {
+        // If there is more than one [`StackFrame`] on the stack, then the
+        // gas needs to be reconciled.
+        if self.stack.len() > 1 {
+            let len = self.stack.len() - 2;
+            let spent = self.gas_meter().spent();
+            let parent_meter = &mut self.stack[len].gas_meter;
+
+            parent_meter.charge(spent)?
+        }
+        Ok(self.gas_meter().clone())
     }
 }

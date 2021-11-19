@@ -35,7 +35,6 @@ use thiserror::Error;
 use wasmer_vm::TrapCode;
 
 #[derive(Error)]
-//#[derive(Fail)]
 /// The errors that can happen while executing the VM
 pub enum VMError {
     /// Invalid arguments in host call
@@ -95,6 +94,13 @@ impl From<io::Error> for VMError {
 impl From<module_config::InstrumentationError> for VMError {
     fn from(e: module_config::InstrumentationError) -> Self {
         VMError::InstrumentationError(e)
+    }
+}
+
+impl From<gas::GasError> for VMError {
+    fn from(_: gas::GasError) -> Self {
+        // Currently the only gas error is `GasLimitExceeded`
+        VMError::OutOfGas
     }
 }
 

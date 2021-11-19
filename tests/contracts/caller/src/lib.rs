@@ -57,6 +57,7 @@ mod hosted {
                     dusk_abi::query::<_, (ContractId, ContractId, ContractId)>(
                         &slf.target_address,
                         &(CALLEE_1_CALL, dusk_abi::callee()),
+                        0,
                     )
                     .expect("Query Succeeded");
 
