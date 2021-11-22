@@ -24,7 +24,6 @@ mod module_config;
 mod ops;
 mod resolver;
 mod state;
-mod instrumentation_config;
 
 pub use dusk_abi;
 
@@ -85,7 +84,9 @@ pub enum VMError {
     /// WASMER instantiation error
     WasmerInstantiationError(wasmer::InstantiationError),
     /// Configuration error
-    ConfigurationError(String),
+    ConfigurationError(toml::de::Error),
+    /// Configuration file error
+    ConfigurationFileError(io::Error),
 }
 
 impl From<io::Error> for VMError {
@@ -194,6 +195,12 @@ impl fmt::Display for VMError {
             }
             VMError::WasmerCompileError(e) => {
                 write!(f, "WASMER Compile Error {:?}", e)?
+            }
+            VMError::ConfigurationError(e) => {
+                write!(f, "Configuration error \"{}\"", e)?
+            }
+            VMError::ConfigurationFileError(e) => {
+                write!(f, "Configuration file error \"{}\"", e)?
             }
         }
         Ok(())

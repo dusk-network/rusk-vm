@@ -23,7 +23,7 @@ pub enum InstrumentationError {
     InvalidByteCode,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Default, Deserialize, Clone)]
 pub(crate) struct ModuleConfig {
     has_grow_cost: bool,
     has_forbidden_floats: bool,
@@ -32,7 +32,7 @@ pub(crate) struct ModuleConfig {
 }
 
 impl ModuleConfig {
-    const CONFIG_FILE: &'static Path = Path::new("config.toml");
+    const CONFIG_FILE: &'static str = "config.toml";
 
     pub fn new() -> Self {
         Self {
@@ -44,11 +44,12 @@ impl ModuleConfig {
     }
 
     pub fn with_file() -> Result<Self, VMError> {
-        let config_string = fs::read_to_string(ModuleConfig::CONFIG_FILE)
-            .or(Err(VMError::ConfigurationError("could not read configuration file: ".to_string() + ModuleConfig::CONFIG_FILE.to_str().unwrap_or_default())))?;
+        let config_file: &'static Path = Path::new(ModuleConfig::CONFIG_FILE);
+        let config_string = fs::read_to_string(config_file)
+            .map_err(VMError::ConfigurationFileError)?;
 
         let config = toml::from_str(&config_string)
-            .or(Err(VMError::ConfigurationError("error when parsing configuration file".to_string())))?;
+            .map_err(VMError::ConfigurationError)?;
         Ok(config)
     }
 

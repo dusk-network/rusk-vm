@@ -17,7 +17,7 @@ fn configuration() {
 
     let contract = Contract::new(gas_context_data, code.to_vec());
 
-    let mut network = NetworkState::with_config();
+    let mut network = NetworkState::with_config().unwrap();
 
     let contract_id = network.deploy(contract).unwrap();
 

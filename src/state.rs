@@ -24,6 +24,7 @@ use crate::call_context::CallContext;
 use crate::compiler::WasmerCompiler;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
+use crate::module_config::ModuleConfig;
 use crate::VMError;
 
 type BoxedHostModule = Box<dyn HostModule>;
@@ -34,6 +35,7 @@ pub struct NetworkState {
     contracts: Hamt<ContractId, Contract, ()>,
     modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
     module_cache: Arc<Mutex<HashMap<ContractId, Module>>>,
+    module_config: ModuleConfig,
 }
 
 // Manual implementation of `Canon` to ignore the "modules" which needs to be
@@ -48,6 +50,7 @@ impl Canon for NetworkState {
             contracts: Hamt::decode(source)?,
             modules: Rc::new(RefCell::new(HashMap::new())),
             module_cache: Arc::new(Mutex::new(HashMap::new())),
+            module_config: ModuleConfig::new(),
         })
     }
 
@@ -66,11 +69,27 @@ impl NetworkState {
     /// Returns a new empty [`NetworkState`].
     pub fn new() -> Self {
         Self::default()
+    /// Returns a [`NetworkState`] for a specific block height
+    pub fn with_block_height(block_height: u64) -> Self {
+        Self {
+            block_height,
+            contracts: Hamt::default(),
+            modules: Rc::new(RefCell::new(HashMap::new())),
+            module_cache: Arc::new(Mutex::new(HashMap::new())),
+            module_config: ModuleConfig::new(),
+        }
     }
 
     /// Returns a [`NetworkState`] based on a specific configuration
-    pub fn with_config() -> Self {
-        Self::default()
+    pub fn with_config() -> Result<Self, VMError> {
+        let module_config = ModuleConfig::with_file()?;
+        Ok (Self {
+            block_height: 0,
+            contracts: Hamt::default(),
+            modules: Rc::new(RefCell::new(HashMap::new())),
+            module_cache: Arc::new(Mutex::new(HashMap::new())),
+            module_config,
+        })
     }
 
     #[cfg(feature = "persistence")]
