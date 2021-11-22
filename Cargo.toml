@@ -27,8 +27,8 @@ wasmer-compiler-cranelift = "2.0.0"
 wasmer-engine-universal = "2.0.0"
 cached = "0.26.2"
 thiserror = "1.0.24"
-toml = "0.5.3"
-serde = { version = "1.0.117", features = ["derive"] }
+toml = "0.5.8"
+serde = { version = "1.0.130", features = ["derive"] }
 
 
 [dev-dependencies]

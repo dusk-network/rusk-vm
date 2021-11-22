@@ -128,7 +128,7 @@ impl NetworkState {
         contract: Contract,
     ) -> Result<ContractId, VMError> {
         self.contracts
-            .insert(id, contract.instrument()?)
+            .insert(id, contract.instrument(&self.module_config)?)
             .map_err(VMError::from_store_error)?;
         let inserted_contract = self.get_contract(&id)?;
         self.get_module_from_cache(&id, inserted_contract.bytecode())?;

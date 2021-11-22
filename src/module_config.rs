@@ -7,12 +7,17 @@
 use crate::VMError;
 
 use parity_wasm::elements;
+use pwasm_utils::rules::{InstructionType, Metering};
 use wasmparser::Validator;
 use std::fs;
 use std::path::Path;
 use serde::Deserialize;
+#[cfg(not(features = "std"))]
+use std::collections::BTreeMap as Map;
+#[cfg(features = "std")]
 use std::collections::HashMap as Map;
 pub use dusk_abi::{ContractId, ContractState};
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub enum InstrumentationError {
@@ -21,9 +26,12 @@ pub enum InstrumentationError {
     MultipleTables,
     MaxTableSize,
     InvalidByteCode,
+    InvalidConfigPath, // todo
+    InvalidConfig, // todo
+    InvalidInstructionType,
 }
 
-#[derive(Default, Deserialize, Clone)]
+#[derive(Deserialize, Clone)]
 pub(crate) struct ModuleConfig {
     has_grow_cost: bool,
     has_forbidden_floats: bool,
@@ -32,15 +40,31 @@ pub(crate) struct ModuleConfig {
     max_stack_height: u32,
     max_table_size: u32,
     regular_op_cost: u32,
-    per_type_op_cost: Map<String, u32>,
+    pub per_type_op_cost: Map<String, u32>,
     grow_mem_cost: u32,
+}
+
+impl Default for ModuleConfig {
+    fn default() -> Self {
+        ModuleConfig::new()
+    }
 }
 
 impl ModuleConfig {
     const CONFIG_FILE: &'static str = "config.toml";
 
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            has_grow_cost: true,
+            has_forbidden_floats: true,
+            has_metering: true,
+            has_table_size_limit: true,
+            max_stack_height: 65536,
+            max_table_size: 16384,
+            regular_op_cost: 1,
+            per_type_op_cost: Map::new(),
+            grow_mem_cost: 1
+        }
     }
 
     pub fn with_file(file_path: Option<String>) -> Result<Self, VMError> {
@@ -48,29 +72,9 @@ impl ModuleConfig {
         let config_file_path = Path::new(&path_string);
         let config_string = fs::read_to_string(config_file_path)
             .map_err(VMError::ConfigurationFileError)?;
-        let config = toml::from_str(&config_string)
+        let config: ModuleConfig = toml::from_str(&config_string)
             .map_err(VMError::ConfigurationError)?;
         Ok(config)
-    }
-
-    pub fn with_grow_cost(&mut self) -> &mut Self {
-        self.has_grow_cost = true;
-        self
-    }
-
-    pub fn with_forbidden_floats(&mut self) -> &mut Self {
-        self.has_forbidden_floats = true;
-        self
-    }
-
-    pub fn with_metering(&mut self) -> &mut Self {
-        self.has_metering = true;
-        self
-    }
-
-    pub fn with_table_size_limit(&mut self) -> &mut Self {
-        self.has_table_size_limit = true;
-        self
     }
 
     pub fn validate_wasm(wasm_code: impl AsRef<[u8]>) -> Result<(), VMError> {
@@ -85,10 +89,19 @@ impl ModuleConfig {
             elements::deserialize_buffer(code)
                 .or(Err(InstrumentationError::InvalidByteCode))?;
 
+        let mut instr_type_map: Map<InstructionType, Metering> = Map::new();
+        for (instr_type, value) in self.per_type_op_cost.iter() {
+            instr_type_map.insert(
+                InstructionType::from_str(instr_type)
+                    .or(Err(InstrumentationError::InvalidInstructionType))?,
+                Metering::Fixed(*value),
+            );
+        }
+
         let schedule = crate::Schedule::default();
         let mut ruleset = pwasm_utils::rules::Set::new(
             schedule.regular_op_cost as u32,
-            Default::default(),
+            instr_type_map,
         );
 
         if self.has_grow_cost {

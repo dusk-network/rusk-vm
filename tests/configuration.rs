@@ -99,9 +99,9 @@ fn execute_contract(config_path: &str) -> u64 {
 }
 
 #[test]
-fn change_gas_usage_via_configuration() {
+fn change_gas_consumption_via_configuration() {
     assert!(execute_contract("tests/config/config.toml") < 10_000);
-    assert!(execute_contract("tests/config/expensive_config.toml") > 10_000);
+    assert!(execute_contract("tests/config/expensive_config.toml") > 10_000_000);
 }
 
 #[test]

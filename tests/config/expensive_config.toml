@@ -1,5 +1,5 @@
 # Regular Gas cost for one Wasm operation
-regular_op_cost = 1
+regular_op_cost = 10000
 
 # Gas cost for adding one page of memory
 grow_mem_cost = 1
@@ -22,24 +22,4 @@ has_table_size_limit = true
 # for all operations of the specified type.
 # Find which operations belong to the the different types under:
 # https://github.com/paritytech/wasm-utils/blob/master/src/rules.rs
-[per_type_op_cost]
-bit = 10000
-add = 10000
-mul = 10000
-div = 10000
-load = 10000
-store = 10000
-const = 10000
-local = 10000
-global = 10000
-flow = 10000
-integer_comp = 10000
-float_comp = 10000
-float = 10000
-conversion = 10000
-float_conversion = 10000
-reinterpret = 10000
-unreachable = 10000
-nop = 10000
-current_mem = 10000
-grow_mem = 10000
+per_type_op_cost = { bit = 10000, add = 10000, mul = 10000, div = 10000, load = 10000, store = 10000, const = 10000, local = 10000, global = 10000, flow = 10000, integer_comp = 10000, float_comp = 10000, float = 10000, conversion = 10000, float_conversion = 10000, reinterpret = 10000, unreachable = 10000, nop = 10000, current_mem = 10000, grow_mem = 10000 }
