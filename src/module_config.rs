@@ -11,7 +11,7 @@ use wasmparser::Validator;
 use std::fs;
 use std::path::Path;
 use serde::Deserialize;
-
+use std::collections::HashMap as Map;
 pub use dusk_abi::{ContractId, ContractState};
 
 #[derive(Debug)]
@@ -29,25 +29,25 @@ pub(crate) struct ModuleConfig {
     has_forbidden_floats: bool,
     has_metering: bool,
     has_table_size_limit: bool,
+    max_stack_height: u32,
+    max_table_size: u32,
+    regular_op_cost: u32,
+    per_type_op_cost: Map<String, u32>,
+    grow_mem_cost: u32,
 }
 
 impl ModuleConfig {
     const CONFIG_FILE: &'static str = "config.toml";
 
     pub fn new() -> Self {
-        Self {
-            has_grow_cost: false,
-            has_forbidden_floats: false,
-            has_metering: false,
-            has_table_size_limit: false,
-        }
+        Self::default()
     }
 
-    pub fn with_file() -> Result<Self, VMError> {
-        let config_file: &'static Path = Path::new(ModuleConfig::CONFIG_FILE);
-        let config_string = fs::read_to_string(config_file)
+    pub fn with_file(file_path: Option<String>) -> Result<Self, VMError> {
+        let path_string = file_path.unwrap_or_else(||ModuleConfig::CONFIG_FILE.to_string());
+        let config_file_path = Path::new(&path_string);
+        let config_string = fs::read_to_string(config_file_path)
             .map_err(VMError::ConfigurationFileError)?;
-
         let config = toml::from_str(&config_string)
             .map_err(VMError::ConfigurationError)?;
         Ok(config)

@@ -17,7 +17,7 @@ fn configuration() {
 
     let contract = Contract::new(gas_context_data, code.to_vec());
 
-    let mut network = NetworkState::with_config().unwrap();
+    let mut network = NetworkState::with_config(Some("config.toml".to_string())).unwrap();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -67,4 +67,20 @@ fn configuration() {
             upper_bounds[index]
         );
     }
+}
+
+#[test]
+fn missing_configuration_file() {
+    assert!(matches!(
+        NetworkState::with_config(Some("missing_config.toml".to_string())),
+        Err(rusk_vm::VMError::ConfigurationFileError(_))
+    ));
+}
+
+#[test]
+fn invalid_configuration_file() {
+    assert!(matches!(
+        NetworkState::with_config(Some("tests/config/invalid_config.toml".to_string())),
+        Err(rusk_vm::VMError::ConfigurationError(_))
+    ));
 }
