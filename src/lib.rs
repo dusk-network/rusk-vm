@@ -24,6 +24,7 @@ mod module_config;
 mod ops;
 mod resolver;
 mod state;
+mod instrumentation_config;
 
 pub use dusk_abi;
 
@@ -83,6 +84,8 @@ pub enum VMError {
     WasmerTrap(TrapCode),
     /// WASMER instantiation error
     WasmerInstantiationError(wasmer::InstantiationError),
+    /// Configuration error
+    ConfigurationError(String),
 }
 
 impl From<io::Error> for VMError {

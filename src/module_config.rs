@@ -8,6 +8,9 @@ use crate::VMError;
 
 use parity_wasm::elements;
 use wasmparser::Validator;
+use std::fs;
+use std::path::Path;
+use serde::Deserialize;
 
 pub use dusk_abi::{ContractId, ContractState};
 
@@ -20,7 +23,7 @@ pub enum InstrumentationError {
     InvalidByteCode,
 }
 
-#[derive(Default)]
+#[derive(Default, Deserialize)]
 pub(crate) struct ModuleConfig {
     has_grow_cost: bool,
     has_forbidden_floats: bool,
@@ -29,6 +32,8 @@ pub(crate) struct ModuleConfig {
 }
 
 impl ModuleConfig {
+    const CONFIG_FILE: &'static Path = Path::new("config.toml");
+
     pub fn new() -> Self {
         Self {
             has_grow_cost: false,
@@ -36,6 +41,15 @@ impl ModuleConfig {
             has_metering: false,
             has_table_size_limit: false,
         }
+    }
+
+    pub fn with_file() -> Result<Self, VMError> {
+        let config_string = fs::read_to_string(ModuleConfig::CONFIG_FILE)
+            .or(Err(VMError::ConfigurationError("could not read configuration file: ".to_string() + ModuleConfig::CONFIG_FILE.to_str().unwrap_or_default())))?;
+
+        let config = toml::from_str(&config_string)
+            .or(Err(VMError::ConfigurationError("error when parsing configuration file".to_string())))?;
+        Ok(config)
     }
 
     pub fn with_grow_cost(&mut self) -> &mut Self {
