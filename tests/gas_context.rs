@@ -17,7 +17,7 @@ fn gas_context() {
 
     let contract = Contract::new(gas_context_data, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -36,6 +36,7 @@ fn gas_context() {
     network
         .transact::<_, Vec<u64>>(
             contract_id,
+            0,
             (gas_context::SET_GAS_LIMITS, call_gas_limits),
             &mut gas,
         )
@@ -44,6 +45,7 @@ fn gas_context() {
     network
         .transact::<_, u64>(
             contract_id,
+            0,
             (gas_context::COMPUTE, NUMBER_OF_NESTED_CALLS as u64),
             &mut gas,
         )
@@ -52,6 +54,7 @@ fn gas_context() {
     let limits = network
         .query::<_, Vec<u64>>(
             contract_id,
+            0,
             (gas_context::READ_GAS_LIMITS, ()),
             &mut gas,
         )
@@ -97,7 +100,7 @@ fn gas_context_with_call_limit() {
 
     let contract = Contract::new(gas_context_data, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -114,6 +117,7 @@ fn gas_context_with_call_limit() {
     network
         .transact::<_, Vec<u64>>(
             contract_id,
+            0,
             (gas_context::SET_GAS_LIMITS, call_gas_limits),
             &mut gas,
         )
@@ -122,6 +126,7 @@ fn gas_context_with_call_limit() {
     network
         .transact::<_, u64>(
             contract_id,
+            0,
             (gas_context::COMPUTE, number_of_nested_calls as u64),
             &mut gas,
         )
@@ -130,6 +135,7 @@ fn gas_context_with_call_limit() {
     let limits = network
         .query::<_, Vec<u64>>(
             contract_id,
+            0,
             (gas_context::READ_GAS_LIMITS, ()),
             &mut gas,
         )
