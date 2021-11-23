@@ -83,6 +83,10 @@ pub enum VMError {
     WasmerTrap(TrapCode),
     /// WASMER instantiation error
     WasmerInstantiationError(wasmer::InstantiationError),
+    /// Configuration error
+    ConfigurationError(toml::de::Error),
+    /// Configuration file error
+    ConfigurationFileError(io::Error),
 }
 
 impl From<io::Error> for VMError {
@@ -191,6 +195,12 @@ impl fmt::Display for VMError {
             }
             VMError::WasmerCompileError(e) => {
                 write!(f, "WASMER Compile Error {:?}", e)?
+            }
+            VMError::ConfigurationError(e) => {
+                write!(f, "Configuration error \"{}\"", e)?
+            }
+            VMError::ConfigurationFileError(e) => {
+                write!(f, "Configuration file error \"{}\"", e)?
             }
         }
         Ok(())

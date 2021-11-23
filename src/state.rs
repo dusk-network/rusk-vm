@@ -5,8 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use std::ops::{Deref, DerefMut};
-use std::path::Path;
-use std::rc::Rc;
 
 use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
@@ -17,18 +15,18 @@ use microkelvin::{
 };
 
 use crate::call_context::CallContext;
-use crate::config::Config;
+use crate::modules::ModuleConfig;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::modules::{compile_module, HostModules};
-use crate::VMError;
+use crate::{Schedule, VMError};
 
 /// The main network state, includes the full state of contracts.
 #[derive(Clone, Default)]
 pub struct NetworkState {
     contracts: Hamt<ContractId, Contract, ()>,
     modules: HostModules,
-    config: Config,
+    module_config: ModuleConfig,
 }
 
 // Manual implementation of `Canon` to ignore the "modules" which needs to be
@@ -42,7 +40,7 @@ impl Canon for NetworkState {
         Ok(NetworkState {
             contracts: Hamt::decode(source)?,
             modules: HostModules::default(),
-            config: Config::default(),
+            module_config: ModuleConfig::new(),
         })
     }
 
@@ -55,18 +53,28 @@ impl NetworkState {
     /// Returns a new empty [`NetworkState`].
     pub fn new() -> Self {
         Self::default()
-    /// Returns a new instance of [`NetworkState`]
-    pub fn new() -> Self {
-        Self::default()
     }
 
-    /// Replaces the configurations of the [`NetworkState`] instance
-    pub fn with_config<P: AsRef<Path>>(
-        mut self,
-        config_file: P,
+    /// Returns a [`NetworkState`] based on a specific configuration file
+    pub fn with_config_file(
+        file_path: Option<String>,
     ) -> Result<Self, VMError> {
-        self.config = Config::new(config_file)?;
-        Ok(self)
+        let module_config = ModuleConfig::from_file(file_path)?;
+        Ok(NetworkState::create(&module_config))
+    }
+
+    /// Returns a [`NetworkState`] based on a schedule
+    pub fn with_schedule(schedule: &Schedule) -> Self {
+        let module_config = ModuleConfig::from_schedule(schedule);
+        NetworkState::create(&module_config)
+    }
+
+    fn create(module_config: &ModuleConfig) -> Self {
+        Self {
+            contracts: Hamt::default(),
+            modules: HostModules::default(),
+            module_config: module_config.clone(),
+        }
     }
 
     #[cfg(feature = "persistence")]
@@ -105,7 +113,7 @@ impl NetworkState {
         contract: Contract,
     ) -> Result<ContractId, VMError> {
         self.contracts
-            .insert(id, contract.instrument(&self.config)?)
+            .insert(id, contract.instrument(&self.module_config)?)
             .map_err(VMError::from_store_error)?;
         let inserted_contract = self.get_contract(&id)?;
         compile_module(inserted_contract.bytecode())?;
