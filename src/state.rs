@@ -80,15 +80,22 @@ impl NetworkState {
         }
     }
 
-    /// Returns a [`NetworkState`] based on a specific configuration
-    pub fn with_config(file_path: Option<String>) -> Result<Self, VMError> {
+    /// Returns a [`NetworkState`] based on a specific configuration file
+    pub fn with_config_file(
+        file_path: Option<String>,
+    ) -> Result<Self, VMError> {
         let module_config = ModuleConfig::with_file(file_path)?;
+        NetworkState::with_config(&module_config)
+    }
+
+    /// Returns a [`NetworkState`] based on a specific configuration
+    pub fn with_config(module_config: &ModuleConfig) -> Result<Self, VMError> {
         Ok(Self {
             block_height: 0,
             contracts: Hamt::default(),
             modules: Rc::new(RefCell::new(HashMap::new())),
             module_cache: Arc::new(Mutex::new(HashMap::new())),
-            module_config,
+            module_config: module_config.clone(),
         })
     }
 

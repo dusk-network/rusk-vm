@@ -10,10 +10,7 @@ pub use dusk_abi::{ContractId, ContractState};
 use parity_wasm::elements;
 use pwasm_utils::rules::{InstructionType, Metering};
 use serde::Deserialize;
-#[cfg(not(features = "std"))]
 use std::collections::BTreeMap as Map;
-#[cfg(features = "std")]
-use std::collections::HashMap as Map;
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
@@ -29,8 +26,9 @@ pub enum InstrumentationError {
     InvalidInstructionType,
 }
 
+/// Wasm executable module configuration data
 #[derive(Deserialize, Clone)]
-pub(crate) struct ModuleConfig {
+pub struct ModuleConfig {
     has_grow_cost: bool,
     has_forbidden_floats: bool,
     has_metering: bool,
@@ -38,7 +36,7 @@ pub(crate) struct ModuleConfig {
     max_stack_height: u32,
     max_table_size: u32,
     regular_op_cost: u32,
-    pub per_type_op_cost: Map<String, u32>,
+    per_type_op_cost: Map<String, u32>,
     grow_mem_cost: u32,
 }
 
@@ -51,6 +49,7 @@ impl Default for ModuleConfig {
 impl ModuleConfig {
     const DEFAULT_CONFIG_FILE: &'static str = "config.toml";
 
+    /// Creates default Wasm module configuration data
     pub fn new() -> Self {
         Self {
             has_grow_cost: true,
@@ -65,6 +64,8 @@ impl ModuleConfig {
         }
     }
 
+    /// Creates Wasm module configuration data base on information read from file
+    /// If file path is not given, default configuration file will be read
     pub fn with_file(file_path: Option<String>) -> Result<Self, VMError> {
         let path_string = file_path
             .unwrap_or_else(|| ModuleConfig::DEFAULT_CONFIG_FILE.to_string());
@@ -76,14 +77,16 @@ impl ModuleConfig {
         Ok(config)
     }
 
-    pub fn validate_wasm(wasm_code: impl AsRef<[u8]>) -> Result<(), VMError> {
+    /// Validates Wasm module
+    pub(crate) fn validate_wasm(wasm_code: impl AsRef<[u8]>) -> Result<(), VMError> {
         let mut validator = Validator::new();
         validator
             .validate_all(wasm_code.as_ref())
             .map_err(|e| VMError::WASMError(failure::Error::from(e)))
     }
 
-    pub fn apply(&self, code: &[u8]) -> Result<Vec<u8>, InstrumentationError> {
+    /// Applies instrumentation to Wasm module
+    pub(crate) fn apply(&self, code: &[u8]) -> Result<Vec<u8>, InstrumentationError> {
         let mut module: parity_wasm::elements::Module =
             elements::deserialize_buffer(code)
                 .or(Err(InstrumentationError::InvalidByteCode))?;

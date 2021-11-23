@@ -29,6 +29,7 @@ pub use dusk_abi;
 
 pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
+pub use module_config::ModuleConfig;
 pub use state::NetworkState;
 
 use thiserror::Error;
