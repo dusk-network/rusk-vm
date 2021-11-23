@@ -69,9 +69,6 @@ impl NetworkState {
     /// Returns a new empty [`NetworkState`].
     pub fn new() -> Self {
         Self::default()
-    /// Returns a [`NetworkState`] for a specific block height
-    pub fn with_block_height(block_height: u64) -> Self {
-        NetworkState::new(block_height, &ModuleConfig::new())
     }
 
     /// Returns a [`NetworkState`] based on a specific configuration file
@@ -79,18 +76,17 @@ impl NetworkState {
         file_path: Option<String>,
     ) -> Result<Self, VMError> {
         let module_config = ModuleConfig::from_file(file_path)?;
-        Ok(NetworkState::new(0, &module_config))
+        Ok(NetworkState::create(0, &module_config))
     }
 
     /// Returns a [`NetworkState`] based on a schedule
     pub fn with_schedule(schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
-        NetworkState::new(0, &module_config)
+        NetworkState::create(0, &module_config)
     }
 
-    fn new(block_height: u64, module_config: &ModuleConfig) -> Self {
+    fn create(block_height: u64, module_config: &ModuleConfig) -> Self {
         Self {
-            block_height,
             contracts: Hamt::default(),
             modules: Rc::new(RefCell::new(HashMap::new())),
             module_cache: Arc::new(Mutex::new(HashMap::new())),
