@@ -37,7 +37,7 @@ fn execute_contract_with_file(config_path: &str) -> u64 {
 }
 
 fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
-    let mut network = NetworkState::with_schedule(schedule).unwrap();
+    let mut network = NetworkState::with_schedule(schedule);
     execute_contract(&mut network)
 }
 

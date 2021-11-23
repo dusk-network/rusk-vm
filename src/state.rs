@@ -71,13 +71,7 @@ impl NetworkState {
         Self::default()
     /// Returns a [`NetworkState`] for a specific block height
     pub fn with_block_height(block_height: u64) -> Self {
-        Self {
-            block_height,
-            contracts: Hamt::default(),
-            modules: Rc::new(RefCell::new(HashMap::new())),
-            module_cache: Arc::new(Mutex::new(HashMap::new())),
-            module_config: ModuleConfig::new(),
-        }
+        NetworkState::new(block_height, &ModuleConfig::new())
     }
 
     /// Returns a [`NetworkState`] based on a specific configuration file
@@ -85,23 +79,23 @@ impl NetworkState {
         file_path: Option<String>,
     ) -> Result<Self, VMError> {
         let module_config = ModuleConfig::from_file(file_path)?;
-        NetworkState::with_config(&module_config)
+        Ok( NetworkState::new(0, &module_config) )
     }
 
     /// Returns a [`NetworkState`] based on a schedule
-    pub fn with_schedule(schedule: &Schedule) -> Result<Self, VMError> {
+    pub fn with_schedule(schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
-        NetworkState::with_config(&module_config)
+        NetworkState::new(0, &module_config)
     }
 
-    fn with_config(module_config: &ModuleConfig) -> Result<Self, VMError> {
-        Ok(Self {
-            block_height: 0,
+    fn new(block_height: u64, module_config: &ModuleConfig) -> Self {
+        Self {
+            block_height,
             contracts: Hamt::default(),
             modules: Rc::new(RefCell::new(HashMap::new())),
             module_cache: Arc::new(Mutex::new(HashMap::new())),
             module_config: module_config.clone(),
-        })
+        }
     }
 
     #[cfg(feature = "persistence")]
