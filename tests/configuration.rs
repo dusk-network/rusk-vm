@@ -20,11 +20,11 @@ fn execute_contract(network: &mut NetworkState) -> u64 {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
         .expect("Transaction error");
 
     network
-        .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+        .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
         .expect("Query error");
 
     gas.spent()

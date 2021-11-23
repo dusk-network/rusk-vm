@@ -76,16 +76,16 @@ impl NetworkState {
         file_path: Option<String>,
     ) -> Result<Self, VMError> {
         let module_config = ModuleConfig::from_file(file_path)?;
-        Ok(NetworkState::create(0, &module_config))
+        Ok(NetworkState::create(&module_config))
     }
 
     /// Returns a [`NetworkState`] based on a schedule
     pub fn with_schedule(schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
-        NetworkState::create(0, &module_config)
+        NetworkState::create(&module_config)
     }
 
-    fn create(block_height: u64, module_config: &ModuleConfig) -> Self {
+    fn create(module_config: &ModuleConfig) -> Self {
         Self {
             contracts: Hamt::default(),
             modules: Rc::new(RefCell::new(HashMap::new())),
