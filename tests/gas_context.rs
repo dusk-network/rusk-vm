@@ -17,7 +17,7 @@ fn gas_context() {
 
     let contract = Contract::new(gas_context_data, code.to_vec());
 
-    let mut network = NetworkState::new();
+    let mut network = NetworkState::default();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -100,7 +100,7 @@ fn gas_context_with_call_limit() {
 
     let contract = Contract::new(gas_context_data, code.to_vec());
 
-    let mut network = NetworkState::new();
+    let mut network = NetworkState::default();
 
     let contract_id = network.deploy(contract).unwrap();
 

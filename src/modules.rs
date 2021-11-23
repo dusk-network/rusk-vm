@@ -14,13 +14,11 @@ use crate::{Schedule, VMError};
 use cached::proc_macro::cached;
 use dusk_abi::HostModule;
 use parity_wasm::elements;
-use wasmer::Module;
 use pwasm_utils::rules::{InstructionType, Metering};
 use serde::Deserialize;
 use std::collections::BTreeMap as Map;
-use std::fs;
-use std::path::Path;
 use std::str::FromStr;
+use wasmer::Module;
 use wasmparser::Validator;
 
 pub use dusk_abi::{ContractId, ContractState};
@@ -110,8 +108,6 @@ impl Default for ModuleConfig {
 }
 
 impl ModuleConfig {
-    const DEFAULT_CONFIG_FILE: &'static str = "config.toml";
-
     pub fn new() -> Self {
         Self {
             has_grow_cost: true,
@@ -126,27 +122,21 @@ impl ModuleConfig {
         }
     }
 
-    pub fn from_file(file_path: Option<String>) -> Result<Self, VMError> {
-        let path_string = file_path
-            .unwrap_or_else(|| ModuleConfig::DEFAULT_CONFIG_FILE.to_string());
-        let config_file_path = Path::new(&path_string);
-        let config_string = fs::read_to_string(config_file_path)
-            .map_err(VMError::ConfigurationFileError)?;
-        let config: ModuleConfig = toml::from_str(&config_string)
-            .map_err(VMError::ConfigurationError)?;
-        Ok(config)
-    }
-
     pub fn from_schedule(schedule: &Schedule) -> Self {
-        let mut config = ModuleConfig::new();
+        let mut config = Self::new();
         config.regular_op_cost = schedule.regular_op_cost as u32;
         config.grow_mem_cost = schedule.grow_mem_cost as u32;
-        config.max_stack_height = schedule.max_stack_height as u32;
+        config.max_stack_height = schedule.max_stack_height;
         config.max_table_size = schedule.max_table_size;
-        config
+        config.has_forbidden_floats = schedule.has_forbidden_floats;
+        config.has_grow_cost = schedule.has_grow_cost;
+        config.has_metering = schedule.has_metering;
+        config.has_table_size_limit = schedule.has_table_size_limit;
+        config.per_type_op_cost = schedule
             .per_type_op_cost
-            .insert("grow_mem".to_string(), schedule.grow_mem_cost as u32);
-        // here more reconciliation between schedule and module config
+            .iter()
+            .map(|(s, c)| (s.to_string(), *c))
+            .collect();
         config
     }
 

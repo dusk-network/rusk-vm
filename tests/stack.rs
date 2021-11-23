@@ -21,7 +21,7 @@ fn stack() {
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
 
     let contract = Contract::new(stack, code.to_vec());
-    let mut network = NetworkState::new();
+    let mut network = NetworkState::default();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -97,7 +97,7 @@ fn stack_persist() {
     let contract = Contract::new(stack, code.to_vec());
 
     let (persist_id, contract_id) = {
-        let mut network = NetworkState::new();
+        let mut network = NetworkState::default();
 
         let contract_id = network.deploy(contract).unwrap();
 
@@ -129,7 +129,7 @@ fn stack_persist() {
     };
 
     // If the persistence works, We should be able to correctly pop the stack
-    let mut network = NetworkState::new()
+    let mut network = NetworkState::default()
         .restore(persist_id)
         .expect("Error reconstructing the NetworkState");
 

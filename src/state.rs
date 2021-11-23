@@ -15,9 +15,9 @@ use microkelvin::{
 };
 
 use crate::call_context::CallContext;
-use crate::modules::ModuleConfig;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
+use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
 
@@ -50,30 +50,17 @@ impl Canon for NetworkState {
 }
 
 impl NetworkState {
-    /// Returns a new empty [`NetworkState`].
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Returns a [`NetworkState`] based on a specific configuration file
-    pub fn with_config_file(
-        file_path: Option<String>,
-    ) -> Result<Self, VMError> {
-        let module_config = ModuleConfig::from_file(file_path)?;
-        Ok(NetworkState::create(&module_config))
-    }
-
     /// Returns a [`NetworkState`] based on a schedule
     pub fn with_schedule(schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
-        NetworkState::create(&module_config)
+        NetworkState::create(module_config)
     }
 
-    fn create(module_config: &ModuleConfig) -> Self {
+    fn create(module_config: ModuleConfig) -> Self {
         Self {
             contracts: Hamt::default(),
             modules: HostModules::default(),
-            module_config: module_config.clone(),
+            module_config,
         }
     }
 
