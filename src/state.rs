@@ -4,13 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 
-use cached::proc_macro::cached;
 use canonical::{Canon, CanonError, Sink, Source, Store};
 use dusk_abi::{HostModule, Query, Transaction};
 use dusk_hamt::Hamt;
@@ -18,22 +13,18 @@ use dusk_hamt::Hamt;
 use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
 };
-use wasmer::Module;
 
 use crate::call_context::CallContext;
-use crate::compiler::WasmerCompiler;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
+use crate::modules::{compile_module, HostModules};
 use crate::VMError;
-
-type BoxedHostModule = Box<dyn HostModule>;
 
 /// The main network state, includes the full state of contracts.
 #[derive(Clone, Default)]
 pub struct NetworkState {
     contracts: Hamt<ContractId, Contract, ()>,
-    modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
-    module_cache: Arc<Mutex<HashMap<ContractId, Module>>>,
+    modules: HostModules,
 }
 
 // Manual implementation of `Canon` to ignore the "modules" which needs to be
@@ -46,20 +37,13 @@ impl Canon for NetworkState {
     fn decode(source: &mut Source) -> Result<Self, CanonError> {
         Ok(NetworkState {
             contracts: Hamt::decode(source)?,
-            modules: Rc::new(RefCell::new(HashMap::new())),
-            module_cache: Arc::new(Mutex::new(HashMap::new())),
+            modules: HostModules::default(),
         })
     }
 
     fn encoded_len(&self) -> usize {
         Canon::encoded_len(&self.contracts)
     }
-}
-
-#[cached(size = 2048, time = 86400, result = true, sync_writes = true)]
-fn get_or_create_module(bytecode: Vec<u8>) -> Result<Module, VMError> {
-    let new_module = WasmerCompiler::create_module(bytecode)?;
-    Ok(new_module)
 }
 
 impl NetworkState {
@@ -107,7 +91,7 @@ impl NetworkState {
             .insert(id, contract.instrument()?)
             .map_err(VMError::from_store_error)?;
         let inserted_contract = self.get_contract(&id)?;
-        self.get_module_from_cache(&id, inserted_contract.bytecode())?;
+        compile_module(inserted_contract.bytecode())?;
         Ok(id)
     }
 
@@ -136,9 +120,7 @@ impl NetworkState {
     }
 
     /// Returns a reference to the map of registered host modules
-    pub fn modules(
-        &self,
-    ) -> &Rc<RefCell<HashMap<ContractId, BoxedHostModule>>> {
+    pub fn modules(&self) -> &HostModules {
         &self.modules
     }
 
@@ -200,9 +182,7 @@ impl NetworkState {
     where
         M: HostModule + 'static,
     {
-        self.modules
-            .borrow_mut()
-            .insert(module.module_id(), Box::new(module));
+        self.modules.insert(module);
     }
 
     /// Gets the state of the given contract
@@ -220,15 +200,5 @@ impl NetworkState {
                 let mut source = Source::new((*contract).state().as_bytes());
                 C::decode(&mut source).map_err(VMError::from_store_error)
             })
-    }
-
-    /// Retrieves module from cache possibly creating and storing a new one if
-    /// not found
-    pub fn get_module_from_cache(
-        &self,
-        _contract_id: &ContractId,
-        bytecode: &[u8],
-    ) -> Result<Module, VMError> {
-        get_or_create_module(bytecode.to_vec())
     }
 }

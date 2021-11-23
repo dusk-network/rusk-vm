@@ -12,6 +12,7 @@ use crate::contract::ContractId;
 use crate::env::Env;
 use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
+use crate::modules::compile_module;
 use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
 use crate::VMError;
@@ -106,15 +107,14 @@ impl<'a> CallContext<'a> {
 
         let instance: Instance;
 
-        if let Some(module) = self.state.modules().borrow().get(&target) {
+        if let Some(module) = self.state.modules().get_module_ref(&target).get()
+        {
             // is this a reserved module call?
             return module.execute(query).map_err(VMError::from_store_error);
         } else {
             let contract = self.state.get_contract(&target)?;
 
-            let module = self
-                .state
-                .get_module_from_cache(&target, contract.bytecode())?;
+            let module = compile_module(contract.bytecode())?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -174,10 +174,7 @@ impl<'a> CallContext<'a> {
         {
             let contract = self.state.get_contract(&target_contract_id)?;
 
-            let module = self.state.get_module_from_cache(
-                &target_contract_id,
-                contract.bytecode(),
-            )?;
+            let module = compile_module(contract.bytecode())?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
