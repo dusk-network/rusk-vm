@@ -79,7 +79,7 @@ impl NetworkState {
         file_path: Option<String>,
     ) -> Result<Self, VMError> {
         let module_config = ModuleConfig::from_file(file_path)?;
-        Ok( NetworkState::new(0, &module_config) )
+        Ok(NetworkState::new(0, &module_config))
     }
 
     /// Returns a [`NetworkState`] based on a schedule
