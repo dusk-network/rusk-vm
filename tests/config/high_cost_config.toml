@@ -1,4 +1,4 @@
-# Regular Gas cost for one Wasm operation
+# Regular gas cost for one Wasm operation
 regular_op_cost = 1
 
 # Gas cost for adding one page of memory
@@ -18,8 +18,8 @@ has_metering = true
 has_table_size_limit = true
 
 # Optionally sets the Gas cost for different instruction types.
-# If set, this will override the regular operation costs from above
+# If set, this will override the regular operation costs
 # for all operations of the specified type.
-# Find which operations belong to the the different types under:
+# To find out which operations belong to corresponding types, refer to:
 # https://github.com/paritytech/wasm-utils/blob/master/src/rules.rs
 per_type_op_cost = { bit = 10000, add = 10000, mul = 10000, div = 10000, load = 10000, store = 10000, const = 10000, local = 10000, global = 10000, flow = 10000, integer_comp = 10000, float_comp = 10000, float = 10000, conversion = 10000, float_conversion = 10000, reinterpret = 10000, unreachable = 10000, nop = 10000, current_mem = 10000, grow_mem = 10000 }
