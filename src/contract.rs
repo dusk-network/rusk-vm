@@ -46,7 +46,10 @@ impl Contract {
         &mut self.state
     }
 
-    pub(crate) fn instrument(mut self, module_config: &ModuleConfig) -> Result<Self, VMError> {
+    pub(crate) fn instrument(
+        mut self,
+        module_config: &ModuleConfig,
+    ) -> Result<Self, VMError> {
         self.code = module_config.apply(&self.code[..])?;
         Ok(self)
     }

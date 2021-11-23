@@ -83,7 +83,7 @@ impl NetworkState {
     /// Returns a [`NetworkState`] based on a specific configuration
     pub fn with_config(file_path: Option<String>) -> Result<Self, VMError> {
         let module_config = ModuleConfig::with_file(file_path)?;
-        Ok (Self {
+        Ok(Self {
             block_height: 0,
             contracts: Hamt::default(),
             modules: Rc::new(RefCell::new(HashMap::new())),

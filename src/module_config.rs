@@ -6,18 +6,18 @@
 
 use crate::VMError;
 
+pub use dusk_abi::{ContractId, ContractState};
 use parity_wasm::elements;
 use pwasm_utils::rules::{InstructionType, Metering};
-use wasmparser::Validator;
-use std::fs;
-use std::path::Path;
 use serde::Deserialize;
 #[cfg(not(features = "std"))]
 use std::collections::BTreeMap as Map;
 #[cfg(features = "std")]
 use std::collections::HashMap as Map;
-pub use dusk_abi::{ContractId, ContractState};
+use std::fs;
+use std::path::Path;
 use std::str::FromStr;
+use wasmparser::Validator;
 
 #[derive(Debug)]
 pub enum InstrumentationError {
@@ -27,7 +27,7 @@ pub enum InstrumentationError {
     MaxTableSize,
     InvalidByteCode,
     InvalidConfigPath, // todo
-    InvalidConfig, // todo
+    InvalidConfig,     // todo
     InvalidInstructionType,
 }
 
@@ -63,12 +63,13 @@ impl ModuleConfig {
             max_table_size: 16384,
             regular_op_cost: 1,
             per_type_op_cost: Map::new(),
-            grow_mem_cost: 1
+            grow_mem_cost: 1,
         }
     }
 
     pub fn with_file(file_path: Option<String>) -> Result<Self, VMError> {
-        let path_string = file_path.unwrap_or_else(||ModuleConfig::CONFIG_FILE.to_string());
+        let path_string =
+            file_path.unwrap_or_else(|| ModuleConfig::CONFIG_FILE.to_string());
         let config_file_path = Path::new(&path_string);
         let config_string = fs::read_to_string(config_file_path)
             .map_err(VMError::ConfigurationFileError)?;
