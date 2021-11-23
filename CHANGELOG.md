@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update dependencies
 
 ### Removed
+- Remove `block_height` from `NetworkState` [#269]
 - Remove Rust toolchain overrides from CI [#229]
 - Remove `set_block_height` from NetworkState [#203]
 
@@ -181,6 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2019-08-02
 - Initial
 
+[#269]: https://github.com/dusk-network/rusk-vm/issues/269
 [#251]: https://github.com/dusk-network/rusk-vm/issues/251
 [#248]: https://github.com/dusk-network/rusk-vm/issues/248
 [#247]: https://github.com/dusk-network/rusk-vm/issues/247

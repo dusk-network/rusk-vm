@@ -31,7 +31,6 @@ type BoxedHostModule = Box<dyn HostModule>;
 /// The main network state, includes the full state of contracts.
 #[derive(Clone, Default)]
 pub struct NetworkState {
-    block_height: u64,
     contracts: Hamt<ContractId, Contract, ()>,
     modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
     module_cache: Arc<Mutex<HashMap<ContractId, Module>>>,
@@ -41,13 +40,11 @@ pub struct NetworkState {
 // re-instantiated on program initialization.
 impl Canon for NetworkState {
     fn encode(&self, sink: &mut Sink) {
-        self.block_height.encode(sink);
         self.contracts.encode(sink);
     }
 
     fn decode(source: &mut Source) -> Result<Self, CanonError> {
         Ok(NetworkState {
-            block_height: u64::decode(source)?,
             contracts: Hamt::decode(source)?,
             modules: Rc::new(RefCell::new(HashMap::new())),
             module_cache: Arc::new(Mutex::new(HashMap::new())),
@@ -55,8 +52,7 @@ impl Canon for NetworkState {
     }
 
     fn encoded_len(&self) -> usize {
-        Canon::encoded_len(&self.block_height)
-            + Canon::encoded_len(&self.contracts)
+        Canon::encoded_len(&self.contracts)
     }
 }
 
@@ -67,14 +63,9 @@ fn get_or_create_module(bytecode: Vec<u8>) -> Result<Module, VMError> {
 }
 
 impl NetworkState {
-    /// Returns a [`NetworkState`] for a specific block height
-    pub fn with_block_height(block_height: u64) -> Self {
-        Self {
-            block_height,
-            contracts: Hamt::default(),
-            modules: Rc::new(RefCell::new(HashMap::new())),
-            module_cache: Arc::new(Mutex::new(HashMap::new())),
-        }
+    /// Returns a new empty [`NetworkState`].
+    pub fn new() -> Self {
+        Self::default()
     }
 
     #[cfg(feature = "persistence")]
@@ -151,15 +142,11 @@ impl NetworkState {
         &self.modules
     }
 
-    /// Returns the state's block height
-    pub fn block_height(&self) -> u64 {
-        self.block_height
-    }
-
     /// Queryn the contract at address `target`
     pub fn query<A, R>(
         &mut self,
         target: ContractId,
+        block_height: u64,
         query: A,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError>
@@ -167,7 +154,7 @@ impl NetworkState {
         A: Canon,
         R: Canon,
     {
-        let mut context = CallContext::new(self);
+        let mut context = CallContext::new(self, block_height);
 
         let result =
             context.query(target, Query::from_canon(&query), gas_meter)?;
@@ -179,6 +166,7 @@ impl NetworkState {
     pub fn transact<A, R>(
         &mut self,
         target: ContractId,
+        block_height: u64,
         transaction: A,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError>
@@ -190,7 +178,7 @@ impl NetworkState {
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(&mut fork);
+        let mut context = CallContext::new(&mut fork, block_height);
 
         let (_, result) = context.transact(
             target,

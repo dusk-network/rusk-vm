@@ -21,7 +21,7 @@ fn stack() {
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
 
     let contract = Contract::new(stack, code.to_vec());
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -31,6 +31,7 @@ fn stack() {
         network
             .transact::<_, Result<(), CanonError>>(
                 contract_id,
+                0,
                 (stack::PUSH, i),
                 &mut gas,
             )
@@ -56,6 +57,7 @@ fn stack() {
             network
                 .transact::<_, Result<Option<Leaf>, CanonError>>(
                     contract_id,
+                    0,
                     stack::POP,
                     &mut gas
                 )
@@ -69,6 +71,7 @@ fn stack() {
         network
             .transact::<_, Result<Option<Leaf>, CanonError>>(
                 contract_id,
+                0,
                 stack::POP,
                 &mut gas
             )
@@ -94,7 +97,7 @@ fn stack_persist() {
     let contract = Contract::new(stack, code.to_vec());
 
     let (persist_id, contract_id) = {
-        let mut network = NetworkState::default();
+        let mut network = NetworkState::new();
 
         let contract_id = network.deploy(contract).unwrap();
 
@@ -104,6 +107,7 @@ fn stack_persist() {
             network
                 .transact::<_, Result<(), CanonError>>(
                     contract_id,
+                    0,
                     (stack::PUSH, i),
                     &mut gas,
                 )
@@ -125,7 +129,7 @@ fn stack_persist() {
     };
 
     // If the persistence works, We should be able to correctly pop the stack
-    let mut network = NetworkState::with_block_height(10)
+    let mut network = NetworkState::new()
         .restore(persist_id)
         .expect("Error reconstructing the NetworkState");
 
@@ -138,6 +142,7 @@ fn stack_persist() {
             network
                 .transact::<_, Result<Option<Leaf>, CanonError>>(
                     contract_id,
+                    0,
                     stack::POP,
                     &mut gas
                 )
@@ -151,6 +156,7 @@ fn stack_persist() {
         network
             .transact::<_, Result<Option<Leaf>, CanonError>>(
                 contract_id,
+                0,
                 stack::POP,
                 &mut gas
             )

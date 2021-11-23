@@ -11,6 +11,6 @@ pub struct BlockHeight;
 
 impl BlockHeight {
     pub fn block_height(env: &Env) -> Result<u64, VMError> {
-        Ok(env.get_context().state().block_height())
+        Ok(env.get_context().block_height())
     }
 }

@@ -67,13 +67,15 @@ impl StackFrame {
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
+    block_height: u64,
 }
 
 impl<'a> CallContext<'a> {
-    pub fn new(state: &'a mut NetworkState) -> Self {
+    pub fn new(state: &'a mut NetworkState, block_height: u64) -> Self {
         CallContext {
             state,
             stack: vec![],
+            block_height,
         }
     }
 
@@ -239,6 +241,10 @@ impl<'a> CallContext<'a> {
         Ok((state, ret))
     }
 
+    pub fn block_height(&self) -> u64 {
+        self.block_height
+    }
+
     pub fn gas_meter(&self) -> &GasMeter {
         &self.top().gas_meter
     }
@@ -285,10 +291,6 @@ impl<'a> CallContext<'a> {
             .expect("Invalid stack")
             .write_memory(source_slice, offset)?;
         Ok(())
-    }
-
-    pub fn state(&self) -> &NetworkState {
-        self.state
     }
 
     pub fn state_mut(&mut self) -> &mut NetworkState {
