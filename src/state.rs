@@ -25,7 +25,7 @@ use crate::compiler::WasmerCompiler;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
 use crate::module_config::ModuleConfig;
-use crate::VMError;
+use crate::{Schedule, VMError};
 
 type BoxedHostModule = Box<dyn HostModule>;
 
@@ -84,12 +84,17 @@ impl NetworkState {
     pub fn with_config_file(
         file_path: Option<String>,
     ) -> Result<Self, VMError> {
-        let module_config = ModuleConfig::with_file(file_path)?;
+        let module_config = ModuleConfig::from_file(file_path)?;
         NetworkState::with_config(&module_config)
     }
 
-    /// Returns a [`NetworkState`] based on a specific configuration
-    pub fn with_config(module_config: &ModuleConfig) -> Result<Self, VMError> {
+    /// Returns a [`NetworkState`] based on a schedule
+    pub fn with_schedule(schedule: &Schedule) -> Result<Self, VMError> {
+        let module_config = ModuleConfig::from_schedule(schedule);
+        NetworkState::with_config(&module_config)
+    }
+
+    fn with_config(module_config: &ModuleConfig) -> Result<Self, VMError> {
         Ok(Self {
             block_height: 0,
             contracts: Hamt::default(),

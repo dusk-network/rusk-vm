@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::VMError;
+use crate::{Schedule, VMError};
 
 pub use dusk_abi::{ContractId, ContractState};
 use parity_wasm::elements;
@@ -26,9 +26,8 @@ pub enum InstrumentationError {
     InvalidInstructionType,
 }
 
-/// Wasm executable module configuration data
 #[derive(Deserialize, Clone)]
-pub struct ModuleConfig {
+pub(crate) struct ModuleConfig {
     has_grow_cost: bool,
     has_forbidden_floats: bool,
     has_metering: bool,
@@ -49,7 +48,6 @@ impl Default for ModuleConfig {
 impl ModuleConfig {
     const DEFAULT_CONFIG_FILE: &'static str = "config.toml";
 
-    /// Creates default Wasm module configuration data
     pub fn new() -> Self {
         Self {
             has_grow_cost: true,
@@ -64,9 +62,7 @@ impl ModuleConfig {
         }
     }
 
-    /// Creates Wasm module configuration data base on information read from file
-    /// If file path is not given, default configuration file will be read
-    pub fn with_file(file_path: Option<String>) -> Result<Self, VMError> {
+    pub fn from_file(file_path: Option<String>) -> Result<Self, VMError> {
         let path_string = file_path
             .unwrap_or_else(|| ModuleConfig::DEFAULT_CONFIG_FILE.to_string());
         let config_file_path = Path::new(&path_string);
@@ -77,16 +73,32 @@ impl ModuleConfig {
         Ok(config)
     }
 
-    /// Validates Wasm module
-    pub(crate) fn validate_wasm(wasm_code: impl AsRef<[u8]>) -> Result<(), VMError> {
+    pub fn from_schedule(schedule: &Schedule) -> Self {
+        let mut config = ModuleConfig::new();
+        config.regular_op_cost = schedule.regular_op_cost as u32;
+        config.grow_mem_cost = schedule.grow_mem_cost as u32;
+        config.max_stack_height = schedule.max_stack_height as u32;
+        config.max_table_size = schedule.max_table_size;
+        config
+            .per_type_op_cost
+            .insert("grow_mem".to_string(), schedule.grow_mem_cost as u32);
+        // here more reconciliation between schedule and module config
+        config
+    }
+
+    pub(crate) fn validate_wasm(
+        wasm_code: impl AsRef<[u8]>,
+    ) -> Result<(), VMError> {
         let mut validator = Validator::new();
         validator
             .validate_all(wasm_code.as_ref())
             .map_err(|e| VMError::WASMError(failure::Error::from(e)))
     }
 
-    /// Applies instrumentation to Wasm module
-    pub(crate) fn apply(&self, code: &[u8]) -> Result<Vec<u8>, InstrumentationError> {
+    pub(crate) fn apply(
+        &self,
+        code: &[u8],
+    ) -> Result<Vec<u8>, InstrumentationError> {
         let mut module: parity_wasm::elements::Module =
             elements::deserialize_buffer(code)
                 .or(Err(InstrumentationError::InvalidByteCode))?;

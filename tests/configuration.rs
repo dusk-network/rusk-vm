@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use counter::Counter;
-use rusk_vm::{Contract, GasMeter, ModuleConfig, NetworkState};
+use rusk_vm::{Contract, GasMeter, NetworkState, Schedule};
 
 fn execute_contract(network: &mut NetworkState) -> u64 {
     let counter = Counter::new(99);
@@ -36,13 +36,13 @@ fn execute_contract_with_file(config_path: &str) -> u64 {
     execute_contract(&mut network)
 }
 
-fn execute_contract_with_module_config(module_config: &ModuleConfig) -> u64 {
-    let mut network = NetworkState::with_config(module_config).unwrap();
+fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
+    let mut network = NetworkState::with_schedule(schedule).unwrap();
     execute_contract(&mut network)
 }
 
 #[test]
-fn change_gas_cost_per_op_via_configuration_file() {
+fn change_gas_cost_per_op_with_configuration_file() {
     assert!(execute_contract_with_file("tests/config/config.toml") < 10_000);
     assert!(
         execute_contract_with_file("tests/config/high_cost_config.toml")
@@ -51,17 +51,15 @@ fn change_gas_cost_per_op_via_configuration_file() {
 }
 
 #[test]
-fn change_gas_cost_per_op_via_module_config() {
-    let module_config = ModuleConfig::new();
-    assert!(execute_contract_with_module_config(&module_config) < 10_000);
-    let high_cost_module_config = ModuleConfig::with_file(Some(
-        "tests/config/high_cost_config.toml".to_string(),
-    ))
-    .unwrap();
-    assert!(
-        execute_contract_with_module_config(&high_cost_module_config)
-            > 10_000_000
-    );
+fn change_gas_cost_per_op_with_schedule() {
+    let schedule = Schedule::default();
+    assert!(execute_contract_with_schedule(&schedule) < 10_000);
+    // let high_cost_schedule = Schedule::default();
+    // fill out high_cost_schedule
+    // assert!(
+    //     execute_contract_with_schedule(&high_cost_schedule)
+    //         > 10_000_000
+    // );
 }
 
 #[test]
