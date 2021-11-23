@@ -26,8 +26,6 @@ pub enum InstrumentationError {
     MultipleTables,
     MaxTableSize,
     InvalidByteCode,
-    InvalidConfigPath, // todo
-    InvalidConfig,     // todo
     InvalidInstructionType,
 }
 
@@ -51,7 +49,7 @@ impl Default for ModuleConfig {
 }
 
 impl ModuleConfig {
-    const CONFIG_FILE: &'static str = "config.toml";
+    const DEFAULT_CONFIG_FILE: &'static str = "config.toml";
 
     pub fn new() -> Self {
         Self {
@@ -68,8 +66,8 @@ impl ModuleConfig {
     }
 
     pub fn with_file(file_path: Option<String>) -> Result<Self, VMError> {
-        let path_string =
-            file_path.unwrap_or_else(|| ModuleConfig::CONFIG_FILE.to_string());
+        let path_string = file_path
+            .unwrap_or_else(|| ModuleConfig::DEFAULT_CONFIG_FILE.to_string());
         let config_file_path = Path::new(&path_string);
         let config_string = fs::read_to_string(config_file_path)
             .map_err(VMError::ConfigurationFileError)?;
@@ -99,14 +97,11 @@ impl ModuleConfig {
             );
         }
 
-        let schedule = crate::Schedule::default();
-        let mut ruleset = pwasm_utils::rules::Set::new(
-            schedule.regular_op_cost as u32,
-            instr_type_map,
-        );
+        let mut ruleset =
+            pwasm_utils::rules::Set::new(self.regular_op_cost, instr_type_map);
 
         if self.has_grow_cost {
-            ruleset = ruleset.with_grow_cost(schedule.grow_mem_cost as u32);
+            ruleset = ruleset.with_grow_cost(self.grow_mem_cost as u32);
         }
 
         if self.has_forbidden_floats {
@@ -119,7 +114,7 @@ impl ModuleConfig {
 
             module = pwasm_utils::stack_height::inject_limiter(
                 module,
-                schedule.max_stack_height,
+                self.max_stack_height,
             )
             .or(Err(InstrumentationError::StackHeightInjection))?;
         }
@@ -137,7 +132,7 @@ impl ModuleConfig {
                     // Check the table's initial size as there is no instruction
                     // or environment function capable of
                     // growing the table.
-                    if table_type.limits().initial() > schedule.max_table_size {
+                    if table_type.limits().initial() > self.max_table_size {
                         return Err(InstrumentationError::MaxTableSize);
                     }
                 }
