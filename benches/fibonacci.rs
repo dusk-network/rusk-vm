@@ -20,7 +20,7 @@ fn fibonacci_3(
     let n: u64 = 3;
 
     network
-        .query::<_, u64>(contract_id, (fibonacci::COMPUTE, n), gas)
+        .query::<_, u64>(contract_id, 0, (fibonacci::COMPUTE, n), gas)
         .unwrap();
 }
 

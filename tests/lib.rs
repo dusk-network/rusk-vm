@@ -35,7 +35,7 @@ fn counter() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -43,18 +43,18 @@ fn counter() {
 
     assert_eq!(
         network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
             .unwrap(),
         99
     );
 
     network
-        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
         .unwrap();
 
     assert_eq!(
         network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
             .unwrap(),
         100
     );
@@ -69,7 +69,7 @@ fn counter_trivial() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -77,7 +77,7 @@ fn counter_trivial() {
 
     assert_eq!(
         network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
             .unwrap(),
         99
     );
@@ -88,7 +88,7 @@ fn delegated_call() {
     let counter = Counter::new(99);
     let delegator = Delegator;
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let counter_code =
         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
@@ -110,6 +110,7 @@ fn delegated_call() {
         network
             .query::<_, i32>(
                 delegator_id,
+                0,
                 (delegator::DELEGATE_QUERY, counter_id, counter::READ_VALUE),
                 &mut gas
             )
@@ -122,6 +123,7 @@ fn delegated_call() {
     network
         .transact::<_, ()>(
             delegator_id,
+            0,
             (
                 delegator::DELEGATE_TRANSACTION,
                 counter_id,
@@ -135,7 +137,7 @@ fn delegated_call() {
 
     assert_eq!(
         network
-            .query::<_, i32>(counter_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(counter_id, 0, counter::READ_VALUE, &mut gas)
             .unwrap(),
         100
     );
@@ -151,7 +153,7 @@ fn fibonacci() {
 
     let contract = Contract::new(fib, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -162,7 +164,12 @@ fn fibonacci() {
     for i in 0..n {
         assert_eq!(
             network
-                .query::<_, u64>(contract_id, (fibonacci::COMPUTE, i), &mut gas)
+                .query::<_, u64>(
+                    contract_id,
+                    0,
+                    (fibonacci::COMPUTE, i),
+                    &mut gas
+                )
                 .unwrap(),
             fibonacci_reference(i)
         );
@@ -179,7 +186,7 @@ fn block_height() {
 
     let contract = Contract::new(bh, code.to_vec());
 
-    let mut network = NetworkState::new().with_block_height(99);
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -188,7 +195,12 @@ fn block_height() {
     assert_eq!(
         99,
         network
-            .query::<_, u64>(contract_id, block_height::BLOCK_HEIGHT, &mut gas)
+            .query::<_, u64>(
+                contract_id,
+                99,
+                block_height::BLOCK_HEIGHT,
+                &mut gas
+            )
             .unwrap()
     )
 }
@@ -203,7 +215,7 @@ fn self_snapshot() {
 
     let contract = Contract::new(bh, code.to_vec());
 
-    let mut network = NetworkState::new().with_block_height(99);
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -212,7 +224,7 @@ fn self_snapshot() {
     assert_eq!(
         7,
         network
-            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
             .unwrap()
     );
 
@@ -221,6 +233,7 @@ fn self_snapshot() {
         network
             .transact::<_, i32>(
                 contract_id,
+                0,
                 (self_snapshot::SET_CROSSOVER, 9),
                 &mut gas,
             )
@@ -231,13 +244,14 @@ fn self_snapshot() {
     assert_eq!(
         9,
         network
-            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
             .unwrap()
     );
 
     network
         .transact::<_, ()>(
             contract_id,
+            0,
             (self_snapshot::SELF_CALL_TEST_A, 10),
             &mut gas,
         )
@@ -246,12 +260,13 @@ fn self_snapshot() {
     assert_eq!(
         10,
         network
-            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
             .unwrap()
     );
 
     let result = network.transact::<_, ()>(
         contract_id,
+        0,
         (self_snapshot::UPDATE_AND_PANIC, 11),
         &mut gas,
     );
@@ -261,7 +276,7 @@ fn self_snapshot() {
     assert_eq!(
         10,
         network
-            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
             .unwrap()
     );
 
@@ -271,6 +286,7 @@ fn self_snapshot() {
     network
         .transact::<_, ()>(
             contract_id,
+            0,
             (self_snapshot::SELF_CALL_TEST_B, contract_id, transaction),
             &mut gas,
         )
@@ -279,7 +295,7 @@ fn self_snapshot() {
     assert_eq!(
         12,
         network
-            .query::<_, i32>(contract_id, self_snapshot::CROSSOVER, &mut gas)
+            .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
             .unwrap()
     );
 }
@@ -293,12 +309,12 @@ fn tx_vec() {
         include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
     let contract = Contract::new(tx_vec, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
     let contract_id = network.deploy(contract).unwrap();
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     let v = network
-        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
         .unwrap();
     assert_eq!(value, v);
 
@@ -306,11 +322,11 @@ fn tx_vec() {
     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
 
     network
-        .transact::<_, ()>(contract_id, (tx_vec::SUM, values), &mut gas)
+        .transact::<_, ()>(contract_id, 0, (tx_vec::SUM, values), &mut gas)
         .unwrap();
 
     let v = network
-        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
         .unwrap();
     assert_eq!(value, v);
 
@@ -321,13 +337,14 @@ fn tx_vec() {
     network
         .transact::<_, ()>(
             contract_id,
+            0,
             (tx_vec::DELEGATE_SUM, contract_id, tx),
             &mut gas,
         )
         .unwrap();
 
     let v = network
-        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
         .unwrap();
     assert_eq!(value, v);
 
@@ -338,13 +355,14 @@ fn tx_vec() {
     network
         .transact::<_, ()>(
             contract_id,
+            0,
             (tx_vec::DELEGATE_SUM, contract_id, tx),
             &mut gas,
         )
         .unwrap();
 
     let v = network
-        .query::<_, u8>(contract_id, tx_vec::READ_VALUE, &mut gas)
+        .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
         .unwrap();
     assert_eq!(value, v);
 }
@@ -364,7 +382,7 @@ fn calling() {
         "../target/wasm32-unknown-unknown/release/callee_2.wasm"
     );
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let caller_id = network
         .deploy(Contract::new(caller, code_caller.to_vec()))
@@ -381,6 +399,7 @@ fn calling() {
     network
         .transact::<_, ()>(
             caller_id,
+            0,
             (caller::SET_TARGET, callee1_id),
             &mut gas,
         )
@@ -389,6 +408,7 @@ fn calling() {
     network
         .transact::<_, ()>(
             callee1_id,
+            0,
             (caller::SET_TARGET, callee2_id),
             &mut gas,
         )
@@ -398,6 +418,7 @@ fn calling() {
         network
             .query::<_, (ContractId, ContractId, ContractId)>(
                 caller_id,
+                0,
                 caller::CALL,
                 &mut gas
             )
@@ -417,44 +438,39 @@ fn gas_consumed_host_function_works() {
 
     let contract = Contract::new(gas_contract, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     // 2050 is the gas held that is known will be spent in the contract
     // after the `dusk_abi::gas_left()` call
-    let mut gas = GasMeter::with_range(2_050..1_000_000_000);
+    const CALLER_GAS_LIMIT: u64 = 1_000_000_000;
+    let mut gas = GasMeter::with_limit(CALLER_GAS_LIMIT);
 
     network
-        .transact::<_, ()>(contract_id, gas_consumed::INCREMENT, &mut gas)
+        .transact::<_, ()>(contract_id, 0, gas_consumed::INCREMENT, &mut gas)
         .expect("Transaction error");
 
     assert_eq!(
         network
-            .query::<_, i32>(contract_id, gas_consumed::VALUE, &mut gas)
+            .query::<_, i32>(contract_id, 0, gas_consumed::VALUE, &mut gas)
             .expect("Query error"),
         100
     );
 
-    let (gas_consumed, gas_left) = network
+    network
         .query::<_, (u64, u64)>(
             contract_id,
+            0,
             gas_consumed::GAS_CONSUMED,
             &mut gas,
         )
         .expect("Query error");
 
-    assert_eq!(gas_left + gas.spent(), 1_000_000_000,
-        "The gas left plus the gas spent should be equal to the initial gas provided
+    assert_eq!(gas.left() + gas.spent(), CALLER_GAS_LIMIT,
+               "The gas left plus the gas spent should be equal to the initial gas provided
         Debug info:
-        GasMeter values: gas.spent() = {}, gas.left() = {}
-        queried values:  gas_consumed = {}, gas_left = {}", gas.spent(), gas.left(), gas_consumed, gas_left);
-
-    assert_eq!(
-        gas.spent() - gas_consumed,
-        2_050,
-        "The gas spent minus the gas consumed should be equal to the gas held"
-    );
+        GasMeter values: gas.left() = {}, gas.spent() = {}", gas.left(), gas.spent());
 }
 
 #[test]
@@ -466,19 +482,19 @@ fn gas_consumption_works() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
         .expect("Transaction error");
 
     assert_eq!(
         network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
             .expect("Query error"),
         100
     );
@@ -496,14 +512,14 @@ fn out_of_gas_aborts_execution() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1);
 
     let should_be_err =
-        network.transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas);
+        network.transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas);
     assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
 
     // Ensure all gas is consumed even the tx did not succeed.
@@ -520,7 +536,7 @@ fn deploy_fails_with_floats() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     assert!(matches!(
         network.deploy(contract),
@@ -541,7 +557,7 @@ fn deploy_with_id() -> Result<(), VMError> {
     let id = ContractId::reserved(0x10);
 
     // Deploy with the id given
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     // The id is the same returned by the deploy function
     assert_eq!(id, network.deploy_with_id(id, contract)?);
@@ -590,7 +606,7 @@ fn persistence() {
     let contract = Contract::new(counter, code.to_vec());
 
     let (persist_id, contract_id) = {
-        let mut network = NetworkState::default();
+        let mut network = NetworkState::new();
 
         let contract_id = network.deploy(contract).unwrap();
 
@@ -598,18 +614,18 @@ fn persistence() {
 
         assert_eq!(
             network
-                .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+                .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
                 .unwrap(),
             99
         );
 
         network
-            .transact::<_, ()>(contract_id, counter::INCREMENT, &mut gas)
+            .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
             .unwrap();
 
         assert_eq!(
             network
-                .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+                .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
                 .unwrap(),
             100
         );
@@ -630,7 +646,6 @@ fn persistence() {
     // If the persistence works, We should still read 100 with a freshly created
     // NetworkState.
     let mut network = NetworkState::new()
-        .with_block_height(10)
         .restore(persist_id)
         .expect("Error reconstructing the NetworkState");
 
@@ -638,7 +653,7 @@ fn persistence() {
 
     assert_eq!(
         network
-            .query::<_, i32>(contract_id, counter::READ_VALUE, &mut gas)
+            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
             .unwrap(),
         100
     );

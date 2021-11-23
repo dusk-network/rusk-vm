@@ -24,6 +24,7 @@ fn stack_64(
     for i in 0..N {
         let _ = network.transact::<_, Result<(), CanonError>>(
             contract_id,
+            0,
             (stack::PUSH, i),
             gas,
         );

@@ -64,6 +64,7 @@ mod hosted {
                 self,
                 &callee,
                 &(SET_CROSSOVER, update),
+                0,
             )
             .unwrap();
 
@@ -80,7 +81,8 @@ mod hosted {
         ) -> i32 {
             self.set_crossover(self.crossover * 2);
 
-            dusk_abi::transact_raw::<_>(self, &target, &transaction).unwrap();
+            dusk_abi::transact_raw::<_>(self, &target, &transaction, 0)
+                .unwrap();
 
             self.crossover
         }
@@ -98,7 +100,7 @@ mod hosted {
             // B: we update self, which then should be passed to the transaction
 
             assert_eq!(
-                dusk_abi::query::<_, i32>(&callee, &(CROSSOVER),).unwrap(),
+                dusk_abi::query::<_, i32>(&callee, &(CROSSOVER), 0).unwrap(),
                 new_value
             );
 

@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::rc::Rc;
@@ -22,43 +20,41 @@ use crate::call_context::CallContext;
 use crate::config::Config;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
+use crate::modules::{compile_module, HostModules};
 use crate::VMError;
-
-type BoxedHostModule = Box<dyn HostModule>;
 
 /// The main network state, includes the full state of contracts.
 #[derive(Clone, Default)]
 pub struct NetworkState {
-    block_height: u64,
     contracts: Hamt<ContractId, Contract, ()>,
-    modules: Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>,
+    modules: HostModules,
     config: Config,
 }
 
-// Manual implementation of `Canon` to ignore the `modules`  and configurations,
-// which need to be re-instantiated on program initialization.
+// Manual implementation of `Canon` to ignore the "modules" which needs to be
+// re-instantiated on program initialization.
 impl Canon for NetworkState {
     fn encode(&self, sink: &mut Sink) {
-        self.block_height.encode(sink);
         self.contracts.encode(sink);
     }
 
     fn decode(source: &mut Source) -> Result<Self, CanonError> {
         Ok(NetworkState {
-            block_height: u64::decode(source)?,
             contracts: Hamt::decode(source)?,
-            modules: Rc::new(RefCell::new(HashMap::new())),
+            modules: HostModules::default(),
             config: Config::default(),
         })
     }
 
     fn encoded_len(&self) -> usize {
-        Canon::encoded_len(&self.block_height)
-            + Canon::encoded_len(&self.contracts)
+        Canon::encoded_len(&self.contracts)
     }
 }
 
 impl NetworkState {
+    /// Returns a new empty [`NetworkState`].
+    pub fn new() -> Self {
+        Self::default()
     /// Returns a new instance of [`NetworkState`]
     pub fn new() -> Self {
         Self::default()
@@ -71,12 +67,6 @@ impl NetworkState {
     ) -> Result<Self, VMError> {
         self.config = Config::new(config_file)?;
         Ok(self)
-    }
-
-    /// Changes the block-height of the [`NetworkState`] instance
-    pub fn with_block_height(mut self, block_height: u64) -> Self {
-        self.block_height = block_height;
-        self
     }
 
     #[cfg(feature = "persistence")]
@@ -117,6 +107,8 @@ impl NetworkState {
         self.contracts
             .insert(id, contract.instrument(&self.config)?)
             .map_err(VMError::from_store_error)?;
+        let inserted_contract = self.get_contract(&id)?;
+        compile_module(inserted_contract.bytecode())?;
         Ok(id)
     }
 
@@ -145,21 +137,15 @@ impl NetworkState {
     }
 
     /// Returns a reference to the map of registered host modules
-    pub fn modules(
-        &self,
-    ) -> &Rc<RefCell<HashMap<ContractId, BoxedHostModule>>> {
+    pub fn modules(&self) -> &HostModules {
         &self.modules
     }
 
-    /// Returns the state's block height
-    pub fn block_height(&self) -> u64 {
-        self.block_height
-    }
-
-    /// Query the contract at address `target`
+    /// Queryn the contract at address `target`
     pub fn query<A, R>(
         &mut self,
         target: ContractId,
+        block_height: u64,
         query: A,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError>
@@ -167,9 +153,10 @@ impl NetworkState {
         A: Canon,
         R: Canon,
     {
-        let mut context = CallContext::new(self, gas_meter);
+        let mut context = CallContext::new(self, block_height);
 
-        let result = context.query(target, Query::from_canon(&query))?;
+        let result =
+            context.query(target, Query::from_canon(&query), gas_meter)?;
 
         result.cast().map_err(VMError::from_store_error)
     }
@@ -178,6 +165,7 @@ impl NetworkState {
     pub fn transact<A, R>(
         &mut self,
         target: ContractId,
+        block_height: u64,
         transaction: A,
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError>
@@ -189,10 +177,13 @@ impl NetworkState {
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(&mut fork, gas_meter);
+        let mut context = CallContext::new(&mut fork, block_height);
 
-        let (_, result) =
-            context.transact(target, Transaction::from_canon(&transaction))?;
+        let (_, result) = context.transact(
+            target,
+            Transaction::from_canon(&transaction),
+            gas_meter,
+        )?;
 
         let ret = result.cast().map_err(VMError::from_store_error)?;
 
@@ -208,9 +199,7 @@ impl NetworkState {
     where
         M: HostModule + 'static,
     {
-        self.modules
-            .borrow_mut()
-            .insert(module.module_id(), Box::new(module));
+        self.modules.insert(module);
     }
 
     /// Gets the state of the given contract

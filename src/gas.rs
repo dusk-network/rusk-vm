@@ -7,31 +7,17 @@
 // Gas units are chosen to be represented by u64 so that gas metering
 // instructions can operate on them efficiently.
 
-use core::ops::Range;
-
 /// Type alias for gas
 pub type Gas = u64;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum GasMeterResult {
-    Proceed,
-    OutOfGas,
+pub enum GasError {
+    /// Gas limit exceeded
+    GasLimitExceeded,
 }
 
-impl GasMeterResult {
-    pub const fn is_out_of_gas(&self) -> bool {
-        match *self {
-            GasMeterResult::OutOfGas => true,
-            GasMeterResult::Proceed => false,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Struct to keep track of gas usage
 pub struct GasMeter {
-    /// Gas held but not spent yet
-    held: Gas,
     /// Initial gas limit
     limit: Gas,
     /// Amount of gas left from initial gas limit; can reach zero
@@ -39,65 +25,54 @@ pub struct GasMeter {
 }
 
 impl GasMeter {
-    /// Creates a new `GasMeter` with given gas limits
-    pub fn with_limit(gas_limit: Gas) -> GasMeter {
-        GasMeter::with_range(Range {
-            start: 0,
-            end: gas_limit,
-        })
-    }
+    /// Default percentage of gas to be given to a [`GasMeter`] when [`limited`]
+    /// is called.
+    pub const RESERVE_PERCENTAGE: u64 = 93;
 
-    /// Creates a new `GasMeter` with given gas range.
-    /// A range of `2_000..1_000_000` means that `2_000` gas will be
-    /// held for known required calculation, and therefore the gas
-    /// actually available is `1_000_000 - 2_000 = 800_000`.
-    pub fn with_range(gas_range: Range<Gas>) -> GasMeter {
-        GasMeter {
-            held: gas_range.start,
-            limit: gas_range.end,
-            left: gas_range.end,
-        }
+    /// Creates a new `GasMeter` with given gas limits
+    pub fn with_limit(limit: Gas) -> GasMeter {
+        GasMeter { limit, left: limit }
     }
 
     /// Deduct specified amount of gas from the meter
-    pub fn charge(&mut self, amount: Gas) -> GasMeterResult {
+    pub fn charge(&mut self, amount: Gas) -> Result<(), GasError> {
         match self.left.checked_sub(amount) {
+            Some(val) => {
+                self.left = val;
+                Ok(())
+            }
             // If for any reason, we fall below the threshold, we run out of gas
             // directly consuming all of the gas left.
             None => {
                 self.left = 0;
-                GasMeterResult::OutOfGas
-            }
-            // If after subtracting the gas, the gas left in the Meter is
-            // below [`GasMeter::held`]
-            // we also abort the execution since no more stuff will be
-            // possible to do.
-            Some(val) if val <= self.held => {
-                self.left = 0;
-                GasMeterResult::OutOfGas
-            }
-            Some(val) => {
-                self.left = val;
-                GasMeterResult::Proceed
+                Err(GasError::GasLimitExceeded)
             }
         }
     }
 
     /// Returns how much gas left from the initial budget.
-    #[deprecated(since = "0.6.0", note = "Please use `left` instead")]
-    pub fn gas_left(&self) -> Gas {
+    pub fn left(&self) -> Gas {
         self.left
     }
 
-    /// Returns how much gas left from the initial budget.
-    /// This take in account [`GasMeter::held`].
-    pub fn left(&self) -> Gas {
-        self.left.saturating_sub(self.held)
-    }
-
     /// Returns how much gas was actually spent.
-    /// This does not consider [`GasMeter::held`] since it's not spent yet.
     pub fn spent(&self) -> Gas {
         self.limit - self.left
+    }
+
+    /// Create a new limited [`GasMeter`].
+    /// If `limit` parameter is `0`, default limit is assumed that satisfies
+    /// the requirement for obligatory gas reserve ([`Self::RESERVE_PERCENTAGE`]
+    /// of the gas left).
+    /// The limit provided cannot exceed the gas left, if that happens the
+    /// total amount of gas is used as limit.
+    pub fn limited(&self, limit: Gas) -> GasMeter {
+        let limit = if limit == 0 {
+            self.left() * Self::RESERVE_PERCENTAGE / 100
+        } else {
+            core::cmp::min(limit, self.left())
+        };
+
+        GasMeter { limit, left: limit }
     }
 }

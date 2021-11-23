@@ -4,61 +4,55 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::CallContext;
-use crate::ops::AbiCall;
 use crate::VMError;
 
+use crate::env::Env;
 use canonical::{Canon, Sink, Source};
+use core::mem::size_of;
 use dusk_abi::{ContractId, ContractState, Transaction};
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct ApplyTransaction;
 
-impl AbiCall for ApplyTransaction {
-    const ARGUMENTS: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
-    const RETURN: Option<ValueType> = None;
+impl ApplyTransaction {
+    pub fn transact(
+        env: &Env,
+        contract_id_offset: i32,
+        transaction_offset: i32,
+        gas_limit: u64,
+    ) -> Result<(), VMError> {
+        let contract_id_offset = contract_id_offset as u64;
+        let transaction_offset = transaction_offset as u64;
+        let context = env.get_context();
 
-    fn call(
-        context: &mut CallContext,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        if let [RuntimeValue::I32(contract_id_ofs), RuntimeValue::I32(transaction_ofs)] =
-            *args.as_ref()
-        {
-            let contract_id_ofs = contract_id_ofs as usize;
-            let transaction_ofs = transaction_ofs as usize;
+        let contract_id_memory =
+            context.read_memory(contract_id_offset, size_of::<ContractId>())?;
+        let contract_id = ContractId::from(&contract_id_memory);
+        let transaction_memory =
+            context.read_memory_from(transaction_offset)?;
+        let mut source = Source::new(transaction_memory);
+        let state = ContractState::decode(&mut source)
+            .map_err(VMError::from_store_error)?;
+        let transaction = Transaction::decode(&mut source)
+            .map_err(VMError::from_store_error)?;
 
-            let (contract_id, state, transaction) = context
-                .memory(|m| {
-                    let contract_id = ContractId::from(
-                        &m[contract_id_ofs..contract_id_ofs + 32],
-                    );
+        let callee = *context.callee();
+        *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
 
-                    let mut source = Source::new(&m[transaction_ofs..]);
+        let mut gas_meter = context.gas_meter().limited(gas_limit);
+        let (state, result) =
+            context.transact(contract_id, transaction, &mut gas_meter)?;
 
-                    let state = ContractState::decode(&mut source)?;
-                    let transaction = Transaction::decode(&mut source)?;
-
-                    Ok((contract_id, state, transaction))
-                })
-                .map_err(VMError::from_store_error)?;
-
-            let callee = *context.callee();
-            *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
-
-            let (state, result) = context.transact(contract_id, transaction)?;
-
-            context
-                .memory_mut(|m| {
-                    // write back the return value
-                    let mut sink = Sink::new(&mut m[transaction_ofs..]);
-                    state.encode(&mut sink);
-                    result.encode(&mut sink);
-                    Ok(None)
-                })
-                .map_err(VMError::from_store_error)
-        } else {
-            Err(VMError::InvalidArguments)
-        }
+        let state_encoded_length = state.encoded_len();
+        let (mut state_buffer, mut result_buffer) =
+            (vec![0; state_encoded_length], vec![0; result.encoded_len()]);
+        let (mut state_sink, mut result_sink) =
+            (Sink::new(&mut state_buffer), Sink::new(&mut result_buffer));
+        state.encode(&mut state_sink);
+        result.encode(&mut result_sink);
+        context.write_memory(&state_buffer, transaction_offset)?;
+        context.write_memory(
+            &result_buffer,
+            transaction_offset + state_encoded_length as u64,
+        )
     }
 }

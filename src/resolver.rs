@@ -4,82 +4,130 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::call_context::Resolver;
+use crate::env::Env;
 use crate::ops::*;
-use crate::VMError;
 
-use wasmi::{
-    self, FuncInstance, FuncRef, ModuleImportResolver, RuntimeArgs,
-    RuntimeValue, Signature,
-};
+use wasmer::{Exports, Function, Store};
 
-use crate::call_context::{CallContext, Invoke};
+pub struct HostImportsResolver;
 
-macro_rules! abi_resolver {
-    ( $visibility:vis $name:ident { $( $id:expr, $op_name:expr => $op:path ),* } ) => {
-
-        #[doc(hidden)]
-        #[derive(Clone, Default)]
-        $visibility struct $name;
-
-        impl ModuleImportResolver for $name {
-            fn resolve_func(&self, field_name: &str, _signature: &Signature) -> Result<FuncRef, wasmi::Error>
-            where $(
-                $op : AbiCall,
-                )*
-            {
-                match field_name {
-                    $(
-                        $op_name => Ok(FuncInstance::alloc_host(
-                            Signature::new(<$op as AbiCall>::ARGUMENTS,
-                                           <$op as AbiCall>::RETURN),
-                            $id,
-                        ))
-                    ),*
-
-                    ,
-
-                    _ => panic!("invalid function name {:?}", field_name)
+impl HostImportsResolver {
+    pub fn insert_into_namespace(
+        namespace: &mut Exports,
+        store: &Store,
+        env: Env,
+        names: &[String],
+    ) {
+        for name in names {
+            match name.as_str() {
+                "sig" => namespace.insert(
+                    "sig",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        panic::Panic::panic,
+                    ),
+                ),
+                "debug" => namespace.insert(
+                    "debug",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        debug::Debug::debug,
+                    ),
+                ),
+                "block_height" => namespace.insert(
+                    "block_height",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        block_height::BlockHeight::block_height,
+                    ),
+                ),
+                "transact" => namespace.insert(
+                    "transact",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        transact::ApplyTransaction::transact,
+                    ),
+                ),
+                "query" => namespace.insert(
+                    "query",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        query::ExecuteQuery::query,
+                    ),
+                ),
+                "callee" => namespace.insert(
+                    "callee",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        call_stack::Callee::callee,
+                    ),
+                ),
+                "caller" => namespace.insert(
+                    "caller",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        call_stack::Caller::caller,
+                    ),
+                ),
+                "get" => namespace.insert(
+                    "get",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        store::Get::get,
+                    ),
+                ),
+                "put" => namespace.insert(
+                    "put",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        store::Put::put,
+                    ),
+                ),
+                "hash" => namespace.insert(
+                    "hash",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        store::Hash::hash,
+                    ),
+                ),
+                "gas" => namespace.insert(
+                    "gas",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        gas::Gas::gas,
+                    ),
+                ),
+                "gas_consumed" => namespace.insert(
+                    "gas_consumed",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        gas::GasConsumed::gas_consumed,
+                    ),
+                ),
+                "gas_left" => namespace.insert(
+                    "gas_left",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        gas::GasLeft::gas_left,
+                    ),
+                ),
+                _ => {
+                    debug_assert!(false, "unknown wasm module import {}", name)
                 }
             }
         }
-
-        impl Invoke for $name {
-            fn invoke(
-                context: &mut CallContext,
-                index: usize,
-                args: RuntimeArgs) -> Result<Option<RuntimeValue>, VMError> {
-
-                match index {
-                    $(
-                        $id => <$op as AbiCall>::call(context, args)
-                    ),*
-
-                    ,
-
-                    _ => panic!("invalid index {:?}", index)
-                }
-            }
-        }
-
-        impl Resolver for $name {}
-    };
-}
-
-abi_resolver! {
-    pub CompoundResolver {
-        0, "sig" => panic::Panic,
-        1, "debug" => debug::Debug,
-        2, "get" => store::Get,
-        3, "put" => store::Put,
-        4, "hash" => store::Hash,
-        6, "query" => query::ExecuteQuery,
-        7, "transact" => transact::ApplyTransaction,
-        9, "callee" => call_stack::Callee,
-        10, "caller" => call_stack::Caller,
-        11, "gas" => gas::Gas,
-        12, "gas_consumed" => gas::GasConsumed,
-        13, "gas_left" => gas::GasLeft,
-        14, "block_height" => block_height::BlockHeight
     }
 }

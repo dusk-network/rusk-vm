@@ -14,7 +14,8 @@ use dusk_abi::ContractId;
 pub const SET_TARGET: u8 = 0;
 
 // query ids
-pub const CALL: u8 = 0;
+pub const CALL: u8 = 1;
+pub const CALLEE_2_GET: u8 = 2;
 
 #[derive(Clone, Canon, Debug, Default)]
 pub struct Callee1 {
@@ -61,7 +62,8 @@ mod hosted {
                 let ret =
                     dusk_abi::query::<_, (ContractId, ContractId, ContractId)>(
                         &slf.target_address,
-                        &(0, sender, dusk_abi::callee()),
+                        &(CALLEE_2_GET, sender, dusk_abi::callee()),
+                        0,
                     )
                     .expect("Query Succeeded");
 

@@ -4,24 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::AbiCall;
-use crate::call_context::CallContext;
+use crate::env::Env;
 use crate::VMError;
-
-use wasmi::{RuntimeArgs, RuntimeValue, ValueType};
 
 pub struct BlockHeight;
 
-impl AbiCall for BlockHeight {
-    const ARGUMENTS: &'static [ValueType] = &[];
-    const RETURN: Option<ValueType> = Some(ValueType::I64);
-
-    fn call(
-        context: &mut CallContext,
-        _args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, VMError> {
-        let block_height = context.state().block_height();
-
-        Ok(Some(RuntimeValue::from(block_height)))
+impl BlockHeight {
+    pub fn block_height(env: &Env) -> Result<u64, VMError> {
+        Ok(env.get_context().block_height())
     }
 }
