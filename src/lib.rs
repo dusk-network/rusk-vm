@@ -20,7 +20,7 @@ mod contract;
 mod env;
 mod gas;
 mod memory;
-mod module_config;
+mod modules;
 mod ops;
 mod resolver;
 mod state;
@@ -44,7 +44,7 @@ pub enum VMError {
     /// Could not find WASM memory
     MemoryNotFound,
     /// Error during the instrumentalization
-    InstrumentationError(module_config::InstrumentationError),
+    InstrumentationError(modules::InstrumentationError),
     /// Invalid ABI Call
     InvalidABICall,
     /// Invalid Utf8
@@ -91,8 +91,8 @@ impl From<io::Error> for VMError {
     }
 }
 
-impl From<module_config::InstrumentationError> for VMError {
-    fn from(e: module_config::InstrumentationError) -> Self {
+impl From<modules::InstrumentationError> for VMError {
+    fn from(e: modules::InstrumentationError) -> Self {
         VMError::InstrumentationError(e)
     }
 }

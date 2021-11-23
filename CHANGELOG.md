@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `deploy_with_id` method to NetworkState [#210]
 
 ### Changed
+- Wrap `NetworkState::modules` in `HostModules` struct [#270]
 - Port from `wasmi` to `wasmer` [#245]
 - Update dependencies
 
@@ -182,6 +183,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2019-08-02
 - Initial
 
+[#270]: https://github.com/dusk-network/rusk-vm/issues/270
 [#269]: https://github.com/dusk-network/rusk-vm/issues/269
 [#251]: https://github.com/dusk-network/rusk-vm/issues/251
 [#248]: https://github.com/dusk-network/rusk-vm/issues/248

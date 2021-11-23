@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::module_config::ModuleConfig;
+use crate::modules::ModuleConfig;
 use crate::VMError;
 use canonical::Canon;
 use canonical_derive::Canon;

@@ -4,12 +4,75 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use std::cell::{Ref, RefCell};
+use std::collections::HashMap;
+use std::rc::Rc;
+
+use crate::compiler::WasmerCompiler;
 use crate::VMError;
 
+use cached::proc_macro::cached;
+use dusk_abi::HostModule;
 use parity_wasm::elements;
+use wasmer::Module;
 use wasmparser::Validator;
 
 pub use dusk_abi::{ContractId, ContractState};
+
+type BoxedHostModule = Box<dyn HostModule>;
+
+/// Compiles a module with the specified bytecode or retrieves it from
+pub fn compile_module(bytecode: &[u8]) -> Result<Module, VMError> {
+    get_or_create_module(bytecode.to_vec())
+}
+
+/// The `cached` crate is used to generate a cache for calls to this function.
+/// This is done to prevent modules from being compiled over and over again,
+/// saving some CPU cycles.
+#[cached(size = 2048, time = 86400, result = true, sync_writes = true)]
+fn get_or_create_module(bytecode: Vec<u8>) -> Result<Module, VMError> {
+    let new_module = WasmerCompiler::create_module(bytecode)?;
+    Ok(new_module)
+}
+
+/// A cheaply cloneable store for host modules.
+#[derive(Clone, Default)]
+pub struct HostModules(Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>);
+
+/// A `Ref` to a particular host module.
+pub struct HostModuleRef<'a> {
+    map_ref: Ref<'a, HashMap<ContractId, BoxedHostModule>>,
+    id: &'a ContractId,
+}
+
+impl<'a> HostModuleRef<'a> {
+    pub fn get(&self) -> Option<&BoxedHostModule> {
+        self.map_ref.get(self.id)
+    }
+}
+
+impl HostModules {
+    /// Insert a new module into the store.
+    pub fn insert<M>(&mut self, module: M)
+    where
+        M: 'static + HostModule,
+    {
+        self.0
+            .borrow_mut()
+            .insert(module.module_id(), Box::new(module));
+    }
+
+    /// Get a reference to a particular module from the store.
+    pub fn get_module_ref<'a>(
+        &'a self,
+        id: &'a ContractId,
+    ) -> HostModuleRef<'a> {
+        HostModuleRef {
+            map_ref: self.0.borrow(),
+            id,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum InstrumentationError {
