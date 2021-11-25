@@ -5,6 +5,7 @@ authors = [
   "Kristoffer Ström <kristoffer@dusk.network>",
   "zer0 <matteo@dusk.network>",
   "Milosz Muszynski <milosz@dusk.network>",
+  "Eduardo Leegwater Simões <eduardo@dusk.network>",
 ]
 edition = "2018"
 repository = "https://github.com/dusk-network/rusk-vm"

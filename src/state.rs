@@ -7,8 +7,9 @@
 use std::ops::{Deref, DerefMut};
 
 use canonical::{Canon, CanonError, Sink, Source, Store};
+use canonical_derive::Canon;
 use dusk_abi::{HostModule, Query, Transaction};
-use dusk_hamt::Hamt;
+use dusk_hamt::Map;
 #[cfg(feature = "persistence")]
 use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
@@ -20,29 +21,99 @@ use crate::gas::GasMeter;
 use crate::modules::{compile_module, HostModules};
 use crate::VMError;
 
-/// The main network state, includes the full state of contracts.
+/// State of the contracts on the network.
+#[derive(Clone, Default, Canon)]
+pub struct Contracts(Map<ContractId, Contract>);
+
+impl Contracts {
+    /// Returns a reference to the specified contracts state.
+    pub fn get_contract<'a>(
+        &'a self,
+        contract_id: &ContractId,
+    ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
+        self.0
+            .get(contract_id)
+            .map_err(VMError::from_store_error)
+            .transpose()
+            .unwrap_or(Err(VMError::UnknownContract))
+    }
+
+    /// Returns a mutable reference to the specified contracts state.
+    pub fn get_contract_mut<'a>(
+        &'a mut self,
+        contract_id: &ContractId,
+    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
+        self.0
+            .get_mut(contract_id)
+            .map_err(VMError::from_store_error)
+            .transpose()
+            .unwrap_or(Err(VMError::UnknownContract))
+    }
+
+    /// Deploys a contract to the state, returning the address of the created
+    /// contract or an error.
+    pub fn deploy(
+        &mut self,
+        contract: Contract,
+    ) -> Result<ContractId, VMError> {
+        let id: ContractId = Store::hash(contract.bytecode()).into();
+        self.deploy_with_id(id, contract)
+    }
+
+    /// Deploys a contract with the given id to the state.
+    pub fn deploy_with_id(
+        &mut self,
+        id: ContractId,
+        contract: Contract,
+    ) -> Result<ContractId, VMError> {
+        self.0
+            .insert(id, contract.instrument()?)
+            .map_err(VMError::from_store_error)?;
+
+        let inserted_contract = self.get_contract(&id)?;
+        compile_module(inserted_contract.bytecode())?;
+
+        Ok(id)
+    }
+}
+
+/// The main network state.
+///
+/// It keeps two different states, the `origin` and the `head`. The `origin` is
+/// the starting state, and `head` is origin with all the received transactions
+/// applied.
+///
+/// It is possible to either [commit](`Self::commit`) to the `head` state,
+/// turning it into the new `origin`, or [reset](`Self::reset`) it back to
+/// `origin`.
 #[derive(Clone, Default)]
 pub struct NetworkState {
-    contracts: Hamt<ContractId, Contract, ()>,
+    origin: Contracts,
+    head: Contracts,
     modules: HostModules,
 }
 
-// Manual implementation of `Canon` to ignore the "modules" which needs to be
-// re-instantiated on program initialization.
+/// Custom implementation of Canon ensuring only the `head` state is encoded.
+/// When restored, `head` is set to be a copy of `origin` and the modules are to
+/// be set by the caller.
 impl Canon for NetworkState {
     fn encode(&self, sink: &mut Sink) {
-        self.contracts.encode(sink);
+        self.origin.encode(sink);
     }
 
     fn decode(source: &mut Source) -> Result<Self, CanonError> {
-        Ok(NetworkState {
-            contracts: Hamt::decode(source)?,
+        let origin = Contracts::decode(source)?;
+        let head = origin.clone();
+
+        Ok(Self {
+            origin,
+            head,
             modules: HostModules::default(),
         })
     }
 
     fn encoded_len(&self) -> usize {
-        Canon::encoded_len(&self.contracts)
+        Canon::encoded_len(&self.origin)
     }
 }
 
@@ -52,71 +123,27 @@ impl NetworkState {
         Self::default()
     }
 
-    #[cfg(feature = "persistence")]
-    /// Persists the contracts stored on the [`NetworkState`] specifying a
-    /// backend ctor function.
-    pub fn persist(
-        &self,
-        ctor: fn() -> Result<DiskBackend, PersistError>,
-    ) -> Result<PersistedId, PersistError> {
-        Persistence::persist(&BackendCtor::new(ctor), &self.contracts)
+    /// Returns the state of contracts in the `head`.
+    pub(crate) fn head_mut(&mut self) -> &mut Contracts {
+        &mut self.head
     }
 
-    #[cfg(feature = "persistence")]
-    /// Given a [`PersistedId`] restores the [`Hamt`] which stores the contracts
-    /// of the entire blockchain state.
-    pub fn restore(mut self, id: PersistedId) -> Result<Self, PersistError> {
-        self.contracts = Hamt::from_generic(&id.restore()?)?;
-        Ok(self)
-    }
-
-    /// Deploys a contract to the state, returns the address of the created
-    /// contract or an error
-    pub fn deploy(
-        &mut self,
-        contract: Contract,
-    ) -> Result<ContractId, VMError> {
-        let id: ContractId = Store::hash(contract.bytecode()).into();
-
-        self.deploy_with_id(id, contract)
-    }
-
-    /// Deploys a contract to the state with the given id / address
-    pub fn deploy_with_id(
-        &mut self,
-        id: ContractId,
-        contract: Contract,
-    ) -> Result<ContractId, VMError> {
-        self.contracts
-            .insert(id, contract.instrument()?)
-            .map_err(VMError::from_store_error)?;
-        let inserted_contract = self.get_contract(&id)?;
-        compile_module(inserted_contract.bytecode())?;
-        Ok(id)
-    }
-
-    /// Returns a reference to the specified contracts state
+    /// Returns a reference to the specified contracts state in the `head`
+    /// state.
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
     ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
-        self.contracts
-            .get(contract_id)
-            .map_err(VMError::from_store_error)
-            .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+        self.head.get_contract(contract_id)
     }
 
-    /// Returns a reference to the specified contracts state
+    /// Returns a mutable reference to the specified contracts state in the
+    /// `origin` state.
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
     ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
-        self.contracts
-            .get_mut(contract_id)
-            .map_err(VMError::from_store_error)
-            .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+        self.head.get_contract_mut(contract_id)
     }
 
     /// Returns a reference to the map of registered host modules
@@ -124,7 +151,47 @@ impl NetworkState {
         &self.modules
     }
 
-    /// Queryn the contract at address `target`
+    #[cfg(feature = "persistence")]
+    /// Persists the origin contracts stored on the [`NetworkState`] specifying
+    /// a backend ctor function.
+    pub fn persist(
+        &self,
+        ctor: fn() -> Result<DiskBackend, PersistError>,
+    ) -> Result<PersistedId, PersistError> {
+        Persistence::persist(&BackendCtor::new(ctor), &self.head.0)
+    }
+
+    #[cfg(feature = "persistence")]
+    /// Given a [`PersistedId`] restores the [`Hamt`] which stores the contracts
+    /// of the entire blockchain state.
+    pub fn restore(mut self, id: PersistedId) -> Result<Self, PersistError> {
+        let map = Map::from_generic(&id.restore()?)?;
+
+        self.origin = Contracts(map);
+        self.head = self.origin.clone();
+
+        Ok(self)
+    }
+
+    /// Deploys a contract to the `head` state, returning the address of the
+    /// created contract or an error.
+    pub fn deploy(
+        &mut self,
+        contract: Contract,
+    ) -> Result<ContractId, VMError> {
+        self.head.deploy(contract)
+    }
+
+    /// Deploys a contract to the `head` state with the given id / address.
+    pub fn deploy_with_id(
+        &mut self,
+        id: ContractId,
+        contract: Contract,
+    ) -> Result<ContractId, VMError> {
+        self.head.deploy_with_id(id, contract)
+    }
+
+    /// Query the contract at `target` address in the `head` state.
     pub fn query<A, R>(
         &mut self,
         target: ContractId,
@@ -144,7 +211,10 @@ impl NetworkState {
         result.cast().map_err(VMError::from_store_error)
     }
 
-    /// Transact with the contract at address `target`
+    /// Transact with the contract at `target` address in the `head` state,
+    /// returning the result of the transaction.
+    ///
+    /// This will advance the `head` to the resultant state.
     pub fn transact<A, R>(
         &mut self,
         target: ContractId,
@@ -177,7 +247,17 @@ impl NetworkState {
         Ok(ret)
     }
 
-    /// Register a host-fn handler
+    /// Resets the `head` state to `origin`.
+    pub fn reset(&mut self) {
+        self.head = self.origin.clone();
+    }
+
+    /// Commits to the `head` state, making it the new `origin`.
+    pub fn commit(&mut self) {
+        self.origin = self.head.clone();
+    }
+
+    /// Register a host function handler.
     pub fn register_host_module<M>(&mut self, module: M)
     where
         M: HostModule + 'static,
@@ -185,7 +265,7 @@ impl NetworkState {
         self.modules.insert(module);
     }
 
-    /// Gets the state of the given contract
+    /// Gets the state of the given contract in the `head` state.
     pub fn get_contract_cast_state<C>(
         &self,
         contract_id: &ContractId,
@@ -193,12 +273,12 @@ impl NetworkState {
     where
         C: Canon,
     {
-        self.contracts
-            .get(contract_id)
-            .map_err(VMError::from_store_error)?
-            .map_or(Err(VMError::UnknownContract), |contract| {
+        self.head.get_contract(contract_id).map_or(
+            Err(VMError::UnknownContract),
+            |contract| {
                 let mut source = Source::new((*contract).state().as_bytes());
                 C::decode(&mut source).map_err(VMError::from_store_error)
-            })
+            },
+        )
     }
 }
