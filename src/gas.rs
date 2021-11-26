@@ -25,8 +25,8 @@ pub struct GasMeter {
 }
 
 impl GasMeter {
-    /// Default percentage of gas to be given to a [`GasMeter`] when [`limited`]
-    /// is called.
+    /// Default percentage of gas to be given to a [`GasMeter`] when
+    /// [`limited`](`Self::limited`) is called.
     pub const RESERVE_PERCENTAGE: u64 = 93;
 
     /// Creates a new `GasMeter` with given gas limits
