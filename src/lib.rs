@@ -32,9 +32,9 @@ pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
+use serde::Deserialize;
 use thiserror::Error;
 use wasmer_vm::TrapCode;
-use serde::Deserialize;
 
 #[derive(Error)]
 /// The errors that can happen while executing the VM
