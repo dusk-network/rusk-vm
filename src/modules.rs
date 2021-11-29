@@ -89,7 +89,7 @@ pub enum InstrumentationError {
 }
 
 #[derive(Deserialize, Clone)]
-pub(crate) struct ModuleConfig {
+pub struct ModuleConfig {
     has_grow_cost: bool,
     has_forbidden_floats: bool,
     has_metering: bool,

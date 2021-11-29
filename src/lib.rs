@@ -222,7 +222,7 @@ pub struct Schedule {
 
     /// Maximum allowed stack height.
     ///
-    /// See https://wiki.parity.io/WebAssembly-StackHeight to find out
+    /// See `<https://wiki.parity.io/WebAssembly-StackHeight>` to find out
     /// how the stack frame cost is calculated.
     pub max_stack_height: u32,
 

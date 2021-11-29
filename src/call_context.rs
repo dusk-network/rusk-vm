@@ -14,7 +14,7 @@ use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
 use crate::modules::compile_module;
 use crate::resolver::HostImportsResolver;
-use crate::state::NetworkState;
+use crate::state::{Contracts, NetworkState};
 use crate::VMError;
 
 pub struct StackFrame {
@@ -290,8 +290,8 @@ impl<'a> CallContext<'a> {
         Ok(())
     }
 
-    pub fn state_mut(&mut self) -> &mut NetworkState {
-        &mut self.state
+    pub fn state_mut(&mut self) -> &mut Contracts {
+        self.state.head_mut()
     }
 
     /// Reconcile the gas usage across the stack.
