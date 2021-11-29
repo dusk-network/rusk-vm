@@ -131,10 +131,6 @@ impl NetworkState {
     /// Returns a [`NetworkState`] based on a schedule
     pub fn with_schedule(schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
-        NetworkState::create(module_config)
-    }
-
-    fn create(module_config: ModuleConfig) -> Self {
         Self {
             module_config,
             ..Self::default()

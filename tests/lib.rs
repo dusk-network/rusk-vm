@@ -35,7 +35,7 @@ fn counter() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -69,7 +69,7 @@ fn counter_trivial() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -88,7 +88,7 @@ fn delegated_call() {
     let counter = Counter::new(99);
     let delegator = Delegator;
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let counter_code =
         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
@@ -153,7 +153,7 @@ fn fibonacci() {
 
     let contract = Contract::new(fib, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -186,7 +186,7 @@ fn block_height() {
 
     let contract = Contract::new(bh, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -215,7 +215,7 @@ fn self_snapshot() {
 
     let contract = Contract::new(bh, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -309,7 +309,7 @@ fn tx_vec() {
         include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
     let contract = Contract::new(tx_vec, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
     let contract_id = network.deploy(contract).unwrap();
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
@@ -382,7 +382,7 @@ fn calling() {
         "../target/wasm32-unknown-unknown/release/callee_2.wasm"
     );
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let caller_id = network
         .deploy(Contract::new(caller, code_caller.to_vec()))
@@ -438,7 +438,7 @@ fn gas_consumed_host_function_works() {
 
     let contract = Contract::new(gas_contract, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
@@ -482,7 +482,7 @@ fn gas_consumption_works() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
@@ -512,7 +512,7 @@ fn out_of_gas_aborts_execution() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
@@ -536,7 +536,7 @@ fn deploy_fails_with_floats() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     assert!(matches!(
         network.deploy(contract),
@@ -557,7 +557,7 @@ fn deploy_with_id() -> Result<(), VMError> {
     let id = ContractId::reserved(0x10);
 
     // Deploy with the id given
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new();
 
     // The id is the same returned by the deploy function
     assert_eq!(id, network.deploy_with_id(id, contract)?);
@@ -606,7 +606,7 @@ fn persistence() {
     let contract = Contract::new(counter, code.to_vec());
 
     let (persist_id, contract_id) = {
-        let mut network = NetworkState::default();
+        let mut network = NetworkState::new();
 
         let contract_id = network.deploy(contract).unwrap();
 
@@ -645,7 +645,7 @@ fn persistence() {
 
     // If the persistence works, We should still read 100 with a freshly created
     // NetworkState.
-    let mut network = NetworkState::default()
+    let mut network = NetworkState::new()
         .restore(persist_id)
         .expect("Error reconstructing the NetworkState");
 
