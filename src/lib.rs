@@ -32,9 +32,11 @@ pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
-use serde::Deserialize;
 use thiserror::Error;
 use wasmer_vm::TrapCode;
+
+#[cfg(feature = "enable-serde")]
+use serde::{Deserialize, Serialize};
 
 #[derive(Error)]
 /// The errors that can happen while executing the VM
@@ -206,8 +208,8 @@ impl fmt::Debug for VMError {
 }
 
 /// Definition of the cost schedule and other parameterizations for wasm vm.
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Deserialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Schedule {
     /// Version of the schedule.
     pub version: u32,

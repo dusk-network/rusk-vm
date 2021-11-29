@@ -2,9 +2,9 @@
 name = "rusk-vm"
 version = "0.7.0-rc.2"
 authors = [
-  "Kristoffer Ström <kristoffer@dusk.network>",
-  "zer0 <matteo@dusk.network>",
-  "Milosz Muszynski <milosz@dusk.network>",
+    "Kristoffer Ström <kristoffer@dusk.network>",
+    "zer0 <matteo@dusk.network>",
+    "Milosz Muszynski <milosz@dusk.network>",
 ]
 edition = "2018"
 repository = "https://github.com/dusk-network/rusk-vm"
@@ -27,7 +27,7 @@ wasmer-compiler-cranelift = "2.0.0"
 wasmer-engine-universal = "2.0.0"
 cached = "0.26.2"
 thiserror = "1.0.24"
-serde = { version = "1.0.130", features = ["derive"] }
+serde = { version = "1.0.130", features = ["derive"], optional = true }
 
 
 [dev-dependencies]
@@ -67,4 +67,5 @@ members = [
 ]
 
 [features]
+enable-serde = ["serde"]
 persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]
