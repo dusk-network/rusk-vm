@@ -6,7 +6,7 @@
 
 use std::ops::{Deref, DerefMut};
 
-use canonical::{Canon, CanonError, Sink, Source, Store};
+use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
 use canonical_derive::Canon;
 use dusk_abi::{HostModule, Query, Transaction};
 use dusk_hamt::Map;
@@ -59,6 +59,13 @@ impl Contracts {
     ) -> Result<ContractId, VMError> {
         let id: ContractId = Store::hash(contract.bytecode()).into();
         self.deploy_with_id(id, contract)
+    }
+
+    /// Computes the root of the contracts tree.
+    pub fn root(&self) -> [u8; 32] {
+        // FIXME This is terribly slow. It should be possible to get it directly
+        //  from the tree. https://github.com/dusk-network/microkelvin/issues/85
+        Store::hash(&self.0.encode_to_vec())
     }
 
     /// Deploys a contract with the given id to the state.
@@ -284,6 +291,11 @@ impl NetworkState {
         *self = fork;
 
         Ok(ret)
+    }
+
+    /// Returns the root of the tree in the `head` state.
+    pub fn root(&self) -> [u8; 32] {
+        self.head.root()
     }
 
     /// Resets the `head` state to `origin`.
