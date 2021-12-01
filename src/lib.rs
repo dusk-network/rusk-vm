@@ -266,8 +266,7 @@ impl Default for Schedule {
             ("grow_mem", 1),
         ]
         .iter()
-        .cloned()
-        .map(|(s, c)| (s.to_string(), c))
+        .map(|(s, c)| (s.to_string(), *c))
         .collect();
         Schedule {
             version: 0,
