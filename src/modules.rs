@@ -17,6 +17,7 @@ use parity_wasm::elements;
 use pwasm_utils::rules::{InstructionType, Metering};
 use std::collections::BTreeMap as Map;
 use std::str::FromStr;
+use tracing::trace;
 use wasmer::Module;
 use wasmparser::Validator;
 
