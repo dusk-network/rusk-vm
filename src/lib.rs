@@ -10,6 +10,7 @@
 #![warn(missing_docs)]
 #![allow(unreachable_code)]
 
+use std::collections::HashMap;
 use std::{fmt, io};
 
 use canonical::CanonError;
@@ -204,47 +205,16 @@ impl fmt::Debug for VMError {
 }
 
 /// Definition of the cost schedule and other parameterizations for wasm vm.
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Clone, PartialEq, Eq)]
 pub struct Schedule {
     /// Version of the schedule.
     pub version: u32,
 
-    /// Cost of putting a byte of code into storage.
-    pub put_code_per_byte_cost: Gas,
-
-    /// Gas cost of a growing memory by single page.
-    pub grow_mem_cost: Gas,
-
     /// Gas cost of a regular operation.
     pub regular_op_cost: Gas,
 
-    /// Gas cost per one byte returned.
-    pub return_data_per_byte_cost: Gas,
-
-    /// Gas cost to deposit an event; the per-byte portion.
-    pub event_data_per_byte_cost: Gas,
-
-    /// Gas cost to deposit an event; the cost per topic.
-    pub event_per_topic_cost: Gas,
-
-    /// Gas cost to deposit an event; the base.
-    pub event_base_cost: Gas,
-
-    /// Base gas cost to call into a contract.
-    pub call_base_cost: Gas,
-
-    /// Base gas cost to instantiate a contract.
-    pub instantiate_base_cost: Gas,
-
-    /// Gas cost per one byte read from the sandbox memory.
-    pub sandbox_data_read_cost: Gas,
-
-    /// Gas cost per one byte written to the sandbox memory.
-    pub sandbox_data_write_cost: Gas,
-
-    /// The maximum number of topics supported by an event.
-    pub max_event_topics: u32,
+    /// Gas cost of a growing memory by single page.
+    pub grow_mem_cost: Gas,
 
     /// Maximum allowed stack height.
     ///
@@ -252,41 +222,63 @@ pub struct Schedule {
     /// how the stack frame cost is calculated.
     pub max_stack_height: u32,
 
-    /// Maximum number of memory pages allowed for a contract.
-    pub max_memory_pages: u32,
-
     /// Maximum allowed size of a declared table.
     pub max_table_size: u32,
 
-    /// Whether the `ext_println` function is allowed to be used contracts.
-    /// MUST only be enabled for `dev` chains, NOT for production chains
-    pub enable_println: bool,
+    /// Floats are forbidden
+    pub has_forbidden_floats: bool,
 
-    /// The maximum length of a subject used for PRNG generation.
-    pub max_subject_len: u32,
+    /// Cost of memory growth
+    pub has_grow_cost: bool,
+
+    /// Is metering on
+    pub has_metering: bool,
+
+    /// Is table size limit on
+    pub has_table_size_limit: bool,
+
+    /// Op cost bit
+    pub per_type_op_cost: HashMap<String, u32>,
 }
 
 impl Default for Schedule {
     fn default() -> Schedule {
+        let per_type_op_cost: HashMap<String, u32> = [
+            ("bit", 1),
+            ("add", 1),
+            ("mul", 1),
+            ("div", 1),
+            ("load", 1),
+            ("store", 1),
+            ("const", 1),
+            ("local", 1),
+            ("global", 1),
+            ("flow", 1),
+            ("integer_comp", 1),
+            ("float_comp", 1),
+            ("float", 1),
+            ("conversion", 1),
+            ("float_conversion", 1),
+            ("reinterpret", 1),
+            ("unreachable", 1),
+            ("nop", 1),
+            ("current_mem", 1),
+            ("grow_mem", 1),
+        ]
+        .iter()
+        .map(|(s, c)| (s.to_string(), *c))
+        .collect();
         Schedule {
             version: 0,
-            put_code_per_byte_cost: 1,
-            grow_mem_cost: 1,
             regular_op_cost: 1,
-            return_data_per_byte_cost: 1,
-            event_data_per_byte_cost: 1,
-            event_per_topic_cost: 1,
-            event_base_cost: 1,
-            call_base_cost: 135,
-            instantiate_base_cost: 175,
-            sandbox_data_read_cost: 1,
-            sandbox_data_write_cost: 1,
-            max_event_topics: 4,
-            max_stack_height: 64 * 1024,
-            max_memory_pages: 16,
-            max_table_size: 16 * 1024,
-            enable_println: false,
-            max_subject_len: 32,
+            grow_mem_cost: 1,
+            max_stack_height: 65536,
+            max_table_size: 16384,
+            has_forbidden_floats: true,
+            has_grow_cost: true,
+            has_metering: true,
+            has_table_size_limit: true,
+            per_type_op_cost,
         }
     }
 }

@@ -19,8 +19,9 @@ use tracing::{trace, trace_span};
 use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
 use crate::gas::GasMeter;
+use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
-use crate::VMError;
+use crate::{Schedule, VMError};
 
 /// State of the contracts on the network.
 #[derive(Clone, Default, Canon)]
@@ -56,9 +57,10 @@ impl Contracts {
     pub fn deploy(
         &mut self,
         contract: Contract,
+        module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
         let id: ContractId = Store::hash(contract.bytecode()).into();
-        self.deploy_with_id(id, contract)
+        self.deploy_with_id(id, contract, module_config)
     }
 
     /// Computes the root of the contracts tree.
@@ -73,9 +75,10 @@ impl Contracts {
         &mut self,
         id: ContractId,
         contract: Contract,
+        module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
         self.0
-            .insert(id, contract.instrument()?)
+            .insert(id, contract.instrument(module_config)?)
             .map_err(VMError::from_store_error)?;
 
         let inserted_contract = self.get_contract(&id)?;
@@ -99,6 +102,7 @@ pub struct NetworkState {
     origin: Contracts,
     head: Contracts,
     modules: HostModules,
+    module_config: ModuleConfig,
 }
 
 /// Custom implementation of Canon ensuring only the `head` state is encoded.
@@ -117,6 +121,7 @@ impl Canon for NetworkState {
             origin,
             head,
             modules: HostModules::default(),
+            module_config: ModuleConfig::new(),
         })
     }
 
@@ -129,6 +134,15 @@ impl NetworkState {
     /// Returns a new empty [`NetworkState`].
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Returns a [`NetworkState`] based on a schedule
+    pub fn with_schedule(schedule: &Schedule) -> Self {
+        let module_config = ModuleConfig::from_schedule(schedule);
+        Self {
+            module_config,
+            ..Self::default()
+        }
     }
 
     /// Returns the state of contracts in the `head`.
@@ -187,7 +201,7 @@ impl NetworkState {
         &mut self,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy(contract)
+        self.head.deploy(contract, &self.module_config)
     }
 
     /// Deploys a contract to the `head` state with the given id / address.
@@ -196,7 +210,7 @@ impl NetworkState {
         id: ContractId,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy_with_id(id, contract)
+        self.head.deploy_with_id(id, contract, &self.module_config)
     }
 
     /// Query the contract at `target` address in the `head` state.
