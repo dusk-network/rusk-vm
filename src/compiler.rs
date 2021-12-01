@@ -4,8 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use wasmer::{CompileError, Module};
-use wasmer_compiler_cranelift::Cranelift;
+use crate::compiler_config::CompilerConfigProvider;
+use crate::modules::ModuleConfig;
+use crate::VMError;
+use wasmer::Module;
 use wasmer_engine_universal::Universal;
 
 pub struct WasmerCompiler;
@@ -14,9 +16,12 @@ impl WasmerCompiler {
     /// Creates module out of bytecode
     pub fn create_module(
         bytecode: impl AsRef<[u8]>,
-    ) -> Result<Module, CompileError> {
+        module_config: &ModuleConfig,
+    ) -> Result<Module, VMError> {
+        let compiler_config =
+            CompilerConfigProvider::from_config(module_config)?;
         let store =
-            wasmer::Store::new(&Universal::new(Cranelift::default()).engine());
-        Module::new(&store, bytecode)
+            wasmer::Store::new(&Universal::new(compiler_config).engine());
+        Module::new(&store, bytecode).map_err(VMError::WasmerCompileError)
     }
 }

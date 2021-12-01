@@ -50,6 +50,11 @@ impl GasMeter {
         }
     }
 
+    /// Mutates the left gas amount
+    pub fn set_left(&mut self, new_left: Gas) {
+        self.left = new_left;
+    }
+
     /// Returns how much gas left from the initial budget.
     pub fn left(&self) -> Gas {
         self.left

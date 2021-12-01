@@ -14,8 +14,6 @@ license = "MPL-2.0"
 
 [dependencies]
 wasmparser = "0.81.0"
-parity-wasm = "0.41"
-pwasm-utils = "0.16"
 failure = "0.1"
 dusk-abi = "0.10"
 canonical = "0.6"
@@ -26,6 +24,7 @@ wasmer = "2.0.0"
 wasmer-vm = "2.0.0"
 wasmer-compiler-cranelift = "2.0.0"
 wasmer-engine-universal = "2.0.0"
+wasmer-middlewares = "2.0.0"
 cached = "0.26.2"
 thiserror = "1.0.24"
 

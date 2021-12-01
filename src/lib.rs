@@ -17,6 +17,7 @@ use canonical::CanonError;
 
 mod call_context;
 mod compiler;
+mod compiler_config;
 mod contract;
 mod env;
 mod gas;
@@ -280,6 +281,16 @@ impl Default for Schedule {
             has_metering: true,
             has_table_size_limit: true,
             per_type_op_cost,
+        }
+    }
+}
+
+impl Schedule {
+    /// Create schedule with version
+    pub fn with_version(version: u32) -> Self {
+        Self {
+            version,
+            ..Self::default()
         }
     }
 }
