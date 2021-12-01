@@ -14,6 +14,7 @@ use dusk_hamt::Map;
 use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
 };
+use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractId};
@@ -203,12 +204,31 @@ impl NetworkState {
         A: Canon,
         R: Canon,
     {
+        let _span = trace_span!(
+            "outer query",
+            block_height = ?block_height,
+            target = ?target,
+            gas_limit = ?gas_meter.limit()
+        );
+
         let mut context = CallContext::new(self, block_height);
 
         let result =
-            context.query(target, Query::from_canon(&query), gas_meter)?;
+            match context.query(target, Query::from_canon(&query), gas_meter) {
+                Ok(result) => {
+                    trace!("query was successful");
+                    Ok(result)
+                }
+                Err(e) => {
+                    trace!("query returned an error: {}", e);
+                    Err(e)
+                }
+            }?;
 
-        result.cast().map_err(VMError::from_store_error)
+        result.cast().map_err(|e| {
+            trace!("failed casting to result type: {:?}", e);
+            VMError::from_store_error(e)
+        })
     }
 
     /// Transact with the contract at `target` address in the `head` state,
@@ -226,19 +246,38 @@ impl NetworkState {
         A: Canon,
         R: Canon,
     {
+        let _span = trace_span!(
+            "outer transact",
+            block_height = ?block_height,
+            target = ?target,
+            gas_limit = ?gas_meter.limit(),
+        );
+
         // Fork the current network's state
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
         let mut context = CallContext::new(&mut fork, block_height);
 
-        let (_, result) = context.transact(
+        let result = match context.transact(
             target,
             Transaction::from_canon(&transaction),
             gas_meter,
-        )?;
+        ) {
+            Ok((_, result)) => {
+                trace!("transact was successful");
+                Ok(result)
+            }
+            Err(e) => {
+                trace!("transact returned an error: {}", e);
+                Err(e)
+            }
+        }?;
 
-        let ret = result.cast().map_err(VMError::from_store_error)?;
+        let ret = result.cast().map_err(|e| {
+            trace!("failed casting to result type: {:?}", e);
+            VMError::from_store_error(e)
+        })?;
 
         // If we reach this point, everything went well and we can use the
         // updates made in the forked state.

@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use tracing::trace;
+
 use crate::env::Env;
 use crate::VMError;
 
@@ -11,6 +13,8 @@ pub struct Callee;
 
 impl Callee {
     pub fn callee(env: &Env, result_ofs: i32) -> Result<(), VMError> {
+        trace!("Executing 'callee' host function");
+
         let result_ofs = result_ofs as usize;
         let context = env.get_context();
         let callee = *context.callee();
@@ -23,6 +27,8 @@ pub struct Caller;
 
 impl Caller {
     pub fn caller(env: &Env, result_ofs: i32) -> Result<(), VMError> {
+        trace!("Executing 'caller' host function");
+
         let result_ofs = result_ofs as usize;
         let context = env.get_context();
         let caller = *context.caller();
