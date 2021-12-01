@@ -28,7 +28,6 @@ wasmer-compiler-cranelift = "2.0.0"
 wasmer-engine-universal = "2.0.0"
 cached = "0.26.2"
 thiserror = "1.0.24"
-serde = { version = "1.0.130", features = ["derive"], optional = true }
 
 
 [dev-dependencies]
@@ -68,5 +67,4 @@ members = [
 ]
 
 [features]
-enable-serde = ["serde"]
 persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]

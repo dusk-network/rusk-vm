@@ -35,9 +35,6 @@ pub use state::NetworkState;
 use thiserror::Error;
 use wasmer_vm::TrapCode;
 
-#[cfg(feature = "enable-serde")]
-use serde::{Deserialize, Serialize};
-
 #[derive(Error)]
 /// The errors that can happen while executing the VM
 pub enum VMError {
@@ -208,7 +205,6 @@ impl fmt::Debug for VMError {
 }
 
 /// Definition of the cost schedule and other parameterizations for wasm vm.
-#[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 #[derive(Clone, PartialEq, Eq)]
 pub struct Schedule {
     /// Version of the schedule.

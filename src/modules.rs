@@ -15,7 +15,6 @@ use cached::proc_macro::cached;
 use dusk_abi::HostModule;
 use parity_wasm::elements;
 use pwasm_utils::rules::{InstructionType, Metering};
-use serde::Deserialize;
 use std::collections::BTreeMap as Map;
 use std::str::FromStr;
 use wasmer::Module;
@@ -88,7 +87,7 @@ pub enum InstrumentationError {
     InvalidInstructionType,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Clone)]
 pub struct ModuleConfig {
     has_grow_cost: bool,
     has_forbidden_floats: bool,
