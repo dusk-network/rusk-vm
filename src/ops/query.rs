@@ -4,12 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::env::Env;
 use crate::VMError;
 
-use crate::env::Env;
 use canonical::{Canon, Sink, Source};
 use core::mem::size_of;
 use dusk_abi::{ContractId, Query};
+use tracing::trace;
 
 pub struct ExecuteQuery;
 
@@ -20,6 +21,8 @@ impl ExecuteQuery {
         query_ofs: i32,
         gas_limit: u64,
     ) -> Result<(), VMError> {
+        trace!("Executing 'query' host function");
+
         let contract_id_ofs = contract_id_ofs as u64;
         let query_ofs = query_ofs as u64;
         let context = env.get_context();

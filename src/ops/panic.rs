@@ -4,10 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::VMError;
+use tracing::{debug, trace};
 
 use crate::env::Env;
-
+use crate::VMError;
 pub struct Panic;
 
 impl Panic {
@@ -16,13 +16,21 @@ impl Panic {
         panic_ofs: i32,
         panic_len: i32,
     ) -> Result<(), VMError> {
+        trace!("Executing 'panic' host function");
+
         let panic_ofs = panic_ofs as u64;
         let panic_len = panic_len as usize;
         let context = env.get_context();
         let slice = context.read_memory(panic_ofs, panic_len)?;
         Err(match String::from_utf8(slice.to_vec()) {
-            Ok(panic_msg) => VMError::ContractPanic(panic_msg),
-            Err(_) => VMError::InvalidUtf8,
+            Ok(panic_msg) => {
+                debug!("Contract panic: {:?}", panic_msg);
+                VMError::ContractPanic(panic_msg)
+            }
+            Err(_) => {
+                debug!("Invalid UTF-8 in panic");
+                VMError::InvalidUtf8
+            }
         })
     }
 }

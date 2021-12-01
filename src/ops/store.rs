@@ -4,10 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::env::Env;
 use crate::VMError;
 
-use crate::env::Env;
 use canonical::{Canon, IdHash, Sink, Source, Store};
+use tracing::trace;
 
 pub struct Get;
 
@@ -18,6 +19,8 @@ impl Get {
         write_buf: i32,
         write_len: i32,
     ) -> Result<(), VMError> {
+        trace!("Executing 'get' host function");
+
         let hash_ofs = hash_ofs as u64;
         let write_buf = write_buf as u64;
         let write_len = write_len as usize;
@@ -41,6 +44,8 @@ pub struct Put;
 
 impl Put {
     pub fn put(env: &Env, ofs: i32, len: i32, ret: i32) -> Result<(), VMError> {
+        trace!("Executing 'put' host function");
+
         let ofs = ofs as u64;
         let len = len as usize;
         let ret = ret as u64;

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Add log tracing for easier debugging [#83]
 - Add support for transaction rollbacks [#263]
 - Add cache for `wasmer` modules [#251]
 - Add `wasmer` instrumentation [#247]
@@ -209,6 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#123]: https://github.com/dusk-network/rusk-vm/issues/123
 [#128]: https://github.com/dusk-network/rusk-vm/issues/128
 [#84]: https://github.com/dusk-network/rusk-vm/issues/84
+[#83]: https://github.com/dusk-network/rusk-vm/issues/83
 [#34]: https://github.com/dusk-network/rusk-vm/issues/34
 [#35]: https://github.com/dusk-network/rusk-vm/issues/35
 

@@ -4,12 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::env::Env;
 use crate::VMError;
 
-use crate::env::Env;
 use canonical::{Canon, Sink, Source};
 use core::mem::size_of;
 use dusk_abi::{ContractId, ContractState, Transaction};
+use tracing::trace;
 
 pub struct ApplyTransaction;
 
@@ -20,6 +21,8 @@ impl ApplyTransaction {
         transaction_offset: i32,
         gas_limit: u64,
     ) -> Result<(), VMError> {
+        trace!("Executing 'transact' host function");
+
         let contract_id_offset = contract_id_offset as u64;
         let transaction_offset = transaction_offset as u64;
         let context = env.get_context();

@@ -14,6 +14,7 @@ use crate::VMError;
 use cached::proc_macro::cached;
 use dusk_abi::HostModule;
 use parity_wasm::elements;
+use tracing::trace;
 use wasmer::Module;
 use wasmparser::Validator;
 
@@ -31,6 +32,7 @@ pub fn compile_module(bytecode: &[u8]) -> Result<Module, VMError> {
 /// saving some CPU cycles.
 #[cached(size = 2048, time = 86400, result = true, sync_writes = true)]
 fn get_or_create_module(bytecode: Vec<u8>) -> Result<Module, VMError> {
+    trace!("Compiling module");
     let new_module = WasmerCompiler::create_module(bytecode)?;
     Ok(new_module)
 }
