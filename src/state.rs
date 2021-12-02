@@ -346,7 +346,7 @@ impl NetworkState {
             },
         )
     }
-    
+
     /// Gets module config
     pub fn get_module_config(&self) -> &ModuleConfig {
         &self.module_config

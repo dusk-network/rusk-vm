@@ -16,7 +16,6 @@ use cached::TimedSizedCache;
 use canonical::Store;
 use dusk_abi::HostModule;
 use std::collections::BTreeMap as Map;
-use std::str::FromStr;
 use tracing::trace;
 use wasmer::Module;
 
