@@ -20,10 +20,7 @@ use wasmer::{
 };
 use wasmer_engine_universal::Universal;
 
-/// A custom tunables that allows you to set a memory limit.
-///
-/// After adjusting the memory limits, it delegates all other logic
-/// to the base tunables.
+/// A custom tunables that allows you to set a memory and table size limits.
 #[derive(MemoryUsage)]
 pub struct LimitingTunables<T: Tunables> {
     /// The maximum a linear memory is allowed to be (in Wasm pages, 64 KiB
