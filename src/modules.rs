@@ -114,6 +114,7 @@ pub struct ModuleConfig {
     pub regular_op_cost: u32,
     pub per_type_op_cost: Map<String, u32>,
     pub grow_mem_cost: u32,
+    pub max_memory_pages: u32,
 }
 
 impl Default for ModuleConfig {
@@ -135,6 +136,7 @@ impl ModuleConfig {
             regular_op_cost: 1,
             per_type_op_cost: Map::new(),
             grow_mem_cost: 1,
+            max_memory_pages: 16384,
         }
     }
 
@@ -143,6 +145,7 @@ impl ModuleConfig {
         config.version = schedule.version;
         config.regular_op_cost = schedule.regular_op_cost as u32;
         config.grow_mem_cost = schedule.grow_mem_cost as u32;
+        config.max_memory_pages = schedule.max_memory_pages as u32;
         config.max_stack_height = schedule.max_stack_height;
         config.max_table_size = schedule.max_table_size;
         config.has_forbidden_floats = schedule.has_forbidden_floats;

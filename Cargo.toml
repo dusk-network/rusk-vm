@@ -28,6 +28,7 @@ wasmer-middlewares = "2.1.0"
 cached = "0.26.2"
 thiserror = "1.0.24"
 tracing = "0.1.29"
+loupe = "0.1"
 
 [dev-dependencies]
 dusk-bls12_381 = "0.8"

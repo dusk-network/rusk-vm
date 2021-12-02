@@ -226,6 +226,9 @@ pub struct Schedule {
     /// Maximum allowed size of a declared table.
     pub max_table_size: u32,
 
+    /// Maximum number of memory pages.
+    pub max_memory_pages: u32,
+
     /// Floats are forbidden
     pub has_forbidden_floats: bool,
 
@@ -275,6 +278,7 @@ impl Default for Schedule {
             grow_mem_cost: 1,
             max_stack_height: 65536,
             max_table_size: 16384,
+            max_memory_pages: 16384,
             has_forbidden_floats: true,
             has_grow_cost: true,
             has_metering: true,
