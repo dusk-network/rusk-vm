@@ -10,7 +10,7 @@ use std::sync::Arc;
 use wasmer::wasmparser::Operator;
 use wasmer::wasmparser::Operator::*;
 use wasmer::CompilerConfig;
-use wasmer_compiler_cranelift::Cranelift;
+use wasmer_compiler_singlepass::Singlepass;
 use wasmer_middlewares::Metering;
 
 pub struct CompilerConfigProvider;
@@ -18,7 +18,7 @@ pub struct CompilerConfigProvider;
 impl CompilerConfigProvider {
     pub fn from_config(
         module_config: &ModuleConfig,
-    ) -> Result<Cranelift, VMError> {
+    ) -> Result<Singlepass, VMError> {
         if !module_config.has_forbidden_floats {
             return Err(VMError::InstrumentationError(
                 InstrumentationError::InvalidInstructionType,
@@ -614,7 +614,7 @@ impl CompilerConfigProvider {
             }
         };
 
-        let mut compiler_config = Cranelift::default();
+        let mut compiler_config = Singlepass::default();
         if module_config.has_metering {
             let metering = Arc::new(Metering::new(0, cost_function));
             compiler_config.push_middleware(metering);
