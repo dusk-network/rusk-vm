@@ -4,9 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::VMError;
+use tracing::trace;
 
 use crate::env::Env;
+use crate::VMError;
 
 pub struct Gas;
 
@@ -27,6 +28,8 @@ impl GasConsumed {
 
 impl GasConsumed {
     pub fn gas_consumed(env: &Env) -> Result<u64, VMError> {
+        trace!("Executing 'gas_consumed' host function");
+
         let context = env.get_context();
         // FIXME: This will not always be correct since if the `gas_consumed =
         // ALL` the gas, this will add the extra cost of the call
@@ -39,6 +42,8 @@ pub struct GasLeft;
 
 impl GasLeft {
     pub fn gas_left(env: &Env) -> Result<u64, VMError> {
+        trace!("Executing 'gas_left' host function");
+
         let context = env.get_context();
         Ok(context.gas_meter().left())
     }

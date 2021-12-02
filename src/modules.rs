@@ -16,6 +16,8 @@ use cached::TimedSizedCache;
 use canonical::Store;
 use dusk_abi::HostModule;
 use std::collections::BTreeMap as Map;
+use std::str::FromStr;
+use tracing::trace;
 use wasmer::Module;
 
 pub use dusk_abi::{ContractId, ContractState};
@@ -47,6 +49,7 @@ cached_key_result! {
     };
 
     fn get_or_create_module(bytecode: &[u8], module_config: &ModuleConfig) -> Result<Module, VMError> = {
+        trace!("Compiling module");
         WasmerCompiler::create_module(bytecode, module_config)
     }
 }

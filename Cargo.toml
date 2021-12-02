@@ -27,13 +27,12 @@ wasmer-engine-universal = "2.0.0"
 wasmer-middlewares = "2.0.0"
 cached = "0.26.2"
 thiserror = "1.0.24"
-
+tracing = "0.1.29"
 
 [dev-dependencies]
 dusk-bls12_381 = "0.8"
 dusk-bytes = "0.1"
 criterion = "0.3"
-
 
 # test contracts
 counter = { path = "tests/contracts/counter" }

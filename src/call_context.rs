@@ -6,6 +6,7 @@
 
 use canonical::{Canon, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
+use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
@@ -106,6 +107,13 @@ impl<'a> CallContext<'a> {
         query: Query,
         gas_meter: &'a mut GasMeter,
     ) -> Result<ReturnValue, VMError> {
+        let _span = trace_span!(
+            "query",
+            target = ?target,
+            gas_limit = ?gas_meter.limit(),
+            stack_index = ?self.stack.len()
+        );
+
         let env = Env::new(self);
 
         let instance: Instance;
@@ -134,6 +142,7 @@ impl<'a> CallContext<'a> {
                     &mut import_object,
                 );
             }
+
             instance = Instance::new(&module, &import_object)?;
             set_remaining_points(&instance, gas_meter.left());
 
@@ -162,6 +171,11 @@ impl<'a> CallContext<'a> {
                 return Err(e);
             }
         }
+        trace!(
+            "Finished query with gas limit/spent: {}/{}",
+            gas_meter.limit(),
+            gas_meter.spent()
+        );
         r?;
 
         let mut memory = WasmerMemory::new();
@@ -176,16 +190,23 @@ impl<'a> CallContext<'a> {
 
     pub fn transact(
         &mut self,
-        target_contract_id: ContractId,
+        target: ContractId,
         transaction: Transaction,
         gas_meter: &'a mut GasMeter,
     ) -> Result<(ContractState, ReturnValue), VMError> {
+        let _span = trace_span!(
+            "transact",
+            target = ?target,
+            gas_limit = ?gas_meter.limit(),
+            stack_index = ?self.stack.len()
+        );
+
         let env = Env::new(self);
 
         let instance;
 
         {
-            let contract = self.state.get_contract(&target_contract_id)?;
+            let contract = self.state.get_contract(&target)?;
 
             let module = compile_module(
                 contract.bytecode(),
@@ -216,11 +237,8 @@ impl<'a> CallContext<'a> {
                 contract.state().as_bytes().len() as u64,
                 transaction.as_bytes(),
             )?;
-            self.stack.push(StackFrame::new(
-                target_contract_id,
-                memory,
-                gas_meter.clone(),
-            ));
+            self.stack
+                .push(StackFrame::new(target, memory, gas_meter.clone()));
         }
 
         let run_func: NativeFunc<i32, ()> =
@@ -233,11 +251,15 @@ impl<'a> CallContext<'a> {
                 return Err(e);
             }
         }
+        trace!(
+            "Finished transact with gas limit/spent: {}/{}",
+            gas_meter.limit(),
+            gas_meter.spent()
+        );
         r?;
 
         let ret = {
-            let mut contract =
-                self.state.get_contract_mut(&target_contract_id)?;
+            let mut contract = self.state.get_contract_mut(&target)?;
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
             let read_buffer = memory.read_from(0)?;

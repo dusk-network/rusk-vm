@@ -60,6 +60,11 @@ impl GasMeter {
         self.left
     }
 
+    /// Returns the gas limit.
+    pub fn limit(&self) -> Gas {
+        self.limit
+    }
+
     /// Returns how much gas was actually spent.
     pub fn spent(&self) -> Gas {
         self.limit - self.left
