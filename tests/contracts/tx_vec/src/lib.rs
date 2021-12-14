@@ -4,19 +4,22 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(target_arch = "wasm32", no_std)]
-#![feature(core_intrinsics, lang_items, alloc_error_handler)]
+#![no_std]
+#![feature(
+    core_intrinsics,
+    lang_items,
+    alloc_error_handler,
+    option_result_unwrap_unchecked
+)]
 
-use canonical_derive::Canon;
+use rkyv::{Archive, Deserialize, Serialize};
+use rusk_uplink::{
+    ContractId, Query, RawTransaction, Transaction,
+};
+extern crate alloc;
+use alloc::boxed::Box;
 
-// query ids
-pub const READ_VALUE: u8 = 0;
-
-// transaction ids
-pub const SUM: u8 = 0;
-pub const DELEGATE_SUM: u8 = 1;
-
-#[derive(Clone, Canon, Debug)]
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct TxVec {
     value: u8,
 }
@@ -27,110 +30,166 @@ impl TxVec {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-mod hosted {
-    extern crate alloc;
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct TxVecReadValue;
 
-    use super::*;
+impl Query for TxVecReadValue {
+    const NAME: &'static str = "read_value";
+    type Return = u8;
+}
 
-    use alloc::vec::Vec;
-    use canonical::{Canon, CanonError, Sink, Source};
-    use dusk_abi::{ContractId, Transaction};
-    use dusk_abi::{ContractState, ReturnValue};
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct TxVecSum {
+    values: Box<[u8]>,
+}
 
-    const PAGE_SIZE: usize = 1024 * 4;
+impl TxVecSum {
+    pub fn new(v: impl AsRef<[u8]>) -> Self {
+        Self {
+            values: Box::from(v.as_ref()),
+        }
+    }
+}
+
+impl Transaction for TxVecSum {
+    const NAME: &'static str = "sum";
+    type Return = u8;
+}
+
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct TxVecDelegateSum {
+    contract_id: ContractId,
+    data: Box<[u8]>,
+}
+
+impl TxVecDelegateSum {
+    pub fn new(contract_id: ContractId, data: impl AsRef<[u8]>) -> Self {
+        let data = Box::from(data.as_ref());
+        Self { contract_id, data }
+    }
+}
+
+impl Transaction for TxVecDelegateSum {
+    const NAME: &'static str = "delegate_sum";
+    type Return = ();
+}
+
+#[cfg(target_family = "wasm")]
+const _: () = {
+    use rkyv::archived_root;
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rusk_uplink::AbiStore;
 
     impl TxVec {
         pub fn read_value(&self) -> u8 {
             self.value
         }
 
-        pub fn sum(&mut self, values: Vec<u8>) {
+        pub fn sum(&mut self, values: impl AsRef<[u8]>) {
+            let values: &[u8] = &Box::from(values.as_ref());
             self.value +=
-                values.into_iter().fold(0u8, |s, v| s.wrapping_add(v));
+                values.into_iter().fold(0u8, |s, v| s.wrapping_add(*v));
         }
 
         pub fn delegate_sum(
             &mut self,
             target: &ContractId,
-            transaction: &Transaction,
-        ) -> ReturnValue {
-            dusk_abi::transact_raw::<_>(self, target, transaction, 0).unwrap()
-        }
-    }
-
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
-        let mut source = Source::new(&bytes[..]);
-
-        // read self.
-        let slf = TxVec::decode(&mut source)?;
-
-        // read query id
-        let qid = u8::decode(&mut source)?;
-        match qid {
-            // read_value (&Self) -> i32
-            READ_VALUE => {
-                let ret = slf.read_value();
-
-                let mut sink = Sink::new(&mut bytes[..]);
-
-                ReturnValue::from_canon(&ret).encode(&mut sink);
-                Ok(())
-            }
-
-            _ => panic!("Method not found!"),
+            data: impl AsRef<[u8]>,
+        ) -> () {
+            let tx_vec_sum = TxVecSum::new(data);
+            let raw_transaction = RawTransaction::new(tx_vec_sum);
+            let ret =
+                rusk_uplink::transact_raw(self, target, &raw_transaction, 0).unwrap();
+            self.value = *ret.cast::<u8>().unwrap();
         }
     }
 
     #[no_mangle]
-    fn q(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
-        let _ = query(bytes);
-    }
+    static mut SCRATCH: [u8; 8192] = [0u8; 8192];
 
-    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
-        let mut source = Source::new(bytes);
+    #[no_mangle]
+    fn read_value(written_state: u32, _written_data: u32) -> u32 {
+        let mut store = AbiStore;
 
-        // read self.
-        let mut slf = TxVec::decode(&mut source)?;
-        // read transaction id
-        let tid = u8::decode(&mut source)?;
-        match tid {
-            SUM => {
-                let values = Vec::<u8>::decode(&mut source)?;
+        let slf = unsafe {
+            archived_root::<TxVec>(&SCRATCH[..written_state as usize])
+        };
 
-                slf.sum(values);
+        let slf: TxVec = (slf).deserialize(&mut store).unwrap();
+        let ret = slf.read_value();
 
-                let mut sink = Sink::new(&mut bytes[..]);
-                // return new state
-                &ContractState::from_canon(&slf).encode(&mut sink);
-
-                // return value
-                ReturnValue::from_canon(&()).encode(&mut sink);
-                Ok(())
-            }
-
-            DELEGATE_SUM => {
-                let contract = ContractId::decode(&mut source)?;
-                let tx = Transaction::decode(&mut source)?;
-
-                let result = slf.delegate_sum(&contract, &tx);
-
-                let mut sink = Sink::new(&mut bytes[..]);
-
-                let state = ContractState::from_canon(&slf);
-
-                state.encode(&mut sink);
-                result.encode(&mut sink);
-                Ok(())
-            }
-            _ => panic!(""),
-        }
+        let res: <TxVecReadValue as Query>::Return = ret;
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let buffer_len = ser.serialize_value(&res).unwrap()
+            + core::mem::size_of::<
+                <<TxVecReadValue as Query>::Return as Archive>::Archived,
+            >();
+        buffer_len as u32
     }
 
     #[no_mangle]
-    fn t(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
-        transaction(bytes).unwrap()
+    fn sum(written_state: u32, written_data: u32) -> [u32; 2] {
+        rusk_uplink::debug!(
+            "sum - entered1 {} {}",
+            written_state,
+            written_data
+        );
+
+        let mut store = AbiStore;
+
+        let slf = unsafe {
+            archived_root::<TxVec>(&SCRATCH[..written_state as usize])
+        };
+        let arg = unsafe {
+            archived_root::<TxVecSum>(
+                &SCRATCH[written_state as usize..written_data as usize],
+            )
+        };
+        let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
+        let de_arg: TxVecSum = (arg).deserialize(&mut store).unwrap();
+
+        slf.sum(de_arg.values);
+
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+
+        let state_len = ser.serialize_value(&slf).unwrap()
+            + core::mem::size_of::<<TxVec as Archive>::Archived>();
+
+        let return_len = ser.serialize_value(&slf.value).unwrap()
+            + core::mem::size_of::<
+                <<TxVecSum as Transaction>::Return as Archive>::Archived,
+            >();
+
+        [state_len as u32, return_len as u32]
     }
-}
+
+    #[no_mangle]
+    fn delegate_sum(_: u32, written_data: u32) -> [u32; 2] {
+        let mut store = AbiStore;
+
+        let (slf, arg) = unsafe {
+            archived_root::<(TxVec, TxVecDelegateSum)>(
+                &SCRATCH[..written_data as usize],
+            )
+        };
+
+        let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
+        let de_arg: TxVecDelegateSum =
+            (arg).deserialize(&mut store).unwrap();
+
+        slf.delegate_sum(&de_arg.contract_id, de_arg.data);
+
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+
+        let state_len = ser.serialize_value(&slf).unwrap()
+            + core::mem::size_of::<<TxVec as Archive>::Archived>();
+
+        let return_len = ser.serialize_value(&()).unwrap()
+            + core::mem::size_of::<
+            <<TxVecDelegateSum as Transaction>::Return as Archive>::Archived,
+        >();
+
+        [state_len as u32, return_len as u32]
+    }
+};

@@ -5,16 +5,19 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::VMError;
+use rusk_uplink::HostRawStore;
 use wasmer::{LazyInit, Memory};
 
 pub struct WasmerMemory {
     pub inner: LazyInit<Memory>,
+    pub store: LazyInit<HostRawStore>,
 }
 
 impl WasmerMemory {
     pub fn new() -> WasmerMemory {
         WasmerMemory {
             inner: LazyInit::new(),
+            store: LazyInit::new(),
         }
     }
     /// Initializes the object with exported memory
@@ -24,6 +27,9 @@ impl WasmerMemory {
     ) -> std::result::Result<(), VMError> {
         let memory = exports.get_memory("memory")?;
         self.inner.initialize(memory.clone());
+        self.store.initialize(unsafe {
+            HostRawStore::new(memory.data_unchecked_mut())
+        });
         Ok(())
     }
 
@@ -56,5 +62,28 @@ impl WasmerMemory {
                 .copy_from_slice(slice);
         }
         Ok(())
+    }
+
+    /// Write bytes into memory at a given offset
+    pub fn with_mut_slice_from<F, R>(&mut self, offset: usize, closure: F) -> R
+    where
+        F: Fn(&mut [u8]) -> R,
+    {
+        unsafe {
+            let slice =
+                &mut self.inner.get_unchecked().data_unchecked_mut()[offset..];
+            closure(slice)
+        }
+    }
+
+    /// Write bytes into memory at a given offset
+    pub fn with_slice_from<F, R>(&self, offset: usize, mut closure: F) -> R
+    where
+        F: FnMut(&[u8]) -> R,
+    {
+        unsafe {
+            let slice = &self.inner.get_unchecked().data_unchecked()[offset..];
+            closure(slice)
+        }
     }
 }

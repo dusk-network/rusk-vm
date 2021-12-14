@@ -13,13 +13,12 @@ use crate::{Schedule, VMError};
 
 use cached::cached_key_result;
 use cached::TimedSizedCache;
-use canonical::Store;
-use dusk_abi::HostModule;
+use rusk_uplink::HostModule;
 use std::collections::BTreeMap as Map;
 use tracing::trace;
 use wasmer::Module;
 
-pub use dusk_abi::{ContractId, ContractState};
+pub use rusk_uplink::{hash_mocker, ContractId, ContractState};
 
 type BoxedHostModule = Box<dyn HostModule>;
 
@@ -44,7 +43,7 @@ cached_key_result! {
     COMPUTE: TimedSizedCache<ModuleCacheKey, Module>
         = TimedSizedCache::with_size_and_lifespan(2048, 86400);
     Key = {
-        ModuleCacheKey{ hash: Store::hash(bytecode), version: module_config.version }
+        ModuleCacheKey{ hash: hash_mocker(bytecode), version: module_config.version } // todo instead of hash_mocker do actual hashing here
     };
 
     fn get_or_create_module(bytecode: &[u8], module_config: &ModuleConfig) -> Result<Module, VMError> = {

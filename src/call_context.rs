@@ -1,18 +1,26 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
+// This Source Codeb Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distlributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Canon, Source};
-use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
+use microkelvin::{BranchRef, BranchRefMut, HostStore, Store};
+use rkyv::ser::serializers::BufferSerializer;
+use rkyv::ser::Serializer;
+use rkyv::{Archive, Serialize};
+use rusk_uplink::{
+    ContractId, ContractState, Query, RawQuery, RawTransaction, ReturnValue,
+    Transaction,
+};
+
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
+use wasmer_types::Value;
 
-use crate::contract::ContractId;
+use crate::contract::ContractRef;
 use crate::env::Env;
 use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
@@ -73,15 +81,25 @@ pub struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
     block_height: u64,
+    store: HostStore,
 }
 
 impl<'a> CallContext<'a> {
-    pub fn new(state: &'a mut NetworkState, block_height: u64) -> Self {
+    pub fn new(
+        state: &'a mut NetworkState,
+        block_height: u64,
+        store: HostStore,
+    ) -> Self {
         CallContext {
             state,
             stack: vec![],
             block_height,
+            store,
         }
+    }
+
+    pub fn store(&self) -> &HostStore {
+        &self.store
     }
 
     fn register_namespace(
@@ -104,7 +122,7 @@ impl<'a> CallContext<'a> {
     pub fn query(
         &mut self,
         target: ContractId,
-        query: Query,
+        query: RawQuery,
         gas_meter: &'a mut GasMeter,
     ) -> Result<ReturnValue, VMError> {
         let _span = trace_span!(
@@ -118,12 +136,15 @@ impl<'a> CallContext<'a> {
 
         let instance: Instance;
 
-        if let Some(module) = self.state.modules().get_module_ref(&target).get()
+        let ret = if let Some(_module) =
+            self.state.modules().get_module_ref(&target).get()
         {
             // is this a reserved module call?
-            return module.execute(query).map_err(VMError::from_store_error);
+            todo!()
+        // todo bogus error just to fix compilation errors
         } else {
             let contract = self.state.get_contract(&target)?;
+            let contract = contract.leaf();
 
             let module = compile_module(
                 contract.bytecode(),
@@ -148,22 +169,53 @@ impl<'a> CallContext<'a> {
 
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
+                store: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
-            memory.write(0, contract.state().as_bytes())?;
-            memory.write(
-                contract.state().as_bytes().len() as u64,
-                query.as_bytes(),
-            )?;
 
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
-        }
 
-        let run_func: NativeFunc<i32, ()> =
-            instance.exports.get_native_function("q")?;
+            let run_func: NativeFunc<(u32, u32), u32> =
+                instance.exports.get_native_function(query.name())?;
 
-        let r = run_func.call(0);
+            let buf_offset = if let Value::I32(ofs) = instance
+                .exports
+                .get_global("SCRATCH")
+                .map_err(|e| VMError::InvalidWASMModule)?
+                .get()
+            {
+                ofs as usize
+            } else {
+                return Err(VMError::InvalidWASMModule);
+            };
+
+            let mut memory = WasmerMemory::new();
+            memory.init(&instance.exports)?;
+
+            let (written_state, written_data) =
+                memory.with_mut_slice_from(buf_offset, |mem| {
+                    // copy the contract state into scratch memory
+                    let state = contract.state();
+                    let len = state.len();
+
+                    mem[0..len].copy_from_slice(state);
+
+                    let data = query.data();
+
+                    mem[len..len + data.len()].copy_from_slice(data);
+
+                    (len, len + data.len())
+                });
+
+            let result_written =
+                run_func.call(written_state as u32, written_data as u32)?;
+
+            memory.with_slice_from(buf_offset, |mem| {
+                ReturnValue::new(&mem[..result_written as usize])
+            })
+        };
+
         match self.gas_reconciliation(&instance) {
             Ok(gas) => *gas_meter = gas,
             Err(e) => {
@@ -176,24 +228,18 @@ impl<'a> CallContext<'a> {
             gas_meter.limit(),
             gas_meter.spent()
         );
-        r?;
 
-        let mut memory = WasmerMemory::new();
-        memory.init(&instance.exports)?;
-        let read_buffer = memory.read_from(0)?;
-        let mut source = Source::new(read_buffer);
-        let result = ReturnValue::decode(&mut source)
-            .map_err(VMError::from_store_error)?;
         self.stack.pop();
-        Ok(result)
+
+        Ok(ret)
     }
 
     pub fn transact(
         &mut self,
         target: ContractId,
-        transaction: Transaction,
+        transaction: RawTransaction,
         gas_meter: &'a mut GasMeter,
-    ) -> Result<(ContractState, ReturnValue), VMError> {
+    ) -> Result<ReturnValue, VMError> {
         let _span = trace_span!(
             "transact",
             target = ?target,
@@ -205,13 +251,13 @@ impl<'a> CallContext<'a> {
 
         let instance;
 
-        {
-            let contract = self.state.get_contract(&target)?;
+        let config = self.state.get_module_config().clone();
 
-            let module = compile_module(
-                contract.bytecode(),
-                self.state.get_module_config(),
-            )?;
+        let ret = {
+            let mut contract = self.state.get_contract_mut(&target)?;
+            let mut contract = contract.leaf_mut();
+
+            let module = compile_module(contract.bytecode(), &config)?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -230,20 +276,96 @@ impl<'a> CallContext<'a> {
 
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
+                store: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
-            memory.write(0, contract.state().as_bytes())?;
-            memory.write(
-                contract.state().as_bytes().len() as u64,
-                transaction.as_bytes(),
-            )?;
+
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
-        }
 
-        let run_func: NativeFunc<i32, ()> =
-            instance.exports.get_native_function("t")?;
-        let r = run_func.call(0);
+            println!(
+                "getting exported function '{}': {:?}",
+                transaction.name(),
+                instance.exports.get_function(transaction.name())
+            );
+
+            let run_func: NativeFunc<(u32, u32), u64> =
+                instance.exports.get_native_function(transaction.name())?;
+
+            let buf_offset = if let Value::I32(ofs) = instance
+                .exports
+                .get_global("SCRATCH")
+                .map_err(|e| VMError::InvalidWASMModule)?
+                .get()
+            {
+                ofs as usize
+            } else {
+                return Err(VMError::InvalidWASMModule);
+            };
+
+            let mut memory = WasmerMemory::new();
+            memory.init(&instance.exports)?;
+
+            let (written_state, written_data) =
+                memory.with_mut_slice_from(buf_offset, |mem| {
+                    // copy the contract state into scratch memory
+                    let state = contract.state();
+                    let len = state.len();
+                    println!(
+                        "read contract state={:?} for {}",
+                        state,
+                        transaction.name()
+                    );
+
+                    mem[0..len].copy_from_slice(state);
+
+                    let data = transaction.data();
+
+                    mem[len..len + data.len()].copy_from_slice(data);
+                    println!(
+                        "written memory={:?} for {}",
+                        &mem[..(len + data.len())],
+                        transaction.name()
+                    );
+                    println!(
+                        "written memory state only ={:?} for {}",
+                        &mem[..len],
+                        transaction.name()
+                    );
+
+                    (len, len + data.len())
+                });
+
+            fn separate_tuple(tuple: u64) -> (u32, u32) {
+                println!("original tuple = {:x}", tuple);
+                let bytes = tuple.to_le_bytes();
+                let mut a = [0u8; 4];
+                let mut b = [0u8; 4];
+                a.copy_from_slice(&bytes[..4]);
+                b.copy_from_slice(&bytes[4..]);
+                (u32::from_le_bytes(a), u32::from_le_bytes(b))
+            }
+
+            println!("about to call function: {}", transaction.name());
+
+            let (state_written, result_written) = separate_tuple(
+                run_func.call(written_state as u32, written_data as u32)?,
+            );
+
+            println!("after calling function: {}", transaction.name());
+
+            memory.with_slice_from(buf_offset, |mem| {
+                contract.set_state(Vec::from(&mem[..state_written as usize]));
+                println!("transact set state to: {:?}", contract.state());
+
+                let result_len = result_written - state_written;
+                ReturnValue::with_state(
+                    &mem[state_written as usize..][..result_len as usize],
+                    &mem[..state_written as usize]
+                )
+            })
+        };
+
         match self.gas_reconciliation(&instance) {
             Ok(gas) => *gas_meter = gas,
             Err(e) => {
@@ -252,35 +374,14 @@ impl<'a> CallContext<'a> {
             }
         }
         trace!(
-            "Finished transact with gas limit/spent: {}/{}",
+            "Finished transaction with gas limit/spent: {}/{}",
             gas_meter.limit(),
             gas_meter.spent()
         );
-        r?;
 
-        let ret = {
-            let mut contract = self.state.get_contract_mut(&target)?;
-            let mut memory = WasmerMemory::new();
-            memory.init(&instance.exports)?;
-            let read_buffer = memory.read_from(0)?;
-            let mut source = Source::new(read_buffer);
-            let state = ContractState::decode(&mut source)
-                .map_err(VMError::from_store_error)?;
-            *(*contract).state_mut() = state;
-            ReturnValue::decode(&mut source)
-                .map_err(VMError::from_store_error)?
-        };
+        self.stack.pop();
 
-        let state = if self.stack.len() > 1 {
-            self.stack.pop();
-            self.state.get_contract(self.callee())?.state().clone()
-        } else {
-            let state = self.state.get_contract(self.callee())?.state().clone();
-            self.stack.pop();
-            state
-        };
-
-        Ok((state, ret))
+        Ok(ret)
     }
 
     pub fn block_height(&self) -> u64 {

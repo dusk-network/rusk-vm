@@ -4,52 +4,46 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::ops::{Deref, DerefMut};
+use dusk_hamt::{Hamt, Lookup};
 
-use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
-use canonical_derive::Canon;
-use dusk_abi::{HostModule, Query, Transaction};
-use dusk_hamt::Map;
-#[cfg(feature = "persistence")]
-use microkelvin::{
-    BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
+use bytecheck::CheckBytes;
+use microkelvin::{BranchRef, BranchRefMut, HostStore};
+use rkyv::ser::serializers::AllocSerializer;
+use rkyv::validation::validators::DefaultValidator;
+use rusk_uplink::{
+    hash_mocker, ContractId, HostModule, Query, RawQuery, RawTransaction,
+    Transaction,
 };
+
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
-use crate::contract::{Contract, ContractId};
+use crate::contract::{Contract, ContractRef};
 use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
+use rkyv::{Archive, Deserialize, Serialize};
 
 /// State of the contracts on the network.
-#[derive(Clone, Default, Canon)]
-pub struct Contracts(Map<ContractId, Contract>);
+#[derive(Archive, Default, Clone)]
+pub struct Contracts(Hamt<ContractId, Contract, (), HostStore>);
 
 impl Contracts {
     /// Returns a reference to the specified contracts state.
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
-        self.0
-            .get(contract_id)
-            .map_err(VMError::from_store_error)
-            .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+    ) -> Result<impl BranchRef<'a, Contract>, VMError> {
+        self.0.get(contract_id).ok_or(VMError::UnknownContract)
     }
 
     /// Returns a mutable reference to the specified contracts state.
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
-        self.0
-            .get_mut(contract_id)
-            .map_err(VMError::from_store_error)
-            .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+    ) -> Result<impl BranchRefMut<'a, Contract>, VMError> {
+        self.0.get_mut(contract_id).ok_or(VMError::UnknownContract)
     }
 
     /// Deploys a contract to the state, returning the address of the created
@@ -59,15 +53,8 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        let id: ContractId = Store::hash(contract.bytecode()).into();
+        let id: ContractId = hash_mocker(contract.bytecode()).into();
         self.deploy_with_id(id, contract, module_config)
-    }
-
-    /// Computes the root of the contracts tree.
-    pub fn root(&self) -> [u8; 32] {
-        // FIXME This is terribly slow. It should be possible to get it directly
-        //  from the tree. https://github.com/dusk-network/microkelvin/issues/85
-        Store::hash(&self.0.encode_to_vec())
     }
 
     /// Deploys a contract with the given id to the state.
@@ -77,12 +64,10 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        self.0
-            .insert(id, contract)
-            .map_err(VMError::from_store_error)?;
+        self.0.insert(id, contract);
 
         let inserted_contract = self.get_contract(&id)?;
-        compile_module(inserted_contract.bytecode(), module_config)?;
+        compile_module(inserted_contract.leaf().bytecode(), module_config)?;
 
         Ok(id)
     }
@@ -97,51 +82,36 @@ impl Contracts {
 /// It is possible to either [commit](`Self::commit`) to the `head` state,
 /// turning it into the new `origin`, or [reset](`Self::reset`) it back to
 /// `origin`.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct NetworkState {
     origin: Contracts,
     head: Contracts,
     modules: HostModules,
     module_config: ModuleConfig,
-}
-
-/// Custom implementation of Canon ensuring only the `head` state is encoded.
-/// When restored, `head` is set to be a copy of `origin` and the modules are to
-/// be set by the caller.
-impl Canon for NetworkState {
-    fn encode(&self, sink: &mut Sink) {
-        self.origin.encode(sink);
-    }
-
-    fn decode(source: &mut Source) -> Result<Self, CanonError> {
-        let origin = Contracts::decode(source)?;
-        let head = origin.clone();
-
-        Ok(Self {
-            origin,
-            head,
-            modules: HostModules::default(),
-            module_config: ModuleConfig::new(),
-        })
-    }
-
-    fn encoded_len(&self) -> usize {
-        Canon::encoded_len(&self.origin)
-    }
+    store: HostStore,
 }
 
 impl NetworkState {
     /// Returns a new empty [`NetworkState`].
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(store: HostStore) -> Self {
+        NetworkState {
+            store,
+            origin: Default::default(),
+            head: Default::default(),
+            modules: Default::default(),
+            module_config: Default::default(),
+        }
     }
 
     /// Returns a [`NetworkState`] based on a schedule
-    pub fn with_schedule(schedule: &Schedule) -> Self {
+    pub fn with_schedule(store: HostStore, schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
         Self {
+            store,
             module_config,
-            ..Self::default()
+            origin: Default::default(),
+            head: Default::default(),
+            modules: Default::default(),
         }
     }
 
@@ -155,7 +125,7 @@ impl NetworkState {
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
+    ) -> Result<impl BranchRef<'a, Contract>, VMError> {
         self.head.get_contract(contract_id)
     }
 
@@ -164,7 +134,7 @@ impl NetworkState {
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
+    ) -> Result<impl BranchRefMut<'a, Contract>, VMError> {
         self.head.get_contract_mut(contract_id)
     }
 
@@ -214,16 +184,18 @@ impl NetworkState {
     }
 
     /// Query the contract at `target` address in the `head` state.
-    pub fn query<A, R>(
+    pub fn query<Q>(
         &mut self,
         target: ContractId,
         block_height: u64,
-        query: A,
+        query: Q,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError>
+    ) -> Result<Q::Return, VMError>
     where
-        A: Canon,
-        R: Canon,
+        Q: Query + Serialize<AllocSerializer<1024>>,
+        Q::Return: Archive + Clone,
+        <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
+            + Deserialize<Q::Return, HostStore>,
     {
         let _span = trace_span!(
             "outer query",
@@ -232,10 +204,11 @@ impl NetworkState {
             gas_limit = ?gas_meter.limit()
         );
 
-        let mut context = CallContext::new(self, block_height);
+        let mut context =
+            CallContext::new(self, block_height, self.store.clone());
 
         let result =
-            match context.query(target, Query::from_canon(&query), gas_meter) {
+            match context.query(target, RawQuery::new(query), gas_meter) {
                 Ok(result) => {
                     trace!("query was successful");
                     Ok(result)
@@ -246,26 +219,35 @@ impl NetworkState {
                 }
             }?;
 
-        result.cast().map_err(|e| {
-            trace!("failed casting to result type: {:?}", e);
-            VMError::from_store_error(e)
-        })
+        println!("query '{}' return value is: {:?}", Q::NAME, result);
+
+        let cast = result
+            .cast::<Q::Return>()
+            .map_err(|e| VMError::InvalidData)?;
+
+        let deserialized: Q::Return = cast
+            .deserialize(&mut self.store.clone())
+            .expect("Infallible");
+
+        Ok(deserialized)
     }
 
     /// Transact with the contract at `target` address in the `head` state,
     /// returning the result of the transaction.
     ///
     /// This will advance the `head` to the resultant state.
-    pub fn transact<A, R>(
+    pub fn transact<T>(
         &mut self,
         target: ContractId,
         block_height: u64,
-        transaction: A,
+        transaction: T,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError>
+    ) -> Result<T::Return, VMError>
     where
-        A: Canon,
-        R: Canon,
+        T: Transaction + Serialize<AllocSerializer<1024>>,
+        T::Return: Archive + Clone,
+        <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
+            + Deserialize<T::Return, HostStore>,
     {
         let _span = trace_span!(
             "outer transact",
@@ -278,38 +260,44 @@ impl NetworkState {
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(&mut fork, block_height);
+        let mut context =
+            CallContext::new(&mut fork, block_height, self.store.clone());
 
         let result = match context.transact(
             target,
-            Transaction::from_canon(&transaction),
+            RawTransaction::new(transaction),
             gas_meter,
         ) {
-            Ok((_, result)) => {
-                trace!("transact was successful");
+            Ok(result) => {
+                trace!("query was successful");
                 Ok(result)
             }
             Err(e) => {
-                trace!("transact returned an error: {}", e);
+                trace!("query returned an error: {}", e);
                 Err(e)
             }
         }?;
 
-        let ret = result.cast().map_err(|e| {
-            trace!("failed casting to result type: {:?}", e);
-            VMError::from_store_error(e)
-        })?;
+        println!("transaction '{}' return value is: {:?}", T::NAME, result);
 
-        // If we reach this point, everything went well and we can use the
-        // updates made in the forked state.
+        let cast = result
+            .cast::<T::Return>()
+            .map_err(|e| VMError::InvalidData)?;
+
+        let deserialized: T::Return = cast
+            .deserialize(&mut self.store.clone())
+            .expect("Infallible");
+
+        // Commit to the changes
+
         *self = fork;
 
-        Ok(ret)
+        Ok(deserialized)
     }
 
     /// Returns the root of the tree in the `head` state.
     pub fn root(&self) -> [u8; 32] {
-        self.head.root()
+        todo!()
     }
 
     /// Resets the `head` state to `origin`.
@@ -332,17 +320,15 @@ impl NetworkState {
 
     /// Gets the state of the given contract in the `head` state.
     pub fn get_contract_cast_state<C>(
-        &self,
+        &mut self,
         contract_id: &ContractId,
-    ) -> Result<C, VMError>
-    where
-        C: Canon,
-    {
+    ) -> Result<C, VMError> {
         self.head.get_contract(contract_id).map_or(
             Err(VMError::UnknownContract),
-            |contract| {
-                let mut source = Source::new((*contract).state().as_bytes());
-                C::decode(&mut source).map_err(VMError::from_store_error)
+            |_contract| {
+                // let mut source = Source::new((*contract).state().as_bytes());
+                // C::decode(&mut source).map_err(VMError::from_store_error)
+                todo!()
             },
         )
     }

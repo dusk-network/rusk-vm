@@ -7,9 +7,10 @@
 use crate::env::Env;
 use crate::VMError;
 
-use canonical::{Canon, Sink, Source};
 use core::mem::size_of;
-use dusk_abi::{ContractId, Query};
+use rkyv::AlignedVec;
+use rusk_uplink::{ContractId, RawQuery};
+use std::str;
 use tracing::trace;
 
 pub struct ExecuteQuery;
@@ -19,27 +20,40 @@ impl ExecuteQuery {
         env: &Env,
         contract_id_ofs: i32,
         query_ofs: i32,
+        query_len: u32,
+        name_ofs: i32,
+        name_len: u32,
         gas_limit: u64,
-    ) -> Result<(), VMError> {
+    ) -> Result<u32, VMError> {
         trace!("Executing 'query' host function");
 
         let contract_id_ofs = contract_id_ofs as u64;
         let query_ofs = query_ofs as u64;
+        let query_len = query_len as usize;
+        let name_ofs = name_ofs as u64;
+        let name_len = name_len as usize;
+
         let context = env.get_context();
+
         let contract_id_memory =
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);
-        let query_memory = context.read_memory_from(query_ofs)?;
-        let mut source = Source::new(query_memory);
-        let query =
-            Query::decode(&mut source).map_err(VMError::from_store_error)?;
 
+        let query_memory = context.read_memory(query_ofs, query_len)?;
+        let mut query_data: AlignedVec = AlignedVec::new();
+        query_data.extend_from_slice(query_memory);
+
+        let query_name = context.read_memory(name_ofs, name_len)?;
+        let name =
+            str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?;
+
+        let raw_query = RawQuery::from(query_data, name);
         let mut gas_meter = context.gas_meter().limited(gas_limit);
-        let result = context.query(contract_id, query, &mut gas_meter)?;
+        let context = env.get_context();
+        let result = context.query(contract_id, raw_query, &mut gas_meter)?;
 
-        let mut result_buffer = vec![0; result.encoded_len()];
-        let mut sink = Sink::new(&mut result_buffer[..]);
-        result.encode(&mut sink);
-        context.write_memory(&result_buffer, query_ofs as u64)
+        context.write_memory(result.data(), query_ofs);
+
+        Ok(result.data_len() as u32)
     }
 }

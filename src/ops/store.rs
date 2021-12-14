@@ -4,11 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use tracing::trace;
+
 use crate::env::Env;
 use crate::VMError;
-
-use canonical::{Canon, IdHash, Sink, Source, Store};
-use tracing::trace;
 
 pub struct Get;
 
@@ -25,17 +24,19 @@ impl Get {
         let write_buf = write_buf as u64;
         let write_len = write_len as usize;
         let context = env.get_context();
-        let mem =
-            context.read_memory(hash_ofs, core::mem::size_of::<IdHash>())?;
-        let mut source = Source::new(mem);
-        let hash =
-            IdHash::decode(&mut source).map_err(VMError::from_store_error)?;
+        let _mem = context.read_memory(hash_ofs, write_len)?;
+        // let mut source = Source::new(mem);
+        // let hash =
+        //     IdHash::decode(&mut source).map_err(VMError::from_store_error)?;
         // we don't allow get requests to fail in the bridge
         // communication since that is the
         // responsibility of the host.
-        let mut dest = vec![0; write_len];
-        Store::get(&hash, &mut dest).map_err(VMError::from_store_error)?;
+        let dest = vec![0; write_len];
+        // env.store()
+        //     .get(&hash, &mut dest)
+        //     .map_err(VMError::from_store_error)?;
         context.write_memory(&dest, write_buf)?;
+        todo!();
         Ok(())
     }
 }
@@ -48,17 +49,20 @@ impl Put {
 
         let ofs = ofs as u64;
         let len = len as usize;
-        let ret = ret as u64;
+        let _ret = ret as u64;
         let context = env.get_context();
 
-        let mem = context.read_memory(ofs, len)?;
-        debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
-        let hash = Store::put(mem);
+        let _mem = context.read_memory(ofs, len)?;
+        // debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
 
-        let mut hash_buffer = vec![0; hash.encoded_len()];
-        let mut sink = Sink::new(&mut hash_buffer);
-        hash.encode(&mut sink);
-        context.write_memory(&hash_buffer, ret)?;
+        // TODO, what types are we using here here?
+
+        todo!(); // let hash = env.store().put(mem);
+
+        let mut hash_buffer = vec![0; 32];
+        // let mut sink = Sink::new(&mut hash_buffer);
+        // hash.encode(&mut sink);
+        context.write_memory(&hash_buffer, ret as u64)?;
         Ok(())
     }
 }
@@ -78,7 +82,7 @@ impl Hash {
         let context = env.get_context();
 
         let mem = context.read_memory(ofs, len)?;
-        let hash = Store::hash(mem);
+        let hash = mem.to_vec();
 
         context.write_memory(&hash, ret)
     }

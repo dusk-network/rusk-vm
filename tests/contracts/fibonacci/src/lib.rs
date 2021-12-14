@@ -4,73 +4,97 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(target_arch = "wasm32", no_std)]
-#![feature(core_intrinsics, lang_items, alloc_error_handler)]
+#![no_std]
+#![feature(
+    core_intrinsics,
+    lang_items,
+    alloc_error_handler,
+    option_result_unwrap_unchecked
+)]
 
-use canonical_derive::Canon;
+use rkyv::{Archive, Deserialize, Serialize};
+use rusk_uplink::{Execute, Query};
 
-// query ids
-pub const COMPUTE: u8 = 0;
-
-#[derive(Clone, Canon, Debug)]
+#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
 
-#[cfg(target_arch = "wasm32")]
-mod hosted {
-    use super::*;
+#[derive(Archive, Serialize, Debug, Deserialize)]
+pub struct ComputeFrom {
+    value: u32,
+}
 
-    use canonical::{Canon, CanonError, Sink, Source};
-    use dusk_abi::ReturnValue;
-
-    const PAGE_SIZE: usize = 1024 * 4;
-
-    impl Fibonacci {
-        pub fn compute(&self, n: u64) -> u64 {
-            if n < 2 {
-                n
-            } else {
-                let callee = dusk_abi::callee();
-
-                let a =
-                    dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 1), 0)
-                        .unwrap();
-
-                let b =
-                    dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 2), 0)
-                        .unwrap();
-
-                a + b
-            }
-        }
-    }
-
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
-        let mut source = Source::new(&bytes[..]);
-
-        // read self (noop).
-        let slf = Fibonacci::decode(&mut source)?;
-
-        // read query id
-        let qid = u8::decode(&mut source)?;
-        match qid {
-            // read_value (&Self) -> i32
-            COMPUTE => {
-                // read arg
-                let input = u64::decode(&mut source)?;
-                let ret = slf.compute(input);
-
-                let mut sink = Sink::new(&mut bytes[..]);
-
-                ReturnValue::from_canon(&ret).encode(&mut sink);
-                Ok(())
-            }
-            _ => panic!(""),
-        }
-    }
-
-    #[no_mangle]
-    fn q(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
-        let _ = query(bytes);
+impl ComputeFrom {
+    pub fn new(n: u32) -> Self {
+        Self { value: n }
     }
 }
+
+impl Query for ComputeFrom {
+    const NAME: &'static str = "compute";
+    type Return = u32;
+}
+
+impl Execute<ComputeFrom> for Fibonacci {
+    fn execute(
+        &self,
+        compute_from: &ComputeFrom,
+    ) -> <ComputeFrom as Query>::Return {
+        let n = compute_from.value;
+        if n < 2 {
+            n
+        } else {
+            let callee = rusk_uplink::callee();
+
+            let a = rusk_uplink::query::<ComputeFrom>(
+                &callee,
+                ComputeFrom::new(n - 1),
+                0,
+            )
+            .unwrap();
+
+            let b = rusk_uplink::query::<ComputeFrom>(
+                &callee,
+                ComputeFrom::new(n - 2),
+                0,
+            )
+            .unwrap();
+            a + b
+        }
+    }
+}
+
+#[cfg(target_family = "wasm")]
+const _: () = {
+    use rkyv::archived_root;
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rusk_uplink::AbiStore;
+
+    #[no_mangle]
+    static mut SCRATCH: [u8; 128] = [0u8; 128];
+
+    #[no_mangle]
+    fn compute(written_state: u32, written_data: u32) -> u32 {
+        let mut store = AbiStore;
+
+        let state = unsafe {
+            archived_root::<Fibonacci>(&SCRATCH[..written_state as usize])
+        };
+        let arg = unsafe {
+            archived_root::<ComputeFrom>(
+                &SCRATCH[written_state as usize..written_data as usize],
+            )
+        };
+
+        let de_state: Fibonacci = state.deserialize(&mut store).unwrap();
+        let de_query: ComputeFrom = arg.deserialize(&mut store).unwrap();
+
+        let res: <ComputeFrom as Query>::Return = de_state.execute(&de_query);
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let buffer_len = ser.serialize_value(&res).unwrap()
+            + core::mem::size_of::<
+                <<ComputeFrom as Query>::Return as Archive>::Archived,
+            >();
+        buffer_len as u32
+    }
+};

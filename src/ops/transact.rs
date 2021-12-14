@@ -4,58 +4,62 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use core::mem::size_of;
+use rkyv::AlignedVec;
+
+use rusk_uplink::{ContractId, RawTransaction};
+use std::str;
+use tracing::trace;
+
 use crate::env::Env;
 use crate::VMError;
-
-use canonical::{Canon, Sink, Source};
-use core::mem::size_of;
-use dusk_abi::{ContractId, ContractState, Transaction};
-use tracing::trace;
 
 pub struct ApplyTransaction;
 
 impl ApplyTransaction {
     pub fn transact(
         env: &Env,
-        contract_id_offset: i32,
-        transaction_offset: i32,
+        contract_id_ofs: i32,
+        transact_ofs: i32,
+        transact_len: u32,
+        name_ofs: i32,
+        name_len: u32,
         gas_limit: u64,
-    ) -> Result<(), VMError> {
-        trace!("Executing 'transact' host function");
+    ) -> Result<u64, VMError> {
+        trace!("Executing 'query' host function");
 
-        let contract_id_offset = contract_id_offset as u64;
-        let transaction_offset = transaction_offset as u64;
+        let contract_id_ofs = contract_id_ofs as u64;
+        let transact_ofs = transact_ofs as u64;
+        let transact_len = transact_len as usize;
+        let name_ofs = name_ofs as u64;
+        let name_len = name_len as usize;
+
         let context = env.get_context();
 
         let contract_id_memory =
-            context.read_memory(contract_id_offset, size_of::<ContractId>())?;
+            context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);
-        let transaction_memory =
-            context.read_memory_from(transaction_offset)?;
-        let mut source = Source::new(transaction_memory);
-        let state = ContractState::decode(&mut source)
-            .map_err(VMError::from_store_error)?;
-        let transaction = Transaction::decode(&mut source)
-            .map_err(VMError::from_store_error)?;
 
-        let callee = *context.callee();
-        *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
+        let query_memory = context.read_memory(transact_ofs, transact_len)?;
+        let mut query_data: AlignedVec = AlignedVec::new();
+        query_data.extend_from_slice(query_memory);
 
+        let query_name = context.read_memory(name_ofs, name_len)?;
+        let name =
+            str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?;
+
+        let raw_transaction = RawTransaction::from(query_data, name);
         let mut gas_meter = context.gas_meter().limited(gas_limit);
-        let (state, result) =
-            context.transact(contract_id, transaction, &mut gas_meter)?;
+        let context = env.get_context();
+        let result =
+            context.transact(contract_id, raw_transaction, &mut gas_meter)?;
+        println!("ops/transact after context transact, ret1={:?}", result);
 
-        let state_encoded_length = state.encoded_len();
-        let (mut state_buffer, mut result_buffer) =
-            (vec![0; state_encoded_length], vec![0; result.encoded_len()]);
-        let (mut state_sink, mut result_sink) =
-            (Sink::new(&mut state_buffer), Sink::new(&mut result_buffer));
-        state.encode(&mut state_sink);
-        result.encode(&mut result_sink);
-        context.write_memory(&state_buffer, transaction_offset)?;
-        context.write_memory(
-            &result_buffer,
-            transaction_offset + state_encoded_length as u64,
-        )
+        context.write_memory(result.state(), transact_ofs);
+        context.write_memory(result.data(), transact_ofs + result.state_len() as u64);
+
+        let ret = ((result.data_len() as u64 + result.state_len() as u64) << 32) + result.state_len() as u64;
+        println!("ops/transact after context transact ret2={}", ret);
+        Ok(ret)
     }
 }

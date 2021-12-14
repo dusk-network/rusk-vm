@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use counter::Counter;
+// use counter::Counter;
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule};
 use std::collections::HashMap;
 
@@ -37,6 +37,7 @@ fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
 }
 
 #[test]
+#[ignore]
 fn change_gas_cost_per_op_with_schedule() {
     let schedule = Schedule::default();
     assert!(execute_contract_with_schedule(&schedule) < 10_000);

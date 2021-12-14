@@ -9,11 +9,10 @@
 //! The main engine for executing WASM on the network state
 #![warn(missing_docs)]
 #![allow(unreachable_code)]
+#![allow(unused)]
 
 use std::collections::HashMap;
 use std::{fmt, io};
-
-use canonical::CanonError;
 
 mod call_context;
 mod compiler;
@@ -27,7 +26,7 @@ mod ops;
 mod resolver;
 mod state;
 
-pub use dusk_abi;
+pub use rusk_uplink;
 
 pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
@@ -69,10 +68,8 @@ pub enum VMError {
     IOError(io::Error),
     /// Invalid WASM Module
     InvalidWASMModule,
-    /// Error propagated from underlying store
-    StoreError(CanonError),
-    /// Serialization error from the state persistence mechanism
-    PersistenceSerializationError(CanonError),
+    /// Error from reading invalid data
+    InvalidData,
     /// Other error from the state persistence mechanism
     PersistenceError(String),
     /// WASMER export error
@@ -134,15 +131,6 @@ impl From<wasmer::RuntimeError> for VMError {
     }
 }
 
-// The generic From<CanonError> is not specific enough and conflicts with
-// From<Self>.
-impl VMError {
-    /// Create a VMError from the associated stores
-    pub fn from_store_error(err: CanonError) -> Self {
-        VMError::StoreError(err)
-    }
-}
-
 impl fmt::Display for VMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -166,12 +154,9 @@ impl fmt::Display for VMError {
             VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
             VMError::UnknownContract => write!(f, "Unknown Contract")?,
             VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
-            VMError::StoreError(e) => write!(f, "Store error {:?}", e)?,
+            VMError::InvalidData => write!(f, "Invalid data")?,
             VMError::InstrumentationError(e) => {
                 write!(f, "Instrumentalization error {:?}", e)?
-            }
-            VMError::PersistenceSerializationError(e) => {
-                write!(f, "Persistence serialization error {:?}", e)?
             }
             VMError::PersistenceError(string) => {
                 write!(f, "Persistence error \"{}\"", string)?

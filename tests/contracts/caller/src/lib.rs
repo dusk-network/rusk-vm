@@ -4,25 +4,24 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(target_arch = "wasm32", no_std)]
-#![feature(core_intrinsics, lang_items, alloc_error_handler)]
+#![no_std]
+#![feature(
+    core_intrinsics,
+    lang_items,
+    alloc_error_handler,
+    option_result_unwrap_unchecked
+)]
 
-use canonical_derive::Canon;
-use dusk_abi::ContractId;
+use rkyv::{Archive, Deserialize, Serialize};
+use rusk_uplink::{ContractId, Query, Transaction};
+extern crate alloc;
 
-// transaction ids
-pub const SET_TARGET: u8 = 0;
-
-// query ids
-pub const CALL: u8 = 0;
-pub const CALLEE_1_CALL: u8 = 1;
-
-#[derive(Clone, Canon, Debug, Default)]
-pub struct Caller {
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct CallerState {
     target_address: ContractId,
 }
 
-impl Caller {
+impl CallerState {
     pub fn new() -> Self {
         Self::default()
     }
@@ -32,78 +31,114 @@ impl Caller {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-mod hosted {
-    use super::*;
+#[derive(Archive, Serialize, Debug, Deserialize)]
+pub struct CallerQuery;
 
-    use canonical::{Canon, CanonError, Sink, Source};
-    use dusk_abi::{ContractState, ReturnValue};
+impl Query for CallerQuery {
+    const NAME: &'static str = "call";
+    type Return = ([u8; 32], [u8; 32], [u8; 32]);
+}
 
-    const PAGE_SIZE: usize = 1024 * 64;
+#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+pub struct CallerTransaction {
+    target_id: ContractId,
+}
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
-        let mut source = Source::new(&bytes[..]);
-
-        // read self.
-        let slf = Caller::decode(&mut source)?;
-
-        // read query id
-        let qid = u8::decode(&mut source)?;
-        match qid {
-            CALL => {
-                let mut sink = Sink::new(&mut bytes[..]);
-
-                let ret =
-                    dusk_abi::query::<_, (ContractId, ContractId, ContractId)>(
-                        &slf.target_address,
-                        &(CALLEE_1_CALL, dusk_abi::callee()),
-                        0,
-                    )
-                    .expect("Query Succeeded");
-
-                // return value
-                ReturnValue::from_canon(&ret).encode(&mut sink);
-
-                Ok(())
-            }
-            _ => panic!(""),
-        }
-    }
-
-    #[no_mangle]
-    fn q(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
-        let _ = query(bytes);
-    }
-
-    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
-        let mut source = Source::new(bytes);
-
-        // read self.
-        let mut slf = Caller::decode(&mut source)?;
-        // read transaction id
-        let tid = u8::decode(&mut source)?;
-        // read the target contract id
-        let target = ContractId::decode(&mut source)?;
-
-        match tid {
-            SET_TARGET => {
-                slf.set_target(target);
-
-                let mut sink = Sink::new(&mut bytes[..]);
-
-                ContractState::from_canon(&slf).encode(&mut sink);
-                ReturnValue::from_canon(&()).encode(&mut sink);
-
-                Ok(())
-            }
-            _ => panic!(""),
-        }
-    }
-
-    #[no_mangle]
-    fn t(bytes: &mut [u8; PAGE_SIZE]) {
-        // todo, handle errors here
-        let _ = transaction(bytes);
+impl CallerTransaction {
+    pub fn new(target_id: ContractId) -> Self {
+        Self { target_id }
     }
 }
+
+impl Transaction for CallerTransaction {
+    const NAME: &'static str = "set_target";
+    type Return = ();
+}
+
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct Callee1Query {
+    sender: ContractId,
+}
+
+impl Query for Callee1Query {
+    const NAME: &'static str = "call";
+    type Return = ([u8; 32], [u8; 32], [u8; 32]);
+}
+
+#[cfg(target_family = "wasm")]
+const _: () = {
+    use rkyv::archived_root;
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rusk_uplink::AbiStore;
+
+    #[no_mangle]
+    static mut SCRATCH: [u8; 512] = [0u8; 512];
+
+    #[no_mangle]
+    fn call(written_state: u32, _written_data: u32) -> u32 {
+        let mut store = AbiStore;
+
+        let state = unsafe {
+            archived_root::<CallerState>(&SCRATCH[..written_state as usize])
+        };
+
+        let state: CallerState = (state).deserialize(&mut store).unwrap();
+
+        rusk_uplink::debug!(
+            "caller: calling state target 'call' with param: callee"
+        );
+        let call_data = Callee1Query {
+            sender: rusk_uplink::callee(),
+        };
+        let ret = rusk_uplink::query::<Callee1Query>(
+            &state.target_address,
+            call_data,
+            0,
+        )
+        .unwrap();
+
+        let res: <Callee1Query as Query>::Return = ret;
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let buffer_len = ser.serialize_value(&res).unwrap()
+            + core::mem::size_of::<
+                <<Callee1Query as Query>::Return as Archive>::Archived,
+            >();
+        buffer_len as u32
+    }
+
+    #[no_mangle]
+    fn set_target(written_state: u32, written_data: u32) -> [u32; 2] {
+        let mut store = AbiStore;
+
+        let state = unsafe {
+            archived_root::<CallerState>(&SCRATCH[..written_state as usize])
+        };
+        let target = unsafe {
+            archived_root::<CallerTransaction>(
+                &SCRATCH[written_state as usize..written_data as usize],
+            )
+        };
+
+        let mut state: CallerState = state.deserialize(&mut store).unwrap();
+        let target: CallerTransaction = target.deserialize(&mut store).unwrap();
+
+        state.set_target(target.target_id);
+        rusk_uplink::debug!(
+            "setting state.set_target to: {:?}",
+            target.target_id
+        );
+
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+
+        let state_len = ser.serialize_value(&state).unwrap()
+            + core::mem::size_of::<<CallerTransaction as Archive>::Archived>();
+
+        let return_len = ser.serialize_value(&()).unwrap()
+            + core::mem::size_of::<
+                <<CallerTransaction as Transaction>::Return as Archive>::Archived,
+            >();
+
+        [state_len as u32, return_len as u32]
+    }
+};

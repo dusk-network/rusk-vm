@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use tracing::trace;
+use rusk_uplink::external::gas_left;
 
 use crate::env::Env;
 use crate::VMError;
@@ -34,7 +35,9 @@ impl GasConsumed {
         // FIXME: This will not always be correct since if the `gas_consumed =
         // ALL` the gas, this will add the extra cost of the call
         // which can't be consumed since it's not even there.
-        Ok(context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST)
+        let consumed =
+            context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST;
+        Ok(consumed)
     }
 }
 
@@ -45,6 +48,7 @@ impl GasLeft {
         trace!("Executing 'gas_left' host function");
 
         let context = env.get_context();
-        Ok(context.gas_meter().left())
+        let gas_left = context.gas_meter().left();
+        Ok(gas_left)
     }
 }
