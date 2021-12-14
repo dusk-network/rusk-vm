@@ -8,6 +8,9 @@ use canonical::{Canon, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
+use wasmer_middlewares::metering::{
+    get_remaining_points, set_remaining_points, MeteringPoints,
+};
 
 use crate::contract::ContractId;
 use crate::env::Env;
@@ -122,7 +125,10 @@ impl<'a> CallContext<'a> {
         } else {
             let contract = self.state.get_contract(&target)?;
 
-            let module = compile_module(contract.bytecode())?;
+            let module = compile_module(
+                contract.bytecode(),
+                self.state.get_module_config(),
+            )?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -138,6 +144,7 @@ impl<'a> CallContext<'a> {
             }
 
             instance = Instance::new(&module, &import_object)?;
+            set_remaining_points(&instance, gas_meter.left());
 
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
@@ -157,14 +164,18 @@ impl<'a> CallContext<'a> {
             instance.exports.get_native_function("q")?;
 
         let r = run_func.call(0);
-        *gas_meter = self.gas_reconciliation()?;
-
+        match self.gas_reconciliation(&instance) {
+            Ok(gas) => *gas_meter = gas,
+            Err(e) => {
+                gas_meter.set_left(0);
+                return Err(e);
+            }
+        }
         trace!(
             "Finished query with gas limit/spent: {}/{}",
             gas_meter.limit(),
             gas_meter.spent()
         );
-
         r?;
 
         let mut memory = WasmerMemory::new();
@@ -197,7 +208,10 @@ impl<'a> CallContext<'a> {
         {
             let contract = self.state.get_contract(&target)?;
 
-            let module = compile_module(contract.bytecode())?;
+            let module = compile_module(
+                contract.bytecode(),
+                self.state.get_module_config(),
+            )?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -212,6 +226,7 @@ impl<'a> CallContext<'a> {
                 );
             }
             instance = Instance::new(&module, &import_object)?;
+            set_remaining_points(&instance, gas_meter.left());
 
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
@@ -229,14 +244,18 @@ impl<'a> CallContext<'a> {
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
         let r = run_func.call(0);
-        *gas_meter = self.gas_reconciliation()?;
-
+        match self.gas_reconciliation(&instance) {
+            Ok(gas) => *gas_meter = gas,
+            Err(e) => {
+                gas_meter.set_left(0);
+                return Err(e);
+            }
+        }
         trace!(
             "Finished transact with gas limit/spent: {}/{}",
             gas_meter.limit(),
             gas_meter.spent()
         );
-
         r?;
 
         let ret = {
@@ -321,7 +340,21 @@ impl<'a> CallContext<'a> {
     }
 
     /// Reconcile the gas usage across the stack.
-    fn gas_reconciliation(&mut self) -> Result<GasMeter, VMError> {
+    fn gas_reconciliation(
+        &mut self,
+        instance: &Instance,
+    ) -> Result<GasMeter, VMError> {
+        let remaining = get_remaining_points(instance);
+        match remaining {
+            MeteringPoints::Remaining(r) => {
+                self.gas_meter_mut().set_left(r as u64)
+            }
+            MeteringPoints::Exhausted => {
+                self.gas_meter_mut().set_left(0);
+                return Err(VMError::OutOfGas);
+            }
+        }
+
         // If there is more than one [`StackFrame`] on the stack, then the
         // gas needs to be reconciled.
         if self.stack.len() > 1 {

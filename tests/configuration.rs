@@ -70,7 +70,7 @@ fn change_gas_cost_per_op_with_schedule() {
 
     let high_cost_schedule = Schedule {
         per_type_op_cost,
-        ..Default::default()
+        ..Schedule::with_version(1)
     };
     assert!(execute_contract_with_schedule(&high_cost_schedule) > 10_000_000);
 }
@@ -79,7 +79,7 @@ fn change_gas_cost_per_op_with_schedule() {
 fn no_gas_consumption_when_metering_is_off() {
     let no_metering_schedule = Schedule {
         has_metering: false,
-        ..Default::default()
+        ..Schedule::with_version(2)
     };
     assert_eq!(execute_contract_with_schedule(&no_metering_schedule), 0);
 }

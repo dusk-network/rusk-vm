@@ -78,11 +78,11 @@ impl Contracts {
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
         self.0
-            .insert(id, contract.instrument(module_config)?)
+            .insert(id, contract)
             .map_err(VMError::from_store_error)?;
 
         let inserted_contract = self.get_contract(&id)?;
-        compile_module(inserted_contract.bytecode())?;
+        compile_module(inserted_contract.bytecode(), module_config)?;
 
         Ok(id)
     }
@@ -345,5 +345,10 @@ impl NetworkState {
                 C::decode(&mut source).map_err(VMError::from_store_error)
             },
         )
+    }
+
+    /// Gets module config
+    pub fn get_module_config(&self) -> &ModuleConfig {
+        &self.module_config
     }
 }

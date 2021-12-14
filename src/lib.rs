@@ -17,6 +17,7 @@ use canonical::CanonError;
 
 mod call_context;
 mod compiler;
+mod compiler_config;
 mod contract;
 mod env;
 mod gas;
@@ -225,6 +226,9 @@ pub struct Schedule {
     /// Maximum allowed size of a declared table.
     pub max_table_size: u32,
 
+    /// Maximum number of memory pages.
+    pub max_memory_pages: u32,
+
     /// Floats are forbidden
     pub has_forbidden_floats: bool,
 
@@ -274,11 +278,22 @@ impl Default for Schedule {
             grow_mem_cost: 1,
             max_stack_height: 65536,
             max_table_size: 16384,
+            max_memory_pages: 16384,
             has_forbidden_floats: true,
             has_grow_cost: true,
             has_metering: true,
             has_table_size_limit: true,
             per_type_op_cost,
+        }
+    }
+}
+
+impl Schedule {
+    /// Create schedule with version
+    pub fn with_version(version: u32) -> Self {
+        Self {
+            version,
+            ..Self::default()
         }
     }
 }

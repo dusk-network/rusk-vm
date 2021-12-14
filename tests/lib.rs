@@ -14,7 +14,9 @@ use delegator::Delegator;
 use dusk_abi::Transaction;
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
-use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
+use rusk_vm::{
+    Contract, ContractId, GasMeter, NetworkState, Schedule, VMError,
+};
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
@@ -536,7 +538,12 @@ fn deploy_fails_with_floats() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::new();
+    let forbidden_floats_schedule = Schedule {
+        has_forbidden_floats: false,
+        ..Default::default()
+    };
+
+    let mut network = NetworkState::with_schedule(&forbidden_floats_schedule);
 
     assert!(matches!(
         network.deploy(contract),
