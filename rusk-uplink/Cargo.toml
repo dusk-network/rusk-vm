@@ -1,0 +1,11 @@
+[package]
+name = "rusk-uplink"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+microkelvin = { version = "0.12.0-rc", default-features = false } 
+rkyv = { version = "0.7.26", default-features = false, features = ["alloc"] }
+dusk-hamt = { path = "../../dusk-hamt" }
