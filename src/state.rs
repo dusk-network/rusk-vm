@@ -6,10 +6,10 @@
 
 use std::ops::{Deref, DerefMut};
 
-use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
-use canonical_derive::Canon;
+// use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
+// use canonical_derive::Canon;
 //use dusk_abi::{HostModule, Query, Transaction};
-use rusk_uplink::{ContractId, Query, Transaction};
+use rusk_uplink::{ContractId, Query, Transaction, AbiStore, HostModule};
 use dusk_hamt::Hamt;
 #[cfg(feature = "persistence")]
 use microkelvin::{
@@ -18,15 +18,16 @@ use microkelvin::{
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
-use crate::contract::{Contract, ContractId};
+use crate::contract::Contract;
 use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
+use rkyv::Archive;
 
 /// State of the contracts on the network.
-#[derive(Clone, Default, Canon)]
-pub struct Contracts(Hamt<ContractId, Contract, (), ()>);
+#[derive(Archive, Default)]
+pub struct Contracts(Hamt<ContractId, Contract, (), AbiStore>);
 
 impl Contracts {
     /// Returns a reference to the specified contracts state.

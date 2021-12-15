@@ -4,15 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Canon, Source};
-use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
+use rusk_uplink::{ContractId, Query, ReturnValue, Transaction, ContractState};
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
 
-use crate::contract::ContractId;
 use crate::env::Env;
 use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
@@ -28,11 +26,11 @@ pub struct StackFrame {
     gas_meter: GasMeter,
 }
 
-impl std::fmt::Debug for StackFrame {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(return: {:?})", self.ret)
-    }
-}
+// impl std::fmt::Debug for StackFrame {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         write!(f, "(return: {:?})", self.ret)
+//     }
+// }
 
 impl StackFrame {
     fn new(
@@ -104,7 +102,7 @@ impl<'a> CallContext<'a> {
     pub fn query(
         &mut self,
         target: ContractId,
-        query: Query,
+        query: impl Query,
         gas_meter: &'a mut GasMeter,
     ) -> Result<ReturnValue, VMError> {
         let _span = trace_span!(
@@ -181,9 +179,10 @@ impl<'a> CallContext<'a> {
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
         let read_buffer = memory.read_from(0)?;
-        let mut source = Source::new(read_buffer);
-        let result = ReturnValue::decode(&mut source)
-            .map_err(VMError::from_store_error)?;
+        //let mut source = Source::new(read_buffer);
+        // let result = Query::Return::decode(&read_buffer)
+        //     .map_err(VMError::from_store_error)?;
+        let result = ReturnValue::new();
         self.stack.pop();
         Ok(result)
     }
@@ -191,7 +190,7 @@ impl<'a> CallContext<'a> {
     pub fn transact(
         &mut self,
         target: ContractId,
-        transaction: Transaction,
+        transaction: impl Transaction,
         gas_meter: &'a mut GasMeter,
     ) -> Result<(ContractState, ReturnValue), VMError> {
         let _span = trace_span!(
@@ -263,12 +262,13 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
             let read_buffer = memory.read_from(0)?;
-            let mut source = Source::new(read_buffer);
-            let state = ContractState::decode(&mut source)
+            //let mut source = Source::new(read_buffer);
+            let state = ContractState::decode(&read_buffer)
                 .map_err(VMError::from_store_error)?;
             *(*contract).state_mut() = state;
-            ReturnValue::decode(&mut source)
-                .map_err(VMError::from_store_error)?
+            // Transaction::Return::decode(&mut source)
+            //     .map_err(VMError::from_store_error)?
+            ReturnValue::new()
         };
 
         let state = if self.stack.len() > 1 {

@@ -12,8 +12,7 @@
 
 use std::collections::HashMap;
 use std::{fmt, io};
-
-use canonical::CanonError;
+use rusk_uplink::StoreError;
 
 mod call_context;
 mod compiler;
@@ -27,7 +26,7 @@ mod ops;
 mod resolver;
 mod state;
 
-pub use dusk_abi;
+pub use rusk_uplink;
 
 pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
@@ -70,9 +69,9 @@ pub enum VMError {
     /// Invalid WASM Module
     InvalidWASMModule,
     /// Error propagated from underlying store
-    StoreError(CanonError),
+    StoreError(StoreError),
     /// Serialization error from the state persistence mechanism
-    PersistenceSerializationError(CanonError),
+    PersistenceSerializationError(StoreError),
     /// Other error from the state persistence mechanism
     PersistenceError(String),
     /// WASMER export error
@@ -138,7 +137,7 @@ impl From<wasmer::RuntimeError> for VMError {
 // From<Self>.
 impl VMError {
     /// Create a VMError from the associated stores
-    pub fn from_store_error(err: CanonError) -> Self {
+    pub fn from_store_error(err: StoreError) -> Self {
         VMError::StoreError(err)
     }
 }
