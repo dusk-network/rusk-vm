@@ -18,7 +18,7 @@ use std::collections::BTreeMap as Map;
 use tracing::trace;
 use wasmer::Module;
 
-pub use rusk_uplink::{ContractId, ContractState, hash_mocker};
+pub use rusk_uplink::{hash_mocker, ContractId, ContractState};
 
 type BoxedHostModule = Box<dyn HostModule>;
 

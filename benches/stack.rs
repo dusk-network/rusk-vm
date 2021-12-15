@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::CanonError;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 use stack::Stack;
@@ -22,12 +21,8 @@ fn stack_64(
     const N: Leaf = 64;
 
     for i in 0..N {
-        let _ = network.transact::<_, Result<(), CanonError>>(
-            contract_id,
-            0,
-            (stack::PUSH, i),
-            gas,
-        );
+        let _ =
+            network.transact::<_, ()>(contract_id, 0, (stack::PUSH, i), gas);
     }
 }
 

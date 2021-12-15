@@ -7,8 +7,8 @@
 use microkelvin::{MaybeArchived, Store};
 use rkyv::{Archive, Deserialize, Serialize};
 
-pub use rusk_uplink::{ContractId, ContractState};
 use rusk_uplink::HostRawStore;
+pub use rusk_uplink::{ContractId, ContractState};
 
 /// A representation of a contract with a state and bytecode
 #[derive(Archive, Clone, Serialize, Deserialize)]
@@ -73,20 +73,8 @@ impl Contract {
         }
     }
 
-    /// Returns a reference to the contract bytecode
-    pub fn bytecode(&self) -> &[u8] {
-        &self.code
-    }
-
-    /// Returns a reference to the contract state
-    pub fn state(&self) -> &Vec<u8> {
-        &self.state
-    }
-
     /// Returns a mutable reference to the contract state
     pub fn state_mut(&mut self) -> &mut Vec<u8> {
         &mut self.state
     }
-
-
 }
