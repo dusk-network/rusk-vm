@@ -8,8 +8,9 @@ use std::ops::{Deref, DerefMut};
 
 use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
 use canonical_derive::Canon;
-use dusk_abi::{HostModule, Query, Transaction};
-use dusk_hamt::Map;
+//use dusk_abi::{HostModule, Query, Transaction};
+use rusk_uplink::{ContractId, Query, Transaction};
+use dusk_hamt::Hamt;
 #[cfg(feature = "persistence")]
 use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
@@ -25,16 +26,16 @@ use crate::{Schedule, VMError};
 
 /// State of the contracts on the network.
 #[derive(Clone, Default, Canon)]
-pub struct Contracts(Map<ContractId, Contract>);
+pub struct Contracts(Hamt<ContractId, Contract, (), ()>);
 
 impl Contracts {
     /// Returns a reference to the specified contracts state.
     pub fn get_contract<'a>(
-        &'a self,
+        &'a mut self,
         contract_id: &ContractId,
     ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
         self.0
-            .get(contract_id)
+            .get_mut(contract_id)
             .map_err(VMError::from_store_error)
             .transpose()
             .unwrap_or(Err(VMError::UnknownContract))
@@ -153,7 +154,7 @@ impl NetworkState {
     /// Returns a reference to the specified contracts state in the `head`
     /// state.
     pub fn get_contract<'a>(
-        &'a self,
+        &'a mut self,
         contract_id: &ContractId,
     ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
         self.head.get_contract(contract_id)
@@ -332,7 +333,7 @@ impl NetworkState {
 
     /// Gets the state of the given contract in the `head` state.
     pub fn get_contract_cast_state<C>(
-        &self,
+        & mut self,
         contract_id: &ContractId,
     ) -> Result<C, VMError>
     where
