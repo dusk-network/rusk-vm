@@ -6,11 +6,12 @@
 
 use canonical::Canon;
 use canonical_derive::Canon;
+use rkyv::Archive;
 
-pub use dusk_abi::{ContractId, ContractState};
+pub use rusk_uplink::{ContractId, ContractState};
 
 /// A representation of a contract with a state and bytecode
-#[derive(Clone, Canon)]
+#[derive(Archive, Clone)]
 pub struct Contract {
     state: ContractState,
     code: Vec<u8>,

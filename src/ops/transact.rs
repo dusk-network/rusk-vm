@@ -9,7 +9,7 @@ use crate::VMError;
 
 use canonical::{Canon, Sink, Source};
 use core::mem::size_of;
-use dusk_abi::{ContractId, ContractState, Transaction};
+use rusk_uplink::{ContractId, ContractState, Transaction};
 use tracing::trace;
 
 pub struct ApplyTransaction;

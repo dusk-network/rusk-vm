@@ -15,8 +15,8 @@ license = "MPL-2.0"
 [dependencies]
 wasmparser = "0.81.0"
 failure = "0.1"
-canonical = "0.6"
-canonical_derive = "0.6"
+# canonical = "0.6"
+# canonical_derive = "0.6"
 dusk-hamt = "0.6.0-rc"
 microkelvin = "0.10.0"
 wasmer = "=2.0.0"
@@ -30,6 +30,7 @@ thiserror = "1.0.24"
 tracing = "0.1.29"
 loupe = "0.1"
 rusk-uplink = { path = "rusk-uplink" }
+rkyv = { version = "0.7.26", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 criterion = "0.3"

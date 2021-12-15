@@ -14,12 +14,12 @@ use crate::{Schedule, VMError};
 use cached::cached_key_result;
 use cached::TimedSizedCache;
 use canonical::Store;
-use dusk_abi::HostModule;
+use rusk_uplink::HostModule;
 use std::collections::BTreeMap as Map;
 use tracing::trace;
 use wasmer::Module;
 
-pub use dusk_abi::{ContractId, ContractState};
+pub use rusk_uplink::{ContractId, ContractState};
 
 type BoxedHostModule = Box<dyn HostModule>;
 
