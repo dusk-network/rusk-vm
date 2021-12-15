@@ -82,7 +82,7 @@ impl Hash {
         let context = env.get_context();
 
         let mem = context.read_memory(ofs, len)?;
-        let hash = mem.to_vec();// todo
+        let hash = mem.to_vec();
 
         context.write_memory(&hash, ret)
     }

@@ -1,19 +1,26 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
+// This Source Codeb Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use rusk_uplink::{ContractId, Query, ReturnValue, Transaction, ContractState, AbiStore, HostRawStore};
+use microkelvin::{BranchRef, HostStore};
+use rusk_uplink::{
+    AbiStore, ContractId, ContractState, HostRawStore, Query, ReturnValue,
+    Transaction,
+};
+
+use microkelvin::{BranchRef, Store};
+use rkyv::ser::Serializer;
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
-use microkelvin::{BranchRef, Store};
-use rkyv::ser::Serializer;
 use wasmparser::Operator::Return;
 
+use crate::contract::ContractRef;
+use crate::contract::ContractRef;
 use crate::env::Env;
 use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
@@ -21,7 +28,6 @@ use crate::modules::compile_module;
 use crate::resolver::HostImportsResolver;
 use crate::state::{Contracts, NetworkState};
 use crate::VMError;
-use crate::contract::ContractRef;
 
 pub struct StackFrame {
     callee: ContractId,
@@ -75,15 +81,25 @@ pub struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
     block_height: u64,
+    store: HostStore,
 }
 
 impl<'a> CallContext<'a> {
-    pub fn new(state: &'a mut NetworkState, block_height: u64) -> Self {
+    pub fn new(
+        state: &'a mut NetworkState,
+        block_height: u64,
+        store: HostStore,
+    ) -> Self {
         CallContext {
             state,
             stack: vec![],
             block_height,
+            store,
         }
+    }
+
+    pub fn store(&self) -> &HostStore {
+        &self.store
     }
 
     fn register_namespace(
@@ -103,12 +119,15 @@ impl<'a> CallContext<'a> {
         import_object.register(namespace_name, namespace);
     }
 
-    pub fn query(
+    pub fn query<Q>(
         &mut self,
         target: ContractId,
-        query: impl Query,
+        query: Q,
         gas_meter: &'a mut GasMeter,
-    ) -> Result<ReturnValue, VMError> {
+    ) -> Result<ReturnValue, VMError>
+    where
+        Q: Query,
+    {
         let _span = trace_span!(
             "query",
             target = ?target,
@@ -120,12 +139,16 @@ impl<'a> CallContext<'a> {
 
         let instance: Instance;
 
-        if let Some(module) = self.state.modules().get_module_ref(&target).get()
+        if let Some(_module) =
+            self.state.modules().get_module_ref(&target).get()
         {
             // is this a reserved module call?
-            return module.execute(/*query*/).map_err(|_|VMError::InvalidABICall);// todo bogus error just to fix compilation errors
+
+            return module.execute(/*query*/).map_err(|_|VMError::InvalidABICall);
+        // todo bogus error just to fix compilation errors
         } else {
             let contract = self.state.get_contract(&target)?;
+            let contract = contract.leaf();
 
             let module = compile_module(
                 contract.leaf().bytecode(),
@@ -153,12 +176,11 @@ impl<'a> CallContext<'a> {
                 store: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
-            memory.write(0, contract.leaf().state())?;
 
-            // memory.write(
-            //     contract.leaf().state().len() as u64,
-            //     query.as_bytes(),
-            // )?;
+            memory.write(0, contract.state())?;
+
+            // TODO todo write query
+            // memory.write(contract.state().len() as u64, query.as_bytes())?;
 
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
@@ -184,26 +206,28 @@ impl<'a> CallContext<'a> {
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
-
-        //memory.store.get_unchecked().get_raw(todo!); // we need Ident for return value
-
-
         let read_buffer = memory.read_from(0)?;
-        // let result: ReturnValue::Archived = unsafe { rkyv::archived_root::<ReturnValue>(read_buffer) }; // todo see if it can be done from within memory without copying
+        // let result: ReturnValue::Archived = unsafe {
+        // rkyv::archived_root::<ReturnValue>(read_buffer) }; // todo see if it
+        // can be done from within memory without copying
         let mut store = AbiStore;
         // let result = store.get_raw();
         // let result2: ReturnValue = result.deserialize(&mut store).unwrap();
-        //     .map_err(VMError::from_store_error)?; // todo do we need some error processing here?
+        //     .map_err(VMError::from_store_error)?; // todo do we need some
+        // error processing here?
         self.stack.pop();
         Ok(ReturnValue::new())
     }
 
-    pub fn transact(
+    pub fn transact<T>(
         &mut self,
         target: ContractId,
-        transaction: impl Transaction,
+        _transaction: T,
         gas_meter: &'a mut GasMeter,
-    ) -> Result<(ContractState, ReturnValue), VMError> {
+    ) -> Result<(ContractState, ReturnValue), VMError>
+    where
+        T: Transaction,
+    {
         let _span = trace_span!(
             "transact",
             target = ?target,
@@ -217,6 +241,7 @@ impl<'a> CallContext<'a> {
 
         {
             let contract = self.state.get_contract(&target)?;
+            let contract = contract.leaf();
 
             let module = compile_module(
                 contract.leaf().bytecode(),
@@ -243,11 +268,13 @@ impl<'a> CallContext<'a> {
                 store: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
+
             memory.write(0, contract.leaf().state())?;
             // memory.write(
             //     contract.leaf().state().len() as u64,
             //     transaction.as_bytes(),
             // )?;
+
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
         }

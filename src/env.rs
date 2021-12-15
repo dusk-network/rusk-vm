@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use microkelvin::HostStore;
+
 use crate::call_context::CallContext;
 use std::ffi::c_void;
 use wasmer::WasmerEnv;
@@ -27,5 +29,9 @@ impl Env {
 
     pub fn get_context<'a>(&self) -> &'a mut CallContext {
         unsafe { &mut *(self.context.0 as *mut CallContext) }
+    }
+
+    pub fn store(&self) -> &HostStore {
+        self.get_context().store()
     }
 }

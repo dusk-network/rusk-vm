@@ -5,9 +5,12 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_hamt::{Hamt, Lookup};
-use microkelvin::{BranchRef, BranchRefMut, Store, Stored, Ident, Offset, HostStore};
 
-use rusk_uplink::{ContractId, HostModule, hash_mocker, HostRawStore};
+use microkelvin::{
+    BranchRef, BranchRefMut, HostStore, Ident, Offset, Store, Stored,
+};
+use rusk_uplink::{hash_mocker, ContractId, HostModule, HostRawStore};
+
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
@@ -17,7 +20,7 @@ use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
 use core::convert::Infallible;
-use rkyv::{Archive, Serialize, Fallible};
+use rkyv::{Archive, Fallible, Serialize};
 
 // #[derive(Clone)]
 // struct BogusStore;
@@ -50,8 +53,6 @@ use rkyv::{Archive, Serialize, Fallible};
 // impl Fallible for BogusStore {
 //     type Error = Infallible;
 // }
-
-
 
 /// State of the contracts on the network.
 #[derive(Archive, Default, Clone)]
@@ -227,7 +228,7 @@ impl NetworkState {
         );
 
         let mut context =
-            CallContext::new(self, block_height);
+            CallContext::new(self, block_height, self.store.clone());
 
         // let result = match context.query(target, todo!(), gas_meter) {
         //     Ok(result) => {
@@ -270,7 +271,7 @@ impl NetworkState {
 
         // Use the forked state to execute the transaction
         let mut context =
-            CallContext::new(&mut fork, block_height);
+            CallContext::new(&mut fork, block_height, self.store.clone());
 
         // let result = match context.transact(target, todo!(), gas_meter) {
         //     Ok((_, result)) => {
