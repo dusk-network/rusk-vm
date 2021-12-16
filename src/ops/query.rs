@@ -7,7 +7,6 @@
 use crate::env::Env;
 use crate::VMError;
 
-use canonical::{Canon, Sink, Source};
 use core::mem::size_of;
 use rusk_uplink::{ContractId, Query};
 use tracing::trace;
@@ -30,16 +29,16 @@ impl ExecuteQuery {
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);
         let query_memory = context.read_memory_from(query_ofs)?;
-        let mut source = Source::new(query_memory);
-        let query =
-            Query::decode(&mut source).map_err(VMError::from_store_error)?;
+        //let mut source = Source::new(query_memory);
+        let query: Query::Archived = unsafe { rkyv::archived_root::<Query>(read_buffer) };
+            //Query::decode(&mut source).map_err(VMError::from_store_error)?;
 
         let mut gas_meter = context.gas_meter().limited(gas_limit);
         let result = context.query(contract_id, query, &mut gas_meter)?;
 
         let mut result_buffer = vec![0; result.encoded_len()];
-        let mut sink = Sink::new(&mut result_buffer[..]);
-        result.encode(&mut sink);
+        //let mut sink = Sink::new(&mut result_buffer[..]);
+        //result.encode(&mut sink);
         context.write_memory(&result_buffer, query_ofs as u64)
     }
 }

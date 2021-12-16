@@ -36,3 +36,8 @@ where
         self.wrapping.get_mut(key)
     }
 }
+
+pub fn hash_mocker(bytes: &[u8]) -> [u8; 32] {
+    use std::convert::TryFrom;
+    <[u8; 32]>::try_from(&bytes[0..32]).expect("Hash mocker works")
+}

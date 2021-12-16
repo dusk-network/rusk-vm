@@ -9,8 +9,7 @@ use std::ops::{Deref, DerefMut};
 // use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
 // use canonical_derive::Canon;
 //use dusk_abi::{HostModule, Query, Transaction};
-use rusk_uplink::{ContractId, Query, Transaction, AbiStore, HostModule};
-use dusk_hamt::Hamt;
+use rusk_uplink::{ContractId, Query, Transaction, AbiStore, HostModule, Map, hash_mocker};
 #[cfg(feature = "persistence")]
 use microkelvin::{
     BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
@@ -23,20 +22,20 @@ use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
-use rkyv::Archive;
+use rkyv::{Archive, Deserialize};
 
 /// State of the contracts on the network.
 #[derive(Archive, Default)]
-pub struct Contracts(Hamt<ContractId, Contract, (), AbiStore>);
+pub struct Contracts(Map<ContractId, Contract>);
 
 impl Contracts {
     /// Returns a reference to the specified contracts state.
     pub fn get_contract<'a>(
-        &'a mut self,
+        &'a self,
         contract_id: &ContractId,
     ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
         self.0
-            .get_mut(contract_id)
+            .get(contract_id)
             .map_err(VMError::from_store_error)
             .transpose()
             .unwrap_or(Err(VMError::UnknownContract))
@@ -61,7 +60,7 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        let id: ContractId = Store::hash(contract.bytecode()).into();
+        let id: ContractId = hash_mocker(contract.bytecode()).into();
         self.deploy_with_id(id, contract, module_config)
     }
 
@@ -69,7 +68,7 @@ impl Contracts {
     pub fn root(&self) -> [u8; 32] {
         // FIXME This is terribly slow. It should be possible to get it directly
         //  from the tree. https://github.com/dusk-network/microkelvin/issues/85
-        Store::hash(&self.0.encode_to_vec())
+        hash_mocker(&self.0.encode_to_vec())
     }
 
     /// Deploys a contract with the given id to the state.
@@ -110,27 +109,27 @@ pub struct NetworkState {
 /// Custom implementation of Canon ensuring only the `head` state is encoded.
 /// When restored, `head` is set to be a copy of `origin` and the modules are to
 /// be set by the caller.
-impl Canon for NetworkState {
-    fn encode(&self, sink: &mut Sink) {
-        self.origin.encode(sink);
-    }
-
-    fn decode(source: &mut Source) -> Result<Self, CanonError> {
-        let origin = Contracts::decode(source)?;
-        let head = origin.clone();
-
-        Ok(Self {
-            origin,
-            head,
-            modules: HostModules::default(),
-            module_config: ModuleConfig::new(),
-        })
-    }
-
-    fn encoded_len(&self) -> usize {
-        Canon::encoded_len(&self.origin)
-    }
-}
+// impl Canon for NetworkState {
+//     fn encode(&self, sink: &mut Sink) {
+//         self.origin.encode(sink);
+//     }
+//
+//     fn decode(source: &mut Source) -> Result<Self, CanonError> {
+//         let origin = Contracts::decode(source)?;
+//         let head = origin.clone();
+//
+//         Ok(Self {
+//             origin,
+//             head,
+//             modules: HostModules::default(),
+//             module_config: ModuleConfig::new(),
+//         })
+//     }
+//
+//     fn encoded_len(&self) -> usize {
+//         Canon::encoded_len(&self.origin)
+//     }
+// }
 
 impl NetworkState {
     /// Returns a new empty [`NetworkState`].
@@ -155,7 +154,7 @@ impl NetworkState {
     /// Returns a reference to the specified contracts state in the `head`
     /// state.
     pub fn get_contract<'a>(
-        &'a mut self,
+        &'a self,
         contract_id: &ContractId,
     ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
         self.head.get_contract(contract_id)
@@ -224,8 +223,8 @@ impl NetworkState {
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError>
     where
-        A: Canon,
-        R: Canon,
+        A: Archive,
+        R: Archive,
     {
         let _span = trace_span!(
             "outer query",
@@ -236,8 +235,14 @@ impl NetworkState {
 
         let mut context = CallContext::new(self, block_height);
 
+        let mut store = AbiStore;
+
+        let q = unsafe {
+            query.deserialize(&mut store).unwrap()
+        };
+
         let result =
-            match context.query(target, Query::from_canon(&query), gas_meter) {
+            match context.query(target, q, gas_meter) {
                 Ok(result) => {
                     trace!("query was successful");
                     Ok(result)
@@ -266,8 +271,8 @@ impl NetworkState {
         gas_meter: &mut GasMeter,
     ) -> Result<R, VMError>
     where
-        A: Canon,
-        R: Canon,
+        A: Archive,
+        R: Archive,
     {
         let _span = trace_span!(
             "outer transact",
@@ -333,21 +338,21 @@ impl NetworkState {
     }
 
     /// Gets the state of the given contract in the `head` state.
-    pub fn get_contract_cast_state<C>(
-        & mut self,
-        contract_id: &ContractId,
-    ) -> Result<C, VMError>
-    where
-        C: Canon,
-    {
-        self.head.get_contract(contract_id).map_or(
-            Err(VMError::UnknownContract),
-            |contract| {
-                let mut source = Source::new((*contract).state().as_bytes());
-                C::decode(&mut source).map_err(VMError::from_store_error)
-            },
-        )
-    }
+    // pub fn get_contract_cast_state<C>(
+    //     &self,
+    //     contract_id: &ContractId,
+    // ) -> Result<C, VMError>
+    // where
+    //     C: Archive,
+    // {
+    //     self.head.get_contract(contract_id).map_or(
+    //         Err(VMError::UnknownContract),
+    //         |contract| {
+    //             let mut source = Source::new((*contract).state().as_bytes());
+    //             C::decode(&mut source).map_err(VMError::from_store_error)
+    //         },
+    //     )
+    // }
 
     /// Gets module config
     pub fn get_module_config(&self) -> &ModuleConfig {

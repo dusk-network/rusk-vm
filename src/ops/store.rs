@@ -7,7 +7,6 @@
 use crate::env::Env;
 use crate::VMError;
 
-use canonical::{Canon, IdHash, Sink, Source, Store};
 use tracing::trace;
 
 pub struct Get;
