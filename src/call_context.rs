@@ -10,7 +10,8 @@ use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
-use microkelvin::BranchRef;
+use microkelvin::{BranchRef, HostRawStore, Store};
+use rkyv::ser::Serializer;
 use wasmparser::Operator::Return;
 
 use crate::env::Env;
@@ -152,18 +153,15 @@ impl<'a> CallContext<'a> {
             };
             memory.init(&instance.exports)?;
             memory.write(0, contract.leaf().state())?;
+            let host_raw_store = unsafe { HostRawStore::new(memory.inner.get_unchecked().data_unchecked_mut()) };
+            let contract_state = contract.leaf().state();
+            host_raw_store.inner.write().write(contract_state);
+
+
             // memory.write(
             //     contract.leaf().state().len() as u64,
             //     query.as_bytes(),
             // )?;
-
-            /*
-            here we need to create PageStorage on top of memory
-            PageStorage is a basis for HostStore
-            it should be possible to create HostStore out of WasmerMemory
-            (which is a wrapper around wasmer type "Memory")
-            then such HostStore could live in StackFrame
-             */
 
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
