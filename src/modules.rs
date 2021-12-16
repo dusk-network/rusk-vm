@@ -18,7 +18,7 @@ use std::collections::BTreeMap as Map;
 use tracing::trace;
 use wasmer::Module;
 
-pub use rusk_uplink::{ContractId, ContractState};
+pub use rusk_uplink::{ContractId, ContractState, hash_mocker};
 
 type BoxedHostModule = Box<dyn HostModule>;
 
@@ -43,7 +43,7 @@ cached_key_result! {
     COMPUTE: TimedSizedCache<ModuleCacheKey, Module>
         = TimedSizedCache::with_size_and_lifespan(2048, 86400);
     Key = {
-        ModuleCacheKey{ hash: (bytecode[0..32]), version: module_config.version } // todo instead of cutting out initial 32 bytes do actual hashing here
+        ModuleCacheKey{ hash: hash_mocker(bytecode), version: module_config.version } // todo instead of hash_mocker do actual hashing here
     };
 
     fn get_or_create_module(bytecode: &[u8], module_config: &ModuleConfig) -> Result<Module, VMError> = {

@@ -4,53 +4,74 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::ops::{Deref, DerefMut};
+use dusk_hamt::{Hamt, Lookup};
+use microkelvin::{BranchRef, BranchRefMut, HostRawStore, Store, Stored, Ident, Offset, HostStore};
 
-// use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
-// use canonical_derive::Canon;
-//use dusk_abi::{HostModule, Query, Transaction};
-use rusk_uplink::{ContractId, Query, Transaction, AbiStore, HostModule, Map, hash_mocker};
-#[cfg(feature = "persistence")]
-use microkelvin::{
-    BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
-};
+use rusk_uplink::{ContractId, HostModule, hash_mocker};
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
-use crate::contract::Contract;
+use crate::contract::{Contract, ContractRef};
 use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
-use rkyv::{Archive, Deserialize};
+use core::convert::Infallible;
+use rkyv::{Archive, Serialize, Fallible};
+
+// #[derive(Clone)]
+// struct BogusStore;
+//
+// struct BogusStorage;
+// impl Fallible for BogusStorage {
+//     type Error = Infallible;
+// }
+//
+// impl microkelvin::Store for BogusStore {
+//     type Identifier = Offset;
+//     type Storage = BogusStorage;
+//
+//     fn put<T>(&self, t: &T) -> Stored<T, Self>
+//         where
+//             T: Serialize<Self::Storage> {
+//         Stored::new(self.clone(), Ident::new(Offset::new(1)))
+//     }
+//
+//     /// Gets a reference to an archived value
+//     fn get_raw<T>(&self, ident: &Ident<Self::Identifier, T>) -> &T::Archived
+//         where
+//             T: Archive {
+//         let extended: &T::Archived =
+//             unsafe { core::mem::transmute(0) };
+//         extended
+//     }
+// }
+//
+// impl Fallible for BogusStore {
+//     type Error = Infallible;
+// }
+
+
 
 /// State of the contracts on the network.
-#[derive(Archive, Default)]
-pub struct Contracts(Map<ContractId, Contract>);
+#[derive(Archive, Default, Clone)]
+pub struct Contracts(Hamt<ContractId, Contract, (), HostStore>);
 
 impl Contracts {
     /// Returns a reference to the specified contracts state.
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
-        self.0
-            .get(contract_id)
-            .map_err(VMError::from_store_error)
-            .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+    ) -> Result<impl BranchRef<'a, Contract>, VMError> {
+        self.0.get(contract_id).ok_or(VMError::UnknownContract)
     }
 
     /// Returns a mutable reference to the specified contracts state.
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
-        self.0
-            .get_mut(contract_id)
-            .map_err(VMError::from_store_error)
-            .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+    ) -> Result<impl BranchRefMut<'a, Contract>, VMError> {
+        self.0.get_mut(contract_id).ok_or(VMError::UnknownContract)
     }
 
     /// Deploys a contract to the state, returning the address of the created
@@ -64,13 +85,6 @@ impl Contracts {
         self.deploy_with_id(id, contract, module_config)
     }
 
-    /// Computes the root of the contracts tree.
-    pub fn root(&self) -> [u8; 32] {
-        // FIXME This is terribly slow. It should be possible to get it directly
-        //  from the tree. https://github.com/dusk-network/microkelvin/issues/85
-        hash_mocker(&self.0.encode_to_vec())
-    }
-
     /// Deploys a contract with the given id to the state.
     pub fn deploy_with_id(
         &mut self,
@@ -78,12 +92,10 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        self.0
-            .insert(id, contract)
-            .map_err(VMError::from_store_error)?;
+        self.0.insert(id, contract);
 
         let inserted_contract = self.get_contract(&id)?;
-        compile_module(inserted_contract.bytecode(), module_config)?;
+        compile_module(inserted_contract.leaf().bytecode(), module_config)?;
 
         Ok(id)
     }
@@ -109,16 +121,25 @@ pub struct NetworkState {
 
 impl NetworkState {
     /// Returns a new empty [`NetworkState`].
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(store: HostStore) -> Self {
+        NetworkState {
+            store,
+            origin: Default::default(),
+            head: Default::default(),
+            modules: Default::default(),
+            module_config: Default::default(),
+        }
     }
 
     /// Returns a [`NetworkState`] based on a schedule
-    pub fn with_schedule(schedule: &Schedule) -> Self {
+    pub fn with_schedule(store: HostStore, schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
         Self {
+            store,
             module_config,
-            ..Self::default()
+            origin: Default::default(),
+            head: Default::default(),
+            modules: Default::default(),
         }
     }
 
@@ -132,7 +153,7 @@ impl NetworkState {
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
+    ) -> Result<impl BranchRef<'a, Contract>, VMError> {
         self.head.get_contract(contract_id)
     }
 
@@ -141,7 +162,7 @@ impl NetworkState {
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
+    ) -> Result<impl BranchRefMut<'a, Contract>, VMError> {
         self.head.get_contract_mut(contract_id)
     }
 
@@ -197,11 +218,7 @@ impl NetworkState {
         block_height: u64,
         query: A,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError>
-    where
-        A: Archive,
-        R: Archive,
-    {
+    ) -> Result<R, VMError> {
         let _span = trace_span!(
             "outer query",
             block_height = ?block_height,
@@ -209,30 +226,25 @@ impl NetworkState {
             gas_limit = ?gas_meter.limit()
         );
 
-        let mut context = CallContext::new(self, block_height);
+        let mut context =
+            CallContext::new(self, block_height);
 
-        let mut store = AbiStore;
+        // let result = match context.query(target, todo!(), gas_meter) {
+        //     Ok(result) => {
+        //         trace!("query was successful");
+        //         Ok(result)
+        //     }
+        //     Err(e) => {
+        //         trace!("query returned an error: {}", e);
+        //         Err(e)
+        //     }
+        // }
 
-        let q = unsafe {
-            query.deserialize(&mut store).unwrap()
-        };
-
-        let result =
-            match context.query(target, q, gas_meter) {
-                Ok(result) => {
-                    trace!("query was successful");
-                    Ok(result)
-                }
-                Err(e) => {
-                    trace!("query returned an error: {}", e);
-                    Err(e)
-                }
-            }?;
-
-        result.cast().map_err(|e| {
-            trace!("failed casting to result type: {:?}", e);
-            VMError::from_store_error(e)
-        })
+        todo!()
+        // result.cast().map_err(|e| {
+        //     trace!("failed casting to result type: {:?}", e);
+        //     VMError::from_store_error(e)
+        // })
     }
 
     /// Transact with the contract at `target` address in the `head` state,
@@ -245,11 +257,7 @@ impl NetworkState {
         block_height: u64,
         transaction: A,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError>
-    where
-        A: Archive,
-        R: Archive,
-    {
+    ) -> Result<R, VMError> {
         let _span = trace_span!(
             "outer transact",
             block_height = ?block_height,
@@ -261,38 +269,37 @@ impl NetworkState {
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(&mut fork, block_height);
+        let mut context =
+            CallContext::new(&mut fork, block_height);
 
-        let result = match context.transact(
-            target,
-            Transaction::from_canon(&transaction),
-            gas_meter,
-        ) {
-            Ok((_, result)) => {
-                trace!("transact was successful");
-                Ok(result)
-            }
-            Err(e) => {
-                trace!("transact returned an error: {}", e);
-                Err(e)
-            }
-        }?;
+        // let result = match context.transact(target, todo!(), gas_meter) {
+        //     Ok((_, result)) => {
+        //         trace!("transact was successful");
+        //         Ok(result)
+        //     }
+        //     Err(e) => {
+        //         trace!("transact returned an error: {}", e);
+        //         Err(e)
+        //     }
+        // }?;
 
-        let ret = result.cast().map_err(|e| {
-            trace!("failed casting to result type: {:?}", e);
-            VMError::from_store_error(e)
-        })?;
+        // let ret = result.cast().map_err(|e| {
+        //     trace!("failed casting to result type: {:?}", e);
+        //     VMError::from_store_error(e)
+        // })?;
+
+        todo!();
 
         // If we reach this point, everything went well and we can use the
         // updates made in the forked state.
         *self = fork;
 
-        Ok(ret)
+        Ok(todo!())
     }
 
     /// Returns the root of the tree in the `head` state.
     pub fn root(&self) -> [u8; 32] {
-        self.head.root()
+        todo!()
     }
 
     /// Resets the `head` state to `origin`.
@@ -314,21 +321,19 @@ impl NetworkState {
     }
 
     /// Gets the state of the given contract in the `head` state.
-    // pub fn get_contract_cast_state<C>(
-    //     &self,
-    //     contract_id: &ContractId,
-    // ) -> Result<C, VMError>
-    // where
-    //     C: Archive,
-    // {
-    //     self.head.get_contract(contract_id).map_or(
-    //         Err(VMError::UnknownContract),
-    //         |contract| {
-    //             let mut source = Source::new((*contract).state().as_bytes());
-    //             C::decode(&mut source).map_err(VMError::from_store_error)
-    //         },
-    //     )
-    // }
+    pub fn get_contract_cast_state<C>(
+        &mut self,
+        contract_id: &ContractId,
+    ) -> Result<C, VMError> {
+        self.head.get_contract(contract_id).map_or(
+            Err(VMError::UnknownContract),
+            |contract| {
+                // let mut source = Source::new((*contract).state().as_bytes());
+                // C::decode(&mut source).map_err(VMError::from_store_error)
+                todo!()
+            },
+        )
+    }
 
     /// Gets module config
     pub fn get_module_config(&self) -> &ModuleConfig {
