@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::CanonError;
-
 use rusk_vm::{Contract, GasMeter, NetworkState};
 
 use stack::Stack;
@@ -29,12 +27,7 @@ fn stack() {
 
     for i in 0..N {
         network
-            .transact::<_, Result<(), CanonError>>(
-                contract_id,
-                0,
-                (stack::PUSH, i),
-                &mut gas,
-            )
+            .transact::<_, ()>(contract_id, 0, (stack::PUSH, i), &mut gas)
             .unwrap()
             .unwrap();
 
@@ -55,7 +48,7 @@ fn stack() {
 
         assert_eq!(
             network
-                .transact::<_, Result<Option<Leaf>, CanonError>>(
+                .transact::<_, Option<Leaf>>>(
                     contract_id,
                     0,
                     stack::POP,
@@ -69,12 +62,7 @@ fn stack() {
 
     assert_eq!(
         network
-            .transact::<_, Result<Option<Leaf>, CanonError>>(
-                contract_id,
-                0,
-                stack::POP,
-                &mut gas
-            )
+            .transact::<_, Option<Leaf>>(contract_id, 0, stack::POP, &mut gas)
             .unwrap()
             .unwrap(),
         None
@@ -105,12 +93,7 @@ fn stack_persist() {
 
         for i in 0..N {
             network
-                .transact::<_, Result<(), CanonError>>(
-                    contract_id,
-                    0,
-                    (stack::PUSH, i),
-                    &mut gas,
-                )
+                .transact::<_, ()>(contract_id, 0, (stack::PUSH, i), &mut gas)
                 .unwrap()
                 .unwrap();
         }
@@ -140,7 +123,7 @@ fn stack_persist() {
 
         assert_eq!(
             network
-                .transact::<_, Result<Option<Leaf>, CanonError>>(
+                .transact::<_, Option<Leaf>>(
                     contract_id,
                     0,
                     stack::POP,
@@ -154,12 +137,7 @@ fn stack_persist() {
 
     assert_eq!(
         network
-            .transact::<_, Result<Option<Leaf>, CanonError>>(
-                contract_id,
-                0,
-                stack::POP,
-                &mut gas
-            )
+            .transact::<_, Option<Leaf>>(contract_id, 0, stack::POP, &mut gas)
             .unwrap()
             .unwrap(),
         None

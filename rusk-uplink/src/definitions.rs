@@ -3,7 +3,19 @@ use core::fmt::Debug;
 use rkyv::{Archive, Serialize, Deserialize};
 use crate::AbiStore;
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, Default, Archive)]
+#[derive(
+    PartialEq,
+    Eq,
+    Hash,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Archive,
+    Serialize,
+    Deserialize,
+)]
+#[archive(as = "Self")]
 pub struct ContractId([u8; 32]);
 
 impl<B> From<B> for ContractId
@@ -57,8 +69,14 @@ pub trait HostModule {
     fn execute(&self) -> Result<ReturnValue, ()>; // todo this is not the final shape of it
 }
 
-#[derive(Debug, Default, Archive, Serialize, Deserialize)]
+#[derive(Debug, Default)]
 pub struct ReturnValue;
+
+impl ReturnValue {
+    pub fn new() -> Self {
+        ReturnValue
+    }
+}
 
 #[derive(Debug)]
 pub struct StoreError;

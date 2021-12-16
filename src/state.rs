@@ -98,38 +98,14 @@ impl Contracts {
 /// It is possible to either [commit](`Self::commit`) to the `head` state,
 /// turning it into the new `origin`, or [reset](`Self::reset`) it back to
 /// `origin`.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct NetworkState {
     origin: Contracts,
     head: Contracts,
     modules: HostModules,
     module_config: ModuleConfig,
+    store: HostStore,
 }
-
-/// Custom implementation of Canon ensuring only the `head` state is encoded.
-/// When restored, `head` is set to be a copy of `origin` and the modules are to
-/// be set by the caller.
-// impl Canon for NetworkState {
-//     fn encode(&self, sink: &mut Sink) {
-//         self.origin.encode(sink);
-//     }
-//
-//     fn decode(source: &mut Source) -> Result<Self, CanonError> {
-//         let origin = Contracts::decode(source)?;
-//         let head = origin.clone();
-//
-//         Ok(Self {
-//             origin,
-//             head,
-//             modules: HostModules::default(),
-//             module_config: ModuleConfig::new(),
-//         })
-//     }
-//
-//     fn encoded_len(&self) -> usize {
-//         Canon::encoded_len(&self.origin)
-//     }
-// }
 
 impl NetworkState {
     /// Returns a new empty [`NetworkState`].
