@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::Canon;
-use canonical_derive::Canon;
 use rkyv::Archive;
 
 pub use rusk_uplink::{ContractId, ContractState};
@@ -21,7 +19,7 @@ impl Contract {
     /// Create a new Contract with initial state and code
     pub fn new<State, Code>(state: State, code: Code) -> Self
     where
-        State: Canon,
+        State: Archive,
         Code: Into<Vec<u8>>,
     {
         Contract {

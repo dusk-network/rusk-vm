@@ -13,7 +13,6 @@ use crate::{Schedule, VMError};
 
 use cached::cached_key_result;
 use cached::TimedSizedCache;
-use canonical::Store;
 use rusk_uplink::HostModule;
 use std::collections::BTreeMap as Map;
 use tracing::trace;
@@ -44,7 +43,7 @@ cached_key_result! {
     COMPUTE: TimedSizedCache<ModuleCacheKey, Module>
         = TimedSizedCache::with_size_and_lifespan(2048, 86400);
     Key = {
-        ModuleCacheKey{ hash: Store::hash(bytecode), version: module_config.version }
+        ModuleCacheKey{ hash: (bytecode[0..32]), version: module_config.version } // todo instead of cutting out initial 32 bytes do actual hashing here
     };
 
     fn get_or_create_module(bytecode: &[u8], module_config: &ModuleConfig) -> Result<Module, VMError> = {

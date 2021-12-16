@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use rusk_uplink::{ContractId, Query, ReturnValue, Transaction, ContractState};
+use rusk_uplink::{ContractId, Query, ReturnValue, Transaction, ContractState, AbiStore};
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
@@ -26,11 +26,11 @@ pub struct StackFrame {
     gas_meter: GasMeter,
 }
 
-// impl std::fmt::Debug for StackFrame {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         write!(f, "(return: {:?})", self.ret)
-//     }
-// }
+impl std::fmt::Debug for StackFrame {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "(return: {:?})", self.ret)
+    }
+}
 
 impl StackFrame {
     fn new(
@@ -179,12 +179,13 @@ impl<'a> CallContext<'a> {
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
         let read_buffer = memory.read_from(0)?;
-        //let mut source = Source::new(read_buffer);
-        // let result = Query::Return::decode(&read_buffer)
-        //     .map_err(VMError::from_store_error)?;
-        let result = ReturnValue::new();
+        // let result: ReturnValue::Archived = unsafe { rkyv::archived_root::<ReturnValue>(read_buffer) }; // todo see if it can be done from within memory without copying
+        let mut store = AbiStore;
+        let result = store.get_raw();
+        let result2: ReturnValue = result.deserialize(&mut store).unwrap();
+        //     .map_err(VMError::from_store_error)?; // todo do we need some error processing here?
         self.stack.pop();
-        Ok(result)
+        Ok(result2)
     }
 
     pub fn transact(
@@ -262,13 +263,12 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
             let read_buffer = memory.read_from(0)?;
-            //let mut source = Source::new(read_buffer);
-            let state = ContractState::decode(&read_buffer)
-                .map_err(VMError::from_store_error)?;
+            let state: ContractState::Archived = unsafe { rkyv::archived_value::<ContractState>(read_buffer, 0) }; // todo see if it can be done from within memory without copying
+            //     .map_err(VMError::from_store_error)?; // todo do we need some error processing here?
             *(*contract).state_mut() = state;
-            // Transaction::Return::decode(&mut source)
-            //     .map_err(VMError::from_store_error)?
-            ReturnValue::new()
+            let ret: ReturnValue::Archived = unsafe { rkyv::archived_value::<ReturnValue>(read_buffer, core::mem::size_of::<ContractState::Archived>()) }; // todo see if it can be done from within memory without copying
+            //     .map_err(VMError::from_store_error)?; // todo do we need some error processing here?
+            ret
         };
 
         let state = if self.stack.len() > 1 {

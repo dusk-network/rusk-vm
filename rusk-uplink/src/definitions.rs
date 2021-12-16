@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 
-use rkyv::Archive;
+use rkyv::{Archive, Serialize, Deserialize};
+use crate::AbiStore;
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, Default, Archive)]
 pub struct ContractId([u8; 32]);
@@ -43,20 +44,20 @@ pub trait Transaction: Archive {
     type Return;
 }
 
-#[derive(Archive, Clone)]
-pub struct ContractState;
+#[derive(Debug, Default, Archive, Serialize, Deserialize)]
+pub struct ContractState(Vec<u8>);
 
 impl ContractState {
-    pub fn decode(_slice: &[u8]) -> ContractState {
-        ContractState
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0[..]
     }
 }
 
 pub trait HostModule {
-    fn execute(&self);
+    fn execute(&self) -> Result<ReturnValue, ()>; // todo this is not the final shape of it
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Archive, Serialize, Deserialize)]
 pub struct ReturnValue;
 
 #[derive(Debug)]
