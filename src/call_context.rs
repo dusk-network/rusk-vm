@@ -10,6 +10,8 @@ use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
+use microkelvin::BranchRef;
+use wasmparser::Operator::Return;
 
 use crate::env::Env;
 use crate::gas::GasMeter;
@@ -18,6 +20,7 @@ use crate::modules::compile_module;
 use crate::resolver::HostImportsResolver;
 use crate::state::{Contracts, NetworkState};
 use crate::VMError;
+use crate::contract::ContractRef;
 
 pub struct StackFrame {
     callee: ContractId,
@@ -119,12 +122,12 @@ impl<'a> CallContext<'a> {
         if let Some(module) = self.state.modules().get_module_ref(&target).get()
         {
             // is this a reserved module call?
-            return module.execute(query).map_err(VMError::from_store_error);
+            return module.execute(/*query*/).map_err(|_|VMError::InvalidABICall);// todo bogus error just to fix compilation errors
         } else {
             let contract = self.state.get_contract(&target)?;
 
             let module = compile_module(
-                contract.bytecode(),
+                contract.leaf().bytecode(),
                 self.state.get_module_config(),
             )?;
 
@@ -148,11 +151,19 @@ impl<'a> CallContext<'a> {
                 inner: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
-            memory.write(0, contract.state().as_bytes())?;
-            memory.write(
-                contract.state().as_bytes().len() as u64,
-                query.as_bytes(),
-            )?;
+            memory.write(0, contract.leaf().state())?;
+            // memory.write(
+            //     contract.leaf().state().len() as u64,
+            //     query.as_bytes(),
+            // )?;
+
+            /*
+            here we need to create PageStorage on top of memory
+            PageStorage is a basis for HostStore
+            it should be possible to create HostStore out of WasmerMemory
+            (which is a wrapper around wasmer type "Memory")
+            then such HostStore could live in StackFrame
+             */
 
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
@@ -181,11 +192,11 @@ impl<'a> CallContext<'a> {
         let read_buffer = memory.read_from(0)?;
         // let result: ReturnValue::Archived = unsafe { rkyv::archived_root::<ReturnValue>(read_buffer) }; // todo see if it can be done from within memory without copying
         let mut store = AbiStore;
-        let result = store.get_raw();
-        let result2: ReturnValue = result.deserialize(&mut store).unwrap();
+        // let result = store.get_raw();
+        // let result2: ReturnValue = result.deserialize(&mut store).unwrap();
         //     .map_err(VMError::from_store_error)?; // todo do we need some error processing here?
         self.stack.pop();
-        Ok(result2)
+        Ok(ReturnValue::new())
     }
 
     pub fn transact(
@@ -209,7 +220,7 @@ impl<'a> CallContext<'a> {
             let contract = self.state.get_contract(&target)?;
 
             let module = compile_module(
-                contract.bytecode(),
+                contract.leaf().bytecode(),
                 self.state.get_module_config(),
             )?;
 
@@ -232,11 +243,11 @@ impl<'a> CallContext<'a> {
                 inner: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
-            memory.write(0, contract.state().as_bytes())?;
-            memory.write(
-                contract.state().as_bytes().len() as u64,
-                transaction.as_bytes(),
-            )?;
+            memory.write(0, contract.leaf().state())?;
+            // memory.write(
+            //     contract.leaf().state().len() as u64,
+            //     transaction.as_bytes(),
+            // )?;
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
         }
@@ -263,24 +274,31 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
             let read_buffer = memory.read_from(0)?;
-            let state: ContractState::Archived = unsafe { rkyv::archived_value::<ContractState>(read_buffer, 0) }; // todo see if it can be done from within memory without copying
-            //     .map_err(VMError::from_store_error)?; // todo do we need some error processing here?
-            *(*contract).state_mut() = state;
-            let ret: ReturnValue::Archived = unsafe { rkyv::archived_value::<ReturnValue>(read_buffer, core::mem::size_of::<ContractState::Archived>()) }; // todo see if it can be done from within memory without copying
-            //     .map_err(VMError::from_store_error)?; // todo do we need some error processing here?
-            ret
+            //let mut source = Source::new(read_buffer);
+            //let state = ContractState::decode(&read_buffer);
+
+            // TODO: todo handle returning
+
+            // *contract.leaf_mut().state_mut() = state;
+
+            // Transaction::Return::decode(&mut source)
+            //     .map_err(VMError::from_store_error)?
+            ReturnValue::new()
         };
 
         let state = if self.stack.len() > 1 {
             self.stack.pop();
-            self.state.get_contract(self.callee())?.state().clone()
+            let contract = self.state.get_contract(self.callee())?;
+            let leaf = contract.leaf();
+            leaf.state().to_vec()
         } else {
-            let state = self.state.get_contract(self.callee())?.state().clone();
+            let contract = self.state.get_contract(self.callee())?;
+            let leaf = contract.leaf();
             self.stack.pop();
-            state
+            leaf.state().to_vec()
         };
 
-        Ok((state, ret))
+        Ok((ContractState::new(state.to_vec()), ret))
     }
 
     pub fn block_height(&self) -> u64 {

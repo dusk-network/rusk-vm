@@ -18,6 +18,12 @@ use crate::AbiStore;
 #[archive(as = "Self")]
 pub struct ContractId([u8; 32]);
 
+impl ContractId {
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
 impl<B> From<B> for ContractId
     where
         B: AsRef<[u8]>,
@@ -60,6 +66,9 @@ pub trait Transaction: Archive {
 pub struct ContractState(Vec<u8>);
 
 impl ContractState {
+    pub fn new(v: Vec<u8>) -> Self {
+        Self(v)
+    }
     pub fn as_bytes(&self) -> &[u8] {
         &self.0[..]
     }
@@ -67,6 +76,7 @@ impl ContractState {
 
 pub trait HostModule {
     fn execute(&self) -> Result<ReturnValue, ()>; // todo this is not the final shape of it
+    fn module_id(&self) -> ContractId;
 }
 
 #[derive(Debug, Default)]

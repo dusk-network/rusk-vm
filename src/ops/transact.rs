@@ -4,12 +4,14 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use core::mem::size_of;
+
+use microkelvin::BranchRefMut;
+use rusk_uplink::ContractId;
+use tracing::trace;
+
 use crate::env::Env;
 use crate::VMError;
-
-use core::mem::size_of;
-use rusk_uplink::{ContractId, ContractState, Transaction};
-use tracing::trace;
 
 pub struct ApplyTransaction;
 
@@ -31,26 +33,29 @@ impl ApplyTransaction {
         let contract_id = ContractId::from(&contract_id_memory);
         let transaction_memory =
             context.read_memory_from(transaction_offset)?;
-        let mut source = Source::new(transaction_memory);
-        let state = ContractState::decode(&mut source)
-            .map_err(VMError::from_store_error)?;
-        let transaction = Transaction::decode(&mut source)
-            .map_err(VMError::from_store_error)?;
+        // let mut source = Source::new(transaction_memory);
+        let state = todo!();
+        let transaction = todo!();
 
         let callee = *context.callee();
-        *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
+
+        *context
+            .state_mut()
+            .get_contract_mut(&callee)?
+            .leaf_mut()
+            .state_mut() = state;
 
         let mut gas_meter = context.gas_meter().limited(gas_limit);
-        let (state, result) =
-            context.transact(contract_id, transaction, &mut gas_meter)?;
+        // let (state, result) =
+        //     context.transact(contract_id, transaction, &mut gas_meter)?;
 
-        let state_encoded_length = state.encoded_len();
+        let state_encoded_length = todo!();
         let (mut state_buffer, mut result_buffer) =
-            (vec![0; state_encoded_length], vec![0; result.encoded_len()]);
-        let (mut state_sink, mut result_sink) =
-            (Sink::new(&mut state_buffer), Sink::new(&mut result_buffer));
-        state.encode(&mut state_sink);
-        result.encode(&mut result_sink);
+            (vec![0; state_encoded_length], vec![0; todo!()]);
+        // let (mut state_sink, mut result_sink) todo!();
+        //     (Sink::new(&mut state_buffer), Sink::new(&mut result_buffer));
+        // state.encode(&mut state_sink);
+        // result.encode(&mut result_sink);
         context.write_memory(&state_buffer, transaction_offset)?;
         context.write_memory(
             &result_buffer,
