@@ -49,7 +49,8 @@ criterion = "0.3"
 # counter_float = { path = "tests/contracts/counter_float" }
 # gas_context = { path = "tests/contracts/gas_context" }
 
-register = { path = "tests/contracts/register" }
+#register = { path = "tests/contracts/register" }
+block_height = { path = "tests/contracts/block_height" }
 
 # [[bench]]
 # name = "fibonacci"

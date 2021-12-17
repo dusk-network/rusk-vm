@@ -184,6 +184,10 @@ impl<'a> CallContext<'a> {
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
+
+        //memory.store.get_unchecked().get_raw(todo!); // we need Ident for return value
+
+
         let read_buffer = memory.read_from(0)?;
         // let result: ReturnValue::Archived = unsafe { rkyv::archived_root::<ReturnValue>(read_buffer) }; // todo see if it can be done from within memory without copying
         let mut store = AbiStore;

@@ -11,7 +11,7 @@
 use microkelvin::{BranchRef, BranchRefMut, MaybeArchived};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::helpers::Map;
-use rusk_uplink::{AbiStore, HostRawStore};
+use rusk_uplink::AbiStore;
 use rusk_uplink::{Apply, Execute, Query, Transaction};
 
 #[derive(Clone, Archive, Deserialize, Serialize, Hash, PartialEq, Eq)]
@@ -75,11 +75,10 @@ unsafe fn read(
     q: *const <NumSecrets as Archive>::Archived,
     _ret: *mut <<NumSecrets as Query>::Return as Archive>::Archived,
 ) {
-    let mut store = HostRawStore;
-    let state: Register = store.get_raw(todo!);
-    let query: NumSecrets = store.get_raw(todo!);
-    let result = Register::execute(&state, &query);
-    store.put(result);
+    let mut store = AbiStore;
+    let state: Register = (&*s).deserialize(&mut store).unwrap_unchecked();
+    let query: NumSecrets = (&*q).deserialize(&mut store).unwrap_unchecked();
+    Register::execute(&state, &query);
     todo!()
 }
 

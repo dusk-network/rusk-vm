@@ -57,10 +57,6 @@ impl RawStorage {
         }
     }
 
-    fn data_len(&self) -> usize {
-        self.length
-    }
-
     fn as_slice(&self) -> &[u8] {
         unsafe { std::slice::from_raw_parts(self.bytes as *mut u8, self.length) }
     }
@@ -76,7 +72,7 @@ impl Serializer for RawStorage {
     }
 
     fn write(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
-        let space_left = self.data_len() - self.written;
+        let space_left = self.length - self.written;
         if space_left < bytes.len() {
             unreachable!() // todo don't want to change Storage trait atm as Storage is making it Infallible
         } else {
