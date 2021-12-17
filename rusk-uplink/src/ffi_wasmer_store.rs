@@ -39,6 +39,7 @@ impl<T> UnwrapInfallible<T> for Result<T, core::convert::Infallible> {
 #[derive(Debug)]
 pub struct RawStorage {
     bytes: *mut c_void,
+    length: usize,
     written: usize,
 }
 
@@ -51,12 +52,21 @@ impl RawStorage {
     pub fn new(bytes: &mut [u8]) -> RawStorage {
         RawStorage {
             bytes: bytes as *mut _ as *mut c_void,
+            length: bytes.len(),
             written: 0
         }
     }
 
     fn data_len(&self) -> usize {
-        self.bytes.len()
+        self.length
+    }
+
+    fn as_slice(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.bytes as *mut u8, self.length) }
+    }
+
+    fn as_slice_mut(&mut self) -> &mut [u8] {
+        unsafe { std::slice::from_raw_parts_mut(self.bytes as *mut u8, self.length) }
     }
 }
 
@@ -70,8 +80,7 @@ impl Serializer for RawStorage {
         if space_left < bytes.len() {
             unreachable!() // todo don't want to change Storage trait atm as Storage is making it Infallible
         } else {
-            let write_into = &mut self.bytes[self.written..][..bytes.len()];
-            write_into.copy_from_slice(bytes);
+            self.as_slice_mut().copy_from_slice(bytes);
             self.written += bytes.len();
             Ok(())
         }
@@ -87,11 +96,11 @@ impl<'a> Storage<Offset> for RawStorage {
     fn get<T: Archive>(&self, ofs: &Offset) -> &T::Archived {
         let Offset(ofs) = *ofs;
         let size = core::mem::size_of::<T::Archived>();
-        assert!(ofs <= self.bytes.len() as u64);
+        assert!(ofs <= self.length as u64);
         let start_pos = (ofs as usize)
             .checked_sub(size)
             .expect("Offset larger than size");
-        let slice = &self.bytes[start_pos..][..size];
+        let slice = &self.as_slice()[start_pos..][..size];
         unsafe { rkyv::archived_root::<T>(slice) }
     }
 }
