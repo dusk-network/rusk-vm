@@ -1,25 +1,18 @@
 // This Source Codeb Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
+// License, v. 2.0. If a copy of the MPL was not distlributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use microkelvin::{BranchRef, HostStore};
-use rusk_uplink::{
-    AbiStore, ContractId, ContractState, HostRawStore, Query, ReturnValue,
-    Transaction,
-};
+use rusk_uplink::{ContractId, ContractState, Query, ReturnValue, Transaction};
 
-use microkelvin::{BranchRef, Store};
-use rkyv::ser::Serializer;
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
-use wasmparser::Operator::Return;
 
-use crate::contract::ContractRef;
 use crate::contract::ContractRef;
 use crate::env::Env;
 use crate::gas::GasMeter;
@@ -122,7 +115,7 @@ impl<'a> CallContext<'a> {
     pub fn query<Q>(
         &mut self,
         target: ContractId,
-        query: Q,
+        _query: Q,
         gas_meter: &'a mut GasMeter,
     ) -> Result<ReturnValue, VMError>
     where
@@ -143,15 +136,14 @@ impl<'a> CallContext<'a> {
             self.state.modules().get_module_ref(&target).get()
         {
             // is this a reserved module call?
-
-            return module.execute(/*query*/).map_err(|_|VMError::InvalidABICall);
+            todo!()
         // todo bogus error just to fix compilation errors
         } else {
             let contract = self.state.get_contract(&target)?;
             let contract = contract.leaf();
 
             let module = compile_module(
-                contract.leaf().bytecode(),
+                contract.bytecode(),
                 self.state.get_module_config(),
             )?;
 
@@ -206,11 +198,10 @@ impl<'a> CallContext<'a> {
 
         let mut memory = WasmerMemory::new();
         memory.init(&instance.exports)?;
-        let read_buffer = memory.read_from(0)?;
+        let _read_buffer = memory.read_from(0)?;
         // let result: ReturnValue::Archived = unsafe {
         // rkyv::archived_root::<ReturnValue>(read_buffer) }; // todo see if it
         // can be done from within memory without copying
-        let mut store = AbiStore;
         // let result = store.get_raw();
         // let result2: ReturnValue = result.deserialize(&mut store).unwrap();
         //     .map_err(VMError::from_store_error)?; // todo do we need some
@@ -244,7 +235,7 @@ impl<'a> CallContext<'a> {
             let contract = contract.leaf();
 
             let module = compile_module(
-                contract.leaf().bytecode(),
+                contract.bytecode(),
                 self.state.get_module_config(),
             )?;
 
@@ -269,7 +260,7 @@ impl<'a> CallContext<'a> {
             };
             memory.init(&instance.exports)?;
 
-            memory.write(0, contract.leaf().state())?;
+            memory.write(0, contract.state())?;
             // memory.write(
             //     contract.leaf().state().len() as u64,
             //     transaction.as_bytes(),
@@ -297,10 +288,10 @@ impl<'a> CallContext<'a> {
         r?;
 
         let ret = {
-            let mut contract = self.state.get_contract_mut(&target)?;
+            let mut _contract = self.state.get_contract_mut(&target)?;
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
-            let read_buffer = memory.read_from(0)?;
+            let _read_buffer = memory.read_from(0)?;
             //let mut source = Source::new(read_buffer);
             //let state = ContractState::decode(&read_buffer);
 

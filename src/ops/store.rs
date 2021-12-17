@@ -24,19 +24,19 @@ impl Get {
         let write_buf = write_buf as u64;
         let write_len = write_len as usize;
         let context = env.get_context();
-        let mem = context.read_memory(hash_ofs, todo!())?;
+        let _mem = context.read_memory(hash_ofs, write_len)?;
         // let mut source = Source::new(mem);
         // let hash =
         //     IdHash::decode(&mut source).map_err(VMError::from_store_error)?;
         // we don't allow get requests to fail in the bridge
         // communication since that is the
         // responsibility of the host.
-        let mut dest = vec![0; write_len];
+        let dest = vec![0; write_len];
         // env.store()
         //     .get(&hash, &mut dest)
         //     .map_err(VMError::from_store_error)?;
-        todo!();
         context.write_memory(&dest, write_buf)?;
+        todo!();
         Ok(())
     }
 }
@@ -49,10 +49,10 @@ impl Put {
 
         let ofs = ofs as u64;
         let len = len as usize;
-        let ret = ret as u64;
+        let _ret = ret as u64;
         let context = env.get_context();
 
-        let mem = context.read_memory(ofs, len)?;
+        let _mem = context.read_memory(ofs, len)?;
         // debug_assert!(mem.len() > core::mem::size_of::<IdHash>());
 
         // TODO, what types are we using here here?
@@ -62,7 +62,7 @@ impl Put {
         let mut hash_buffer = vec![0; 32];
         // let mut sink = Sink::new(&mut hash_buffer);
         // hash.encode(&mut sink);
-        context.write_memory(&hash_buffer, ret)?;
+        context.write_memory(&hash_buffer, ret as u64)?;
         Ok(())
     }
 }

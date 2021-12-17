@@ -50,7 +50,6 @@ criterion = "0.3"
 # gas_context = { path = "tests/contracts/gas_context" }
 
 #register = { path = "tests/contracts/register" }
-block_height = { path = "tests/contracts/block_height" }
 
 # [[bench]]
 # name = "fibonacci"
