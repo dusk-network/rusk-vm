@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use rkyv::{Archive, Serialize, Deserialize};
+use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(
     PartialEq,
@@ -60,7 +60,6 @@ pub trait Transaction: Archive {
     type Return;
 }
 
-<<<<<<< HEAD
 #[derive(Debug, Default, Archive, Serialize, Deserialize)]
 pub struct ContractState(Vec<u8>);
 
@@ -74,14 +73,8 @@ impl ContractState {
 }
 
 pub trait HostModule {
-    fn execute(&self) -> Result<ReturnValue, ()>; // todo this is not the final shape of it
-=======
-pub type ContractState = Vec<u8>;
-
-pub trait HostModule {
     fn execute(&self);
 
->>>>>>> Refactoring wip
     fn module_id(&self) -> ContractId;
 }
 
