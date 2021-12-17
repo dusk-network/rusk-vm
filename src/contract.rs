@@ -4,10 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::MaybeArchived;
+use microkelvin::{MaybeArchived, Store};
 use rkyv::{Archive, Deserialize, Serialize};
 
 pub use rusk_uplink::{ContractId, ContractState};
+use rusk_uplink::HostRawStore;
 
 /// A representation of a contract with a state and bytecode
 #[derive(Archive, Clone, Serialize, Deserialize)]
@@ -61,8 +62,13 @@ impl Contract {
     where
         Code: Into<Vec<u8>>,
     {
+        let size = core::mem::size_of::<T::Archived>();
+        let mut vec = Vec::with_capacity(size);
+        vec.resize_with(len, || 0);
+        let storage = HostRawStore::new(vec.as_mut_slice());
+        storage.put(state);
         Contract {
-            state: todo!(),
+            state: vec,
             code: code.into(),
         }
     }
