@@ -4,13 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use rusk_uplink::{ContractId, Query, ReturnValue, Transaction, ContractState, AbiStore};
+use rusk_uplink::{ContractId, Query, ReturnValue, Transaction, ContractState, AbiStore, HostRawStore};
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
-use microkelvin::{BranchRef, HostRawStore, Store};
+use microkelvin::{BranchRef, Store};
 use rkyv::ser::Serializer;
 use wasmparser::Operator::Return;
 
@@ -150,13 +150,10 @@ impl<'a> CallContext<'a> {
 
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
+                store: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
             memory.write(0, contract.leaf().state())?;
-            let host_raw_store = unsafe { HostRawStore::new(memory.inner.get_unchecked().data_unchecked_mut()) };
-            let contract_state = contract.leaf().state();
-            host_raw_store.inner.write().write(contract_state);
-
 
             // memory.write(
             //     contract.leaf().state().len() as u64,
@@ -239,6 +236,7 @@ impl<'a> CallContext<'a> {
 
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
+                store: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
             memory.write(0, contract.leaf().state())?;

@@ -5,9 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_hamt::{Hamt, Lookup};
-use microkelvin::{BranchRef, BranchRefMut, HostRawStore, Store, Stored, Ident, Offset, HostStore};
+use microkelvin::{BranchRef, BranchRefMut, Store, Stored, Ident, Offset, HostStore};
 
-use rusk_uplink::{ContractId, HostModule, hash_mocker};
+use rusk_uplink::{ContractId, HostModule, hash_mocker, HostRawStore};
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
