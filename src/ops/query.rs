@@ -27,18 +27,18 @@ impl ExecuteQuery {
         let context = env.get_context();
         let contract_id_memory =
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
-        let contract_id = ContractId::from(&contract_id_memory);
-        let query_memory = context.read_memory_from(query_ofs)?;
+        let _contract_id = ContractId::from(&contract_id_memory);
+        let _query_memory = context.read_memory_from(query_ofs)?;
         // let mut source = Source::new(query_memory);
         // let query =
         //     Query::decode(&mut source).map_err(VMError::from_store_error)?;
 
-        let mut gas_meter = context.gas_meter().limited(gas_limit);
+        let mut _gas_meter = context.gas_meter().limited(gas_limit);
         // let result = context.query(contract_id, query, &mut gas_meter)?;
 
-        let mut result_buffer = vec![0; todo!()];
+        let result_buffer = vec![0; 83];
         // let mut sink = Sink::new(&mut result_buffer[..]);
-        // result.encode(&mut sink);
+        // result.encode(&mut $sink);
         context.write_memory(&result_buffer, query_ofs as u64)
     }
 }

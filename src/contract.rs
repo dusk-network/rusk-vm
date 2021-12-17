@@ -7,8 +7,8 @@
 use microkelvin::{MaybeArchived, Store};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use rusk_uplink::HostRawStore;
 pub use rusk_uplink::{ContractId, ContractState};
+use rusk_uplink::{HostRawStore, RawStorage};
 
 /// A representation of a contract with a state and bytecode
 #[derive(Archive, Clone, Serialize, Deserialize)]
@@ -61,12 +61,13 @@ impl Contract {
     pub fn new<State, Code>(state: State, code: Code) -> Self
     where
         Code: Into<Vec<u8>>,
+        State: Archive + Serialize<RawStorage>,
     {
-        let size = core::mem::size_of::<T::Archived>();
+        let size = core::mem::size_of::<State::Archived>();
         let mut vec = Vec::with_capacity(size);
-        vec.resize_with(len, || 0);
+        vec.resize_with(size, || 0);
         let storage = HostRawStore::new(vec.as_mut_slice());
-        storage.put(state);
+        storage.put(&state);
         Contract {
             state: vec,
             code: code.into(),

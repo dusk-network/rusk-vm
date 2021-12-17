@@ -6,21 +6,17 @@
 
 use dusk_hamt::{Hamt, Lookup};
 
-use microkelvin::{
-    BranchRef, BranchRefMut, HostStore, Ident, Offset, Store, Stored,
-};
-use rusk_uplink::{hash_mocker, ContractId, HostModule, HostRawStore};
+use microkelvin::{BranchRef, BranchRefMut, HostStore};
+use rusk_uplink::{hash_mocker, ContractId, HostModule, Query, Transaction};
 
-use tracing::{trace, trace_span};
+use tracing::trace_span;
 
-use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractRef};
 use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
-use core::convert::Infallible;
-use rkyv::{Archive, Fallible, Serialize};
+use rkyv::Archive;
 
 // #[derive(Clone)]
 // struct BogusStore;
@@ -213,13 +209,16 @@ impl NetworkState {
     }
 
     /// Query the contract at `target` address in the `head` state.
-    pub fn query<A, R>(
+    pub fn query<Q>(
         &mut self,
         target: ContractId,
         block_height: u64,
-        query: A,
+        _query: Q,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError> {
+    ) -> Result<Q::Return, VMError>
+    where
+        Q: Query,
+    {
         let _span = trace_span!(
             "outer query",
             block_height = ?block_height,
@@ -227,8 +226,8 @@ impl NetworkState {
             gas_limit = ?gas_meter.limit()
         );
 
-        let mut context =
-            CallContext::new(self, block_height, self.store.clone());
+        // let mut context =
+        //     CallContext::new(self, block_height, self.store.clone());
 
         // let result = match context.query(target, todo!(), gas_meter) {
         //     Ok(result) => {
@@ -252,13 +251,16 @@ impl NetworkState {
     /// returning the result of the transaction.
     ///
     /// This will advance the `head` to the resultant state.
-    pub fn transact<A, R>(
+    pub fn transact<T>(
         &mut self,
         target: ContractId,
         block_height: u64,
-        transaction: A,
+        _transaction: T,
         gas_meter: &mut GasMeter,
-    ) -> Result<R, VMError> {
+    ) -> Result<T::Return, VMError>
+    where
+        T: Transaction,
+    {
         let _span = trace_span!(
             "outer transact",
             block_height = ?block_height,
@@ -267,11 +269,11 @@ impl NetworkState {
         );
 
         // Fork the current network's state
-        let mut fork = self.clone();
+        // let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context =
-            CallContext::new(&mut fork, block_height, self.store.clone());
+        // let mut context =
+        //     CallContext::new(&mut fork, block_height, self.store.clone());
 
         // let result = match context.transact(target, todo!(), gas_meter) {
         //     Ok((_, result)) => {
@@ -293,7 +295,7 @@ impl NetworkState {
 
         // If we reach this point, everything went well and we can use the
         // updates made in the forked state.
-        *self = fork;
+        // *self = fork;
 
         Ok(todo!())
     }
@@ -328,7 +330,7 @@ impl NetworkState {
     ) -> Result<C, VMError> {
         self.head.get_contract(contract_id).map_or(
             Err(VMError::UnknownContract),
-            |contract| {
+            |_contract| {
                 // let mut source = Source::new((*contract).state().as_bytes());
                 // C::decode(&mut source).map_err(VMError::from_store_error)
                 todo!()
