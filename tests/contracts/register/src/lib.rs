@@ -76,8 +76,8 @@ unsafe fn read(
     _ret: *mut <<NumSecrets as Query>::Return as Archive>::Archived,
 ) {
     let mut store = AbiStore;
-    let state: Register = (&*s).deserialize(&mut store).unwrap_unchecked();
-    let query: NumSecrets = (&*q).deserialize(&mut store).unwrap_unchecked();
+    let state: Register = (&*s).deserialize(&mut store).unwrap();
+    let query: NumSecrets = (&*q).deserialize(&mut store).unwrap();
     Register::execute(&state, &query);
     todo!()
 }
@@ -89,8 +89,8 @@ unsafe fn incr(
     _ret: *mut <<Gossip as Transaction>::Return as Archive>::Archived,
 ) {
     let mut store = AbiStore;
-    let mut state = (&*s).deserialize(&mut store).unwrap_unchecked();
-    let transaction = (&*t).deserialize(&mut store).unwrap_unchecked();
+    let mut state = (&*s).deserialize(&mut store).unwrap();
+    let transaction = (&*t).deserialize(&mut store).unwrap();
     Register::apply(&mut state, &transaction);
     todo!()
 }
