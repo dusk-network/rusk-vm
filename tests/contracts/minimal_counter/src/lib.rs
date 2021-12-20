@@ -61,8 +61,8 @@ unsafe fn read(
     _ret: *mut <<ReadCount as Query>::Return as Archive>::Archived,
 ) {
     let mut store = AbiStore;
-    let de_state: Counter = (&*s).deserialize(&mut store).unwrap_unchecked();
-    let de_query: ReadCount = (&*q).deserialize(&mut store).unwrap_unchecked();
+    let de_state: Counter = (&*s).deserialize(&mut store).unwrap();
+    let de_query: ReadCount = (&*q).deserialize(&mut store).unwrap();
     let _res: <ReadCount as Query>::Return = de_state.execute(&de_query);
     todo!()
 }
@@ -74,10 +74,8 @@ unsafe fn incr(
     _ret: *mut <<Increment as Transaction>::Return as Archive>::Archived,
 ) {
     let mut store = AbiStore;
-    let mut de_state: Counter =
-        (&*s).deserialize(&mut store).unwrap_unchecked();
-    let de_transaction: Increment =
-        (&*t).deserialize(&mut store).unwrap_unchecked();
+    let mut de_state: Counter = (&*s).deserialize(&mut store).unwrap();
+    let de_transaction: Increment = (&*t).deserialize(&mut store).unwrap();
     let _res = de_state.apply(&de_transaction);
     todo!()
 }

@@ -31,8 +31,7 @@ use rusk_vm::{
 //
 #[test]
 fn counter() {
-    use counter::Counter;
-    use minimal_counter as counter;
+    use minimal_counter::Counter;
 
     let counter = Counter::new(99);
 
@@ -41,7 +40,6 @@ fn counter() {
     );
 
     let contract = Contract::new(counter, code.to_vec());
-
     let store = HostStore::new();
 
     let mut network = NetworkState::new(store);
@@ -52,7 +50,7 @@ fn counter() {
 
     // assert_eq!(
     //     network
-    //         .query(contract_id, 0, counter::ReadCount, &mut gas)
+    //         .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
     //         .unwrap(),
     //     99
     // );
