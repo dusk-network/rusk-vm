@@ -13,8 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use vm_proto::abi::AbiStore;
-use vm_proto::{Apply, Execute, Query, Transaction};
+use rusk_uplink::{AbiStore, Apply, Execute, Query, Transaction};
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {
@@ -36,7 +35,7 @@ impl Query for ReadCount {
 }
 
 #[derive(Archive, Serialize, Debug, Deserialize)]
-pub struct Increment(u32);
+pub struct Increment(pub u32);
 
 impl Transaction for Increment {
     const NAME: &'static str = "incr";

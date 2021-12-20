@@ -14,9 +14,10 @@
 // use dusk_abi::Transaction;
 // use fibonacci::Fibonacci;
 // use gas_consumed::GasConsumed;
-// use rusk_vm::{
-//     Contract, ContractId, GasMeter, NetworkState, Schedule, VMError,
-// };
+use microkelvin::HostStore;
+use rusk_vm::{
+    Contract, ContractId, GasMeter, NetworkState, Schedule, VMError,
+};
 // use self_snapshot::SelfSnapshot;
 // use tx_vec::TxVec;
 
@@ -28,40 +29,45 @@
 //     }
 // }
 //
-// #[test]
-// fn counter() {
-//     let counter = Counter::new(99);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.
-// wasm");
-//
-//     let contract = Contract::new(counter, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         99
-//     );
-//
-//     network
-//         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
-//         .unwrap();
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         100
-//     );
-// }
+#[test]
+fn counter() {
+    use counter::Counter;
+    use minimal_counter as counter;
+
+    let counter = Counter::new(99);
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+    );
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let store = HostStore::new();
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    // assert_eq!(
+    //     network
+    //         .query(contract_id, 0, counter::ReadCount, &mut gas)
+    //         .unwrap(),
+    //     99
+    // );
+
+    // network
+    //     .transact(contract_id, 0, counter::Increment(1), &mut gas)
+    //     .unwrap();
+
+    // assert_eq!(
+    //     network
+    //         .query(contract_id, 0, counter::ReadCount, &mut gas)
+    //         .unwrap(),
+    //     100
+    // );
+}
 //
 // #[test]
 // fn counter_trivial() {
