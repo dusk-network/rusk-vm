@@ -1,0 +1,13 @@
+[package]
+name = "minimal_counter"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vm-proto = { path = "../..", default-features = false }
+microkelvin = { path = "../../../microkelvin", default-features = false }
+rkyv = { version = "0.7.20", default-features = false, features = ["archive_le", "size_32"] }
