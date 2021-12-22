@@ -15,8 +15,6 @@ use std::sync::Arc;
 use microkelvin::{Ident, Offset, Storage, Store, Stored};
 use std::ffi::c_void;
 
-
-
 pub trait UnwrapInfallible<T> {
     fn unwrap_infallible(self) -> T;
 }
@@ -32,8 +30,6 @@ impl<T> UnwrapInfallible<T> for Result<T, core::convert::Infallible> {
         }
     }
 }
-
-
 
 /// Storage that uses raw external memory store data
 #[derive(Debug)]
@@ -53,16 +49,20 @@ impl RawStorage {
         RawStorage {
             bytes: bytes as *mut _ as *mut c_void,
             length: bytes.len(),
-            written: 0
+            written: 0,
         }
     }
 
     fn as_slice(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.bytes as *mut u8, self.length) }
+        unsafe {
+            std::slice::from_raw_parts(self.bytes as *mut u8, self.length)
+        }
     }
 
     fn as_slice_mut(&mut self) -> &mut [u8] {
-        unsafe { std::slice::from_raw_parts_mut(self.bytes as *mut u8, self.length) }
+        unsafe {
+            std::slice::from_raw_parts_mut(self.bytes as *mut u8, self.length)
+        }
     }
 }
 
@@ -74,7 +74,8 @@ impl Serializer for RawStorage {
     fn write(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
         let space_left = self.length - self.written;
         if space_left < bytes.len() {
-            unreachable!() // todo don't want to change Storage trait atm as Storage is making it Infallible
+            unreachable!() // todo don't want to change Storage trait atm as
+                           // Storage is making it Infallible
         } else {
             self.as_slice_mut().copy_from_slice(bytes);
             self.written += bytes.len();
@@ -86,11 +87,11 @@ impl Serializer for RawStorage {
 impl<'a> Storage<Offset> for RawStorage {
     fn put<T: Serialize<RawStorage>>(&mut self, t: &T) -> Offset {
         self.serialize_value(t).unwrap_infallible();
-        Offset(self.pos() as u64)
+        Offset::new(self.pos() as u64)
     }
 
     fn get<T: Archive>(&self, ofs: &Offset) -> &T::Archived {
-        let Offset(ofs) = *ofs;
+        let ofs = ofs.inner();
         let size = core::mem::size_of::<T::Archived>();
         assert!(ofs <= self.length as u64);
         let start_pos = (ofs as usize)
@@ -126,23 +127,19 @@ impl Store for HostRawStore {
     type Storage = RawStorage;
 
     fn put<T>(&self, t: &T) -> Stored<T, Self>
-        where
-            T: Serialize<Self::Storage>,
+    where
+        T: Serialize<Self::Storage>,
     {
         Stored::new(self.clone(), Ident::new(self.inner.write().put::<T>(t)))
     }
 
-    fn get_raw<T>(
-        &self,
-        id: &Ident<Self::Identifier, T>,
-    ) -> &T::Archived
-        where
-            T: Archive,
+    fn get_raw<T>(&self, id: &Ident<Self::Identifier, T>) -> &T::Archived
+    where
+        T: Archive,
     {
         let guard = self.inner.read();
         let reference = guard.get::<T>(&id.erase());
-        let extended: &T::Archived =
-            unsafe { core::mem::transmute(reference) };
+        let extended: &T::Archived = unsafe { core::mem::transmute(reference) };
         extended
     }
 }

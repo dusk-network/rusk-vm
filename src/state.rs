@@ -6,17 +6,23 @@
 
 use dusk_hamt::{Hamt, Lookup};
 
+use bytecheck::CheckBytes;
 use microkelvin::{BranchRef, BranchRefMut, HostStore};
-use rusk_uplink::{hash_mocker, ContractId, HostModule, Query, Transaction};
+use rkyv::ser::serializers::AllocSerializer;
+use rkyv::validation::validators::DefaultValidator;
+use rusk_uplink::{
+    hash_mocker, ContractId, HostModule, Query, RawQuery, Transaction,
+};
 
-use tracing::trace_span;
+use tracing::{trace, trace_span};
 
+use crate::call_context::CallContext;
 use crate::contract::{Contract, ContractRef};
 use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
-use rkyv::Archive;
+use rkyv::{Archive, Deserialize, Serialize};
 
 // #[derive(Clone)]
 // struct BogusStore;
@@ -213,11 +219,14 @@ impl NetworkState {
         &mut self,
         target: ContractId,
         block_height: u64,
-        _query: Q,
+        query: Q,
         gas_meter: &mut GasMeter,
     ) -> Result<Q::Return, VMError>
     where
-        Q: Query,
+        Q: Query + Serialize<AllocSerializer<1024>>,
+        Q::Return: Archive + Clone,
+        <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
+            + Deserialize<Q::Return, HostStore>,
     {
         let _span = trace_span!(
             "outer query",
@@ -226,25 +235,30 @@ impl NetworkState {
             gas_limit = ?gas_meter.limit()
         );
 
-        // let mut context =
-        //     CallContext::new(self, block_height, self.store.clone());
+        let mut context =
+            CallContext::new(self, block_height, self.store.clone());
 
-        // let result = match context.query(target, todo!(), gas_meter) {
-        //     Ok(result) => {
-        //         trace!("query was successful");
-        //         Ok(result)
-        //     }
-        //     Err(e) => {
-        //         trace!("query returned an error: {}", e);
-        //         Err(e)
-        //     }
-        // }
+        let result =
+            match context.query(target, RawQuery::new(query), gas_meter) {
+                Ok(result) => {
+                    trace!("query was successful");
+                    Ok(result)
+                }
+                Err(e) => {
+                    trace!("query returned an error: {}", e);
+                    Err(e)
+                }
+            }?;
 
-        todo!()
-        // result.cast().map_err(|e| {
-        //     trace!("failed casting to result type: {:?}", e);
-        //     VMError::from_store_error(e)
-        // })
+        let cast = result
+            .cast::<Q::Return>()
+            .map_err(|e| VMError::InvalidData)?;
+
+        let deserialized: Q::Return = cast
+            .deserialize(&mut self.store.clone())
+            .expect("Infallible");
+
+        Ok(deserialized)
     }
 
     /// Transact with the contract at `target` address in the `head` state,

@@ -1,6 +1,15 @@
 use core::fmt::Debug;
 
-use rkyv::{Archive, Deserialize, Serialize};
+use bytecheck::CheckBytes;
+use rkyv::{
+    check_archived_root,
+    ser::{serializers::AllocSerializer, Serializer},
+    validation::{
+        validators::{DefaultValidator, DefaultValidatorError},
+        CheckArchiveError,
+    },
+    AlignedVec, Archive, Deserialize, Serialize,
+};
 
 #[derive(
     PartialEq,
@@ -78,14 +87,72 @@ pub trait HostModule {
     fn module_id(&self) -> ContractId;
 }
 
+// TODO, use borrowed bytes here?
 #[derive(Debug, Default)]
-pub struct ReturnValue;
+pub struct ReturnValue(Vec<u8>);
 
 impl ReturnValue {
-    pub fn new() -> Self {
-        ReturnValue
+    pub fn new<V: Into<Vec<u8>>>(vec: V) -> Self {
+        ReturnValue(vec.into())
+    }
+
+    pub fn cast<'a, T>(
+        &'a self,
+    ) -> Result<
+        &'a T::Archived,
+        CheckArchiveError<
+            <T::Archived as CheckBytes<DefaultValidator<'a>>>::Error,
+            DefaultValidatorError,
+        >,
+    >
+    where
+        T: Archive,
+        T::Archived: CheckBytes<DefaultValidator<'a>>,
+    {
+        check_archived_root::<T>(&self.0[..])
     }
 }
 
-#[derive(Debug)]
-pub struct StoreError;
+#[derive(Debug, Default)]
+pub struct RawQuery {
+    data: AlignedVec,
+    name: &'static str,
+}
+
+impl RawQuery {
+    pub fn new<Q>(q: Q) -> Self
+    where
+        Q: Query + Serialize<AllocSerializer<1024>>,
+    {
+        let mut ser = AllocSerializer::default();
+        ser.serialize_value(&q).unwrap();
+        RawQuery {
+            data: ser.into_serializer().into_inner(),
+            name: Q::NAME,
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        self.name
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data[..]
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct RawTransaction {
+    data: Vec<u8>,
+    name: &'static str,
+}
+
+impl RawTransaction {
+    pub fn name(&self) -> &'static str {
+        self.name
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data[..]
+    }
+}

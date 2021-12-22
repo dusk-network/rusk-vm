@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{AbiStore, Apply, Execute, Query, Transaction};
+use rusk_uplink::{Apply, Execute, Query, Transaction};
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {
@@ -54,28 +54,42 @@ impl Apply<Increment> for Counter {
     }
 }
 
-#[no_mangle]
-unsafe fn read(
-    s: &<Counter as Archive>::Archived,
-    q: &<ReadCount as Archive>::Archived,
-    _ret: *mut <<ReadCount as Query>::Return as Archive>::Archived,
-) {
-    let mut store = AbiStore;
-    let de_state: Counter = (&*s).deserialize(&mut store).unwrap();
-    let de_query: ReadCount = (&*q).deserialize(&mut store).unwrap();
-    let _res: <ReadCount as Query>::Return = de_state.execute(&de_query);
-    todo!()
-}
+#[cfg(target_family = "wasm")]
+const _: () = {
+    use rkyv::archived_root;
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rusk_uplink::AbiStore;
 
-#[no_mangle]
-unsafe fn incr(
-    s: &mut <Counter as Archive>::Archived,
-    t: &<Increment as Archive>::Archived,
-    _ret: *mut <<Increment as Transaction>::Return as Archive>::Archived,
-) {
-    let mut store = AbiStore;
-    let mut de_state: Counter = (&*s).deserialize(&mut store).unwrap();
-    let de_transaction: Increment = (&*t).deserialize(&mut store).unwrap();
-    let _res = de_state.apply(&de_transaction);
-    todo!()
-}
+    #[no_mangle]
+    static mut SCRATCH: [u8; 128] = [0u8; 128];
+
+    #[no_mangle]
+    fn read(written: u32) -> u32 {
+        let mut store = AbiStore;
+
+        let (state, arg) = unsafe {
+            archived_root::<(Counter, ReadCount)>(&SCRATCH[..written as usize])
+        };
+
+        let de_state: Counter = (state).deserialize(&mut store).unwrap();
+        let de_query: ReadCount = (arg).deserialize(&mut store).unwrap();
+
+        let res: <ReadCount as Query>::Return = de_state.execute(&de_query);
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let written = ser.serialize_value(&res).unwrap();
+        written as u32
+    }
+
+    #[no_mangle]
+    fn incr(
+        s: &mut <Counter as Archive>::Archived,
+        t: &<Increment as Archive>::Archived,
+    ) -> u32 {
+        let mut store = AbiStore;
+        let mut de_state: Counter = (&*s).deserialize(&mut store).unwrap();
+        let de_transaction: Increment = (&*t).deserialize(&mut store).unwrap();
+        let _res = de_state.apply(&de_transaction);
+        todo!()
+    }
+};

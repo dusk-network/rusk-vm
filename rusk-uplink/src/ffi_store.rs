@@ -45,14 +45,14 @@ impl Storage<Offset> for AbiStorage {
         let serializer = core::mem::take(&mut self.0);
         let bytes = &serializer.into_serializer().into_inner()[..];
         let put_ofs = unsafe { s_put(&bytes[0], bytes.len() as u32) };
-        Offset(put_ofs)
+        Offset::new(put_ofs)
     }
 
     fn get<T>(&self, id: &Offset) -> &T::Archived
     where
         T: rkyv::Archive,
     {
-        let ofs = id.0;
+        let ofs = id.inner();
         unsafe {
             let ptr: &() = s_get(ofs);
             core::mem::transmute(ptr)
