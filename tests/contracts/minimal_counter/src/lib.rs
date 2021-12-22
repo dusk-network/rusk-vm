@@ -81,7 +81,7 @@ const _: () = {
             + core::mem::size_of::<
                 <<ReadCount as Query>::Return as Archive>::Archived,
             >();
-        written as u32
+        buffer_len as u32
     }
 
     #[no_mangle]
