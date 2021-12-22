@@ -86,4 +86,9 @@ impl Contract {
             code: code.into(),
         }
     }
+
+    /// Upgrade the contract state
+    pub fn set_state(&mut self, state: Vec<u8>) {
+        self.state = state
+    }
 }
