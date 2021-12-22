@@ -31,7 +31,8 @@ use rusk_vm::{
 //
 #[test]
 fn counter() {
-    use minimal_counter::Counter;
+    use counter::Counter;
+    use minimal_counter as counter;
 
     let counter = Counter::new(99);
 
@@ -50,21 +51,21 @@ fn counter() {
 
     assert_eq!(
         network
-            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
+            .query(contract_id, 0, counter::ReadCount, &mut gas)
             .unwrap(),
         99
     );
 
-    // network
-    //     .transact(contract_id, 0, counter::Increment(1), &mut gas)
-    //     .unwrap();
+    network
+        .transact(contract_id, 0, counter::Increment(1), &mut gas)
+        .unwrap();
 
-    // assert_eq!(
-    //     network
-    //         .query(contract_id, 0, counter::ReadCount, &mut gas)
-    //         .unwrap(),
-    //     100
-    // );
+    assert_eq!(
+        network
+            .query(contract_id, 0, counter::ReadCount, &mut gas)
+            .unwrap(),
+        100
+    );
 }
 //
 // #[test]

@@ -77,9 +77,9 @@ impl WasmerMemory {
     }
 
     /// Write bytes into memory at a given offset
-    pub fn with_slice_from<F, R>(&self, offset: usize, closure: F) -> R
+    pub fn with_slice_from<F, R>(&self, offset: usize, mut closure: F) -> R
     where
-        F: Fn(&[u8]) -> R,
+        F: FnMut(&[u8]) -> R,
     {
         unsafe {
             let slice = &self.inner.get_unchecked().data_unchecked()[offset..];

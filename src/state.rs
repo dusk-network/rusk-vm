@@ -11,7 +11,8 @@ use microkelvin::{BranchRef, BranchRefMut, HostStore};
 use rkyv::ser::serializers::AllocSerializer;
 use rkyv::validation::validators::DefaultValidator;
 use rusk_uplink::{
-    hash_mocker, ContractId, HostModule, Query, RawQuery, Transaction,
+    hash_mocker, ContractId, HostModule, Query, RawQuery, RawTransaction,
+    Transaction,
 };
 
 use tracing::{trace, trace_span};
@@ -23,38 +24,6 @@ use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
 use rkyv::{Archive, Deserialize, Serialize};
-
-// #[derive(Clone)]
-// struct BogusStore;
-//
-// struct BogusStorage;
-// impl Fallible for BogusStorage {
-//     type Error = Infallible;
-// }
-//
-// impl microkelvin::Store for BogusStore {
-//     type Identifier = Offset;
-//     type Storage = BogusStorage;
-//
-//     fn put<T>(&self, t: &T) -> Stored<T, Self>
-//         where
-//             T: Serialize<Self::Storage> {
-//         Stored::new(self.clone(), Ident::new(Offset::new(1)))
-//     }
-//
-//     /// Gets a reference to an archived value
-//     fn get_raw<T>(&self, ident: &Ident<Self::Identifier, T>) -> &T::Archived
-//         where
-//             T: Archive {
-//         let extended: &T::Archived =
-//             unsafe { core::mem::transmute(0) };
-//         extended
-//     }
-// }
-//
-// impl Fallible for BogusStore {
-//     type Error = Infallible;
-// }
 
 /// State of the contracts on the network.
 #[derive(Archive, Default, Clone)]
@@ -250,6 +219,8 @@ impl NetworkState {
                 }
             }?;
 
+        println!("return value is {:?}", result);
+
         let cast = result
             .cast::<Q::Return>()
             .map_err(|e| VMError::InvalidData)?;
@@ -269,11 +240,14 @@ impl NetworkState {
         &mut self,
         target: ContractId,
         block_height: u64,
-        _transaction: T,
+        transaction: T,
         gas_meter: &mut GasMeter,
     ) -> Result<T::Return, VMError>
     where
-        T: Transaction,
+        T: Transaction + Serialize<AllocSerializer<1024>>,
+        T::Return: Archive + Clone,
+        <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
+            + Deserialize<T::Return, HostStore>,
     {
         let _span = trace_span!(
             "outer transact",
@@ -283,35 +257,42 @@ impl NetworkState {
         );
 
         // Fork the current network's state
-        // let mut fork = self.clone();
+        let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        // let mut context =
-        //     CallContext::new(&mut fork, block_height, self.store.clone());
+        let mut context =
+            CallContext::new(&mut fork, block_height, self.store.clone());
 
-        // let result = match context.transact(target, todo!(), gas_meter) {
-        //     Ok((_, result)) => {
-        //         trace!("transact was successful");
-        //         Ok(result)
-        //     }
-        //     Err(e) => {
-        //         trace!("transact returned an error: {}", e);
-        //         Err(e)
-        //     }
-        // }?;
+        let result = match context.transact(
+            target,
+            RawTransaction::new(transaction),
+            gas_meter,
+        ) {
+            Ok(result) => {
+                trace!("query was successful");
+                Ok(result)
+            }
+            Err(e) => {
+                trace!("query returned an error: {}", e);
+                Err(e)
+            }
+        }?;
 
-        // let ret = result.cast().map_err(|e| {
-        //     trace!("failed casting to result type: {:?}", e);
-        //     VMError::from_store_error(e)
-        // })?;
+        println!("transact return value is {:?}", result);
 
-        todo!();
+        let cast = result
+            .cast::<T::Return>()
+            .map_err(|e| VMError::InvalidData)?;
 
-        // If we reach this point, everything went well and we can use the
-        // updates made in the forked state.
-        // *self = fork;
+        let deserialized: T::Return = cast
+            .deserialize(&mut self.store.clone())
+            .expect("Infallible");
 
-        Ok(todo!())
+        // Commit to the changes
+
+        *self = fork;
+
+        Ok(deserialized)
     }
 
     /// Returns the root of the tree in the `head` state.

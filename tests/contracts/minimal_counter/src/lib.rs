@@ -77,19 +77,37 @@ const _: () = {
 
         let res: <ReadCount as Query>::Return = de_state.execute(&de_query);
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let written = ser.serialize_value(&res).unwrap();
+        let buffer_len = ser.serialize_value(&res).unwrap()
+            + core::mem::size_of::<
+                <<ReadCount as Query>::Return as Archive>::Archived,
+            >();
         written as u32
     }
 
     #[no_mangle]
-    fn incr(
-        s: &mut <Counter as Archive>::Archived,
-        t: &<Increment as Archive>::Archived,
-    ) -> u32 {
+    fn incr(written: u32) -> [u32; 2] {
         let mut store = AbiStore;
-        let mut de_state: Counter = (&*s).deserialize(&mut store).unwrap();
-        let de_transaction: Increment = (&*t).deserialize(&mut store).unwrap();
-        let _res = de_state.apply(&de_transaction);
-        todo!()
+
+        let (state, arg) = unsafe {
+            archived_root::<(Counter, Increment)>(&SCRATCH[..written as usize])
+        };
+
+        let mut de_state: Counter = (state).deserialize(&mut store).unwrap();
+        let de_transaction: Increment = (arg).deserialize(&mut store).unwrap();
+
+        let res: <Increment as Transaction>::Return =
+            de_state.apply(&de_transaction);
+
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+
+        let state_len = ser.serialize_value(&de_state).unwrap()
+            + core::mem::size_of::<<Counter as Archive>::Archived>();
+
+        let return_len = ser.serialize_value(&res).unwrap()
+            + core::mem::size_of::<
+                <<Increment as Transaction>::Return as Archive>::Archived,
+            >();
+
+        [state_len as u32, return_len as u32]
     }
 };

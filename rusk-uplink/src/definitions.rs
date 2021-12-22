@@ -143,11 +143,23 @@ impl RawQuery {
 
 #[derive(Debug, Default)]
 pub struct RawTransaction {
-    data: Vec<u8>,
+    data: AlignedVec,
     name: &'static str,
 }
 
 impl RawTransaction {
+    pub fn new<T>(q: T) -> Self
+    where
+        T: Transaction + Serialize<AllocSerializer<1024>>,
+    {
+        let mut ser = AllocSerializer::default();
+        ser.serialize_value(&q).unwrap();
+        RawTransaction {
+            data: ser.into_serializer().into_inner(),
+            name: T::NAME,
+        }
+    }
+
     pub fn name(&self) -> &'static str {
         self.name
     }
