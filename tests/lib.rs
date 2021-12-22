@@ -15,9 +15,7 @@
 // use fibonacci::Fibonacci;
 // use gas_consumed::GasConsumed;
 use microkelvin::HostStore;
-use rusk_vm::{
-    Contract, ContractId, GasMeter, NetworkState, Schedule, VMError,
-};
+use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
 // use tx_vec::TxVec;
 
@@ -89,9 +87,9 @@ fn string_passthrough() {
 
     assert_eq!(
         network
-            .query(contract_id, 0, Passthrough::new("Hello world"), &mut gas)
+            .query(contract_id, 0, Passthrough::new("Hello world", 3), &mut gas)
             .unwrap(),
-        String::from("Hello world"),
+        String::from("Hello worldHello worldHello world"),
     );
 }
 //

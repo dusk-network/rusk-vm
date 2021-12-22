@@ -18,11 +18,19 @@ use rusk_uplink::{Execute, Query};
 pub struct Stringer;
 
 #[derive(Archive, Serialize, Debug, Deserialize)]
-pub struct Passthrough(String);
+pub struct Passthrough {
+    string: String,
+    repeat: u32,
+    junk: u32,
+}
 
 impl Passthrough {
-    pub fn new<S: Into<String>>(s: S) -> Self {
-        Passthrough(s.into())
+    pub fn new<S: Into<String>>(s: S, repeat: u32) -> Self {
+        Passthrough {
+            string: s.into(),
+            junk: 82,
+            repeat,
+        }
     }
 }
 
@@ -33,7 +41,7 @@ impl Query for Passthrough {
 
 impl Execute<Passthrough> for Stringer {
     fn execute(&self, p: &Passthrough) -> <Passthrough as Query>::Return {
-        p.0.clone()
+        p.string.repeat(p.repeat as usize)
     }
 }
 
