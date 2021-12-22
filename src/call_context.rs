@@ -4,14 +4,20 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::{BranchRef, HostStore};
-use rusk_uplink::{ContractId, ContractState, Query, ReturnValue, Transaction};
+use microkelvin::{BranchRef, HostStore, Store};
+use rkyv::ser::serializers::BufferSerializer;
+use rkyv::ser::Serializer;
+use rkyv::{Archive, Serialize};
+use rusk_uplink::{
+    ContractId, ContractState, Query, RawQuery, ReturnValue, Transaction,
+};
 
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
+use wasmer_types::Value;
 
 use crate::contract::ContractRef;
 use crate::env::Env;
@@ -112,15 +118,12 @@ impl<'a> CallContext<'a> {
         import_object.register(namespace_name, namespace);
     }
 
-    pub fn query<Q>(
+    pub fn query(
         &mut self,
         target: ContractId,
-        _query: Q,
+        query: RawQuery,
         gas_meter: &'a mut GasMeter,
-    ) -> Result<ReturnValue, VMError>
-    where
-        Q: Query,
-    {
+    ) -> Result<ReturnValue, VMError> {
         let _span = trace_span!(
             "query",
             target = ?target,
@@ -132,7 +135,7 @@ impl<'a> CallContext<'a> {
 
         let instance: Instance;
 
-        if let Some(_module) =
+        let ret = if let Some(_module) =
             self.state.modules().get_module_ref(&target).get()
         {
             // is this a reserved module call?
@@ -169,19 +172,47 @@ impl<'a> CallContext<'a> {
             };
             memory.init(&instance.exports)?;
 
-            memory.write(0, contract.state())?;
-
-            // TODO todo write query
-            // memory.write(contract.state().len() as u64, query.as_bytes())?;
-
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
-        }
 
-        let run_func: NativeFunc<i32, ()> =
-            instance.exports.get_native_function("q")?;
+            let run_func: NativeFunc<u32, u32> =
+                instance.exports.get_native_function(query.name())?;
 
-        let r = run_func.call(0);
+            let buf_offset = if let Value::I32(ofs) = instance
+                .exports
+                .get_global("SCRATCH")
+                .map_err(|e| VMError::InvalidWASMModule)?
+                .get()
+            {
+                ofs as usize
+            } else {
+                return Err(VMError::InvalidWASMModule);
+            };
+
+            let mut memory = WasmerMemory::new();
+            memory.init(&instance.exports)?;
+
+            let written = memory.with_mut_slice_from(buf_offset, |mem| {
+                // copy the contract state into scratch memory
+                let state = contract.state();
+                let len = state.len();
+
+                mem[0..len].copy_from_slice(state);
+
+                let data = query.data();
+
+                mem[len..len + data.len()].copy_from_slice(data);
+
+                len + data.len()
+            });
+
+            let result_written = run_func.call(written as u32)?;
+
+            memory.with_slice_from(buf_offset, |mem| {
+                ReturnValue::new(&mem[..result_written as usize])
+            })
+        };
+
         match self.gas_reconciliation(&instance) {
             Ok(gas) => *gas_meter = gas,
             Err(e) => {
@@ -194,20 +225,10 @@ impl<'a> CallContext<'a> {
             gas_meter.limit(),
             gas_meter.spent()
         );
-        r?;
 
-        let mut memory = WasmerMemory::new();
-        memory.init(&instance.exports)?;
-        let _read_buffer = memory.read_from(0)?;
-        // let result: ReturnValue::Archived = unsafe {
-        // rkyv::archived_root::<ReturnValue>(read_buffer) }; // todo see if it
-        // can be done from within memory without copying
-        // let result = store.get_raw();
-        // let result2: ReturnValue = result.deserialize(&mut store).unwrap();
-        //     .map_err(VMError::from_store_error)?; // todo do we need some
-        // error processing here?
         self.stack.pop();
-        Ok(ReturnValue::new())
+
+        Ok(ret)
     }
 
     pub fn transact<T>(
@@ -260,7 +281,7 @@ impl<'a> CallContext<'a> {
             };
             memory.init(&instance.exports)?;
 
-            memory.write(0, contract.state())?;
+            // memory.write(0, contract.state())?;
             // memory.write(
             //     contract.leaf().state().len() as u64,
             //     transaction.as_bytes(),
@@ -291,9 +312,9 @@ impl<'a> CallContext<'a> {
             let mut _contract = self.state.get_contract_mut(&target)?;
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
-            let _read_buffer = memory.read_from(0)?;
-            //let mut source = Source::new(read_buffer);
-            //let state = ContractState::decode(&read_buffer);
+            let read_buffer = memory.read_from(0)?;
+
+            //
 
             // TODO: todo handle returning
 
@@ -301,22 +322,24 @@ impl<'a> CallContext<'a> {
 
             // Transaction::Return::decode(&mut source)
             //     .map_err(VMError::from_store_error)?
-            ReturnValue::new()
+            ReturnValue::new(read_buffer)
         };
 
-        let state = if self.stack.len() > 1 {
-            self.stack.pop();
-            let contract = self.state.get_contract(self.callee())?;
-            let leaf = contract.leaf();
-            leaf.state().to_vec()
-        } else {
-            let contract = self.state.get_contract(self.callee())?;
-            let leaf = contract.leaf();
-            self.stack.pop();
-            leaf.state().to_vec()
-        };
+        todo!()
 
-        Ok((ContractState::new(state.to_vec()), ret))
+        // let state = if self.stack.len() > 1 {
+        //     self.stack.pop();
+        //     let contract = self.state.get_contract(self.callee())?;
+        //     let leaf = contract.leaf();
+        //     //leaf.state().to_vec()
+        // } else {
+        //     let contract = self.state.get_contract(self.callee())?;
+        //     let leaf = contract.leaf();
+        //     self.stack.pop();
+        //     //leaf.state().to_vec()
+        // };
+
+        // Ok((ContractState::new(state.to_vec()), ret))
     }
 
     pub fn block_height(&self) -> u64 {

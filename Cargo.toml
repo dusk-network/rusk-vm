@@ -29,6 +29,7 @@ tracing = "0.1.29"
 loupe = "0.1"
 rusk-uplink = { path = "rusk-uplink" }
 rkyv = { version = "0.7.26", default-features = false, features = ["alloc"] }
+bytecheck = { version = "0.6.7", default-features = false }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -66,3 +67,6 @@ members = [
     "tests/contracts/*",
     "rusk-uplink",
 ]
+
+[patch.crates-io]
+microkelvin = { path = "../microkelvin" }

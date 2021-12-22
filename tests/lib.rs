@@ -39,8 +39,8 @@ fn counter() {
         "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
     );
 
-    let contract = Contract::new(counter, code.to_vec());
     let store = HostStore::new();
+    let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
 
@@ -48,12 +48,12 @@ fn counter() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    // assert_eq!(
-    //     network
-    //         .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
-    //         .unwrap(),
-    //     99
-    // );
+    assert_eq!(
+        network
+            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
+            .unwrap(),
+        99
+    );
 
     // network
     //     .transact(contract_id, 0, counter::Increment(1), &mut gas)

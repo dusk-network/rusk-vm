@@ -4,11 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::{MaybeArchived, Store};
-use rkyv::{Archive, Deserialize, Serialize};
+use microkelvin::{HostStore, MaybeArchived, Store, Stored};
+use rkyv::{
+    ser::serializers::AllocSerializer, ser::Serializer, AlignedVec, Archive,
+    Deserialize, Serialize,
+};
 
 pub use rusk_uplink::{ContractId, ContractState};
-use rusk_uplink::{HostRawStore, RawStorage};
 
 /// A representation of a contract with a state and bytecode
 #[derive(Archive, Clone, Serialize, Deserialize)]
@@ -28,11 +30,17 @@ where
     T::Archived: ContractRef,
 {
     fn bytecode(&self) -> &[u8] {
-        todo!()
+        match self {
+            MaybeArchived::Memory(m) => m.bytecode(),
+            MaybeArchived::Archived(a) => a.bytecode(),
+        }
     }
 
     fn state(&self) -> &[u8] {
-        todo!()
+        match self {
+            MaybeArchived::Memory(m) => m.state(),
+            MaybeArchived::Archived(a) => a.state(),
+        }
     }
 }
 
@@ -42,7 +50,7 @@ impl ContractRef for Contract {
     }
 
     fn state(&self) -> &[u8] {
-        &self.state[..]
+        &self.state
     }
 }
 
@@ -52,30 +60,30 @@ impl ContractRef for ArchivedContract {
     }
 
     fn state(&self) -> &[u8] {
-        &self.state[..]
+        &self.state
     }
 }
 
 impl Contract {
     /// Create a new Contract with initial state and code
-    pub fn new<State, Code>(state: State, code: Code) -> Self
+    pub fn new<State, Code>(
+        state: &State,
+        code: Code,
+        store: &HostStore,
+    ) -> Self
     where
         Code: Into<Vec<u8>>,
-        State: Archive + Serialize<RawStorage>,
+        State: Archive + Serialize<AllocSerializer<1024>>,
     {
-        let size = core::mem::size_of::<State::Archived>();
-        let mut vec = Vec::with_capacity(size);
-        vec.resize_with(size, || 0);
-        let storage = HostRawStore::new(vec.as_mut_slice());
-        storage.put(&state);
+        let mut ser = AllocSerializer::default();
+
+        ser.serialize_value(state).unwrap();
+
+        let vec = ser.into_serializer().into_inner().into();
+
         Contract {
             state: vec,
             code: code.into(),
         }
-    }
-
-    /// Returns a mutable reference to the contract state
-    pub fn state_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.state
     }
 }
