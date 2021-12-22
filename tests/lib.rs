@@ -67,16 +67,43 @@ fn counter() {
         100
     );
 }
+
+#[test]
+fn string_passthrough() {
+    use string_argument::*;
+
+    let stringer = Stringer;
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/string_argument.wasm"
+    );
+
+    let store = HostStore::new();
+    let contract = Contract::new(&stringer, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        network
+            .query(contract_id, 0, Passthrough::new("Hello world"), &mut gas)
+            .unwrap(),
+        String::from("Hello world"),
+    );
+}
 //
 // #[test]
-// fn counter_trivial() {
-//     let counter = Counter::new(99);
+// fn stringer_trivial() {
+//     let stringer = Stringer::new(99);
 //
 //     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.
+//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
 // wasm");
 //
-//     let contract = Contract::new(counter, code.to_vec());
+//     let contract = Contract::new(stringer, code.to_vec());
 //
 //     let mut network = NetworkState::new();
 //
@@ -86,7 +113,7 @@ fn counter() {
 //
 //     assert_eq!(
 //         network
-//             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
 //             .unwrap(),
 //         99
 //     );
@@ -94,17 +121,17 @@ fn counter() {
 //
 // #[test]
 // fn delegated_call() {
-//     let counter = Counter::new(99);
+//     let stringer = Stringer::new(99);
 //     let delegator = Delegator;
 //
 //     let mut network = NetworkState::new();
 //
-//     let counter_code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.
+//     let stringer_code =
+//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
 // wasm");
 //
-//     let counter_contract = Contract::new(counter, counter_code.to_vec());
-//     let counter_id = network.deploy(counter_contract).unwrap();
+//     let stringer_contract = Contract::new(stringer, stringer_code.to_vec());
+//     let stringer_id = network.deploy(stringer_contract).unwrap();
 //
 //     let delegator_code = include_bytes!(
 //         "../target/wasm32-unknown-unknown/release/delegator.wasm"
@@ -122,8 +149,8 @@ fn counter() {
 //             .query::<_, i32>(
 //                 delegator_id,
 //                 0,
-//                 (delegator::DELEGATE_QUERY, counter_id, counter::READ_VALUE),
-//                 &mut gas
+//                 (delegator::DELEGATE_QUERY, stringer_id,
+// stringer::READ_VALUE),                 &mut gas
 //             )
 //             .unwrap(),
 //         99
@@ -137,18 +164,18 @@ fn counter() {
 //             0,
 //             (
 //                 delegator::DELEGATE_TRANSACTION,
-//                 counter_id,
-//                 counter::INCREMENT,
+//                 stringer_id,
+//                 stringer::INCREMENT,
 //             ),
 //             &mut gas,
 //         )
 //         .unwrap();
 //
-//     // changed the value of counter
+//     // changed the value of stringer
 //
 //     assert_eq!(
 //         network
-//             .query::<_, i32>(counter_id, 0, counter::READ_VALUE, &mut gas)
+//             .query::<_, i32>(stringer_id, 0, stringer::READ_VALUE, &mut gas)
 //             .unwrap(),
 //         100
 //     );
@@ -486,13 +513,13 @@ fn counter() {
 //
 // #[test]
 // fn gas_consumption_works() {
-//     let counter = Counter::new(99);
+//     let stringer = Stringer::new(99);
 //
 //     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.
+//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
 // wasm");
 //
-//     let contract = Contract::new(counter, code.to_vec());
+//     let contract = Contract::new(stringer, code.to_vec());
 //
 //     let mut network = NetworkState::new();
 //
@@ -501,12 +528,12 @@ fn counter() {
 //     let mut gas = GasMeter::with_limit(1_000_000_000);
 //
 //     network
-//         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+//         .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
 //         .expect("Transaction error");
 //
 //     assert_eq!(
 //         network
-//             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
 //             .expect("Query error"),
 //         100
 //     );
@@ -517,13 +544,13 @@ fn counter() {
 //
 // #[test]
 // fn out_of_gas_aborts_execution() {
-//     let counter = Counter::new(99);
+//     let stringer = Stringer::new(99);
 //
 //     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.
+//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
 // wasm");
 //
-//     let contract = Contract::new(counter, code.to_vec());
+//     let contract = Contract::new(stringer, code.to_vec());
 //
 //     let mut network = NetworkState::new();
 //
@@ -532,7 +559,7 @@ fn counter() {
 //     let mut gas = GasMeter::with_limit(1);
 //
 //     let should_be_err =
-//         network.transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut
+//         network.transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut
 // gas);     assert!(format!("{:?}", should_be_err).contains("Out of Gas
 // error"));
 //
@@ -542,13 +569,13 @@ fn counter() {
 //
 // #[test]
 // fn deploy_fails_with_floats() {
-//     let counter = CounterFloat::new(9.99f32);
+//     let stringer = StringerFloat::new(9.99f32);
 //
 //     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/counter_float.wasm"
+//         "../target/wasm32-unknown-unknown/release/stringer_float.wasm"
 //     );
 //
-//     let contract = Contract::new(counter, code.to_vec());
+//     let contract = Contract::new(stringer, code.to_vec());
 //
 //     let forbidden_floats_schedule = Schedule {
 //         has_forbidden_floats: false,
@@ -618,13 +645,13 @@ fn counter() {
 // fn persistence() {
 //     use microkelvin::DiskBackend;
 //
-//     let counter = Counter::new(99);
+//     let stringer = Stringer::new(99);
 //
 //     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.
+//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
 // wasm");
 //
-//     let contract = Contract::new(counter, code.to_vec());
+//     let contract = Contract::new(stringer, code.to_vec());
 //
 //     let (persist_id, contract_id) = {
 //         let mut network = NetworkState::new();
@@ -635,18 +662,18 @@ fn counter() {
 //
 //         assert_eq!(
 //             network
-//                 .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut
+//                 .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut
 // gas)                 .unwrap(),
 //             99
 //         );
 //
 //         network
-//             .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+//             .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
 //             .unwrap();
 //
 //         assert_eq!(
 //             network
-//                 .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut
+//                 .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut
 // gas)                 .unwrap(),
 //             100
 //         );
@@ -674,7 +701,7 @@ fn counter() {
 //
 //     assert_eq!(
 //         network
-//             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
 //             .unwrap(),
 //         100
 //     );
@@ -686,13 +713,13 @@ fn counter() {
 //
 // #[test]
 // fn commit_and_reset() {
-//     let counter = Counter::new(99);
+//     let stringer = Stringer::new(99);
 //
 //     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/counter.
+//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
 // wasm");
 //
-//     let contract = Contract::new(counter, code.to_vec());
+//     let contract = Contract::new(stringer, code.to_vec());
 //
 //     let mut network = NetworkState::new();
 //
@@ -704,10 +731,10 @@ fn counter() {
 //     let mut gas = GasMeter::with_limit(1_000_000_000);
 //
 //     network
-//         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+//         .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
 //         .unwrap();
 //     network_clone
-//         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+//         .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
 //         .unwrap();
 //
 //     network.commit();
@@ -717,13 +744,13 @@ fn counter() {
 //
 //     assert_eq!(
 //         network
-//             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
 //             .unwrap(),
 //         100
 //     );
 //     assert_eq!(
 //         network_clone
-//             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
 //             .unwrap(),
 //         99
 //     );
