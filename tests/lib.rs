@@ -15,6 +15,7 @@
 // use fibonacci::Fibonacci;
 // use gas_consumed::GasConsumed;
 use microkelvin::HostStore;
+use fibonacci::ComputeFrom;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
 // use tx_vec::TxVec;
@@ -178,39 +179,42 @@ fn string_passthrough() {
 //         100
 //     );
 // }
-//
-// #[test]
-// fn fibonacci() {
-//     let fib = Fibonacci;
-//
-//     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/fibonacci.wasm"
-//     );
-//
-//     let contract = Contract::new(fib, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     let n = 5;
-//
-//     for i in 0..n {
-//         assert_eq!(
-//             network
-//                 .query::<_, u64>(
-//                     contract_id,
-//                     0,
-//                     (fibonacci::COMPUTE, i),
-//                     &mut gas
-//                 )
-//                 .unwrap(),
-//             fibonacci_reference(i)
-//         );
-//     }
-// }
+
+#[test]
+fn fibonacci() {
+    use fibonacci::Fibonacci;
+    let fib = Fibonacci;
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/fibonacci.wasm"
+    );
+
+    let store = HostStore::new();
+    let contract = Contract::new(&fib, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let n = 5;
+
+    for i in 0..n {
+        assert_eq!(
+            network
+                .query(
+                    contract_id,
+                    0,
+                    ComputeFrom::new(i),
+                    &mut gas
+                )
+                .unwrap(),
+            //fibonacci_reference(i)
+            i * 2
+        );
+    }
+}
 
 // #[test]
 // fn block_height() {

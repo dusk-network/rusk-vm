@@ -53,6 +53,7 @@ criterion = "0.3"
 register = { path = "tests/contracts/register" }
 minimal_counter = { path = "tests/contracts/minimal_counter" }
 string_argument = { path = "tests/contracts/string_argument" }
+fibonacci = { path = "tests/contracts/fibonacci" }
 
 # [[bench]]
 # name = "fibonacci"
