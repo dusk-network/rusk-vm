@@ -17,6 +17,7 @@ pub mod external {
     extern "C" {
         #[allow(unused)]
         pub fn query(target: &u8, buf: &mut u8, gas_limit: u64) -> u32;
+        pub fn callee(buffer: &mut u8) -> u32;
     }
 }
 
@@ -26,7 +27,7 @@ pub mod external {
 /// yourself.
 pub fn query<Q>(
     target: &ContractId,
-    q: &Q,
+    q: Q,
     gas_limit: u64,
 ) -> Result<u32, <AbiStore as Fallible>::Error>
     where
@@ -37,3 +38,10 @@ pub fn query<Q>(
     let result_offset = unsafe { external::query(&target.as_bytes()[0], &mut raw_query.mut_data()[0], gas_limit) };
     Ok(result_offset)
 }
+
+// Returns the hash of the currently executing contract
+// pub fn callee() -> ContractId {
+//     let mut result = ContractId::default();
+//     unsafe { external::callee(&mut result.as_bytes_mut()[0]) }
+//     result
+// }
