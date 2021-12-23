@@ -139,6 +139,10 @@ impl RawQuery {
     pub fn data(&self) -> &[u8] {
         &self.data[..]
     }
+
+    pub fn mut_data(&mut self) -> &mut [u8] {
+        &mut self.data[..]
+    }
 }
 
 #[derive(Debug, Default)]
