@@ -36,7 +36,21 @@ impl Query for ComputeFrom {
 
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(&self, compute_from: &ComputeFrom) -> <ComputeFrom as Query>::Return {
-        compute_from.value * 2
+        let n = compute_from.value;
+        if n < 2 {
+            n
+        } else {
+            let callee = dusk_abi::callee();
+
+            let a =
+                dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 1), 0)
+                    .unwrap();
+
+            let b =
+                dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 2), 0)
+                    .unwrap();
+            a + b
+        }
     }
 }
 

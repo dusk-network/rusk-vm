@@ -25,3 +25,6 @@ pub use helpers::*;
 
 pub mod definitions;
 pub use definitions::*;
+
+pub mod hosted;
+pub use hosted::*;
