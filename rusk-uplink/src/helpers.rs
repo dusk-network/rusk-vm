@@ -39,5 +39,5 @@ where
 
 pub fn hash_mocker(bytes: &[u8]) -> [u8; 32] {
     use std::convert::TryFrom;
-    <[u8; 32]>::try_from(&bytes[0..32]).expect("Hash mocker works")
+    <[u8; 32]>::try_from(&bytes[bytes.len()-32..]).expect("Hash mocker works")
 }
