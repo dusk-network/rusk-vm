@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
-
 pub use crate::{
     AbiStore, ArchiveError, ContractId, ContractState, Query, RawQuery,
     ReturnValue, Transaction,
@@ -13,8 +11,7 @@ pub use crate::{
 use bytecheck::CheckBytes;
 use rkyv::validation::validators::DefaultValidator;
 use rkyv::{
-    ser::serializers::AllocSerializer, Archive, Deserialize, Fallible,
-    Serialize,
+    ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
 };
 
 // declare available host-calls

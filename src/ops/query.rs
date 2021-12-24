@@ -33,7 +33,8 @@ impl ExecuteQuery {
         let contract_id_memory =
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);
-        let query_memory = context.read_memory(query_ofs, query_len as usize)?;
+        let query_memory =
+            context.read_memory(query_ofs, query_len as usize)?;
         let query_name =
             context.read_memory(name_ofs as u64, name_len as usize)?;
         let mut query_data: AlignedVec = AlignedVec::new();

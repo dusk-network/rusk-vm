@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, Execute, Query, Transaction, ArchiveError};
+use rusk_uplink::{Execute, Query};
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
@@ -35,20 +35,29 @@ impl Query for ComputeFrom {
 }
 
 impl Execute<ComputeFrom> for Fibonacci {
-    fn execute(&self, compute_from: &ComputeFrom) -> <ComputeFrom as Query>::Return {
+    fn execute(
+        &self,
+        compute_from: &ComputeFrom,
+    ) -> <ComputeFrom as Query>::Return {
         let n = compute_from.value;
         if n < 2 {
             n
         } else {
             let callee = rusk_uplink::callee();
 
-            let a =
-                rusk_uplink::query::<ComputeFrom>(&callee, ComputeFrom::new(n - 1), 0)
-                    .unwrap();
+            let a = rusk_uplink::query::<ComputeFrom>(
+                &callee,
+                ComputeFrom::new(n - 1),
+                0,
+            )
+            .unwrap();
 
-            let b =
-                rusk_uplink::query::<ComputeFrom>(&callee, ComputeFrom::new(n - 2), 0)
-                    .unwrap();
+            let b = rusk_uplink::query::<ComputeFrom>(
+                &callee,
+                ComputeFrom::new(n - 2),
+                0,
+            )
+            .unwrap();
             a + b
         }
     }
@@ -69,7 +78,9 @@ const _: () = {
         let mut store = AbiStore;
 
         let (state, arg) = unsafe {
-            archived_root::<(Fibonacci, ComputeFrom)>(&SCRATCH[..written as usize])
+            archived_root::<(Fibonacci, ComputeFrom)>(
+                &SCRATCH[..written as usize],
+            )
         };
 
         let de_state: Fibonacci = (state).deserialize(&mut store).unwrap();
