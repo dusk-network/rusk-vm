@@ -172,3 +172,8 @@ impl RawTransaction {
         &self.data[..]
     }
 }
+
+// todo! find better way
+pub enum ArchiveError {
+    ArchiveValidationError
+}

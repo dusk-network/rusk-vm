@@ -6,11 +6,14 @@
 
 const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
 
-pub use crate::{AbiStore, ContractId, ContractState, Query, RawQuery, ReturnValue, Transaction};
+use bytecheck::CheckBytes;
+pub use crate::{AbiStore, ArchiveError, ContractId, ContractState, Query, RawQuery, ReturnValue, Transaction};
 use rkyv::{
     ser::{serializers::AllocSerializer},
-    Archive, Fallible, Serialize,
+    Archive, Fallible, Serialize, Deserialize
 };
+use rkyv::validation::validators::DefaultValidator;
+
 
 // declare available host-calls
 pub mod external {
@@ -29,14 +32,26 @@ pub fn query<Q>(
     target: &ContractId,
     q: Q,
     gas_limit: u64,
-) -> Result<u32, <AbiStore as Fallible>::Error>
+) -> Result<Q::Return, ArchiveError>
     where
         Q: Query + Serialize<AllocSerializer<1024>>,
         Q::Return: Archive + Clone,
+        <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
+        + Deserialize<Q::Return, AbiStore>,
 {
     let mut raw_query = RawQuery::new(q);
     let result_offset = unsafe { external::query(&target.as_bytes()[0], &mut raw_query.mut_data()[0], gas_limit) };
-    Ok(result_offset)
+    let result = ReturnValue::new(&raw_query.mut_data()[..result_offset as usize]);
+    let cast = result
+        .cast::<Q::Return>()
+        .map_err(|e| ArchiveError::ArchiveValidationError)?;
+
+    let mut store = AbiStore;
+    let deserialized: Q::Return = cast
+        .deserialize(&mut store)
+        .expect("Infallible");
+
+    Ok(deserialized)
 }
 
 // Returns the hash of the currently executing contract
