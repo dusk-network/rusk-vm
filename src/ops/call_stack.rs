@@ -17,11 +17,9 @@ impl Callee {
 
         let _result_ofs = result_ofs as usize;
         let context = env.get_context();
-        let _callee = *context.callee();
+        let callee = *context.callee();
 
-        // TODO todo, write memory
-
-        //context.write_memory(callee, result_ofs as u64)
+        context.write_memory(callee.as_bytes(), result_ofs as u64);
 
         Ok(())
     }

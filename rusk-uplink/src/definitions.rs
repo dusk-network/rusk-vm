@@ -30,6 +30,9 @@ impl ContractId {
     pub fn as_bytes(&self) -> &[u8] {
         &self.0[..]
     }
+    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+        &mut self.0[..]
+    }
 }
 
 impl<B> From<B> for ContractId
