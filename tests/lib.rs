@@ -14,8 +14,8 @@
 // use dusk_abi::Transaction;
 // use fibonacci::Fibonacci;
 // use gas_consumed::GasConsumed;
-use microkelvin::HostStore;
 use fibonacci::ComputeFrom;
+use microkelvin::HostStore;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
 // use tx_vec::TxVec;
@@ -203,12 +203,7 @@ fn fibonacci() {
     for i in 0..n {
         assert_eq!(
             network
-                .query(
-                    contract_id,
-                    0,
-                    ComputeFrom::new(i),
-                    &mut gas
-                )
+                .query(contract_id, 0, ComputeFrom::new(i), &mut gas)
                 .unwrap() as u64,
             fibonacci_reference(i as u64)
         );
