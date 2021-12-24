@@ -8,7 +8,9 @@ use crate::env::Env;
 use crate::VMError;
 
 use core::mem::size_of;
-use rusk_uplink::ContractId;
+use rkyv::AlignedVec;
+use rusk_uplink::{ContractId, RawQuery};
+use std::str;
 use tracing::trace;
 
 pub struct ExecuteQuery;
@@ -18,8 +20,10 @@ impl ExecuteQuery {
         env: &Env,
         contract_id_ofs: i32,
         query_ofs: i32,
+        name_ofs: i32,
+        name_len: u32,
         gas_limit: u64,
-    ) -> Result<(), VMError> {
+    ) -> Result<u32, VMError> {
         trace!("Executing 'query' host function");
 
         let contract_id_ofs = contract_id_ofs as u64;
@@ -27,18 +31,22 @@ impl ExecuteQuery {
         let context = env.get_context();
         let contract_id_memory =
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
-        let _contract_id = ContractId::from(&contract_id_memory);
-        let _query_memory = context.read_memory_from(query_ofs)?;
-        // let mut source = Source::new(query_memory);
-        // let query =
-        //     Query::decode(&mut source).map_err(VMError::from_store_error)?;
-
-        let mut _gas_meter = context.gas_meter().limited(gas_limit);
-        // let result = context.query(contract_id, query, &mut gas_meter)?;
-
-        let result_buffer = vec![0; 83];
-        // let mut sink = Sink::new(&mut result_buffer[..]);
-        // result.encode(&mut $sink);
-        context.write_memory(&result_buffer, query_ofs as u64)
+        let contract_id = ContractId::from(&contract_id_memory);
+        let query_memory = context.read_memory_from(query_ofs)?;
+        let query_name =
+            context.read_memory(name_ofs as u64, name_len as usize)?;
+        let mut query_data: AlignedVec = AlignedVec::new();
+        for c in query_memory {
+            // todo! there must be a better way
+            query_data.push(*c);
+        }
+        let name: String = String::from(
+            str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?,
+        );
+        let raw_query = RawQuery::from(query_data, &name);
+        let mut gas_meter = context.gas_meter().limited(gas_limit);
+        let result = context.query(contract_id, raw_query, &mut gas_meter)?;
+        context.write_memory(&result.0, query_ofs as u64);
+        Ok(result.0.len() as u32)
     }
 }

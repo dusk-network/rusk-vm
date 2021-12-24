@@ -19,7 +19,7 @@ use rkyv::validation::validators::DefaultValidator;
 pub mod external {
     extern "C" {
         #[allow(unused)]
-        pub fn query(target: &u8, buf: &mut u8, gas_limit: u64) -> u32;
+        pub fn query(target: &u8, buf: &mut u8, name: &u8, name_len: u32, gas_limit: u64) -> u32;
         pub fn callee(buffer: &mut u8) -> u32;
     }
 }
@@ -40,11 +40,14 @@ pub fn query<Q>(
         + Deserialize<Q::Return, AbiStore>,
 {
     let mut raw_query = RawQuery::new(q);
-    let result_offset = unsafe { external::query(&target.as_bytes()[0], &mut raw_query.mut_data()[0], gas_limit) };
+    let name = raw_query.name_clone();
+    let name_str = name.as_str();
+    let data = raw_query.mut_data();
+    let result_offset = unsafe { external::query(&target.as_bytes()[0], &mut data[0], &name.as_bytes()[0], name_str.len() as u32, gas_limit) };
     let result = ReturnValue::new(&raw_query.mut_data()[..result_offset as usize]);
     let cast = result
         .cast::<Q::Return>()
-        .map_err(|e| ArchiveError::ArchiveValidationError)?;
+        .map_err(|_| ArchiveError::ArchiveValidationError)?;
 
     let mut store = AbiStore;
     let deserialized: Q::Return = cast

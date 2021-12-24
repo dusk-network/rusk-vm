@@ -89,7 +89,7 @@ pub trait HostModule {
 
 // TODO, use borrowed bytes here?
 #[derive(Debug, Default)]
-pub struct ReturnValue(Vec<u8>);
+pub struct ReturnValue(pub Vec<u8>);
 
 impl ReturnValue {
     pub fn new<V: Into<Vec<u8>>>(vec: V) -> Self {
@@ -116,7 +116,7 @@ impl ReturnValue {
 #[derive(Debug, Default)]
 pub struct RawQuery {
     data: AlignedVec,
-    name: &'static str,
+    name: String,
 }
 
 impl RawQuery {
@@ -128,12 +128,23 @@ impl RawQuery {
         ser.serialize_value(&q).unwrap();
         RawQuery {
             data: ser.into_serializer().into_inner(),
-            name: Q::NAME,
+            name: String::from(Q::NAME),
         }
     }
 
-    pub fn name(&self) -> &'static str {
-        self.name
+    pub fn from(data: AlignedVec, name: &String) -> Self {
+        Self {
+            data,
+            name: name.clone(),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn name_clone(&self) -> String {
+        self.name.clone()
     }
 
     pub fn data(&self) -> &[u8] {
