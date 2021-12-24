@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, Execute, Query, Transaction};
+use rusk_uplink::{Apply, Execute, Query, Transaction, ArchiveError};
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
@@ -37,53 +37,22 @@ impl Query for ComputeFrom {
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(&self, compute_from: &ComputeFrom) -> <ComputeFrom as Query>::Return {
         let n = compute_from.value;
-        n * 2
-        // if n < 2 {
-        //     n
-        // } else {
-        //     let callee = rusk_uplink::callee();
-        //
-        //     let a =
-        //         rusk_uplink::query::<ComputeFrom>(&callee, ComputeFrom::new(n - 1), 0)
-        //             .unwrap();
-        //
-        //     let b =
-        //         rusk_uplink::query::<ComputeFrom>(&callee, ComputeFrom::new(n - 2), 0)
-        //             .unwrap();
-        //     a + b
-        // }
+        if n < 2 {
+            n
+        } else {
+            let callee = rusk_uplink::callee();
+
+            let a =
+                rusk_uplink::query::<ComputeFrom>(&callee, ComputeFrom::new(n - 1), 0)
+                    .unwrap();
+
+            let b =
+                rusk_uplink::query::<ComputeFrom>(&callee, ComputeFrom::new(n - 2), 0)
+                    .unwrap();
+            a + b
+        }
     }
 }
-
-
-
-
-// #[cfg(target_arch = "wasm32")]
-// mod hosted {
-//     use super::*;
-//
-//     const PAGE_SIZE: usize = 1024 * 4;
-//
-//     impl Fibonacci {
-//         pub fn compute(&self, n: u64) -> u64 {
-//             if n < 2 {
-//                 n
-//             } else {
-//                 let callee = dusk_abi::callee();
-//
-//                 let a =
-//                     dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 1), 0)
-//                         .unwrap();
-//
-//                 let b =
-//                     dusk_abi::query::<_, u64>(&callee, &(COMPUTE, n - 2), 0)
-//                         .unwrap();
-//
-//                 a + b
-//             }
-//         }
-//     }
-// }
 
 #[cfg(target_family = "wasm")]
 const _: () = {

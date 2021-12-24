@@ -188,6 +188,7 @@ impl RawTransaction {
 }
 
 // todo! find better way
+#[derive(Debug)]
 pub enum ArchiveError {
     ArchiveValidationError
 }

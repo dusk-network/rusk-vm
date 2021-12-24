@@ -208,7 +208,6 @@ impl<'a> CallContext<'a> {
             });
 
             let result_written = run_func.call(written as u32)?;
-            println!("result_written {:?}", result_written);
 
             memory.with_slice_from(buf_offset, |mem| {
                 ReturnValue::new(&mem[..result_written as usize])

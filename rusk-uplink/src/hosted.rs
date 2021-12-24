@@ -24,6 +24,7 @@ pub mod external {
         pub fn query(
             target: &u8,
             buf: &mut u8,
+            buf_len: u32,
             name: &u8,
             name_len: u32,
             gas_limit: u64,
@@ -51,10 +52,12 @@ where
     let name = raw_query.name_clone();
     let name_str = name.as_str();
     let data = raw_query.mut_data();
+    let data_len = data.len();
     let result_offset = unsafe {
         external::query(
             &target.as_bytes()[0],
             &mut data[0],
+            data_len as u32,
             &name.as_bytes()[0],
             name_str.len() as u32,
             gas_limit,

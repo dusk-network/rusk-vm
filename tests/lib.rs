@@ -20,14 +20,14 @@ use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
 // use tx_vec::TxVec;
 
-// fn fibonacci_reference(n: u64) -> u64 {
-//     if n < 2 {
-//         n
-//     } else {
-//         fibonacci_reference(n - 1) + fibonacci_reference(n - 2)
-//     }
-// }
-//
+fn fibonacci_reference(n: u64) -> u64 {
+    if n < 2 {
+        n
+    } else {
+        fibonacci_reference(n - 1) + fibonacci_reference(n - 2)
+    }
+}
+
 #[test]
 fn counter() {
     use counter::Counter;
@@ -209,9 +209,8 @@ fn fibonacci() {
                     ComputeFrom::new(i),
                     &mut gas
                 )
-                .unwrap(),
-            //fibonacci_reference(i)
-            i * 2
+                .unwrap() as u64,
+            fibonacci_reference(i as u64)
         );
     }
 }
