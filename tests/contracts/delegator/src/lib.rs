@@ -85,12 +85,7 @@ const _: () = {
         let de_state: Delegator = (state).deserialize(&mut store).unwrap();
         let de_arg: QueryForwardData = (arg).deserialize(&mut store).unwrap();
 
-        // todo!: read state by contract id and put it into raw query
         let mut aligned_vec = AlignedVec::new();
-        aligned_vec.push(99);
-        aligned_vec.push(0);
-        aligned_vec.push(0);
-        aligned_vec.push(0);
         let result: ReturnValue = de_state.delegate_query(&de_arg.contract_id, &RawQuery::from(aligned_vec, "read")); // todo! pass query name rather than hardcode
         // todo!
         unsafe {

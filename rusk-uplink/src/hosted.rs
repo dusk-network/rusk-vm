@@ -14,6 +14,9 @@ use rkyv::{
     ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
 };
 
+const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
+
+
 // declare available host-calls
 pub mod external {
     extern "C" {
@@ -36,13 +39,14 @@ pub fn query_raw(
     raw_query: &RawQuery,
     gas_limit: u64,
 ) -> Result<ReturnValue, ArchiveError> {
+    let mut buf = [0u8; BUFFER_SIZE_LIMIT];
+    let data_len = raw_query.data().len();
+    buf[..data_len].copy_from_slice(raw_query.data());
     let name = raw_query.name();
-    let data = raw_query.data();
-    let data_len = data.len();
     let result_offset = unsafe {
         external::query(
             &target.as_bytes()[0],
-            &data[0],
+            &buf[0],
             data_len as u32,
             &name.as_bytes()[0],
             name.len() as u32,
@@ -50,7 +54,7 @@ pub fn query_raw(
         )
     };
     let result =
-        ReturnValue::new(&raw_query.data()[..result_offset as usize]);
+        ReturnValue::new(&buf[..result_offset as usize]);
     Ok(result)
 }
 
