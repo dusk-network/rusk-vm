@@ -20,7 +20,7 @@ pub mod external {
         #[allow(unused)]
         pub fn query(
             target: &u8,
-            buf: &mut u8,
+            buf: &u8,
             buf_len: u32,
             name: &u8,
             name_len: u32,
@@ -28,6 +28,31 @@ pub mod external {
         ) -> u32;
         pub fn callee(buffer: &mut u8);
     }
+}
+
+/// Call another contract at address `target`
+pub fn query_raw(
+    target: &ContractId,
+    raw_query: &RawQuery,
+    gas_limit: u64,
+) -> Result<ReturnValue, ArchiveError> {
+    let name = raw_query.name_clone();
+    let name_str = name.as_str();
+    let data = raw_query.data();
+    let data_len = data.len();
+    let result_offset = unsafe {
+        external::query(
+            &target.as_bytes()[0],
+            &data[0],
+            data_len as u32,
+            &name.as_bytes()[0],
+            name_str.len() as u32,
+            gas_limit,
+        )
+    };
+    let result =
+        ReturnValue::new(&raw_query.data()[..result_offset as usize]);
+    Ok(result)
 }
 
 /// Call another contract at address `target`
@@ -45,23 +70,10 @@ where
     <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
         + Deserialize<Q::Return, AbiStore>,
 {
-    let mut raw_query = RawQuery::new(q);
-    let name = raw_query.name_clone();
-    let name_str = name.as_str();
-    let data = raw_query.mut_data();
-    let data_len = data.len();
-    let result_offset = unsafe {
-        external::query(
-            &target.as_bytes()[0],
-            &mut data[0],
-            data_len as u32,
-            &name.as_bytes()[0],
-            name_str.len() as u32,
-            gas_limit,
-        )
-    };
-    let result =
-        ReturnValue::new(&raw_query.mut_data()[..result_offset as usize]);
+    let raw_query = RawQuery::new(q);
+
+    let result = query_raw(target, &raw_query, gas_limit)?;
+
     let cast = result
         .cast::<Q::Return>()
         .map_err(|_| ArchiveError::ArchiveValidationError)?;
