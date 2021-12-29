@@ -130,29 +130,27 @@ fn delegated_call() {
     let code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
     );
-    let store = HostStore::new();
-    let mut network = NetworkState::new(store);
-    let contner_contract = Contract::new(&counter, code.to_vec(), &store);
-    let contract_id = network.deploy(contner_contract).unwrap();
-
     let delegator_code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/delegator.wasm"
     );
+    let store = HostStore::new();
+    let counter_contract = Contract::new(&counter, code.to_vec(), &store);
     let delegator_contract = Contract::new(&delegator, delegator_code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let counter_contract_id = network.deploy(counter_contract).unwrap();
     let delegator_id = network.deploy(delegator_contract).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     // delegate query
-
-
-
     assert_eq!(
         network
             .query(
                 delegator_id,
                 0,
-                QueryForwardData::new(counter_contract, "delegate_query"),
+                QueryForwardData::new(counter_contract_id/*, "delegate_query"*/),
                 &mut gas,
             )
             .unwrap(),

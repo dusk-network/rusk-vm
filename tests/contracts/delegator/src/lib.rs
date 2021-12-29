@@ -13,19 +13,20 @@
 )]
 
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
-use rusk_uplink::{Execute, Query, RawQuery, ContractId, Transaction, RawTransaction, ReturnValue};
+use rusk_uplink::{Execute, Query, RawQuery, ContractId, Transaction, RawTransaction, ReturnValue, ArchiveError};
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Delegator;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
-pub struct QueryForwardData {
+pub struct QueryForwardData/*<'a>*/ {
     contract_id: ContractId,
+    // query_name: &'a str,
 }
 
-impl QueryForwardData<'_> {
-    pub fn new(contract_id: ContractId, query_name: &str) -> Self {
-        Self { contract_id }
+impl/*<'a>*/ QueryForwardData/*<'a>*/ {
+    pub fn new(contract_id: ContractId/*, query_name: &'a str*/) -> Self {
+        Self { contract_id/*, query_name*/ }
     }
 }
 
@@ -35,7 +36,7 @@ impl QueryForwardData<'_> {
 //     raw_transaction: RawTransaction,
 // }
 
-impl Query for QueryForwardData<'_> {
+impl Query for QueryForwardData/*<'_>*/ {
     const NAME: &'static str = "delegate_query";
     type Return = u32;
 }
@@ -71,7 +72,7 @@ const _: () = {
     use rusk_uplink::AbiStore;
 
     #[no_mangle]
-    static mut SCRATCH: [u8; 128] = [0u8; 128];
+    static mut SCRATCH: [u8; 256] = [0u8; 256];
 
     #[no_mangle]
     fn delegate_query(written: u32) -> u32 {
@@ -84,17 +85,25 @@ const _: () = {
         let de_state: Delegator = (state).deserialize(&mut store).unwrap();
         let de_arg: QueryForwardData = (arg).deserialize(&mut store).unwrap();
 
-        let res: <QueryForwardData as Query>::Return = de_state.delegate_query(de_arg.contract_id, RawQuery::from(AlignedVec::new(), String::from("read")));
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-            <<QueryForwardData as Query>::Return as Archive>::Archived,
-        >();
-        buffer_len as u32
+        let mut aligned_vec = AlignedVec::new();
+        aligned_vec.push(4);
+        aligned_vec.push(0);
+        aligned_vec.push(0);
+        aligned_vec.push(0);
+        let result: ReturnValue = de_state.delegate_query(&de_arg.contract_id, &RawQuery::from(aligned_vec, "read"));
+        let cast = result
+            .cast::<<QueryForwardData as Query>::Return>()
+            .map_err(|_| ArchiveError::ArchiveValidationError).unwrap();
+
+        let mut store = AbiStore;
+        let deserialized: <QueryForwardData as Query>::Return =
+            cast.deserialize(&mut store).expect("Infallible");
+
+        deserialized
     }
 
-    #[no_mangle]
-    fn delegate_transaction(written: u32) -> u32 {
-
-    }
+    // #[no_mangle]
+    // fn delegate_transaction(written: u32) -> u32 {
+    //
+    // }
 };

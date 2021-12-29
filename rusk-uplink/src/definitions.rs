@@ -117,12 +117,12 @@ impl ReturnValue {
 }
 
 #[derive(Debug, Default)]
-pub struct RawQuery {
+pub struct RawQuery<'a> {
     data: AlignedVec,
-    name: String,
+    name: &'a str,
 }
 
-impl RawQuery {
+impl<'a> RawQuery<'a> {
     pub fn new<Q>(q: Q) -> Self
     where
         Q: Query + Serialize<AllocSerializer<1024>>,
@@ -131,31 +131,23 @@ impl RawQuery {
         ser.serialize_value(&q).unwrap();
         RawQuery {
             data: ser.into_serializer().into_inner(),
-            name: String::from(Q::NAME),
+            name: Q::NAME,
         }
     }
 
-    pub fn from(data: AlignedVec, name: &String) -> Self { // todo! change it to AsRef
+    pub fn from(data: AlignedVec, name: &'a str) -> Self {
         Self {
             data,
-            name: name.clone(),
+            name,
         }
     }
 
     pub fn name(&self) -> &str {
-        self.name.as_str()
-    }
-
-    pub fn name_clone(&self) -> String {
-        self.name.clone()
+        self.name
     }
 
     pub fn data(&self) -> &[u8] {
         &self.data[..]
-    }
-
-    pub fn mut_data(&mut self) -> &mut [u8] {
-        &mut self.data[..]
     }
 }
 
