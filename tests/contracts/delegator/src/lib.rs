@@ -87,14 +87,10 @@ const _: () = {
 
         let mut aligned_vec = AlignedVec::new();
         let result: ReturnValue = de_state.delegate_query(&de_arg.contract_id, &RawQuery::from(aligned_vec, "read")); // todo! pass query name rather than hardcode
-        // todo!
-        unsafe {
-            SCRATCH[0] = result.0[0];
-            SCRATCH[1] = result.0[1];
-            SCRATCH[2] = result.0[2];
-            SCRATCH[3] = result.0[3];
-        }
-        result.0.len() as u32
+
+        let len = result.0.len();
+        unsafe { &SCRATCH[..len].copy_from_slice(&result.0[..]) };
+        len as u32
     }
 
     // #[no_mangle]
