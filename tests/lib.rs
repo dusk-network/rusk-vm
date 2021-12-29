@@ -10,12 +10,13 @@
 // use caller::Caller;
 // use counter::Counter;
 // use counter_float::CounterFloat;
-// use delegator::Delegator;
+use delegator::{Delegator, QueryForwardData};
 // use dusk_abi::Transaction;
 // use fibonacci::Fibonacci;
 // use gas_consumed::GasConsumed;
 use fibonacci::ComputeFrom;
 use microkelvin::HostStore;
+use rusk_uplink::RawQuery;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
 // use tx_vec::TxVec;
@@ -117,68 +118,71 @@ fn string_passthrough() {
 //         99
 //     );
 // }
-//
-// #[test]
-// fn delegated_call() {
-//     let stringer = Stringer::new(99);
-//     let delegator = Delegator;
-//
-//     let mut network = NetworkState::new();
-//
-//     let stringer_code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
-// wasm");
-//
-//     let stringer_contract = Contract::new(stringer, stringer_code.to_vec());
-//     let stringer_id = network.deploy(stringer_contract).unwrap();
-//
-//     let delegator_code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/delegator.wasm"
-//     );
-//     let delegator_contract = Contract::new(delegator,
-// delegator_code.to_vec());     let delegator_id =
-// network.deploy(delegator_contract).unwrap();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     // delegate query
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(
-//                 delegator_id,
-//                 0,
-//                 (delegator::DELEGATE_QUERY, stringer_id,
-// stringer::READ_VALUE),                 &mut gas
-//             )
-//             .unwrap(),
-//         99
-//     );
-//
-//     // delegate transaction
-//
-//     network
-//         .transact::<_, ()>(
-//             delegator_id,
-//             0,
-//             (
-//                 delegator::DELEGATE_TRANSACTION,
-//                 stringer_id,
-//                 stringer::INCREMENT,
-//             ),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     // changed the value of stringer
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(stringer_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         100
-//     );
-// }
+
+#[test]
+fn delegated_call() {
+    use counter::Counter;
+    use minimal_counter as counter;
+
+    let counter = Counter::new(99);
+    let delegator = Delegator;
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+    );
+    let store = HostStore::new();
+    let mut network = NetworkState::new(store);
+    let contner_contract = Contract::new(&counter, code.to_vec(), &store);
+    let contract_id = network.deploy(contner_contract).unwrap();
+
+    let delegator_code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/delegator.wasm"
+    );
+    let delegator_contract = Contract::new(&delegator, delegator_code.to_vec(), &store);
+    let delegator_id = network.deploy(delegator_contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    // delegate query
+
+
+
+    assert_eq!(
+        network
+            .query(
+                delegator_id,
+                0,
+                QueryForwardData::new(counter_contract, "delegate_query"),
+                &mut gas,
+            )
+            .unwrap(),
+        99
+    );
+
+    // delegate transaction
+
+    // network
+    //     .transact::<_, ()>(
+    //         delegator_id,
+    //         0,
+    //         (
+    //             delegator::DELEGATE_TRANSACTION,
+    //             stringer_id,
+    //             stringer::INCREMENT,
+    //         ),
+    //         &mut gas,
+    //     )
+    //     .unwrap();
+    //
+    // // changed the value of stringer
+    //
+    // assert_eq!(
+    //     network
+    //         .query::<_, i32>(stringer_id, 0, stringer::READ_VALUE, &mut gas)
+    //         .unwrap(),
+    //     100
+    // );
+}
 
 #[test]
 fn fibonacci() {

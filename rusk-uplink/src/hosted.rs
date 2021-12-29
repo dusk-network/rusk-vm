@@ -10,9 +10,7 @@ pub use crate::{
 };
 use bytecheck::CheckBytes;
 use rkyv::validation::validators::DefaultValidator;
-use rkyv::{
-    ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
-};
+use rkyv::{ser::serializers::AllocSerializer, Archive, Deserialize, Serialize, AlignedVec};
 
 // declare available host-calls
 pub mod external {

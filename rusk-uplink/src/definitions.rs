@@ -135,7 +135,7 @@ impl RawQuery {
         }
     }
 
-    pub fn from(data: AlignedVec, name: &String) -> Self {
+    pub fn from(data: AlignedVec, name: &String) -> Self { // todo! change it to AsRef
         Self {
             data,
             name: name.clone(),
