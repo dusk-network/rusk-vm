@@ -42,11 +42,10 @@ impl ExecuteQuery {
             // todo! there must be a better way
             query_data.push(*c);
         }
-        let name: String = String::from(
-            str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?,
-        );
+        let name = str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?;
         let raw_query = RawQuery::from(query_data, &name);
         let mut gas_meter = context.gas_meter().limited(gas_limit);
+        let context = env.get_context();
         let result = context.query(contract_id, raw_query, &mut gas_meter)?;
         context.write_memory(&result.0, query_ofs as u64);
         Ok(result.0.len() as u32)

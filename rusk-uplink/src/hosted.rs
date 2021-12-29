@@ -10,7 +10,9 @@ pub use crate::{
 };
 use bytecheck::CheckBytes;
 use rkyv::validation::validators::DefaultValidator;
-use rkyv::{ser::serializers::AllocSerializer, Archive, Deserialize, Serialize, AlignedVec};
+use rkyv::{
+    ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
+};
 
 // declare available host-calls
 pub mod external {
@@ -34,8 +36,7 @@ pub fn query_raw(
     raw_query: &RawQuery,
     gas_limit: u64,
 ) -> Result<ReturnValue, ArchiveError> {
-    let name = raw_query.name_clone();
-    let name_str = name.as_str();
+    let name = raw_query.name();
     let data = raw_query.data();
     let data_len = data.len();
     let result_offset = unsafe {
@@ -44,7 +45,7 @@ pub fn query_raw(
             &data[0],
             data_len as u32,
             &name.as_bytes()[0],
-            name_str.len() as u32,
+            name.len() as u32,
             gas_limit,
         )
     };
