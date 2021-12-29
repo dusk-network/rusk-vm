@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
-use rusk_uplink::{Execute, Query, RawQuery, ContractId, Transaction, RawTransaction, ReturnValue, ArchiveError};
+use rusk_uplink::{Query, RawQuery, ContractId, Transaction, RawTransaction, ReturnValue, ArchiveError};
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Delegator;
@@ -85,21 +85,21 @@ const _: () = {
         let de_state: Delegator = (state).deserialize(&mut store).unwrap();
         let de_arg: QueryForwardData = (arg).deserialize(&mut store).unwrap();
 
+        // todo!: read state by contract id and put it into raw query
         let mut aligned_vec = AlignedVec::new();
-        aligned_vec.push(4);
+        aligned_vec.push(99);
         aligned_vec.push(0);
         aligned_vec.push(0);
         aligned_vec.push(0);
-        let result: ReturnValue = de_state.delegate_query(&de_arg.contract_id, &RawQuery::from(aligned_vec, "read"));
-        let cast = result
-            .cast::<<QueryForwardData as Query>::Return>()
-            .map_err(|_| ArchiveError::ArchiveValidationError).unwrap();
-
-        let mut store = AbiStore;
-        let deserialized: <QueryForwardData as Query>::Return =
-            cast.deserialize(&mut store).expect("Infallible");
-
-        deserialized
+        let result: ReturnValue = de_state.delegate_query(&de_arg.contract_id, &RawQuery::from(aligned_vec, "read")); // todo! pass query name rather than hardcode
+        // todo!
+        unsafe {
+            SCRATCH[0] = result.0[0];
+            SCRATCH[1] = result.0[1];
+            SCRATCH[2] = result.0[2];
+            SCRATCH[3] = result.0[3];
+        }
+        result.0.len() as u32
     }
 
     // #[no_mangle]
