@@ -54,6 +54,7 @@ register = { path = "tests/contracts/register" }
 minimal_counter = { path = "tests/contracts/minimal_counter" }
 string_argument = { path = "tests/contracts/string_argument" }
 fibonacci = { path = "tests/contracts/fibonacci" }
+delegator = { path = "tests/contracts/delegator" }
 
 # [[bench]]
 # name = "fibonacci"
