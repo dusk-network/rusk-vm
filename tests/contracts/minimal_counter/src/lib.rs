@@ -39,7 +39,7 @@ pub struct Increment(pub u32);
 
 impl Transaction for Increment {
     const NAME: &'static str = "incr";
-    type Return = u32; // todo: for the time being there is no working support for transactions returning no empty result
+    type Return = u32; // todo: for the time being there is no working support for transactions returning empty result
 }
 
 impl Execute<ReadCount> for Counter {
@@ -51,7 +51,7 @@ impl Execute<ReadCount> for Counter {
 impl Apply<Increment> for Counter {
     fn apply(&mut self, t: &Increment) -> <Increment as Transaction>::Return {
         self.value += t.0;
-        44 // todo: for the time being there is no working support for transactions returning no empty result
+        44 // todo: for the time being there is no working support for transactions returning empty result
     }
 }
 
