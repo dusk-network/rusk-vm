@@ -13,20 +13,29 @@
 )]
 
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, RawQuery, ContractId, Transaction, RawTransaction, ReturnValue, ArchiveError};
+use rusk_uplink::{
+    ArchiveError, ContractId, Query, RawQuery, RawTransaction, ReturnValue,
+    Transaction,
+};
+extern crate alloc;
+use alloc::boxed::Box;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Delegator;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
-pub struct QueryForwardData/*<'a>*/ {
+pub struct QueryForwardData {
     contract_id: ContractId,
-    // query_name: &'a str,
+    query_name: Box<str>,
 }
 
-impl/*<'a>*/ QueryForwardData/*<'a>*/ {
-    pub fn new(contract_id: ContractId/*, query_name: &'a str*/) -> Self {
-        Self { contract_id/*, query_name*/ }
+impl QueryForwardData {
+    pub fn new(contract_id: ContractId, query_name: impl AsRef<str>) -> Self {
+        let query_name = Box::from(query_name.as_ref());
+        Self {
+            contract_id,
+            query_name,
+        }
     }
 }
 
@@ -36,7 +45,7 @@ impl/*<'a>*/ QueryForwardData/*<'a>*/ {
 //     raw_transaction: RawTransaction,
 // }
 
-impl Query for QueryForwardData/*<'_>*/ {
+impl Query for QueryForwardData {
     const NAME: &'static str = "delegate_query";
     type Return = u32;
 }
@@ -79,14 +88,20 @@ const _: () = {
         let mut store = AbiStore;
 
         let (state, arg) = unsafe {
-            archived_root::<(Delegator, QueryForwardData)>(&SCRATCH[..written as usize])
+            archived_root::<(Delegator, QueryForwardData)>(
+                &SCRATCH[..written as usize],
+            )
         };
 
         let de_state: Delegator = (state).deserialize(&mut store).unwrap();
         let de_arg: QueryForwardData = (arg).deserialize(&mut store).unwrap();
 
         let mut aligned_vec = AlignedVec::new();
-        let result: ReturnValue = de_state.delegate_query(&de_arg.contract_id, &RawQuery::from(aligned_vec, "read")); // todo! pass query name rather than hardcode
+        let query_name = de_arg.query_name.as_ref();
+        let result: ReturnValue = de_state.delegate_query(
+            &de_arg.contract_id,
+            &RawQuery::from(aligned_vec, query_name),
+        );
 
         let len = result.0.len();
         unsafe { &SCRATCH[..len].copy_from_slice(&result.0[..]) };

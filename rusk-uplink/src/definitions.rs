@@ -136,10 +136,7 @@ impl<'a> RawQuery<'a> {
     }
 
     pub fn from(data: AlignedVec, name: &'a str) -> Self {
-        Self {
-            data,
-            name,
-        }
+        Self { data, name }
     }
 
     pub fn name(&self) -> &str {
