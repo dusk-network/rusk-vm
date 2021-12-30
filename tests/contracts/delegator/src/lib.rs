@@ -14,8 +14,7 @@
 
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 use rusk_uplink::{
-    ArchiveError, ContractId, Query, RawQuery, RawTransaction, ReturnValue,
-    Transaction,
+    ContractId, Query, RawQuery, RawTransaction, ReturnValue, Transaction,
 };
 extern crate alloc;
 use alloc::boxed::Box;
@@ -83,8 +82,6 @@ impl Delegator {
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
     use rusk_uplink::AbiStore;
 
     #[no_mangle]

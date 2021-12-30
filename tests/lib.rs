@@ -16,8 +16,6 @@ use delegator::{Delegator, QueryForwardData};
 // use gas_consumed::GasConsumed;
 use fibonacci::ComputeFrom;
 use microkelvin::HostStore;
-use rkyv::AlignedVec;
-use rusk_uplink::RawQuery;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
 // use tx_vec::TxVec;
