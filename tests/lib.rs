@@ -16,6 +16,7 @@ use delegator::{Delegator, QueryForwardData};
 // use gas_consumed::GasConsumed;
 use fibonacci::ComputeFrom;
 use microkelvin::HostStore;
+use rkyv::AlignedVec;
 use rusk_uplink::RawQuery;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
@@ -151,7 +152,7 @@ fn delegated_call() {
             .query(
                 delegator_id,
                 0,
-                QueryForwardData::new(counter_contract_id, "read"),
+                QueryForwardData::new(counter_contract_id, &[], "read"),
                 &mut gas,
             )
             .unwrap(),
