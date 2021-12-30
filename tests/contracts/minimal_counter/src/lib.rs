@@ -39,7 +39,7 @@ pub struct Increment(pub u32);
 
 impl Transaction for Increment {
     const NAME: &'static str = "incr";
-    type Return = ();
+    type Return = u32;
 }
 
 impl Execute<ReadCount> for Counter {
@@ -51,6 +51,7 @@ impl Execute<ReadCount> for Counter {
 impl Apply<Increment> for Counter {
     fn apply(&mut self, t: &Increment) -> <Increment as Transaction>::Return {
         self.value += t.0;
+        44
     }
 }
 
