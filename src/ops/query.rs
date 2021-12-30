@@ -29,6 +29,10 @@ impl ExecuteQuery {
 
         let contract_id_ofs = contract_id_ofs as u64;
         let query_ofs = query_ofs as u64;
+        let query_len = query_len as usize;
+        let name_ofs = name_ofs as u64;
+        let name_len = name_len as usize;
+
         let context = env.get_context();
 
         let contract_id_memory =
@@ -36,12 +40,12 @@ impl ExecuteQuery {
         let contract_id = ContractId::from(&contract_id_memory);
 
         let query_memory =
-            context.read_memory(query_ofs, query_len as usize)?;
+            context.read_memory(query_ofs, query_len)?;
         let mut query_data: AlignedVec = AlignedVec::new();
         query_data.extend_from_slice(query_memory);
 
         let query_name =
-            context.read_memory(name_ofs as u64, name_len as usize)?;
+            context.read_memory(name_ofs, name_len)?;
         let name =
             str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?;
 
@@ -50,7 +54,7 @@ impl ExecuteQuery {
         let context = env.get_context();
         let result = context.query(contract_id, raw_query, &mut gas_meter)?;
 
-        context.write_memory(&result.0, query_ofs as u64);
+        context.write_memory(&result.0, query_ofs);
 
         Ok(result.0.len() as u32)
     }
