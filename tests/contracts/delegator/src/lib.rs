@@ -26,14 +26,21 @@ pub struct Delegator;
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct QueryForwardData {
     contract_id: ContractId,
+    query_data: Box<[u8]>,
     query_name: Box<str>,
 }
 
 impl QueryForwardData {
-    pub fn new(contract_id: ContractId, query_name: impl AsRef<str>) -> Self {
+    pub fn new(
+        contract_id: ContractId,
+        query_data: impl AsRef<[u8]>,
+        query_name: impl AsRef<str>,
+    ) -> Self {
         let query_name = Box::from(query_name.as_ref());
+        let query_data = Box::from(query_data.as_ref());
         Self {
             contract_id,
+            query_data,
             query_name,
         }
     }
@@ -96,11 +103,12 @@ const _: () = {
         let de_state: Delegator = (state).deserialize(&mut store).unwrap();
         let de_arg: QueryForwardData = (arg).deserialize(&mut store).unwrap();
 
-        let mut aligned_vec = AlignedVec::new();
         let query_name = de_arg.query_name.as_ref();
+        let mut query_data = AlignedVec::new();
+        query_data.extend_from_slice(de_arg.query_data.as_ref());
         let result: ReturnValue = de_state.delegate_query(
             &de_arg.contract_id,
-            &RawQuery::from(aligned_vec, query_name),
+            &RawQuery::from(query_data, query_name),
         );
 
         let len = result.0.len();
