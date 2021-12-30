@@ -149,12 +149,12 @@ impl<'a> RawQuery<'a> {
 }
 
 #[derive(Debug, Default)]
-pub struct RawTransaction {
+pub struct RawTransaction<'a> {
     data: AlignedVec,
-    name: &'static str,
+    name: &'a str,
 }
 
-impl RawTransaction {
+impl<'a> RawTransaction<'a> {
     pub fn new<T>(q: T) -> Self
     where
         T: Transaction + Serialize<AllocSerializer<1024>>,
@@ -167,7 +167,11 @@ impl RawTransaction {
         }
     }
 
-    pub fn name(&self) -> &'static str {
+    pub fn from(data: AlignedVec, name: &'a str) -> Self {
+        Self { data, name }
+    }
+
+    pub fn name(&self) -> &str {
         self.name
     }
 

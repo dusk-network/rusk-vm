@@ -13,6 +13,7 @@ use rkyv::validation::validators::DefaultValidator;
 use rkyv::{
     ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
 };
+use crate::RawTransaction;
 
 const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
 
@@ -21,6 +22,14 @@ pub mod external {
     extern "C" {
         #[allow(unused)]
         pub fn query(
+            target: &u8,
+            buf: &u8,
+            buf_len: u32,
+            name: &u8,
+            name_len: u32,
+            gas_limit: u64,
+        ) -> u32;
+        pub fn transact(
             target: &u8,
             buf: &u8,
             buf_len: u32,
@@ -84,6 +93,34 @@ where
         cast.deserialize(&mut store).expect("Infallible");
 
     Ok(deserialized)
+}
+
+/// Call another contract at address `target`
+pub fn transact_raw(
+    target: &ContractId,
+    raw_transaction: &RawTransaction,
+    gas_limit: u64,
+) -> Result<ReturnValue, ArchiveError> {
+    let mut buf = [0u8; BUFFER_SIZE_LIMIT];
+    let data_len = raw_transaction.data().len();
+    buf[..data_len].copy_from_slice(raw_transaction.data());
+    let name = raw_transaction.name();
+    let result_offset = unsafe {
+        external::transact(
+            &target.as_bytes()[0],
+            &buf[0],
+            data_len as u32,
+            &name.as_bytes()[0],
+            name.len() as u32,
+            gas_limit,
+        )
+    };
+    if result_offset > 0 {
+        let result = ReturnValue::new(&buf[..result_offset as usize]);
+        Ok(result)
+    } else {
+        Ok(ReturnValue::new(Vec::new()))
+    }
 }
 
 ///Returns the hash of the currently executing contract

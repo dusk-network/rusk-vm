@@ -322,6 +322,7 @@ impl<'a> CallContext<'a> {
             });
 
             fn separate_tuple(tuple: u64) -> (u32, u32) {
+                println!("original tuple = {:x}", tuple);
                 let bytes = tuple.to_le_bytes();
                 let mut a = [0u8; 4];
                 let mut b = [0u8; 4];
@@ -333,14 +334,16 @@ impl<'a> CallContext<'a> {
             let (state_written, result_written) =
                 separate_tuple(run_func.call(written as u32)?);
 
+            println!("called function: {}", transaction.name());
             println!("result_written {:?}", result_written);
             println!("state_written {:?}", state_written);
 
             memory.with_slice_from(buf_offset, |mem| {
                 contract.set_state(Vec::from(&mem[..state_written as usize]));
 
+                let result_len = result_written - state_written;
                 ReturnValue::new(
-                    &mem[..state_written as usize][..result_written as usize],
+                    &mem[state_written as usize..][..result_len as usize],
                 )
             })
         };
