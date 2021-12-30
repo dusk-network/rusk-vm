@@ -135,7 +135,8 @@ fn delegated_call() {
     );
     let store = HostStore::new();
     let counter_contract = Contract::new(&counter, code.to_vec(), &store);
-    let delegator_contract = Contract::new(&delegator, delegator_code.to_vec(), &store);
+    let delegator_contract =
+        Contract::new(&delegator, delegator_code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
 
@@ -150,7 +151,7 @@ fn delegated_call() {
             .query(
                 delegator_id,
                 0,
-                QueryForwardData::new(counter_contract_id/*, "delegate_query"*/),
+                QueryForwardData::new(counter_contract_id, "read"),
                 &mut gas,
             )
             .unwrap(),

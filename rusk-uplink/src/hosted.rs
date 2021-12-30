@@ -16,7 +16,6 @@ use rkyv::{
 
 const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
 
-
 // declare available host-calls
 pub mod external {
     extern "C" {
@@ -53,8 +52,7 @@ pub fn query_raw(
             gas_limit,
         )
     };
-    let result =
-        ReturnValue::new(&buf[..result_offset as usize]);
+    let result = ReturnValue::new(&buf[..result_offset as usize]);
     Ok(result)
 }
 
