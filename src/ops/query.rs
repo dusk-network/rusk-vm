@@ -38,10 +38,7 @@ impl ExecuteQuery {
         let query_name =
             context.read_memory(name_ofs as u64, name_len as usize)?;
         let mut query_data: AlignedVec = AlignedVec::new();
-        for c in query_memory {
-            // todo! there must be a better way
-            query_data.push(*c);
-        }
+        query_data.extend_from_slice(query_memory);
         let name =
             str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?;
         let raw_query = RawQuery::from(query_data, &name);
