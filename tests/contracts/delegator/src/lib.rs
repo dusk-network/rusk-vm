@@ -155,8 +155,9 @@ const _: () = {
         );
 
         let len = result.0.len();
-        unsafe { &SCRATCH[..len].copy_from_slice(&result.0[..]) };
-        let ret = (len as u64) << 32 + (len as u64); // we write result only, state has the same offset hence is empty
+        let new_written = written as usize + len;
+        unsafe { &SCRATCH[(written as usize)..new_written].copy_from_slice(&result.0[..]) };
+        let ret = ((new_written as u64) << 32) + (new_written as u64); // we write result only, state has the same offset hence is empty
         ret
     }
 };

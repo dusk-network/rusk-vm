@@ -331,6 +331,8 @@ impl<'a> CallContext<'a> {
                 (u32::from_le_bytes(a), u32::from_le_bytes(b))
             }
 
+            println!("calling function: {}", transaction.name());
+
             let (state_written, result_written) =
                 separate_tuple(run_func.call(written as u32)?);
 

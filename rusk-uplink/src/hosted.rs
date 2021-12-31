@@ -119,7 +119,7 @@ pub fn transact_raw(
         let result = ReturnValue::new(&buf[..result_offset as usize]);
         Ok(result)
     } else {
-        Ok(ReturnValue::new(Vec::new()))
+        Ok(ReturnValue::new(Vec::new())) // todo! remove this
     }
 }
 
