@@ -281,17 +281,13 @@ impl<'a> CallContext<'a> {
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
 
-            println!("joho {:?}", transaction.name());
-
             println!(
-                "test {:?}",
+                "getting exported function '{}': {:?}", transaction.name(),
                 instance.exports.get_function(transaction.name())
             );
 
             let run_func: NativeFunc<u32, u64> =
                 instance.exports.get_native_function(transaction.name())?;
-
-            println!("nähä");
 
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
@@ -337,8 +333,6 @@ impl<'a> CallContext<'a> {
                 separate_tuple(run_func.call(written as u32)?);
 
             println!("after calling function: {}", transaction.name());
-            println!("result_written {:?}", result_written);
-            println!("state_written {:?}", state_written);
 
             memory.with_slice_from(buf_offset, |mem| {
                 contract.set_state(Vec::from(&mem[..state_written as usize]));

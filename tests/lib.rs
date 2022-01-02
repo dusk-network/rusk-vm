@@ -155,7 +155,6 @@ fn delegated_call() {
         + core::mem::size_of::<
         <counter::Increment as Archive>::Archived,
     >();
-    println!("buffer_len = {}", buffer_len);
 
     // delegate query
 

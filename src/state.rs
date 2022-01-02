@@ -219,7 +219,7 @@ impl NetworkState {
                 }
             }?;
 
-        println!("return value is {:?}", result);
+        println!("query '{}' return value is: {:?}", Q::NAME, result);
 
         let cast = result
             .cast::<Q::Return>()
@@ -278,7 +278,7 @@ impl NetworkState {
             }
         }?;
 
-        println!("transact return value is {:?}", result);
+        println!("transaction '{}' return value is: {:?}", T::NAME, result);
 
         let cast = result
             .cast::<T::Return>()

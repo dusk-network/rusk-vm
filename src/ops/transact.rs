@@ -55,10 +55,8 @@ impl ApplyTransaction {
         let context = env.get_context();
         let result = context.transact(contract_id, raw_transaction, &mut gas_meter)?;
 
-        println!("transact - writing to mem: {}", result.0.len());
         context.write_memory(&result.0, transact_ofs);
 
-        println!("exiting transact ----");
         Ok(result.0.len() as u32)
     }
 }
