@@ -39,13 +39,11 @@ impl ExecuteQuery {
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);
 
-        let query_memory =
-            context.read_memory(query_ofs, query_len)?;
+        let query_memory = context.read_memory(query_ofs, query_len)?;
         let mut query_data: AlignedVec = AlignedVec::new();
         query_data.extend_from_slice(query_memory);
 
-        let query_name =
-            context.read_memory(name_ofs, name_len)?;
+        let query_name = context.read_memory(name_ofs, name_len)?;
         let name =
             str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?;
 

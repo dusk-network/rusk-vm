@@ -145,16 +145,14 @@ fn delegated_call() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     let incr_value = counter::Increment(1);
-    use rkyv::Archive;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
+    use rkyv::Archive;
 
     let mut buf = [0u8; 128];
-    let mut ser = unsafe { BufferSerializer::new(&mut buf) };
+    let mut ser = BufferSerializer::new(&mut buf);
     let buffer_len = ser.serialize_value(&incr_value).unwrap()
-        + core::mem::size_of::<
-        <counter::Increment as Archive>::Archived,
-    >();
+        + core::mem::size_of::<<counter::Increment as Archive>::Archived>();
 
     // delegate query
 
@@ -176,7 +174,11 @@ fn delegated_call() {
         .transact(
             delegator_id,
             0,
-            TransactionForwardData::new(counter_contract_id, &buf[..buffer_len], "incr"),
+            TransactionForwardData::new(
+                counter_contract_id,
+                &buf[..buffer_len],
+                "incr",
+            ),
             &mut gas,
         )
         .unwrap();

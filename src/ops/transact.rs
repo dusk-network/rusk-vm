@@ -40,20 +40,19 @@ impl ApplyTransaction {
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
         let contract_id = ContractId::from(&contract_id_memory);
 
-        let query_memory =
-            context.read_memory(transact_ofs, transact_len)?;
+        let query_memory = context.read_memory(transact_ofs, transact_len)?;
         let mut query_data: AlignedVec = AlignedVec::new();
         query_data.extend_from_slice(query_memory);
 
-        let query_name =
-            context.read_memory(name_ofs, name_len)?;
+        let query_name = context.read_memory(name_ofs, name_len)?;
         let name =
             str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?;
 
         let raw_transaction = RawTransaction::from(query_data, name);
         let mut gas_meter = context.gas_meter().limited(gas_limit);
         let context = env.get_context();
-        let result = context.transact(contract_id, raw_transaction, &mut gas_meter)?;
+        let result =
+            context.transact(contract_id, raw_transaction, &mut gas_meter)?;
 
         context.write_memory(&result.0, transact_ofs);
 

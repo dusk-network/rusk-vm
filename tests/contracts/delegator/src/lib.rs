@@ -135,7 +135,10 @@ const _: () = {
 
     #[no_mangle]
     fn delegate_transaction(written: u32) -> u64 {
-        rusk_uplink::debug!("entering delegate_transaction, written = {}", written);
+        rusk_uplink::debug!(
+            "entering delegate_transaction, written = {}",
+            written
+        );
         let mut store = AbiStore;
 
         let (state, arg) = unsafe {
@@ -145,7 +148,8 @@ const _: () = {
         };
 
         let de_state: Delegator = (state).deserialize(&mut store).unwrap();
-        let de_arg: TransactionForwardData = (arg).deserialize(&mut store).unwrap();
+        let de_arg: TransactionForwardData =
+            (arg).deserialize(&mut store).unwrap();
 
         let query_name = de_arg.name.as_ref();
         let mut query_data = AlignedVec::new();
@@ -158,7 +162,11 @@ const _: () = {
         let len = result.0.len();
         unsafe { &SCRATCH[..len].copy_from_slice(&result.0[..]) };
         let ret = (len as u64) << 32 + (len as u64); // we write result only, state has the same offset hence is empty
-        rusk_uplink::debug!("exiting delegate_transaction: len={} result_value={:?}", len, result.0);
+        rusk_uplink::debug!(
+            "exiting delegate_transaction: len={} result_value={:?}",
+            len,
+            result.0
+        );
         ret
     }
 };

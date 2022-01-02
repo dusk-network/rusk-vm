@@ -4,6 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::RawTransaction;
 pub use crate::{
     AbiStore, ArchiveError, ContractId, ContractState, Query, RawQuery,
     ReturnValue, Transaction,
@@ -13,7 +14,6 @@ use rkyv::validation::validators::DefaultValidator;
 use rkyv::{
     ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
 };
-use crate::RawTransaction;
 
 const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
 
