@@ -75,7 +75,7 @@ impl Query for QueryForwardData {
 
 impl Transaction for TransactionForwardData {
     const NAME: &'static str = "delegate_transaction";
-    type Return = u32;
+    type Return = ();
 }
 
 impl Delegator {
@@ -158,7 +158,7 @@ const _: () = {
         let len = result.0.len();
         unsafe { &SCRATCH[..len].copy_from_slice(&result.0[..]) };
         let ret = (len as u64) << 32 + (len as u64); // we write result only, state has the same offset hence is empty
-        rusk_uplink::debug!("exiting delegate_transaction: {}", len);
+        rusk_uplink::debug!("exiting delegate_transaction: len={} result_value={:?}", len, result.0);
         ret
     }
 };
