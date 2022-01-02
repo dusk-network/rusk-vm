@@ -282,7 +282,8 @@ impl<'a> CallContext<'a> {
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
 
             println!(
-                "getting exported function '{}': {:?}", transaction.name(),
+                "getting exported function '{}': {:?}",
+                transaction.name(),
                 instance.exports.get_function(transaction.name())
             );
 
@@ -343,8 +344,6 @@ impl<'a> CallContext<'a> {
                 )
             })
         };
-
-        println!("trans_ret {:?}", ret);
 
         match self.gas_reconciliation(&instance) {
             Ok(gas) => *gas_meter = gas,
