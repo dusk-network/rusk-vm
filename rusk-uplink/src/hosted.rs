@@ -21,6 +21,8 @@ const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
 pub mod external {
     extern "C" {
         #[allow(unused)]
+        pub fn debug(buffer: &u8, len: i32);
+
         pub fn query(
             target: &u8,
             buf: &u8,
@@ -29,6 +31,7 @@ pub mod external {
             name_len: u32,
             gas_limit: u64,
         ) -> u32;
+
         pub fn transact(
             target: &u8,
             buf: &u8,
@@ -37,8 +40,17 @@ pub mod external {
             name_len: u32,
             gas_limit: u64,
         ) -> u32;
+
         pub fn callee(buffer: &mut u8);
     }
+}
+
+/// Write debug string
+pub fn debug_raw(debug_string: impl AsRef<str>) {
+    let mut buffer = [0u8; 1024];
+    let string = debug_string.as_ref();
+    buffer[..string.len()].copy_from_slice(string.as_bytes());
+    unsafe { external::debug(&buffer[0], string.len() as i32) }
 }
 
 /// Call another contract at address `target`
