@@ -135,6 +135,7 @@ const _: () = {
 
     #[no_mangle]
     fn delegate_transaction(written: u32) -> u64 {
+        rusk_uplink::debug_raw("entering delegate_transaction");
         let mut store = AbiStore;
 
         let (state, arg) = unsafe {
@@ -158,6 +159,7 @@ const _: () = {
         let new_written = written as usize + len;
         unsafe { &SCRATCH[(written as usize)..new_written].copy_from_slice(&result.0[..]) };
         let ret = ((new_written as u64) << 32) + (new_written as u64); // we write result only, state has the same offset hence is empty
+        rusk_uplink::debug_raw("exiting delegate_transaction");
         ret
     }
 };

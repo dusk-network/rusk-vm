@@ -22,7 +22,7 @@ impl Debug {
         let str = std::str::from_utf8(message_memory)
             .map_err(|_| VMError::InvalidUtf8)?;
 
-        debug!("Contract debug: {:?}", str);
+        println!("Contract debug: {:?}", str);
 
         Ok(())
     }
