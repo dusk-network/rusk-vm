@@ -18,8 +18,18 @@ use rusk_uplink::{
 };
 extern crate alloc;
 
+// state
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct Callee2;
+pub struct Callee2State;
+
+// querying of this
+
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct Callee2 {
+    sender_sender: ContractId,
+    sender: ContractId,
+}
 
 impl Callee2 {
     pub fn new() -> Self {
@@ -39,15 +49,11 @@ pub struct CallDataReturn2 {
     callee: ContractId,
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct CallData2 {
-    sender_sender: ContractId,
-    sender: ContractId,
-}
-
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
     use rusk_uplink::AbiStore;
 
     #[no_mangle]
@@ -57,19 +63,24 @@ const _: () = {
     fn do_get(written: u32) -> u32 {
         let mut store = AbiStore;
 
-        let (_state, call_data2) = unsafe {
-            archived_root::<(Callee1, CallData2)>(&SCRATCH[..written as usize])
+        let (state, callee2) = unsafe {
+            archived_root::<(Callee2State, Callee2)>(
+                &SCRATCH[..written as usize],
+            )
         };
 
-        assert_eq!(call_data2.sender, dusk_abi::caller(), "Expected Caller");
+        let mut _state: Callee2State = (state).deserialize(&mut store).unwrap();
+        let callee: Callee2 = (callee2).deserialize(&mut store).unwrap();
 
-        let call_data = CallDataReturn2 {
-            sender_sender: call_data2.sender_sender,
-            sender: call_data2.sender,
+        assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");
+
+        let ret = CallDataReturn2 {
+            sender_sender: callee.sender_sender,
+            sender: callee.sender,
             callee: rusk_uplink::callee(),
         };
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&call_data).unwrap()
+        let buffer_len = ser.serialize_value(&ret).unwrap()
             + core::mem::size_of::<
                 <<Callee2 as Query>::Return as Archive>::Archived,
             >();
