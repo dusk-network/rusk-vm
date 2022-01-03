@@ -5,9 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use block_height::{BlockHeight, ReadBlockHeight};
-// use callee_1::Callee1;
-// use callee_2::Callee2;
-// use caller::Caller;
+use callee_1::{Callee1, TargetContractId1};
+use callee_2::Callee2;
+use caller::{Caller, QueryCallees, TargetContractId0};
 // use counter::Counter;
 // use counter_float::CounterFloat;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
@@ -409,68 +409,53 @@ fn block_height() {
 //         .unwrap();
 //     assert_eq!(value, v);
 // }
-//
-// #[test]
-// fn calling() {
-//     let caller = Caller::new();
-//     let callee1 = Callee1::new();
-//     let callee2 = Callee2::new();
-//
-//     let code_caller =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/caller.wasm"
-// );     let code_callee1 = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/callee_1.wasm"
-//     );
-//     let code_callee2 = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/callee_2.wasm"
-//     );
-//
-//     let mut network = NetworkState::new();
-//
-//     let caller_id = network
-//         .deploy(Contract::new(caller, code_caller.to_vec()))
-//         .unwrap();
-//     let callee1_id = network
-//         .deploy(Contract::new(callee1, code_callee1.to_vec()))
-//         .unwrap();
-//     let callee2_id = network
-//         .deploy(Contract::new(callee2, code_callee2.to_vec()))
-//         .unwrap();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     network
-//         .transact::<_, ()>(
-//             caller_id,
-//             0,
-//             (caller::SET_TARGET, callee1_id),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     network
-//         .transact::<_, ()>(
-//             callee1_id,
-//             0,
-//             (caller::SET_TARGET, callee2_id),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     assert_eq!(
-//         network
-//             .query::<_, (ContractId, ContractId, ContractId)>(
-//                 caller_id,
-//                 0,
-//                 caller::CALL,
-//                 &mut gas
-//             )
-//             .unwrap(),
-//         (caller_id, callee1_id, callee2_id),
-//         "Expected Callers and Callees"
-//     )
-// }
-//
+
+#[test]
+fn calling() {
+    let caller = Caller::new();
+    let callee1 = Callee1::new();
+    let callee2 = Callee2::new();
+
+    let code_caller =
+        include_bytes!("../target/wasm32-unknown-unknown/release/caller.wasm");
+    let code_callee1 = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/callee_1.wasm"
+    );
+    let code_callee2 = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/callee_2.wasm"
+    );
+
+    let store = HostStore::new();
+
+    let contract0 = Contract::new(&caller, code_caller.to_vec(), &store);
+    let contract1 = Contract::new(&callee1, code_callee1.to_vec(), &store);
+    let contract2 = Contract::new(&callee2, code_callee2.to_vec(), &store);
+    let mut network = NetworkState::new(store);
+    let caller_id = network.deploy(contract0).unwrap();
+    let callee1_id = network.deploy(contract1).unwrap();
+    let callee2_id = network.deploy(contract2).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact(caller_id, 0, TargetContractId0::new(callee1_id), &mut gas)
+        .unwrap();
+
+    network
+        .transact(callee1_id, 0, TargetContractId1::new(callee2_id), &mut gas)
+        .unwrap();
+
+    assert_eq!(
+        network.query(caller_id, 0, QueryCallees, &mut gas).unwrap(),
+        (
+            caller_id.as_array(),
+            callee1_id.as_array(),
+            callee2_id.as_array()
+        ),
+        "Expected Callers and Callees"
+    )
+}
+
 // #[test]
 // fn gas_consumed_host_function_works() {
 //     let gas_contract = GasConsumed::new(99);

@@ -33,6 +33,12 @@ impl ContractId {
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
         &mut self.0[..]
     }
+    pub fn as_array(&self) -> [u8; 32] {
+        self.0
+    }
+    pub fn as_array_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
 }
 
 impl<B> From<B> for ContractId

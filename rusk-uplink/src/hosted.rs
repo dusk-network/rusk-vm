@@ -43,6 +43,8 @@ pub mod external {
 
         pub fn callee(buffer: &mut u8);
 
+        pub fn caller(buffer: &mut u8);
+
         pub fn block_height(buffer: &mut u64);
     }
 }
@@ -141,6 +143,13 @@ pub fn transact_raw(
 pub fn callee() -> ContractId {
     let mut result = ContractId::default();
     unsafe { external::callee(&mut result.as_bytes_mut()[0]) };
+    result
+}
+
+/// Returns the caller of the contract
+pub fn caller() -> ContractId {
+    let mut result = ContractId::default();
+    unsafe { external::caller(&mut result.as_bytes_mut()[0]) };
     result
 }
 

@@ -33,11 +33,9 @@ impl Caller {
 
         let _result_ofs = result_ofs as usize;
         let context = env.get_context();
-        let _caller = *context.caller();
+        let caller = *context.caller();
 
-        // context.write_memory(caller.as_bytes(), result_ofs as u64)
-
-        // TODO todo, write memory
+        context.write_memory(caller.as_bytes(), result_ofs as u64);
 
         Ok(())
     }
