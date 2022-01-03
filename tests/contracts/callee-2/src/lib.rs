@@ -6,10 +6,10 @@
 
 #![no_std]
 #![feature(
-core_intrinsics,
-lang_items,
-alloc_error_handler,
-option_result_unwrap_unchecked
+    core_intrinsics,
+    lang_items,
+    alloc_error_handler,
+    option_result_unwrap_unchecked
 )]
 
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
@@ -45,7 +45,6 @@ pub struct CallData2 {
     sender: ContractId,
 }
 
-
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
@@ -59,20 +58,21 @@ const _: () = {
         let mut store = AbiStore;
 
         let (_state, call_data2) = unsafe {
-            archived_root::<(Callee1, CallData2)>(
-                &SCRATCH[..written as usize],
-            )
+            archived_root::<(Callee1, CallData2)>(&SCRATCH[..written as usize])
         };
 
         assert_eq!(call_data2.sender, dusk_abi::caller(), "Expected Caller");
 
-        let call_data = CallDataReturn2 {call_data2.sender_sender, call_data2.sender, callee: dusk_abi::callee()};
-        let res: <Callee2 as Query>::Return = ret;
+        let call_data = CallDataReturn2 {
+            sender_sender: call_data2.sender_sender,
+            sender: call_data2.sender,
+            callee: rusk_uplink::callee(),
+        };
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
+        let buffer_len = ser.serialize_value(&call_data).unwrap()
             + core::mem::size_of::<
-            <<Callee2 as Query>::Return as Archive>::Archived,
-        >();
+                <<Callee2 as Query>::Return as Archive>::Archived,
+            >();
         buffer_len as u32
     }
 };

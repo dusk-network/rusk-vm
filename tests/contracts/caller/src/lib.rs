@@ -17,11 +17,11 @@ use rusk_uplink::{ContractId, Query, ReturnValue, Transaction};
 extern crate alloc;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct Callee1 {
+pub struct Caller {
     target_address: ContractId,
 }
 
-impl Callee1 {
+impl Caller {
     pub fn new() -> Self {
         Self::default()
     }
@@ -31,26 +31,25 @@ impl Callee1 {
     }
 }
 
-impl Query for Callee1 {
+impl Query for Caller {
     const NAME: &'static str = "do_call";
-    type Return = CallDataReturn1;
+    type Return = CallDataReturn0;
 }
 
-impl Transaction for Callee1 {
+impl Transaction for Caller {
     const NAME: &'static str = "set_target";
     type Return = ();
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct CallData1 {
+pub struct CallDataReturn0 {
+    sender_sender: ContractId,
     sender: ContractId,
     callee: ContractId,
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct CallDataReturn1 {
-    sender_sender: ContractId,
-    sender: ContractId,
+pub struct CallData0 {
     callee: ContractId,
 }
 
@@ -68,27 +67,25 @@ const _: () = {
     fn do_call(written: u32) -> u32 {
         let mut store = AbiStore;
 
-        let (state, sender) = unsafe {
-            archived_root::<(Callee1, ContractId)>(&SCRATCH[..written as usize])
-        };
+        let state =
+            unsafe { archived_root::<Caller>(&SCRATCH[..written as usize]) };
 
         assert_eq!(sender, dusk_abi::caller(), "Expected Caller");
 
-        let call_data = CallData1 {
-            sender,
+        let call_data = CallData0 {
             callee: dusk_abi::callee(),
         };
-        let ret = rusk_uplink::query::<CallDataReturn1>(
+        let ret = rusk_uplink::query::<CallData0>(
             &state.target_address,
             call_data,
             0,
         )
         .unwrap();
-        let res: <Callee1 as Query>::Return = ret;
+        let res: <Caller as Query>::Return = ret;
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
-                <<Callee1 as Query>::Return as Archive>::Archived,
+                <<Caller as Query>::Return as Archive>::Archived,
             >();
         buffer_len as u32
     }
@@ -98,7 +95,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let (state, target) = unsafe {
-            archived_root::<(Callee1, ContractId)>(&SCRATCH[..written as usize])
+            archived_root::<(Caller, ContractId)>(&SCRATCH[..written as usize])
         };
 
         state.set_target(target);
@@ -106,11 +103,11 @@ const _: () = {
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
         let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Callee1 as Archive>::Archived>();
+            + core::mem::size_of::<<Caller as Archive>::Archived>();
 
         let return_len = ser.serialize_value(&()).unwrap()
             + core::mem::size_of::<
-                <<Callee1 as Transaction>::Return as Archive>::Archived,
+                <<Caller as Transaction>::Return as Archive>::Archived,
             >();
 
         [state_len as u32, return_len as u32]
