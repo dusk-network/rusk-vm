@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// use block_height::BlockHeight;
+use block_height::{BlockHeight, ReadBlockHeight};
 // use callee_1::Callee1;
 // use callee_2::Callee2;
 // use caller::Caller;
@@ -223,34 +223,30 @@ fn fibonacci() {
     }
 }
 
-// #[test]
-// fn block_height() {
-//     let bh = BlockHeight::new();
+#[test]
+fn block_height() {
+    let bh = BlockHeight {};
 
-//     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/block_height.wasm"
-//     );
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/block_height.wasm"
+    );
 
-//     let contract = Contract::new(bh, code.to_vec());
+    let store = HostStore::new();
+    let contract = Contract::new(&bh, code.to_vec(), &store);
 
-//     let mut network = NetworkState::new();
+    let mut network = NetworkState::new(store);
 
-//     let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).unwrap();
 
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
+    let mut gas = GasMeter::with_limit(1_000_000_000);
 
-//     assert_eq!(
-//         99,
-//         network
-//             .query::<_, u64>(
-//                 contract_id,
-//                 99,
-//                 block_height::BLOCK_HEIGHT,
-//                 &mut gas
-//             )
-//             .unwrap()
-//     )
-// }
+    assert_eq!(
+        99,
+        network
+            .query(contract_id, 99, ReadBlockHeight, &mut gas)
+            .unwrap()
+    )
+}
 
 // #[test]
 // fn self_snapshot() {

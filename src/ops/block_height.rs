@@ -12,8 +12,11 @@ use crate::VMError;
 pub struct BlockHeight;
 
 impl BlockHeight {
-    pub fn block_height(env: &Env) -> Result<u64, VMError> {
+    pub fn block_height(env: &Env, result_ofs: i32) -> Result<(), VMError> {
         trace!("Executing 'block_height' host function");
-        Ok(env.get_context().block_height())
+        let block_height = env.get_context().block_height();
+        let context = env.get_context();
+        context.write_memory(&block_height.to_le_bytes(), result_ofs as u64);
+        Ok(())
     }
 }

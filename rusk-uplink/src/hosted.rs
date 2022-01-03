@@ -42,6 +42,8 @@ pub mod external {
         ) -> u32;
 
         pub fn callee(buffer: &mut u8);
+
+        pub fn block_height(buffer: &mut u64);
     }
 }
 
@@ -139,5 +141,12 @@ pub fn transact_raw(
 pub fn callee() -> ContractId {
     let mut result = ContractId::default();
     unsafe { external::callee(&mut result.as_bytes_mut()[0]) };
+    result
+}
+
+/// Returns the current block height
+pub fn block_height() -> u64 {
+    let mut result = 0u64;
+    unsafe { external::block_height(&mut result) };
     result
 }
