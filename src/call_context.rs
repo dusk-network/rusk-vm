@@ -287,7 +287,7 @@ impl<'a> CallContext<'a> {
                 instance.exports.get_function(transaction.name())
             );
 
-            let run_func: NativeFunc<u32, u64> =
+            let run_func: NativeFunc<(u32, u32), u64> =
                 instance.exports.get_native_function(transaction.name())?;
 
             let buf_offset = if let Value::I32(ofs) = instance
@@ -304,18 +304,21 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
 
-            let written = memory.with_mut_slice_from(buf_offset, |mem| {
+            let (written_state, written_data) = memory.with_mut_slice_from(buf_offset, |mem| {
                 // copy the contract state into scratch memory
                 let state = contract.state();
                 let len = state.len();
+                println!("read contract state={:?} for {}", state, transaction.name());
 
                 mem[0..len].copy_from_slice(state);
 
                 let data = transaction.data();
 
                 mem[len..len + data.len()].copy_from_slice(data);
+                println!("written memory={:?} for {}", &mem[..(len + data.len())], transaction.name());
+                println!("written memory state only ={:?} for {}", &mem[..len], transaction.name());
 
-                len + data.len()
+                (len, len + data.len())
             });
 
             fn separate_tuple(tuple: u64) -> (u32, u32) {
@@ -331,7 +334,7 @@ impl<'a> CallContext<'a> {
             println!("about to call function: {}", transaction.name());
 
             let (state_written, result_written) =
-                separate_tuple(run_func.call(written as u32)?);
+                separate_tuple(run_func.call(written_state as u32, written_data as u32)?);
 
             println!("after calling function: {}", transaction.name());
 

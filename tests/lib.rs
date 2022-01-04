@@ -13,7 +13,7 @@ use caller::{CallerState, CallerQuery, CallerTransaction};
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 // use dusk_abi::Transaction;
 // use fibonacci::Fibonacci;
-use gas_consumed::{GasConsumed, GasConsumedQuery, GasConsumedValueQuery, GasConsumedDecrement, GasConsumedIncrement};
+use gas_consumed::{GasConsumed, GasConsumedValueQuery, GasConsumedIncrement};
 use fibonacci::ComputeFrom;
 use microkelvin::HostStore;
 use rusk_vm::{Contract, GasMeter, NetworkState};
@@ -479,12 +479,12 @@ fn gas_consumed_host_function_works() {
     let mut gas = GasMeter::with_limit(CALLER_GAS_LIMIT);
 
     network
-        .transact(contract_id, 0, gas_consumed::GasConsumedIncrement, &mut gas)
+        .transact(contract_id, 0, GasConsumedIncrement, &mut gas)
         .expect("Transaction error");
 
     assert_eq!(
         network
-            .query(contract_id, 0, gas_consumed::GasConsumedValueQuery, &mut gas)
+            .query(contract_id, 0, GasConsumedValueQuery, &mut gas)
             .expect("Query error"),
         100
     );

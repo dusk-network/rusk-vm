@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, ReturnValue, Transaction};
+use rusk_uplink::{ContractId, Query, Transaction};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Callee1State {
@@ -82,7 +82,7 @@ const _: () = {
             )
         };
 
-        let mut state: Callee1State = (state).deserialize(&mut store).unwrap();
+        let state: Callee1State = (state).deserialize(&mut store).unwrap();
         let sender: SenderParameter = (sender).deserialize(&mut store).unwrap();
 
         assert_eq!(
