@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, ReturnValue, Transaction};
+use rusk_uplink::{Query, Transaction};
 extern crate alloc;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]

@@ -12,9 +12,9 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{
-    ContractId, Query, RawQuery, RawTransaction, ReturnValue, Transaction,
+    ContractId, Query,
 };
 extern crate alloc;
 

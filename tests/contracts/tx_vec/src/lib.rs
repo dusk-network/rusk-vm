@@ -6,17 +6,18 @@
 
 #![no_std]
 #![feature(
-core_intrinsics,
-lang_items,
-alloc_error_handler,
-option_result_unwrap_unchecked
+    core_intrinsics,
+    lang_items,
+    alloc_error_handler,
+    option_result_unwrap_unchecked
 )]
 
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, ReturnValue, Transaction, RawTransaction};
+use rusk_uplink::{
+    ContractId, Query, RawTransaction, ReturnValue, Transaction,
+};
 extern crate alloc;
 use alloc::boxed::Box;
-
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct TxVec {
@@ -44,7 +45,9 @@ pub struct TxVecSum {
 
 impl TxVecSum {
     pub fn new(v: impl AsRef<[u8]>) -> Self {
-        Self { values: Box::from(v.as_ref())}
+        Self {
+            values: Box::from(v.as_ref()),
+        }
     }
 }
 
@@ -82,7 +85,6 @@ const _: () = {
 
         pub fn sum(&mut self, values: impl AsRef<[u8]>) {
             let values: &[u8] = &Box::from(values.as_ref());
-            rusk_uplink::debug!("sum value={} values={:?}", self.value, values);
             self.value +=
                 values.into_iter().fold(0u8, |s, v| s.wrapping_add(*v));
         }
@@ -118,25 +120,26 @@ const _: () = {
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
-            <<TxVecReadValue as Query>::Return as Archive>::Archived,
-        >();
+                <<TxVecReadValue as Query>::Return as Archive>::Archived,
+            >();
         buffer_len as u32
     }
 
     #[no_mangle]
     fn sum(written_state: u32, written_data: u32) -> [u32; 2] {
         let mut store = AbiStore;
-        unsafe { rusk_uplink::debug!("sum SCRATCH={:?} written={}", &SCRATCH[..written_data as usize], written_data); }
 
-        let (slf) =
-            unsafe { archived_root::<TxVec>(&SCRATCH[..written_state as usize]) };
-        let (arg) =
-            unsafe { archived_root::<TxVecSum>(&SCRATCH[written_state as usize..written_data as usize]) };
+        let slf = unsafe {
+            archived_root::<TxVec>(&SCRATCH[..written_state as usize])
+        };
+        let arg = unsafe {
+            archived_root::<TxVecSum>(
+                &SCRATCH[written_state as usize..written_data as usize],
+            )
+        };
 
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
         let mut de_arg: TxVecSum = (arg).deserialize(&mut store).unwrap();
-        rusk_uplink::debug!("sum21 slf={:?}", slf);
-        rusk_uplink::debug!("sum22 de_arg={:?}", de_arg);
 
         slf.sum(de_arg.values);
 
@@ -159,12 +162,13 @@ const _: () = {
 
         let (slf, arg) = unsafe {
             archived_root::<(TxVec, DelegateSumParam)>(
-                &SCRATCH[..written as usize]
+                &SCRATCH[..written as usize],
             )
         };
 
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let mut de_arg: DelegateSumParam = (arg).deserialize(&mut store).unwrap();
+        let mut de_arg: DelegateSumParam =
+            (arg).deserialize(&mut store).unwrap();
 
         slf.delegate_sum(&de_arg.contract_id, de_arg.data, de_arg.name);
 
