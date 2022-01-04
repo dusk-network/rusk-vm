@@ -59,6 +59,7 @@ block_height = { path = "tests/contracts/block_height"}
 caller = { path = "tests/contracts/caller" }
 callee_1 = { path = "tests/contracts/callee-1" }
 callee_2 = { path = "tests/contracts/callee-2" }
+gas_consumed = { path = "tests/contracts/gas_consumed" }
 
 # [[bench]]
 # name = "fibonacci"
