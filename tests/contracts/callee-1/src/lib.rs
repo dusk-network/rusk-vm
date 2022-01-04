@@ -94,6 +94,8 @@ const _: () = {
 
     #[no_mangle]
     fn do_call(written: u32) -> u32 {
+        rusk_uplink::debug!("entering caller-1 do_call");
+
         let mut store = AbiStore;
 
         let (state, sender) = unsafe {
@@ -143,6 +145,7 @@ const _: () = {
             (target).deserialize(&mut store).unwrap();
 
         state.set_target(target.target_id);
+        rusk_uplink::debug!("setting state.set_target to: {:?}", target.target_id);
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
