@@ -39,9 +39,9 @@ impl GasConsumed {
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct GasConsumedValueQuery(i32);
+pub struct GasConsumedValueQuery;
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct GasConsumedQuery(i32, i32);
+pub struct GasConsumedQuery;
 
 impl Query for GasConsumedValueQuery {
     const NAME: &'static str = "value";
@@ -50,7 +50,7 @@ impl Query for GasConsumedValueQuery {
 
 impl Query for GasConsumedQuery {
     const NAME: &'static str = "get_gas_consumed";
-    type Return = u32;
+    type Return = (u32, u32);
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -87,7 +87,7 @@ const _: () = {
             unsafe { archived_root::<GasConsumed>(&SCRATCH[..written as usize]) };
 
         let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
-        let ret = GasConsumedValueQuery(slf.value());
+        let ret = slf.value();
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
         let buffer_len = ser.serialize_value(&ret).unwrap()
@@ -106,7 +106,7 @@ const _: () = {
 
         let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
 
-        let ret = GasConsumedQuery(rusk_uplink::gas_consumed() as i32, rusk_uplink::gas_left() as i32);
+        let ret = (rusk_uplink::gas_consumed() as i32, rusk_uplink::gas_left() as i32);
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
         let buffer_len = ser.serialize_value(&ret).unwrap()

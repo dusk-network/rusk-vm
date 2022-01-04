@@ -47,11 +47,9 @@ pub mod external {
 
         pub fn block_height(buffer: &mut u64);
 
-        pub fn gas(value: i32);
+        pub fn gas_consumed(buffer: &mut u64);
 
-        pub fn gas_consumed() -> u64;
-
-        pub fn gas_left() -> u64;
+        pub fn gas_left(buffer: &mut u64);
     }
 }
 
@@ -167,19 +165,22 @@ pub fn block_height() -> u64 {
 }
 
 /// Deduct a specified amount of gas from the call
-pub fn gas(value: i32) {
-    unsafe { external::gas(value) }
-}
+// pub fn gas(value: i32) {
+//     unsafe { external::gas(value) }
+// }
 
 /// Return the amount of gas consumed until the point when the host call is
 /// executed.
 pub fn gas_consumed() -> u64 {
-    unsafe { external::gas_consumed() }
+    let mut result = 0u64;
+    unsafe { external::gas_consumed(&mut result) }
+    result
 }
 
 /// Return the ammunt of gas left until the point when the host call is
 /// executed.
 pub fn gas_left() -> u64 {
-    unsafe { external::gas_left() }
+    let mut result = 0u64;
+    unsafe { external::gas_left(&mut result) }
+    result
 }
-
