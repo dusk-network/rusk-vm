@@ -38,7 +38,15 @@ impl Query for TxVecReadValue {
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct TxVecSum;
+pub struct TxVecSum {
+    values: Box<[u8]>,
+}
+
+impl TxVecSum {
+    pub fn new(v: impl AsRef<[u8]>) -> Self {
+        Self { values: Box::from(v.as_ref())}
+    }
+}
 
 impl Transaction for TxVecSum {
     const NAME: &'static str = "sum";
@@ -51,11 +59,6 @@ pub struct TxVecDelegateSum;
 impl Transaction for TxVecDelegateSum {
     const NAME: &'static str = "delegate_sum";
     type Return = ();
-}
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct SumParam {
-    values: Box<[u8]>,
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -79,6 +82,7 @@ const _: () = {
 
         pub fn sum(&mut self, values: impl AsRef<[u8]>) {
             let values: &[u8] = &Box::from(values.as_ref());
+            rusk_uplink::debug!("sum value={} values={:?}", self.value, values);
             self.value +=
                 values.into_iter().fold(0u8, |s, v| s.wrapping_add(*v));
         }
@@ -119,14 +123,20 @@ const _: () = {
         buffer_len as u32
     }
 
-    fn sum(written: u32) -> [u32; 2] {
+    #[no_mangle]
+    fn sum(written_state: u32, written_data: u32) -> [u32; 2] {
         let mut store = AbiStore;
+        unsafe { rusk_uplink::debug!("sum SCRATCH={:?} written={}", &SCRATCH[..written_data as usize], written_data); }
 
-        let (slf, arg) =
-            unsafe { archived_root::<(TxVec, SumParam)>(&SCRATCH[..written as usize]) };
+        let (slf) =
+            unsafe { archived_root::<TxVec>(&SCRATCH[..written_state as usize]) };
+        let (arg) =
+            unsafe { archived_root::<TxVecSum>(&SCRATCH[written_state as usize..written_data as usize]) };
 
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let mut de_arg: SumParam = (arg).deserialize(&mut store).unwrap();
+        let mut de_arg: TxVecSum = (arg).deserialize(&mut store).unwrap();
+        rusk_uplink::debug!("sum21 slf={:?}", slf);
+        rusk_uplink::debug!("sum22 de_arg={:?}", de_arg);
 
         slf.sum(de_arg.values);
 
@@ -143,7 +153,8 @@ const _: () = {
         [state_len as u32, return_len as u32]
     }
 
-    fn delegate_sum(written: u32) -> [u32; 2] {
+    #[no_mangle]
+    fn delegate_sum(_: u32, written: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
         let (slf, arg) = unsafe {

@@ -18,7 +18,7 @@ use fibonacci::ComputeFrom;
 use microkelvin::HostStore;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
-// use tx_vec::TxVec;
+use tx_vec::{TxVec, TxVecReadValue, TxVecSum};
 
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
@@ -342,73 +342,75 @@ fn block_height() {
 // gas)             .unwrap()
 //     );
 // }
-//
-// #[test]
-// fn tx_vec() {
-//     let value = 15;
-//     let tx_vec = TxVec::new(value);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm"
-// );     let contract = Contract::new(tx_vec, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//     let contract_id = network.deploy(contract).unwrap();
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     let v = network
-//         .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
-//         .unwrap();
-//     assert_eq!(value, v);
-//
-//     let values = vec![3u8, 5, 7];
-//     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
-//
-//     network
-//         .transact::<_, ()>(contract_id, 0, (tx_vec::SUM, values), &mut gas)
-//         .unwrap();
-//
-//     let v = network
-//         .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
-//         .unwrap();
-//     assert_eq!(value, v);
-//
-//     let values = vec![11u8, 13, 17];
-//     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
-//
-//     let tx = Transaction::from_canon(&(tx_vec::SUM, values));
-//     network
-//         .transact::<_, ()>(
-//             contract_id,
-//             0,
-//             (tx_vec::DELEGATE_SUM, contract_id, tx),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     let v = network
-//         .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
-//         .unwrap();
-//     assert_eq!(value, v);
-//
-//     let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
-//     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
-//
-//     let tx = Transaction::from_canon(&(tx_vec::SUM, values));
-//     network
-//         .transact::<_, ()>(
-//             contract_id,
-//             0,
-//             (tx_vec::DELEGATE_SUM, contract_id, tx),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     let v = network
-//         .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
-//         .unwrap();
-//     assert_eq!(value, v);
-// }
+
+#[test]
+fn tx_vec() {
+    let value = 15;
+    let tx_vec = TxVec::new(value);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
+    let store = HostStore::new();
+
+    let contract = Contract::new(&tx_vec, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+    let contract_id = network.deploy(contract).unwrap();
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let v = network
+        .query(contract_id, 0, TxVecReadValue, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = vec![3u8, 5, 7];
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    network
+        .transact(contract_id, 0, TxVecSum::new(values), &mut gas)
+        .unwrap();
+
+    let v = network
+        .query(contract_id, 0, TxVecReadValue, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    // let values = vec![11u8, 13, 17];
+    // let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+    //
+    // let tx = Transaction::from_canon(&(tx_vec::SUM, values));
+    // network
+    //     .transact::<_, ()>(
+    //         contract_id,
+    //         0,
+    //         (tx_vec::DELEGATE_SUM, contract_id, tx),
+    //         &mut gas,
+    //     )
+    //     .unwrap();
+    //
+    // let v = network
+    //     .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
+    //     .unwrap();
+    // assert_eq!(value, v);
+    //
+    // let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
+    // let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+    //
+    // let tx = Transaction::from_canon(&(tx_vec::SUM, values));
+    // network
+    //     .transact::<_, ()>(
+    //         contract_id,
+    //         0,
+    //         (tx_vec::DELEGATE_SUM, contract_id, tx),
+    //         &mut gas,
+    //     )
+    //     .unwrap();
+    //
+    // let v = network
+    //     .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
+    //     .unwrap();
+    // assert_eq!(value, v);
+}
 
 #[test]
 fn calling() {
