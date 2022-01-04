@@ -93,9 +93,6 @@ impl Delegator {
         transaction: &RawTransaction,
     ) -> ReturnValue {
         rusk_uplink::transact_raw(target, transaction, 0).unwrap()
-        //let _ = rusk_uplink::transact_raw(target, transaction, 0);
-        // let empty = [0u8;0];
-        // ReturnValue::new(&empty[..])
     }
 }
 
@@ -134,7 +131,7 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn delegate_transaction(written: u32) -> u64 {
+    fn delegate_transaction(_: u32, written: u32) -> u64 {
         rusk_uplink::debug!(
             "entering delegate_transaction, written = {}",
             written

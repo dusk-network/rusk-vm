@@ -86,7 +86,7 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn incr(written: u32) -> [u32; 2] {
+    fn incr(_: u32, written: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
         let (state, arg) = unsafe {

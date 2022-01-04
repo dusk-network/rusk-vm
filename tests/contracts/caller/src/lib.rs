@@ -105,7 +105,7 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn set_target(written: u32) -> [u32; 2] {
+    fn set_target(_: u32, written: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
         let (state, target) = unsafe {

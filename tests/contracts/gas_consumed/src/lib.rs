@@ -117,7 +117,7 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn increment(written: u32) -> [u32; 2] {
+    fn increment(_: u32, written: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
         let slf =
@@ -140,7 +140,7 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn decrement(written: u32) -> [u32; 2] {
+    fn decrement(_: u32, written: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
         let slf =
