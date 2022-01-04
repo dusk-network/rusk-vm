@@ -129,7 +129,7 @@ const _: () = {
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
         let state_len = ser.serialize_value(&slf).unwrap()
-            + core::mem::size_of::<<GasConsumedIncrement as Archive>::Archived>();
+            + core::mem::size_of::<<GasConsumed as Archive>::Archived>();
 
         let return_len = ser.serialize_value(&()).unwrap()
             + core::mem::size_of::<
@@ -152,7 +152,7 @@ const _: () = {
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
         let state_len = ser.serialize_value(&slf).unwrap()
-            + core::mem::size_of::<<GasConsumedDecrement as Archive>::Archived>();
+            + core::mem::size_of::<<GasConsumed as Archive>::Archived>();
 
         let return_len = ser.serialize_value(&()).unwrap()
             + core::mem::size_of::<
