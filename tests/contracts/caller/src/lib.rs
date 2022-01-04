@@ -33,7 +33,7 @@ impl Caller {
     }
 }
 
-// query of this
+// query
 
 #[derive(Archive, Serialize, Debug, Deserialize)]
 pub struct QueryCallees;
@@ -43,7 +43,7 @@ impl Query for QueryCallees {
     type Return = ([u8; 32], [u8; 32], [u8; 32]);
 }
 
-// set_target of this
+// set_target
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct TargetContractId0 {
@@ -85,6 +85,7 @@ const _: () = {
 
     #[no_mangle]
     fn do_call(written: u32) -> u32 {
+        rusk_uplink::debug!("entering caller do_call");
         let mut store = AbiStore;
 
         let state =
@@ -126,6 +127,7 @@ const _: () = {
             (target).deserialize(&mut store).unwrap();
 
         state.set_target(target.target_id);
+        rusk_uplink::debug!("setting state.set_target to: {:?}", target.target_id);
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 

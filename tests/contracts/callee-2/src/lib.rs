@@ -60,7 +60,7 @@ const _: () = {
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
-    fn do_get(written: u32) -> u32 {
+    fn get(written: u32) -> u32 {
         let mut store = AbiStore;
 
         let (state, callee2) = unsafe {
