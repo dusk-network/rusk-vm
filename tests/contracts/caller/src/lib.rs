@@ -46,17 +46,17 @@ impl Query for CallerQuery {
 // set_target
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
-pub struct SetTargetTransaction {
+pub struct CallerTransaction {
     target_id: ContractId,
 }
 
-impl SetTargetTransaction {
+impl CallerTransaction {
     pub fn new(target_id: ContractId) -> Self {
         Self { target_id }
     }
 }
 
-impl Transaction for SetTargetTransaction {
+impl Transaction for CallerTransaction {
     const NAME: &'static str = "set_target";
     type Return = ();
 }
@@ -117,13 +117,13 @@ const _: () = {
         let mut store = AbiStore;
 
         let (state, target) = unsafe {
-            archived_root::<(CallerState, SetTargetTransaction)>(
+            archived_root::<(CallerState, CallerTransaction)>(
                 &SCRATCH[..written as usize],
             )
         };
 
         let mut state: CallerState = (state).deserialize(&mut store).unwrap();
-        let target: SetTargetTransaction =
+        let target: CallerTransaction =
             (target).deserialize(&mut store).unwrap();
 
         state.set_target(target.target_id);
@@ -132,11 +132,11 @@ const _: () = {
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
         let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<SetTargetTransaction as Archive>::Archived>();
+            + core::mem::size_of::<<CallerTransaction as Archive>::Archived>();
 
         let return_len = ser.serialize_value(&()).unwrap()
             + core::mem::size_of::<
-                <<SetTargetTransaction as Transaction>::Return as Archive>::Archived,
+                <<CallerTransaction as Transaction>::Return as Archive>::Archived,
             >();
 
         [state_len as u32, return_len as u32]
