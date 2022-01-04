@@ -28,7 +28,7 @@ fn fibonacci_reference(n: u64) -> u64 {
     }
 }
 
-#[ignore]
+#[test]
 fn counter() {
     use counter::Counter;
     use minimal_counter as counter;
@@ -67,7 +67,7 @@ fn counter() {
     );
 }
 
-#[ignore]
+#[test]
 fn string_passthrough() {
     use string_argument::*;
 
@@ -94,7 +94,7 @@ fn string_passthrough() {
     );
 }
 //
-// #[ignore]
+// #[test]
 // fn stringer_trivial() {
 //     let stringer = Stringer::new(99);
 //
@@ -118,7 +118,7 @@ fn string_passthrough() {
 //     );
 // }
 
-#[ignore]
+#[test]
 fn delegated_call() {
     use counter::Counter;
     use minimal_counter as counter;
@@ -193,7 +193,7 @@ fn delegated_call() {
     );
 }
 
-#[ignore]
+#[test]
 fn fibonacci() {
     use fibonacci::Fibonacci;
     let fib = Fibonacci;
@@ -223,7 +223,7 @@ fn fibonacci() {
     }
 }
 
-#[ignore]
+#[test]
 fn block_height() {
     let bh = BlockHeight {};
 
@@ -248,7 +248,7 @@ fn block_height() {
     )
 }
 
-// #[ignore]
+// #[test]
 // fn self_snapshot() {
 //     let bh = SelfSnapshot::new(7);
 //
@@ -343,7 +343,7 @@ fn block_height() {
 //     );
 // }
 //
-// #[ignore]
+// #[test]
 // fn tx_vec() {
 //     let value = 15;
 //     let tx_vec = TxVec::new(value);
@@ -410,7 +410,7 @@ fn block_height() {
 //     assert_eq!(value, v);
 // }
 
-#[ignore]
+#[test]
 fn calling() {
     let caller = CallerState::new();
     let callee1 = Callee1State::new();
@@ -503,38 +503,41 @@ fn gas_consumed_host_function_works() {
     gas.spent());
 }
 
-// #[ignore]
-// fn gas_consumption_works() {
-//     let stringer = Stringer::new(99);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
-// wasm");
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//
-//     let contract_id = network.deploy(contract).expect("Deploy error");
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     network
-//         .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
-//         .expect("Transaction error");
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .expect("Query error"),
-//         100
-//     );
-//
-//     assert_ne!(gas.spent(), 100);
-//     assert!(gas.left() < 1_000_000_000);
-// }
-//
-// #[ignore]
+#[test]
+fn gas_consumption_works() {
+    use counter::Counter;
+    use minimal_counter as counter;
+
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm");
+
+    let store = HostStore::new();
+    let contract = Contract::new(&counter, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact(contract_id, 0, counter::Increment(1), &mut gas)
+        .expect("Transaction error");
+
+    assert_eq!(
+        network
+            .query(contract_id, 0, counter::ReadCount, &mut gas)
+            .expect("Query error"),
+        100
+    );
+
+    assert_ne!(gas.spent(), 100);
+    assert!(gas.left() < 1_000_000_000);
+}
+
+// #[test]
 // fn out_of_gas_aborts_execution() {
 //     let stringer = Stringer::new(99);
 //
@@ -559,7 +562,7 @@ fn gas_consumed_host_function_works() {
 //     assert_eq!(gas.left(), 0);
 // }
 //
-// #[ignore]
+// #[test]
 // fn deploy_fails_with_floats() {
 //     let stringer = StringerFloat::new(9.99f32);
 //
@@ -583,7 +586,7 @@ fn gas_consumed_host_function_works() {
 //     ));
 // }
 //
-// #[ignore]
+// #[test]
 // fn deploy_with_id() -> Result<(), VMError> {
 //     // Smallest valid WASM module possible so `deploy` won't raise a
 //     // `InvalidByteCode` error
@@ -633,7 +636,7 @@ fn gas_consumed_host_function_works() {
 // }
 //
 // #[cfg(feature = "persistence")]
-// #[ignore]
+// #[test]
 // fn persistence() {
 //     use microkelvin::DiskBackend;
 //
@@ -703,7 +706,7 @@ fn gas_consumed_host_function_works() {
 //         .expect("teardown fn error");
 // }
 //
-// #[ignore]
+// #[test]
 // fn commit_and_reset() {
 //     let stringer = Stringer::new(99);
 //
