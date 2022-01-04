@@ -49,7 +49,7 @@ impl Query for GasConsumedValueQuery {
 }
 
 impl Query for GasConsumedQuery {
-    const NAME: &'static str = "gas_consumed";
+    const NAME: &'static str = "get_gas_consumed";
     type Return = u32;
 }
 
@@ -98,7 +98,7 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn gas_consumed(written: u32) -> u32 {
+    fn get_gas_consumed(written: u32) -> u32 {
         let mut store = AbiStore;
 
         let slf =
@@ -106,7 +106,7 @@ const _: () = {
 
         let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
 
-        let ret = GasConsumedQuery(rusk_uplink::gas_consumed(), rusk_uplink::gas_left());
+        let ret = GasConsumedQuery(rusk_uplink::gas_consumed() as i32, rusk_uplink::gas_left() as i32);
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
         let buffer_len = ser.serialize_value(&ret).unwrap()

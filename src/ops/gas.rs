@@ -27,24 +27,28 @@ impl GasConsumed {
 }
 
 impl GasConsumed {
-    pub fn gas_consumed(env: &Env) -> Result<u64, VMError> {
+    pub fn gas_consumed(env: &Env, result_ofs: i32) -> Result<(), VMError> {
         trace!("Executing 'gas_consumed' host function");
 
         let context = env.get_context();
         // FIXME: This will not always be correct since if the `gas_consumed =
         // ALL` the gas, this will add the extra cost of the call
         // which can't be consumed since it's not even there.
-        Ok(context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST)
+        let consumed = context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST;
+        context.write_memory(&consumed.to_le_bytes(), result_ofs as u64);
+        Ok(())
     }
 }
 
 pub struct GasLeft;
 
 impl GasLeft {
-    pub fn gas_left(env: &Env) -> Result<u64, VMError> {
+    pub fn gas_left(env: &Env, result_ofs: i32) -> Result<(), VMError> {
         trace!("Executing 'gas_left' host function");
 
         let context = env.get_context();
-        Ok(context.gas_meter().left())
+
+        context.write_memory(&context.gas_meter().left().to_le_bytes(), result_ofs as u64);
+        Ok(())
     }
 }
