@@ -16,8 +16,6 @@ use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, ReturnValue, Transaction};
 extern crate alloc;
 
-// state
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct CallerState {
     target_address: ContractId,
@@ -33,8 +31,6 @@ impl CallerState {
     }
 }
 
-// query
-
 #[derive(Archive, Serialize, Debug, Deserialize)]
 pub struct CallerQuery;
 
@@ -42,8 +38,6 @@ impl Query for CallerQuery {
     const NAME: &'static str = "call";
     type Return = ([u8; 32], [u8; 32], [u8; 32]);
 }
-
-// set_target
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct CallerTransaction {
@@ -60,8 +54,6 @@ impl Transaction for CallerTransaction {
     const NAME: &'static str = "set_target";
     type Return = ();
 }
-
-// querying of callee-1
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Callee1Query {

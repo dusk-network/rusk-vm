@@ -15,8 +15,6 @@
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, ReturnValue, Transaction};
 
-// state
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Callee1State {
     target_address: ContractId,
@@ -32,14 +30,10 @@ impl Callee1State {
     }
 }
 
-// parameter
-
 #[derive(Archive, Serialize, Debug, Deserialize)]
 pub struct SenderParameter {
     sender_id: [u8; 32],
 }
-
-// transaction
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Callee1Transaction {
@@ -56,8 +50,6 @@ impl Transaction for Callee1Transaction {
     const NAME: &'static str = "set_target";
     type Return = ();
 }
-
-// querying of callee-2
 
 #[derive(Archive, Serialize, Deserialize)]
 pub struct Callee2Query {
