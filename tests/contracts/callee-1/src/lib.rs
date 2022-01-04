@@ -32,7 +32,7 @@ impl Callee1State {
 
 #[derive(Archive, Serialize, Debug, Deserialize)]
 pub struct SenderParameter {
-    sender_id: [u8; 32],
+    sender_id: ContractId,
 }
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
@@ -53,8 +53,8 @@ impl Transaction for Callee1Transaction {
 
 #[derive(Archive, Serialize, Deserialize)]
 pub struct Callee2Query {
-    sender: [u8; 32],
-    callee: [u8; 32],
+    sender: ContractId,
+    callee: ContractId,
 }
 
 impl Query for Callee2Query {
@@ -86,15 +86,15 @@ const _: () = {
         let sender: SenderParameter = (sender).deserialize(&mut store).unwrap();
 
         assert_eq!(
-            &sender.sender_id,
-            rusk_uplink::caller().as_array_ref(),
+            sender.sender_id,
+            rusk_uplink::caller(),
             "Expected Caller"
         );
 
         rusk_uplink::debug!("callee-1: calling state target 'get' with params: sender from param and callee");
         let call_data = Callee2Query {
             sender: sender.sender_id,
-            callee: rusk_uplink::callee().as_array(),
+            callee: rusk_uplink::callee(),
         };
         let ret =
             rusk_uplink::query::<Callee2Query>(&state.target_address, call_data, 0)

@@ -40,7 +40,7 @@ impl Callee2Query {
 }
 
 impl Query for Callee2Query {
-    const NAME: &'static str = "do_get";
+    const NAME: &'static str = "get";
     type Return = Callee2Return;
 }
 
