@@ -5,9 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use block_height::{BlockHeight, ReadBlockHeight};
-use callee_1::{Callee1, TargetContractId1};
-use callee_2::Callee2;
-use caller::{Caller, QueryCallees, TargetContractId0};
+use callee_1::{Callee1State, Callee1Transaction};
+use callee_2::Callee2State;
+use caller::{CallerState, CallerQuery, CallerTransaction};
 // use counter::Counter;
 // use counter_float::CounterFloat;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
@@ -412,9 +412,9 @@ fn block_height() {
 
 #[test]
 fn calling() {
-    let caller = Caller::new();
-    let callee1 = Callee1::new();
-    let callee2 = Callee2::new();
+    let caller = CallerState::new();
+    let callee1 = Callee1State::new();
+    let callee2 = Callee2State::new();
 
     let code_caller =
         include_bytes!("../target/wasm32-unknown-unknown/release/caller.wasm");
@@ -438,15 +438,15 @@ fn calling() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact(caller_id, 0, TargetContractId0::new(callee1_id), &mut gas)
+        .transact(caller_id, 0, CallerTransaction::new(callee1_id), &mut gas)
         .unwrap();
 
     network
-        .transact(callee1_id, 0, TargetContractId1::new(callee2_id), &mut gas)
+        .transact(callee1_id, 0, Callee1Transaction::new(callee2_id), &mut gas)
         .unwrap();
 
     assert_eq!(
-        network.query(caller_id, 0, QueryCallees, &mut gas).unwrap(),
+        network.query(caller_id, 0, CallerQuery, &mut gas).unwrap(),
         (
             caller_id.as_array(),
             callee1_id.as_array(),
