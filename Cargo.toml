@@ -60,6 +60,8 @@ caller = { path = "tests/contracts/caller" }
 callee_1 = { path = "tests/contracts/callee-1" }
 callee_2 = { path = "tests/contracts/callee-2" }
 gas_consumed = { path = "tests/contracts/gas_consumed" }
+tx_vec = { path = "tests/contracts/tx_vec" }
+
 
 # [[bench]]
 # name = "fibonacci"
