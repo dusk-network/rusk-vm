@@ -1,6 +1,6 @@
 [package]
 name = "rusk-vm"
-version = "0.7.0-rc.2"
+version = "0.7.0-rc.3"
 authors = [
   "Kristoffer Ström <kristoffer@dusk.network>",
   "zer0 <matteo@dusk.network>",
@@ -22,13 +22,18 @@ dusk-hamt = "0.5.0-rc"
 microkelvin = "0.10.0"
 wasmer = "2.1.0"
 wasmer-vm = "2.1.0"
-wasmer-compiler-singlepass = "2.1.0"
 wasmer-engine-universal = "2.1.0"
 wasmer-middlewares = "2.1.0"
 cached = "0.26.2"
 thiserror = "1.0.24"
 tracing = "0.1.29"
 loupe = "0.1"
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+wasmer-compiler-singlepass = "2.1.0"
+
+[target.'cfg(not(target_arch = "x86_64"))'.dependencies]
+wasmer-compiler-cranelift = "2.1.0"
 
 [dev-dependencies]
 dusk-bls12_381 = "0.8"
