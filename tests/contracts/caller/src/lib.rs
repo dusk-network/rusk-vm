@@ -19,11 +19,11 @@ extern crate alloc;
 // state
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct Caller {
+pub struct CallerState {
     target_address: ContractId,
 }
 
-impl Caller {
+impl CallerState {
     pub fn new() -> Self {
         Self::default()
     }
@@ -36,40 +36,40 @@ impl Caller {
 // query
 
 #[derive(Archive, Serialize, Debug, Deserialize)]
-pub struct QueryCallees;
+pub struct CallerQuery;
 
-impl Query for QueryCallees {
-    const NAME: &'static str = "do_call";
+impl Query for CallerQuery {
+    const NAME: &'static str = "call";
     type Return = ([u8; 32], [u8; 32], [u8; 32]);
 }
 
 // set_target
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
-pub struct TargetContractId0 {
+pub struct SetTargetTransaction {
     target_id: ContractId,
 }
 
-impl TargetContractId0 {
+impl SetTargetTransaction {
     pub fn new(target_id: ContractId) -> Self {
         Self { target_id }
     }
 }
 
-impl Transaction for TargetContractId0 {
+impl Transaction for SetTargetTransaction {
     const NAME: &'static str = "set_target";
     type Return = ();
 }
 
-// querying of caller-1
+// querying of callee-1
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct CallData1 {
+pub struct Callee1Query {
     sender: ContractId,
 }
 
-impl Query for CallData1 {
-    const NAME: &'static str = "do_call";
+impl Query for Callee1Query {
+    const NAME: &'static str = "call";
     type Return = ([u8; 32], [u8; 32], [u8; 32]);
 }
 
@@ -84,30 +84,30 @@ const _: () = {
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
-    fn do_call(written: u32) -> u32 {
+    fn call(written: u32) -> u32 {
         let mut store = AbiStore;
 
         let state =
-            unsafe { archived_root::<Caller>(&SCRATCH[..written as usize]) };
+            unsafe { archived_root::<CallerState>(&SCRATCH[..written as usize]) };
 
-        let mut state: Caller = (state).deserialize(&mut store).unwrap();
+        let mut state: CallerState = (state).deserialize(&mut store).unwrap();
 
-        rusk_uplink::debug!("caller: calling state target 'do_call' with param: callee");
-        let call_data = CallData1 {
+        rusk_uplink::debug!("caller: calling state target 'call' with param: callee");
+        let call_data = Callee1Query {
             sender: rusk_uplink::callee(),
         };
-        let ret = rusk_uplink::query::<CallData1>(
+        let ret = rusk_uplink::query::<Callee1Query>(
             &state.target_address,
             call_data,
             0,
         )
         .unwrap();
 
-        let res: <CallData1 as Query>::Return = ret;
+        let res: <Callee1Query as Query>::Return = ret;
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
-                <<CallData1 as Query>::Return as Archive>::Archived,
+                <<Callee1Query as Query>::Return as Archive>::Archived,
             >();
         buffer_len as u32
     }
@@ -117,13 +117,13 @@ const _: () = {
         let mut store = AbiStore;
 
         let (state, target) = unsafe {
-            archived_root::<(Caller, TargetContractId0)>(
+            archived_root::<(CallerState, SetTargetTransaction)>(
                 &SCRATCH[..written as usize],
             )
         };
 
-        let mut state: Caller = (state).deserialize(&mut store).unwrap();
-        let target: TargetContractId0 =
+        let mut state: CallerState = (state).deserialize(&mut store).unwrap();
+        let target: SetTargetTransaction =
             (target).deserialize(&mut store).unwrap();
 
         state.set_target(target.target_id);
@@ -132,11 +132,11 @@ const _: () = {
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
         let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<TargetContractId0 as Archive>::Archived>();
+            + core::mem::size_of::<<SetTargetTransaction as Archive>::Archived>();
 
         let return_len = ser.serialize_value(&()).unwrap()
             + core::mem::size_of::<
-                <<TargetContractId0 as Transaction>::Return as Archive>::Archived,
+                <<SetTargetTransaction as Transaction>::Return as Archive>::Archived,
             >();
 
         [state_len as u32, return_len as u32]
