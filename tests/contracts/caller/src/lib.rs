@@ -85,7 +85,6 @@ const _: () = {
 
     #[no_mangle]
     fn do_call(written: u32) -> u32 {
-        rusk_uplink::debug!("entering caller do_call");
         let mut store = AbiStore;
 
         let state =
@@ -93,6 +92,7 @@ const _: () = {
 
         let mut state: Caller = (state).deserialize(&mut store).unwrap();
 
+        rusk_uplink::debug!("caller: calling state target 'do_call' with param: callee");
         let call_data = CallData1 {
             sender: rusk_uplink::callee(),
         };

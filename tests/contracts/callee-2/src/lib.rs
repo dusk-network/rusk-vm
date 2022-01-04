@@ -74,6 +74,8 @@ const _: () = {
 
         assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");
 
+        rusk_uplink::debug!("callee-2: returning sender_sender, sender from params and callee");
+
         let ret = CallDataReturn2 {
             sender_sender: callee.sender_sender,
             sender: callee.sender,
