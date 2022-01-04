@@ -487,20 +487,20 @@ fn gas_consumed_host_function_works() {
         100
     );
 
-    // network
-    //     .query(
-    //         contract_id,
-    //         0,
-    //         gas_consumed::GasConsumedQuery,
-    //         &mut gas,
-    //     )
-    //     .expect("Query error");
-    //
-    // assert_eq!(gas.left() + gas.spent(), CALLER_GAS_LIMIT,
-    //    "The gas left plus the gas spent should be equal to the initial gas provided
-    //    Debug info:
-    //    GasMeter values: gas.left() = {}, gas.spent() = {}", gas.left(),
-    // gas.spent());
+    network
+        .query(
+            contract_id,
+            0,
+            gas_consumed::GasConsumedQuery,
+            &mut gas,
+        )
+        .expect("Query error");
+
+    assert_eq!(gas.left() + gas.spent(), CALLER_GAS_LIMIT,
+       "The gas left plus the gas spent should be equal to the initial gas provided
+       Debug info:
+       GasMeter values: gas.left() = {}, gas.spent() = {}", gas.left(),
+    gas.spent());
 }
 
 // #[ignore]

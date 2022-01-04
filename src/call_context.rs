@@ -337,6 +337,7 @@ impl<'a> CallContext<'a> {
 
             memory.with_slice_from(buf_offset, |mem| {
                 contract.set_state(Vec::from(&mem[..state_written as usize]));
+                println!("transact set state to: {:?}", contract.state());
 
                 let result_len = result_written - state_written;
                 ReturnValue::new(
