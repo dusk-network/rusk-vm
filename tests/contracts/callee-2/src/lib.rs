@@ -18,32 +18,34 @@ use rusk_uplink::{
 };
 extern crate alloc;
 
-// state
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Callee2State;
 
-// querying of this
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct Callee2 {
-    sender_sender: ContractId,
-    sender: ContractId,
-}
-
-impl Callee2 {
+impl Callee2State {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl Query for Callee2 {
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct Callee2Query {
+    sender_sender: ContractId,
+    sender: ContractId,
+}
+
+impl Callee2Query {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Query for Callee2Query {
     const NAME: &'static str = "do_get";
-    type Return = CallDataReturn2;
+    type Return = Callee2Return;
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct CallDataReturn2 {
+pub struct Callee2Return {
     sender_sender: ContractId,
     sender: ContractId,
     callee: ContractId,
@@ -64,19 +66,19 @@ const _: () = {
         let mut store = AbiStore;
 
         let (state, callee2) = unsafe {
-            archived_root::<(Callee2State, Callee2)>(
+            archived_root::<(Callee2State, Callee2Query)>(
                 &SCRATCH[..written as usize],
             )
         };
 
         let mut _state: Callee2State = (state).deserialize(&mut store).unwrap();
-        let callee: Callee2 = (callee2).deserialize(&mut store).unwrap();
+        let callee: Callee2Query = (callee2).deserialize(&mut store).unwrap();
 
         assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");
 
         rusk_uplink::debug!("callee-2: returning sender_sender, sender from params and callee");
 
-        let ret = CallDataReturn2 {
+        let ret = Callee2Return {
             sender_sender: callee.sender_sender,
             sender: callee.sender,
             callee: rusk_uplink::callee(),
@@ -84,7 +86,7 @@ const _: () = {
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
         let buffer_len = ser.serialize_value(&ret).unwrap()
             + core::mem::size_of::<
-                <<Callee2 as Query>::Return as Archive>::Archived,
+                <<Callee2Query as Query>::Return as Archive>::Archived,
             >();
         buffer_len as u32
     }
