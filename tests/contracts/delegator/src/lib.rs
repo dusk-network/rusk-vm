@@ -105,17 +105,22 @@ const _: () = {
     static mut SCRATCH: [u8; 256] = [0u8; 256];
 
     #[no_mangle]
-    fn delegate_query(written: u32) -> u32 {
+    fn delegate_query(written_state: u32, written_data: u32) -> u32 {
         let mut store = AbiStore;
 
-        let (state, arg) = unsafe {
-            archived_root::<(Delegator, QueryForwardData)>(
-                &SCRATCH[..written as usize],
+        let state = unsafe {
+            archived_root::<Delegator>(
+                &SCRATCH[..written_state as usize],
+            )
+        };
+        let arg = unsafe {
+            archived_root::<QueryForwardData>(
+                &SCRATCH[written_state as usize..written_data as usize],
             )
         };
 
-        let de_state: Delegator = (state).deserialize(&mut store).unwrap();
-        let de_arg: QueryForwardData = (arg).deserialize(&mut store).unwrap();
+        let de_state: Delegator = state.deserialize(&mut store).unwrap();
+        let de_arg: QueryForwardData = arg.deserialize(&mut store).unwrap();
 
         let query_name = de_arg.name.as_ref();
         let mut query_data = AlignedVec::new();
@@ -131,22 +136,23 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn delegate_transaction(_: u32, written: u32) -> u64 {
-        rusk_uplink::debug!(
-            "entering delegate_transaction, written = {}",
-            written
-        );
+    fn delegate_transaction(written_state: u32, written_data: u32) -> u64 {
         let mut store = AbiStore;
 
-        let (state, arg) = unsafe {
-            archived_root::<(Delegator, TransactionForwardData)>(
-                &SCRATCH[..written as usize],
+        let state = unsafe {
+            archived_root::<Delegator>(
+                &SCRATCH[..written_state as usize],
+            )
+        };
+        let arg = unsafe {
+            archived_root::<TransactionForwardData>(
+                &SCRATCH[written_state as usize..written_data as usize],
             )
         };
 
-        let de_state: Delegator = (state).deserialize(&mut store).unwrap();
+        let de_state: Delegator = state.deserialize(&mut store).unwrap();
         let de_arg: TransactionForwardData =
-            (arg).deserialize(&mut store).unwrap();
+            arg.deserialize(&mut store).unwrap();
 
         let query_name = de_arg.name.as_ref();
         let mut query_data = AlignedVec::new();
@@ -159,11 +165,6 @@ const _: () = {
         let len = result.0.len();
         unsafe { &SCRATCH[..len].copy_from_slice(&result.0[..]) };
         let ret = (len as u64) << 32 + (len as u64); // we write result only, state has the same offset hence is empty
-        rusk_uplink::debug!(
-            "exiting delegate_transaction: len={} result_value={:?}",
-            len,
-            result.0
-        );
         ret
     }
 };

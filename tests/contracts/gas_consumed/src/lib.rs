@@ -80,11 +80,11 @@ const _: () = {
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
-    fn value(written: u32) -> u32 {
+    fn value(written_state: u32, _written_data: u32) -> u32 {
         let mut store = AbiStore;
 
         let slf =
-            unsafe { archived_root::<GasConsumed>(&SCRATCH[..written as usize]) };
+            unsafe { archived_root::<GasConsumed>(&SCRATCH[..written_state as usize]) };
 
         let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
         let ret = slf.value();
@@ -98,11 +98,11 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn get_gas_consumed(written: u32) -> u32 {
+    fn get_gas_consumed(written_state: u32, _written_data: u32) -> u32 {
         let mut store = AbiStore;
 
         let slf =
-            unsafe { archived_root::<GasConsumed>(&SCRATCH[..written as usize]) };
+            unsafe { archived_root::<GasConsumed>(&SCRATCH[..written_state as usize]) };
 
         let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
 
@@ -117,11 +117,11 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn increment(_: u32, written: u32) -> [u32; 2] {
+    fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
         let slf =
-            unsafe { archived_root::<GasConsumed>(&SCRATCH[..written as usize]) };
+            unsafe { archived_root::<GasConsumed>(&SCRATCH[..written_state as usize]) };
 
         let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
         slf.increment();
@@ -140,11 +140,11 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn decrement(_: u32, written: u32) -> [u32; 2] {
+    fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
         let slf =
-            unsafe { archived_root::<GasConsumed>(&SCRATCH[..written as usize]) };
+            unsafe { archived_root::<GasConsumed>(&SCRATCH[..written_state as usize]) };
 
         let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
         slf.decrement();

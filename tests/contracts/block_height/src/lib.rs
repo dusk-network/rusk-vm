@@ -36,7 +36,7 @@ const _: () = {
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 
     #[no_mangle]
-    fn read_block_height(_written: u32) -> u32 {
+    fn read_block_height(_written_state: u32, _written_data: u32) -> u32 {
         let block_height = rusk_uplink::block_height();
         let res: <ReadBlockHeight as Query>::Return = block_height;
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
