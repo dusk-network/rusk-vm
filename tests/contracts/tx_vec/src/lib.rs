@@ -53,22 +53,25 @@ impl TxVecSum {
 
 impl Transaction for TxVecSum {
     const NAME: &'static str = "sum";
-    type Return = ();
+    type Return = u8;
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct TxVecDelegateSum;
+pub struct TxVecDelegateSum {
+    contract_id: ContractId,
+    data: Box<[u8]>,
+}
+
+impl TxVecDelegateSum {
+    pub fn new(contract_id: ContractId, data: impl AsRef<[u8]>) -> Self {
+        let data = Box::from(data.as_ref());
+        Self { contract_id, data }
+    }
+}
 
 impl Transaction for TxVecDelegateSum {
     const NAME: &'static str = "delegate_sum";
     type Return = ();
-}
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct DelegateSumParam {
-    contract_id: ContractId,
-    data: Box<[u8]>,
-    name: Box<str>,
 }
 
 #[cfg(target_family = "wasm")]
@@ -93,25 +96,25 @@ const _: () = {
             &mut self,
             target: &ContractId,
             data: impl AsRef<[u8]>,
-            name: impl AsRef<str>,
-        ) -> ReturnValue {
-            let name = Box::from(name.as_ref());
-            let mut tx_data = AlignedVec::new();
-            tx_data.extend_from_slice(data.as_ref());
-            let raw_transaction = RawTransaction::from(tx_data, &name);
-            rusk_uplink::transact_raw(target, &raw_transaction, 0).unwrap()
+        ) -> () {
+            let tx_vec_sum = TxVecSum::new(data);
+            let raw_transaction = RawTransaction::new(tx_vec_sum);
+            let ret =
+                rusk_uplink::transact_raw(target, &raw_transaction, 0).unwrap();
+            self.value = *ret.cast::<u8>().unwrap();
         }
     }
 
     #[no_mangle]
-    static mut SCRATCH: [u8; 512] = [0u8; 512];
+    static mut SCRATCH: [u8; 8192] = [0u8; 8192];
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
         let mut store = AbiStore;
 
-        let slf =
-            unsafe { archived_root::<TxVec>(&SCRATCH[..written_state as usize]) };
+        let slf = unsafe {
+            archived_root::<TxVec>(&SCRATCH[..written_state as usize])
+        };
 
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
         let ret = slf.read_value();
@@ -127,6 +130,12 @@ const _: () = {
 
     #[no_mangle]
     fn sum(written_state: u32, written_data: u32) -> [u32; 2] {
+        rusk_uplink::debug!(
+            "sum - entered1 {} {}",
+            written_state,
+            written_data
+        );
+
         let mut store = AbiStore;
 
         let slf = unsafe {
@@ -137,7 +146,6 @@ const _: () = {
                 &SCRATCH[written_state as usize..written_data as usize],
             )
         };
-
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
         let mut de_arg: TxVecSum = (arg).deserialize(&mut store).unwrap();
 
@@ -148,10 +156,10 @@ const _: () = {
         let state_len = ser.serialize_value(&slf).unwrap()
             + core::mem::size_of::<<TxVec as Archive>::Archived>();
 
-        let return_len = ser.serialize_value(&()).unwrap()
+        let return_len = ser.serialize_value(&slf.value).unwrap()
             + core::mem::size_of::<
-            <<TxVecDelegateSum as Transaction>::Return as Archive>::Archived,
-        >();
+                <<TxVecSum as Transaction>::Return as Archive>::Archived,
+            >();
 
         [state_len as u32, return_len as u32]
     }
@@ -161,16 +169,16 @@ const _: () = {
         let mut store = AbiStore;
 
         let (slf, arg) = unsafe {
-            archived_root::<(TxVec, DelegateSumParam)>(
+            archived_root::<(TxVec, TxVecDelegateSum)>(
                 &SCRATCH[..written_data as usize],
             )
         };
 
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let mut de_arg: DelegateSumParam =
+        let mut de_arg: TxVecDelegateSum =
             (arg).deserialize(&mut store).unwrap();
 
-        slf.delegate_sum(&de_arg.contract_id, de_arg.data, de_arg.name);
+        slf.delegate_sum(&de_arg.contract_id, de_arg.data);
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 

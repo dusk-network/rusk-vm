@@ -7,18 +7,18 @@
 use block_height::{BlockHeight, ReadBlockHeight};
 use callee_1::{Callee1State, Callee1Transaction};
 use callee_2::Callee2State;
-use caller::{CallerState, CallerQuery, CallerTransaction};
+use caller::{CallerQuery, CallerState, CallerTransaction};
 // use counter::Counter;
 // use counter_float::CounterFloat;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 // use dusk_abi::Transaction;
 // use fibonacci::Fibonacci;
-use gas_consumed::{GasConsumed, GasConsumedValueQuery, GasConsumedIncrement};
 use fibonacci::ComputeFrom;
+use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
 use microkelvin::HostStore;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 // use self_snapshot::SelfSnapshot;
-use tx_vec::{TxVec, TxVecReadValue, TxVecSum};
+use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
 
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
@@ -375,41 +375,31 @@ fn tx_vec() {
         .unwrap();
     assert_eq!(value, v);
 
-    // let values = vec![11u8, 13, 17];
-    // let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
-    //
-    // let tx = Transaction::from_canon(&(tx_vec::SUM, values));
-    // network
-    //     .transact::<_, ()>(
-    //         contract_id,
-    //         0,
-    //         (tx_vec::DELEGATE_SUM, contract_id, tx),
-    //         &mut gas,
-    //     )
-    //     .unwrap();
-    //
-    // let v = network
-    //     .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
-    //     .unwrap();
-    // assert_eq!(value, v);
-    //
-    // let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
-    // let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
-    //
-    // let tx = Transaction::from_canon(&(tx_vec::SUM, values));
-    // network
-    //     .transact::<_, ()>(
-    //         contract_id,
-    //         0,
-    //         (tx_vec::DELEGATE_SUM, contract_id, tx),
-    //         &mut gas,
-    //     )
-    //     .unwrap();
-    //
-    // let v = network
-    //     .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
-    //     .unwrap();
-    // assert_eq!(value, v);
+    let values = vec![11u8, 13, 17];
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    let delegate_sum = TxVecDelegateSum::new(contract_id, &values[..]);
+    network
+        .transact(contract_id, 0, delegate_sum, &mut gas)
+        .unwrap();
+
+    let v = network
+        .query(contract_id, 0, TxVecReadValue, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    let delegate_sum = TxVecDelegateSum::new(contract_id, &values[..]);
+    network
+        .transact(contract_id, 0, delegate_sum, &mut gas)
+        .unwrap();
+
+    let v = network
+        .query(contract_id, 0, TxVecReadValue, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
 }
 
 #[test]
@@ -490,12 +480,7 @@ fn gas_consumed_host_function_works() {
     );
 
     network
-        .query(
-            contract_id,
-            0,
-            gas_consumed::GasConsumedQuery,
-            &mut gas,
-        )
+        .query(contract_id, 0, gas_consumed::GasConsumedQuery, &mut gas)
         .expect("Query error");
 
     assert_eq!(gas.left() + gas.spent(), CALLER_GAS_LIMIT,
@@ -512,8 +497,9 @@ fn gas_consumption_works() {
 
     let counter = Counter::new(99);
 
-    let code =
-        include_bytes!("../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+    );
 
     let store = HostStore::new();
     let contract = Contract::new(&counter, code.to_vec(), &store);
@@ -546,8 +532,9 @@ fn out_of_gas_aborts_execution() {
 
     let counter = Counter::new(99);
 
-    let code =
-        include_bytes!("../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+    );
 
     let store = HostStore::new();
     let contract = Contract::new(&counter, code.to_vec(), &store);
@@ -561,7 +548,8 @@ fn out_of_gas_aborts_execution() {
     let should_be_err =
         network.transact(contract_id, 0, counter::Increment(1), &mut gas);
     assert!(should_be_err.is_err());
-    // assert!(format!("{:?}", should_be_err).contains("Out of Gaserror")); // todo! we get "WASMER Trap (UnreachableCodeReached)" here, FIXME
+    // assert!(format!("{:?}", should_be_err).contains("Out of Gaserror")); //
+    // todo! we get "WASMER Trap (UnreachableCodeReached)" here, FIXME
 
     // Ensure all gas is consumed even the tx did not succeed.
     // assert_eq!(gas.left(), 0); // todo! this does not work, FIXME

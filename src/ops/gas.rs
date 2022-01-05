@@ -34,7 +34,8 @@ impl GasConsumed {
         // FIXME: This will not always be correct since if the `gas_consumed =
         // ALL` the gas, this will add the extra cost of the call
         // which can't be consumed since it's not even there.
-        let consumed = context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST;
+        let consumed =
+            context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST;
         context.write_memory(&consumed.to_le_bytes(), result_ofs as u64);
         Ok(())
     }
@@ -48,7 +49,10 @@ impl GasLeft {
 
         let context = env.get_context();
 
-        context.write_memory(&context.gas_meter().left().to_le_bytes(), result_ofs as u64);
+        context.write_memory(
+            &context.gas_meter().left().to_le_bytes(),
+            result_ofs as u64,
+        );
         Ok(())
     }
 }
