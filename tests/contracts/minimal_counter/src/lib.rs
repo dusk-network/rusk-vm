@@ -73,7 +73,9 @@ const _: () = {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
         };
         let arg = unsafe {
-            archived_root::<ReadCount>(&SCRATCH[written_state as usize..written_data as usize])
+            archived_root::<ReadCount>(
+                &SCRATCH[written_state as usize..written_data as usize],
+            )
         };
 
         let de_state: Counter = (state).deserialize(&mut store).unwrap();
@@ -96,7 +98,9 @@ const _: () = {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
         };
         let arg = unsafe {
-            archived_root::<Increment>(&SCRATCH[written_state as usize..written_data as usize])
+            archived_root::<Increment>(
+                &SCRATCH[written_state as usize..written_data as usize],
+            )
         };
 
         let mut de_state: Counter = state.deserialize(&mut store).unwrap();

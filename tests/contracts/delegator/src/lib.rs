@@ -109,9 +109,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let state = unsafe {
-            archived_root::<Delegator>(
-                &SCRATCH[..written_state as usize],
-            )
+            archived_root::<Delegator>(&SCRATCH[..written_state as usize])
         };
         let arg = unsafe {
             archived_root::<QueryForwardData>(
@@ -140,9 +138,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let state = unsafe {
-            archived_root::<Delegator>(
-                &SCRATCH[..written_state as usize],
-            )
+            archived_root::<Delegator>(&SCRATCH[..written_state as usize])
         };
         let arg = unsafe {
             archived_root::<TransactionForwardData>(

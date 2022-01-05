@@ -79,12 +79,15 @@ const _: () = {
     fn call(written_state: u32, _written_data: u32) -> u32 {
         let mut store = AbiStore;
 
-        let state =
-            unsafe { archived_root::<CallerState>(&SCRATCH[..written_state as usize]) };
+        let state = unsafe {
+            archived_root::<CallerState>(&SCRATCH[..written_state as usize])
+        };
 
         let mut state: CallerState = (state).deserialize(&mut store).unwrap();
 
-        rusk_uplink::debug!("caller: calling state target 'call' with param: callee");
+        rusk_uplink::debug!(
+            "caller: calling state target 'call' with param: callee"
+        );
         let call_data = Callee1Query {
             sender: rusk_uplink::callee(),
         };
@@ -109,9 +112,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let state = unsafe {
-            archived_root::<CallerState>(
-                &SCRATCH[..written_state as usize],
-            )
+            archived_root::<CallerState>(&SCRATCH[..written_state as usize])
         };
         let target = unsafe {
             archived_root::<CallerTransaction>(
@@ -120,11 +121,13 @@ const _: () = {
         };
 
         let mut state: CallerState = state.deserialize(&mut store).unwrap();
-        let target: CallerTransaction =
-            target.deserialize(&mut store).unwrap();
+        let target: CallerTransaction = target.deserialize(&mut store).unwrap();
 
         state.set_target(target.target_id);
-        rusk_uplink::debug!("setting state.set_target to: {:?}", target.target_id);
+        rusk_uplink::debug!(
+            "setting state.set_target to: {:?}",
+            target.target_id
+        );
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 

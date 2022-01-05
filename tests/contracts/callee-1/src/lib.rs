@@ -77,9 +77,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let state = unsafe {
-            archived_root::<Callee1State>(
-                &SCRATCH[..written_state as usize],
-            )
+            archived_root::<Callee1State>(&SCRATCH[..written_state as usize])
         };
         let sender = unsafe {
             archived_root::<SenderParameter>(
@@ -90,20 +88,19 @@ const _: () = {
         let state: Callee1State = state.deserialize(&mut store).unwrap();
         let sender: SenderParameter = sender.deserialize(&mut store).unwrap();
 
-        assert_eq!(
-            sender.sender_id,
-            rusk_uplink::caller(),
-            "Expected Caller"
-        );
+        assert_eq!(sender.sender_id, rusk_uplink::caller(), "Expected Caller");
 
         rusk_uplink::debug!("callee-1: calling state target 'get' with params: sender from param and callee");
         let call_data = Callee2Query {
             sender: sender.sender_id,
             callee: rusk_uplink::callee(),
         };
-        let ret =
-            rusk_uplink::query::<Callee2Query>(&state.target_address, call_data, 0)
-                .unwrap();
+        let ret = rusk_uplink::query::<Callee2Query>(
+            &state.target_address,
+            call_data,
+            0,
+        )
+        .unwrap();
 
         let res: <Callee2Query as Query>::Return = ret;
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
@@ -119,9 +116,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let state = unsafe {
-            archived_root::<Callee1State>(
-                &SCRATCH[..written_state as usize],
-            )
+            archived_root::<Callee1State>(&SCRATCH[..written_state as usize])
         };
         let target = unsafe {
             archived_root::<Callee1Transaction>(
@@ -134,7 +129,10 @@ const _: () = {
             target.deserialize(&mut store).unwrap();
 
         state.set_target(target.target_id);
-        rusk_uplink::debug!("setting state.set_target to: {:?}", target.target_id);
+        rusk_uplink::debug!(
+            "setting state.set_target to: {:?}",
+            target.target_id
+        );
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 

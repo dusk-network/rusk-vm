@@ -193,21 +193,23 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
 
-            let (written_state, written_data) = memory.with_mut_slice_from(buf_offset, |mem| {
-                // copy the contract state into scratch memory
-                let state = contract.state();
-                let len = state.len();
+            let (written_state, written_data) =
+                memory.with_mut_slice_from(buf_offset, |mem| {
+                    // copy the contract state into scratch memory
+                    let state = contract.state();
+                    let len = state.len();
 
-                mem[0..len].copy_from_slice(state);
+                    mem[0..len].copy_from_slice(state);
 
-                let data = query.data();
+                    let data = query.data();
 
-                mem[len..len + data.len()].copy_from_slice(data);
+                    mem[len..len + data.len()].copy_from_slice(data);
 
-                (len, len + data.len())
-            });
+                    (len, len + data.len())
+                });
 
-            let result_written = run_func.call(written_state as u32, written_data as u32)?;
+            let result_written =
+                run_func.call(written_state as u32, written_data as u32)?;
 
             memory.with_slice_from(buf_offset, |mem| {
                 ReturnValue::new(&mem[..result_written as usize])
@@ -304,22 +306,35 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
 
-            let (written_state, written_data) = memory.with_mut_slice_from(buf_offset, |mem| {
-                // copy the contract state into scratch memory
-                let state = contract.state();
-                let len = state.len();
-                println!("read contract state={:?} for {}", state, transaction.name());
+            let (written_state, written_data) =
+                memory.with_mut_slice_from(buf_offset, |mem| {
+                    // copy the contract state into scratch memory
+                    let state = contract.state();
+                    let len = state.len();
+                    println!(
+                        "read contract state={:?} for {}",
+                        state,
+                        transaction.name()
+                    );
 
-                mem[0..len].copy_from_slice(state);
+                    mem[0..len].copy_from_slice(state);
 
-                let data = transaction.data();
+                    let data = transaction.data();
 
-                mem[len..len + data.len()].copy_from_slice(data);
-                println!("written memory={:?} for {}", &mem[..(len + data.len())], transaction.name());
-                println!("written memory state only ={:?} for {}", &mem[..len], transaction.name());
+                    mem[len..len + data.len()].copy_from_slice(data);
+                    println!(
+                        "written memory={:?} for {}",
+                        &mem[..(len + data.len())],
+                        transaction.name()
+                    );
+                    println!(
+                        "written memory state only ={:?} for {}",
+                        &mem[..len],
+                        transaction.name()
+                    );
 
-                (len, len + data.len())
-            });
+                    (len, len + data.len())
+                });
 
             fn separate_tuple(tuple: u64) -> (u32, u32) {
                 println!("original tuple = {:x}", tuple);
@@ -333,8 +348,9 @@ impl<'a> CallContext<'a> {
 
             println!("about to call function: {}", transaction.name());
 
-            let (state_written, result_written) =
-                separate_tuple(run_func.call(written_state as u32, written_data as u32)?);
+            let (state_written, result_written) = separate_tuple(
+                run_func.call(written_state as u32, written_data as u32)?,
+            );
 
             println!("after calling function: {}", transaction.name());
 

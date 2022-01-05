@@ -78,9 +78,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let state = unsafe {
-            archived_root::<Fibonacci>(
-                &SCRATCH[..written_state as usize],
-            )
+            archived_root::<Fibonacci>(&SCRATCH[..written_state as usize])
         };
         let arg = unsafe {
             archived_root::<ComputeFrom>(

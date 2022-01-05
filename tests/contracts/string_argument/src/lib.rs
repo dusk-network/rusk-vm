@@ -60,9 +60,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let state = unsafe {
-            archived_root::<Stringer>(
-                &SCRATCH[..written_state as usize],
-            )
+            archived_root::<Stringer>(&SCRATCH[..written_state as usize])
         };
         let arg = unsafe {
             archived_root::<Passthrough>(

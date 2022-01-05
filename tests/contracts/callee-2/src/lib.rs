@@ -13,9 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{
-    ContractId, Query,
-};
+use rusk_uplink::{ContractId, Query};
 extern crate alloc;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -66,9 +64,7 @@ const _: () = {
         let mut store = AbiStore;
 
         let state = unsafe {
-            archived_root::<Callee2State>(
-                &SCRATCH[..written_state as usize],
-            )
+            archived_root::<Callee2State>(&SCRATCH[..written_state as usize])
         };
         let callee2 = unsafe {
             archived_root::<Callee2Query>(
@@ -81,7 +77,9 @@ const _: () = {
 
         assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");
 
-        rusk_uplink::debug!("callee-2: returning sender_sender, sender from params and callee");
+        rusk_uplink::debug!(
+            "callee-2: returning sender_sender, sender from params and callee"
+        );
 
         let ret = Callee2Return {
             sender_sender: callee.sender_sender,
