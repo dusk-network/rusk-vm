@@ -83,7 +83,7 @@ const _: () = {
             archived_root::<CallerState>(&SCRATCH[..written_state as usize])
         };
 
-        let mut state: CallerState = (state).deserialize(&mut store).unwrap();
+        let state: CallerState = (state).deserialize(&mut store).unwrap();
 
         rusk_uplink::debug!(
             "caller: calling state target 'call' with param: callee"

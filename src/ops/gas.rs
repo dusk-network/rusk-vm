@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use tracing::trace;
+use rusk_uplink::external::gas_left;
 
 use crate::env::Env;
 use crate::VMError;
@@ -27,7 +28,7 @@ impl GasConsumed {
 }
 
 impl GasConsumed {
-    pub fn gas_consumed(env: &Env, result_ofs: i32) -> Result<(), VMError> {
+    pub fn gas_consumed(env: &Env) -> Result<u64, VMError> {
         trace!("Executing 'gas_consumed' host function");
 
         let context = env.get_context();
@@ -36,23 +37,18 @@ impl GasConsumed {
         // which can't be consumed since it's not even there.
         let consumed =
             context.gas_meter().spent() + GasConsumed::GAS_CONSUMED_CALL_COST;
-        context.write_memory(&consumed.to_le_bytes(), result_ofs as u64);
-        Ok(())
+        Ok(consumed)
     }
 }
 
 pub struct GasLeft;
 
 impl GasLeft {
-    pub fn gas_left(env: &Env, result_ofs: i32) -> Result<(), VMError> {
+    pub fn gas_left(env: &Env) -> Result<u64, VMError> {
         trace!("Executing 'gas_left' host function");
 
         let context = env.get_context();
-
-        context.write_memory(
-            &context.gas_meter().left().to_le_bytes(),
-            result_ofs as u64,
-        );
-        Ok(())
+        let gas_left = context.gas_meter().left();
+        Ok(gas_left)
     }
 }
