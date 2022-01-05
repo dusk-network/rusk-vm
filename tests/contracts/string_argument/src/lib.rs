@@ -56,17 +56,22 @@ const _: () = {
     static mut SCRATCH: [u8; 1024] = [0u8; 1024];
 
     #[no_mangle]
-    fn pass(written: u32) -> u32 {
+    fn pass(written_state: u32, written_data: u32) -> u32 {
         let mut store = AbiStore;
 
-        let (state, arg) = unsafe {
-            archived_root::<(Stringer, Passthrough)>(
-                &SCRATCH[..written as usize],
+        let state = unsafe {
+            archived_root::<Stringer>(
+                &SCRATCH[..written_state as usize],
+            )
+        };
+        let arg = unsafe {
+            archived_root::<Passthrough>(
+                &SCRATCH[written_state as usize..written_data as usize],
             )
         };
 
-        let de_state: Stringer = (state).deserialize(&mut store).unwrap();
-        let de_query: Passthrough = (arg).deserialize(&mut store).unwrap();
+        let de_state: Stringer = state.deserialize(&mut store).unwrap();
+        let de_query: Passthrough = arg.deserialize(&mut store).unwrap();
 
         let res: <Passthrough as Query>::Return = de_state.execute(&de_query);
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };

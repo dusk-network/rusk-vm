@@ -73,17 +73,22 @@ const _: () = {
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
-    fn call(written: u32) -> u32 {
+    fn call(written_state: u32, written_data: u32) -> u32 {
         let mut store = AbiStore;
 
-        let (state, sender) = unsafe {
-            archived_root::<(Callee1State, SenderParameter)>(
-                &SCRATCH[..written as usize],
+        let state = unsafe {
+            archived_root::<Callee1State>(
+                &SCRATCH[..written_state as usize],
+            )
+        };
+        let sender = unsafe {
+            archived_root::<SenderParameter>(
+                &SCRATCH[written_state as usize..written_data as usize],
             )
         };
 
-        let state: Callee1State = (state).deserialize(&mut store).unwrap();
-        let sender: SenderParameter = (sender).deserialize(&mut store).unwrap();
+        let state: Callee1State = state.deserialize(&mut store).unwrap();
+        let sender: SenderParameter = sender.deserialize(&mut store).unwrap();
 
         assert_eq!(
             sender.sender_id,
@@ -110,18 +115,23 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn set_target(_: u32, written: u32) -> [u32; 2] {
+    fn set_target(written_state: u32, written_data: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
-        let (state, target) = unsafe {
-            archived_root::<(Callee1State, Callee1Transaction)>(
-                &SCRATCH[..written as usize],
+        let state = unsafe {
+            archived_root::<Callee1State>(
+                &SCRATCH[..written_state as usize],
+            )
+        };
+        let target = unsafe {
+            archived_root::<Callee1Transaction>(
+                &SCRATCH[written_state as usize..written_data as usize],
             )
         };
 
-        let mut state: Callee1State = (state).deserialize(&mut store).unwrap();
+        let mut state: Callee1State = state.deserialize(&mut store).unwrap();
         let target: Callee1Transaction =
-            (target).deserialize(&mut store).unwrap();
+            target.deserialize(&mut store).unwrap();
 
         state.set_target(target.target_id);
         rusk_uplink::debug!("setting state.set_target to: {:?}", target.target_id);

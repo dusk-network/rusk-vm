@@ -66,11 +66,14 @@ const _: () = {
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 
     #[no_mangle]
-    fn read(written: u32) -> u32 {
+    fn read(written_state: u32, written_data: u32) -> u32 {
         let mut store = AbiStore;
 
-        let (state, arg) = unsafe {
-            archived_root::<(Counter, ReadCount)>(&SCRATCH[..written as usize])
+        let state = unsafe {
+            archived_root::<Counter>(&SCRATCH[..written_state as usize])
+        };
+        let arg = unsafe {
+            archived_root::<ReadCount>(&SCRATCH[written_state as usize..written_data as usize])
         };
 
         let de_state: Counter = (state).deserialize(&mut store).unwrap();
@@ -86,15 +89,18 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn incr(_: u32, written: u32) -> [u32; 2] {
+    fn incr(written_state: u32, written_data: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
-        let (state, arg) = unsafe {
-            archived_root::<(Counter, Increment)>(&SCRATCH[..written as usize])
+        let state = unsafe {
+            archived_root::<Counter>(&SCRATCH[..written_state as usize])
+        };
+        let arg = unsafe {
+            archived_root::<Increment>(&SCRATCH[written_state as usize..written_data as usize])
         };
 
-        let mut de_state: Counter = (state).deserialize(&mut store).unwrap();
-        let de_transaction: Increment = (arg).deserialize(&mut store).unwrap();
+        let mut de_state: Counter = state.deserialize(&mut store).unwrap();
+        let de_transaction: Increment = arg.deserialize(&mut store).unwrap();
 
         let res: <Increment as Transaction>::Return =
             de_state.apply(&de_transaction);

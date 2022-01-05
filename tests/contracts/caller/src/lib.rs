@@ -76,11 +76,11 @@ const _: () = {
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
-    fn call(written: u32) -> u32 {
+    fn call(written_state: u32, _written_data: u32) -> u32 {
         let mut store = AbiStore;
 
         let state =
-            unsafe { archived_root::<CallerState>(&SCRATCH[..written as usize]) };
+            unsafe { archived_root::<CallerState>(&SCRATCH[..written_state as usize]) };
 
         let mut state: CallerState = (state).deserialize(&mut store).unwrap();
 
@@ -105,18 +105,23 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn set_target(_: u32, written: u32) -> [u32; 2] {
+    fn set_target(written_state: u32, written_data: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
-        let (state, target) = unsafe {
-            archived_root::<(CallerState, CallerTransaction)>(
-                &SCRATCH[..written as usize],
+        let state = unsafe {
+            archived_root::<CallerState>(
+                &SCRATCH[..written_state as usize],
+            )
+        };
+        let target = unsafe {
+            archived_root::<CallerTransaction>(
+                &SCRATCH[written_state as usize..written_data as usize],
             )
         };
 
-        let mut state: CallerState = (state).deserialize(&mut store).unwrap();
+        let mut state: CallerState = state.deserialize(&mut store).unwrap();
         let target: CallerTransaction =
-            (target).deserialize(&mut store).unwrap();
+            target.deserialize(&mut store).unwrap();
 
         state.set_target(target.target_id);
         rusk_uplink::debug!("setting state.set_target to: {:?}", target.target_id);

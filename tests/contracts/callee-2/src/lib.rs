@@ -62,17 +62,22 @@ const _: () = {
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
-    fn get(written: u32) -> u32 {
+    fn get(written_state: u32, written_data: u32) -> u32 {
         let mut store = AbiStore;
 
-        let (state, callee2) = unsafe {
-            archived_root::<(Callee2State, Callee2Query)>(
-                &SCRATCH[..written as usize],
+        let state = unsafe {
+            archived_root::<Callee2State>(
+                &SCRATCH[..written_state as usize],
+            )
+        };
+        let callee2 = unsafe {
+            archived_root::<Callee2Query>(
+                &SCRATCH[written_state as usize..written_data as usize],
             )
         };
 
-        let mut _state: Callee2State = (state).deserialize(&mut store).unwrap();
-        let callee: Callee2Query = (callee2).deserialize(&mut store).unwrap();
+        let mut _state: Callee2State = state.deserialize(&mut store).unwrap();
+        let callee: Callee2Query = callee2.deserialize(&mut store).unwrap();
 
         assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");
 

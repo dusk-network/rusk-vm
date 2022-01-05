@@ -176,7 +176,7 @@ impl<'a> CallContext<'a> {
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
 
-            let run_func: NativeFunc<u32, u32> =
+            let run_func: NativeFunc<(u32, u32), u32> =
                 instance.exports.get_native_function(query.name())?;
 
             let buf_offset = if let Value::I32(ofs) = instance
@@ -193,7 +193,7 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
 
-            let written = memory.with_mut_slice_from(buf_offset, |mem| {
+            let (written_state, written_data) = memory.with_mut_slice_from(buf_offset, |mem| {
                 // copy the contract state into scratch memory
                 let state = contract.state();
                 let len = state.len();
@@ -204,10 +204,10 @@ impl<'a> CallContext<'a> {
 
                 mem[len..len + data.len()].copy_from_slice(data);
 
-                len + data.len()
+                (len, len + data.len())
             });
 
-            let result_written = run_func.call(written as u32)?;
+            let result_written = run_func.call(written_state as u32, written_data as u32)?;
 
             memory.with_slice_from(buf_offset, |mem| {
                 ReturnValue::new(&mem[..result_written as usize])
