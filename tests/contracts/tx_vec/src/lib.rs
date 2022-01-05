@@ -12,9 +12,9 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{
-    ContractId, Query, RawTransaction, ReturnValue, Transaction,
+    ContractId, Query, RawTransaction, Transaction,
 };
 extern crate alloc;
 use alloc::boxed::Box;
@@ -116,7 +116,7 @@ const _: () = {
             archived_root::<TxVec>(&SCRATCH[..written_state as usize])
         };
 
-        let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
+        let slf: TxVec = (slf).deserialize(&mut store).unwrap();
         let ret = slf.read_value();
 
         let res: <TxVecReadValue as Query>::Return = ret;
@@ -147,7 +147,7 @@ const _: () = {
             )
         };
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let mut de_arg: TxVecSum = (arg).deserialize(&mut store).unwrap();
+        let de_arg: TxVecSum = (arg).deserialize(&mut store).unwrap();
 
         slf.sum(de_arg.values);
 
@@ -175,7 +175,7 @@ const _: () = {
         };
 
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let mut de_arg: TxVecDelegateSum =
+        let de_arg: TxVecDelegateSum =
             (arg).deserialize(&mut store).unwrap();
 
         slf.delegate_sum(&de_arg.contract_id, de_arg.data);
