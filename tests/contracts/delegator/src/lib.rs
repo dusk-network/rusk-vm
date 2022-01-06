@@ -88,11 +88,11 @@ impl Delegator {
     }
 
     pub fn delegate_transaction(
-        &self,
+        &mut self,
         target: &ContractId,
         transaction: &RawTransaction,
     ) -> ReturnValue {
-        rusk_uplink::transact_raw(target, transaction, 0).unwrap()
+        rusk_uplink::transact_raw(self, target, transaction, 0).unwrap()
     }
 }
 
@@ -146,7 +146,7 @@ const _: () = {
             )
         };
 
-        let de_state: Delegator = state.deserialize(&mut store).unwrap();
+        let mut de_state: Delegator = state.deserialize(&mut store).unwrap();
         let de_arg: TransactionForwardData =
             arg.deserialize(&mut store).unwrap();
 

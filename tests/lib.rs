@@ -298,54 +298,54 @@ fn self_snapshot() {
         )
         .unwrap();
 
-    // assert_eq!(
-    //     10,
-    //     network
-    //         .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
-    // );
-    //
-    // let result = network.transact(
-    //     contract_id,
-    //     0,
-    //     self_snapshot::UpdateAndPanicTransaction::new(11),
-    //     &mut gas,
-    // );
-    //
-    // assert!(result.is_err());
-    //
-    // assert_eq!(
-    //     10,
-    //     network
-    //         .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
-    // );
-    //
-    // let set_crossover_value = self_snapshot::SetCrossoverTransaction::new(12);
-    // use rkyv::ser::serializers::BufferSerializer;
-    // use rkyv::ser::Serializer;
-    // use rkyv::Archive;
-    //
-    // let mut buf = [0u8; 128];
-    // let mut ser = BufferSerializer::new(&mut buf);
-    // let buffer_len = ser.serialize_value(&set_crossover_value).unwrap()
-    //     + core::mem::size_of::<<::self_snapshot::SetCrossoverTransaction as Archive>::Archived>();
-    //
-    // let self_call_test_b_transaction =
-    //     self_snapshot::SelfCallTestBTransaction::new(contract_id, &buf[..buffer_len], "set_crossover");
-    //
-    // network
-    //     .transact(
-    //         contract_id,
-    //         0,
-    //         self_call_test_b_transaction,
-    //         &mut gas,
-    //     )
-    //     .unwrap();
-    //
-    // assert_eq!(
-    //     12,
-    //     network
-    //         .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
-    // );
+    assert_eq!(
+        10,
+        network
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+    );
+
+    let result = network.transact(
+        contract_id,
+        0,
+        self_snapshot::UpdateAndPanicTransaction::new(11),
+        &mut gas,
+    );
+
+    assert!(result.is_err());
+
+    assert_eq!(
+        10,
+        network
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+    );
+
+    let set_crossover_value = self_snapshot::SetCrossoverTransaction::new(12);
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rkyv::Archive;
+
+    let mut buf = [0u8; 128];
+    let mut ser = BufferSerializer::new(&mut buf);
+    let buffer_len = ser.serialize_value(&set_crossover_value).unwrap()
+        + core::mem::size_of::<<::self_snapshot::SetCrossoverTransaction as Archive>::Archived>();
+
+    let self_call_test_b_transaction =
+        self_snapshot::SelfCallTestBTransaction::new(contract_id, &buf[..buffer_len], "set_crossover");
+
+    network
+        .transact(
+            contract_id,
+            0,
+            self_call_test_b_transaction,
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        12,
+        network
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+    );
 }
 
 #[test]
@@ -388,23 +388,23 @@ fn tx_vec() {
         .transact(contract_id, 0, delegate_sum, &mut gas)
         .unwrap();
 
-    // let v = network
-    //     .query(contract_id, 0, TxVecReadValue, &mut gas)
-    //     .unwrap();
-    // assert_eq!(value, v);
-    //
-    // let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
-    // let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
-    //
-    // let delegate_sum = TxVecDelegateSum::new(contract_id, &values[..]);
-    // network
-    //     .transact(contract_id, 0, delegate_sum, &mut gas)
-    //     .unwrap();
-    //
-    // let v = network
-    //     .query(contract_id, 0, TxVecReadValue, &mut gas)
-    //     .unwrap();
-    // assert_eq!(value, v);
+    let v = network
+        .query(contract_id, 0, TxVecReadValue, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
+
+    let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
+    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+
+    let delegate_sum = TxVecDelegateSum::new(contract_id, &values[..]);
+    network
+        .transact(contract_id, 0, delegate_sum, &mut gas)
+        .unwrap();
+
+    let v = network
+        .query(contract_id, 0, TxVecReadValue, &mut gas)
+        .unwrap();
+    assert_eq!(value, v);
 }
 
 #[test]
