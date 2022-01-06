@@ -4,10 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use gas_context::GasContextData;
+use gas_context::{GasContextData, SetGasLimits};
+use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, Gas, GasMeter, NetworkState};
 
 #[test]
+#[ignore]
 fn gas_context() {
     let gas_context_data = GasContextData::new();
 
@@ -15,9 +17,10 @@ fn gas_context() {
         "../target/wasm32-unknown-unknown/release/gas_context.wasm"
     );
 
-    let contract = Contract::new(gas_context_data, code.to_vec());
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&gas_context_data, code.to_vec(), &store);
 
-    let mut network = NetworkState::new();
+    let mut network = NetworkState::new(store);
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -34,30 +37,20 @@ fn gas_context() {
     let call_gas_limits = vec![0; NUMBER_OF_NESTED_CALLS];
 
     network
-        .transact::<_, Vec<u64>>(
-            contract_id,
-            0,
-            (gas_context::SET_GAS_LIMITS, call_gas_limits),
-            &mut gas,
-        )
+        .transact(contract_id, 0, SetGasLimits::new(call_gas_limits), &mut gas)
         .unwrap();
 
     network
-        .transact::<_, u64>(
+        .transact(
             contract_id,
             0,
-            (gas_context::COMPUTE, NUMBER_OF_NESTED_CALLS as u64),
+            gas_context::TCompute::new(NUMBER_OF_NESTED_CALLS as u64),
             &mut gas,
         )
         .unwrap();
 
     let limits = network
-        .query::<_, Vec<u64>>(
-            contract_id,
-            0,
-            (gas_context::READ_GAS_LIMITS, ()),
-            &mut gas,
-        )
+        .query(contract_id, 0, gas_context::ReadGasLimits, &mut gas)
         .unwrap();
 
     let mut bounds: Vec<(u64, u64)> = limits
@@ -91,6 +84,7 @@ fn gas_context() {
 }
 
 #[test]
+#[ignore]
 fn gas_context_with_call_limit() {
     let gas_context_data = GasContextData::new();
 
@@ -98,9 +92,10 @@ fn gas_context_with_call_limit() {
         "../target/wasm32-unknown-unknown/release/gas_context.wasm"
     );
 
-    let contract = Contract::new(gas_context_data, code.to_vec());
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&gas_context_data, code.to_vec(), &store);
 
-    let mut network = NetworkState::new();
+    let mut network = NetworkState::new(store);
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -115,30 +110,25 @@ fn gas_context_with_call_limit() {
     let number_of_nested_calls: usize = call_gas_limits.len();
 
     network
-        .transact::<_, Vec<u64>>(
+        .transact(
             contract_id,
             0,
-            (gas_context::SET_GAS_LIMITS, call_gas_limits),
+            gas_context::SetGasLimits::new(call_gas_limits),
             &mut gas,
         )
         .unwrap();
 
     network
-        .transact::<_, u64>(
+        .transact(
             contract_id,
             0,
-            (gas_context::COMPUTE, number_of_nested_calls as u64),
+            gas_context::TCompute::new(number_of_nested_calls as u64),
             &mut gas,
         )
         .unwrap();
 
     let limits = network
-        .query::<_, Vec<u64>>(
-            contract_id,
-            0,
-            (gas_context::READ_GAS_LIMITS, ()),
-            &mut gas,
-        )
+        .query(contract_id, 0, gas_context::ReadGasLimits, &mut gas)
         .unwrap();
 
     upper_bounds.remove(0);

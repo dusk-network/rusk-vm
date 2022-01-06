@@ -54,14 +54,15 @@ const _: () = {
     use rkyv::archived_root;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
-    use rusk_uplink::AbiStore;
+    use rusk_uplink::{AbiStore, StoreContext};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
     fn get(written_state: u32, written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Callee2State>(&SCRATCH[..written_state as usize])

@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 
 use bytecheck::CheckBytes;
+use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{
     archived_root, check_archived_root,
     ser::{serializers::AllocSerializer, Serializer},
@@ -22,20 +23,37 @@ use rkyv::{
     Archive,
     Serialize,
     Deserialize,
+    CheckBytes,
 )]
 #[archive(as = "Self")]
 pub struct ContractId([u8; 32]);
 
+pub type StoreContext = StoreRef<OffsetLen>;
+
 impl ContractId {
+    /// Return a reserved contract id for host fn modules
+    pub const fn reserved(id: u8) -> Self {
+        let mut bytes = [0; 32];
+        bytes[0] = id;
+        ContractId(bytes)
+    }
+
+    /// Returns the contract id as a byte slice
     pub fn as_bytes(&self) -> &[u8] {
         &self.0[..]
     }
+
+    /// Returns the contract id as a mutable slice
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
         &mut self.0[..]
     }
+
+    /// Returns a `ContractId` from an array of 32 bytes
     pub fn as_array(&self) -> [u8; 32] {
         self.0
     }
+
+    /// Returns a `ContractId` from a mutable array of 32 bytes
     pub fn as_array_ref(&self) -> &[u8; 32] {
         &self.0
     }
@@ -56,7 +74,7 @@ pub trait Execute<Q>
 where
     Q: Query,
 {
-    fn execute(&self, q: &Q) -> Q::Return;
+    fn execute(&self, q: &Q, store: StoreContext) -> Q::Return;
 }
 
 pub trait Apply<T>
@@ -98,7 +116,7 @@ pub trait HostModule {
 
 // TODO, use borrowed bytes here?
 #[derive(Debug, Default)]
-pub struct ReturnValue{
+pub struct ReturnValue {
     data: Box<[u8]>,
     state: Box<[u8]>,
 }
@@ -106,13 +124,22 @@ pub struct ReturnValue{
 impl ReturnValue {
     pub fn new(result: impl AsRef<[u8]>) -> Self {
         let result = Box::from(result.as_ref());
-        ReturnValue { data: result, state: Box::from([].as_ref())}
+        ReturnValue {
+            data: result,
+            state: Box::from([].as_ref()),
+        }
     }
 
-    pub fn with_state(result: impl AsRef<[u8]>, state: impl AsRef<[u8]>) -> Self {
+    pub fn with_state(
+        result: impl AsRef<[u8]>,
+        state: impl AsRef<[u8]>,
+    ) -> Self {
         let result = Box::from(result.as_ref());
         let state = Box::from(state.as_ref());
-        ReturnValue { data: result, state }
+        ReturnValue {
+            data: result,
+            state,
+        }
     }
 
     pub fn cast<'a, T>(
@@ -131,13 +158,12 @@ impl ReturnValue {
         check_archived_root::<T>(&self.data[..])
     }
 
-    pub fn cast_state<T>(
-        &self,
-    ) -> &T::Archived
+    pub fn cast_state<T>(&self) -> &T::Archived
     where
-        T: Archive
+        T: Archive,
     {
-        let state: &T::Archived = unsafe { archived_root::<T>(&self.state[..]) };
+        let state: &T::Archived =
+            unsafe { archived_root::<T>(&self.state[..]) };
         state
     }
 
@@ -155,6 +181,11 @@ impl ReturnValue {
 
     pub fn state(&self) -> &[u8] {
         &self.state[..]
+    }
+
+    pub fn encode_lenghts(&self) -> u64 {
+        ((self.data_len() as u64 + self.state_len() as u64) << 32)
+            + self.state_len() as u64
     }
 }
 

@@ -4,22 +4,24 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use rusk_vm::{Contract, GasMeter, NetworkState};
-
+use microkelvin::{BranchRef, HostStore, StoreRef};
+use rkyv::{archived_root, Deserialize};
+use rusk_vm::{Contract, ContractRef, GasMeter, NetworkState};
 use stack::Stack;
 
 #[test]
 fn stack() {
     type Leaf = u64;
-    const N: Leaf = 64;
+    const N: Leaf = 0;
 
-    let stack = Stack::<Leaf>::new();
+    let stack = Stack::new();
 
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
 
-    let contract = Contract::new(stack, code.to_vec());
-    let mut network = NetworkState::new();
+    let mut store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&stack, code.to_vec(), &store);
+    let mut network = NetworkState::new(store.clone());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -27,20 +29,20 @@ fn stack() {
 
     for i in 0..N {
         network
-            .transact::<_, ()>(contract_id, 0, (stack::PUSH, i), &mut gas)
-            .unwrap()
+            .transact(contract_id, 0, stack::Push::new(i), &mut gas)
             .unwrap();
 
-        // all the peeks
+        // deserialize and test for peeks
+        let contract = network.get_contract(&contract_id).expect("A result");
+        let leaf = contract.leaf();
+        let state_bytes = leaf.state();
+        let cast = unsafe { archived_root::<Stack>(state_bytes) };
+        let de: Stack = cast.deserialize(&mut store).unwrap();
 
         for o in 0..i {
-            let contract: &Contract =
-                &*network.get_contract(&contract_id).expect("A result");
-
-            let cast = contract.state().cast::<Stack<Leaf>>().unwrap();
-
-            assert_eq!(cast.peek(o).unwrap(), Some(o))
+            assert_eq!(de.peek(o), Some(o))
         }
+        assert_eq!(de.peek(i), None)
     }
 
     for i in 0..N {
@@ -48,29 +50,21 @@ fn stack() {
 
         assert_eq!(
             network
-                .transact::<_, Option<Leaf>>>(
-                    contract_id,
-                    0,
-                    stack::POP,
-                    &mut gas
-                )
-                .unwrap()
+                .transact(contract_id, 0, stack::Pop, &mut gas)
                 .unwrap(),
             Some(i)
         );
     }
 
-    assert_eq!(
-        network
-            .transact::<_, Option<Leaf>>(contract_id, 0, stack::POP, &mut gas)
-            .unwrap()
-            .unwrap(),
-        None
-    );
+    let res = network
+        .transact(contract_id, 0, stack::Pop, &mut gas)
+        .unwrap();
+
+    assert_eq!(res, None);
 }
 
 #[cfg(feature = "persistence")]
-#[test]
+#[ignore]
 fn stack_persist() {
     use microkelvin::DiskBackend;
 
@@ -82,18 +76,18 @@ fn stack_persist() {
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
 
-    let contract = Contract::new(stack, code.to_vec());
+    let store = HostStore::new();
+    let contract = Contract::new(stack, code.to_vec(), &store);
 
     let (persist_id, contract_id) = {
         let mut network = NetworkState::new();
 
         let contract_id = network.deploy(contract).unwrap();
-
         let mut gas = GasMeter::with_limit(1_000_000_000);
 
         for i in 0..N {
             network
-                .transact::<_, ()>(contract_id, 0, (stack::PUSH, i), &mut gas)
+                .transact(contract_id, 0, stack::Push::new(i), &mut gas)
                 .unwrap()
                 .unwrap();
         }
@@ -123,12 +117,7 @@ fn stack_persist() {
 
         assert_eq!(
             network
-                .transact::<_, Option<Leaf>>(
-                    contract_id,
-                    0,
-                    stack::POP,
-                    &mut gas
-                )
+                .transact(contract_id, 0, stack::Pop, &mut gas)
                 .unwrap()
                 .unwrap(),
             Some(i)
@@ -137,7 +126,7 @@ fn stack_persist() {
 
     assert_eq!(
         network
-            .transact::<_, Option<Leaf>>(contract_id, 0, stack::POP, &mut gas)
+            .transact(contract_id, 0, stack::Pop, &mut gas)
             .unwrap()
             .unwrap(),
         None

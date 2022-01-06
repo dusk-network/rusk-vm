@@ -1,89 +1,115 @@
-use microkelvin::{Ident, Offset, Storage, Store, Stored};
-use rkyv::{ser::serializers::AllocSerializer, ser::Serializer, Fallible};
+use core::cell::UnsafeCell;
 
-pub struct AbiStorage(AllocSerializer<1024>);
+use microkelvin::{OffsetLen, Store, Token, TokenBuffer};
+use rkyv::Fallible;
 
-impl AbiStorage {
-    fn new() -> Self {
-        AbiStorage(Default::default())
-    }
+extern "C" {
+    fn _put(slice: &u8, len: u16) -> u64;
+    fn _get(offset: u64, len: u16, buf: &mut u8);
 }
 
-#[derive(Clone)]
-pub struct AbiStore;
+fn abi_put(slice: &[u8]) -> OffsetLen {
+    assert!(slice.len() <= u16::MAX as usize);
+    let len = slice.len() as u16;
+    let ofs = unsafe { _put(&slice[0], len) };
+    OffsetLen::new(ofs, len)
+}
+
+fn abi_get(offset: u64, buf: &mut [u8]) {
+    let len = buf.len() as u16;
+    unsafe { _get(offset, len, &mut buf[0]) }
+}
+
+struct AbiStoreInner {
+    data: *mut [u8],
+    written: usize,
+    token: Token,
+}
+
+pub struct AbiStore {
+    inner: UnsafeCell<AbiStoreInner>,
+}
 
 impl Fallible for AbiStore {
     type Error = core::convert::Infallible;
 }
 
-impl Fallible for AbiStorage {
-    type Error = core::convert::Infallible;
-}
-
-impl Serializer for AbiStorage {
-    fn pos(&self) -> usize {
-        self.0.pos()
+impl AbiStoreInner {
+    fn new(buf: &mut [u8]) -> Self {
+        AbiStoreInner {
+            data: buf,
+            written: 0,
+            token: Token::new(),
+        }
     }
 
-    fn write(&mut self, bytes: &[u8]) -> Result<(), <Self as Fallible>::Error> {
-        let _ = self.0.write(bytes);
-        Ok(())
+    fn get(&mut self, ident: &OffsetLen) -> &[u8] {
+        let offset = ident.offset();
+        let len = ident.len();
+        let slice = unsafe { &mut *self.data };
+        let to_write = &mut slice[self.written..][..len as usize];
+        self.written += len as usize;
+        abi_get(offset, to_write);
+        to_write
+    }
+
+    fn return_token(&mut self, token: Token) {
+        self.token.return_token(token)
+    }
+
+    fn request_buffer(&mut self) -> TokenBuffer {
+        let slice = unsafe { &mut *self.data };
+        let unwritten = &mut slice[self.written..];
+        let token = self.token.take().expect("token error");
+        TokenBuffer::new(token, unwritten)
+    }
+
+    fn commit(&mut self, buffer: &mut TokenBuffer) -> OffsetLen {
+        let slice = buffer.written_bytes();
+        let len = slice.len();
+        assert!(len <= u16::MAX as usize);
+        self.written += len;
+        abi_put(slice)
     }
 }
 
-extern "C" {
-    fn s_put(slice: &u8, len: u32) -> u64;
-    fn s_get(offset: u64) -> &'static ();
-}
-
-impl Storage<Offset> for AbiStorage {
-    fn put<T>(&mut self, t: &T) -> Offset
-    where
-        T: rkyv::Serialize<Self>,
-    {
-        self.serialize_value(t).unwrap();
-        let serializer = core::mem::take(&mut self.0);
-        let bytes = &serializer.into_serializer().into_inner()[..];
-        let put_ofs = unsafe { s_put(&bytes[0], bytes.len() as u32) };
-        Offset::new(put_ofs)
-    }
-
-    fn get<T>(&self, id: &Offset) -> &T::Archived
-    where
-        T: rkyv::Archive,
-    {
-        let ofs = id.inner();
-        unsafe {
-            let ptr: &() = s_get(ofs);
-            core::mem::transmute(ptr)
+impl AbiStore {
+    pub fn new(buf: &mut [u8]) -> Self {
+        AbiStore {
+            inner: UnsafeCell::new(AbiStoreInner::new(buf)),
         }
     }
 }
 
 impl Store for AbiStore {
-    type Identifier = Offset;
+    type Identifier = OffsetLen;
 
-    type Storage = AbiStorage;
-
-    fn put<T>(&self, t: &T) -> Stored<T, Self>
-    where
-        T: rkyv::Serialize<Self::Storage>,
-    {
-        let mut storage = AbiStorage::new();
-        Stored::new(self.clone(), Ident::new(storage.put::<T>(t)))
+    fn get(&self, ident: &OffsetLen) -> &[u8] {
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.get(ident)
     }
 
-    fn get_raw<'a, T>(
-        &'a self,
-        id: &Ident<Self::Identifier, T>,
-    ) -> &'a T::Archived
-    where
-        T: rkyv::Archive,
-    {
-        let storage = AbiStorage::new();
-        let reference = storage.get::<T>(&id.erase());
-        let extended: &'a T::Archived =
-            unsafe { core::mem::transmute(reference) };
-        extended
+    fn request_buffer(&self) -> TokenBuffer {
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.request_buffer()
+    }
+
+    fn persist(&self) -> Result<(), ()> {
+        Err(())
+    }
+
+    fn commit(&self, buffer: &mut TokenBuffer) -> Self::Identifier {
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.commit(buffer)
+    }
+
+    fn extend(&self, _buffer: &mut TokenBuffer) -> Result<(), ()> {
+        // We can't
+        Err(())
+    }
+
+    fn return_token(&self, token: Token) {
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.return_token(token)
     }
 }

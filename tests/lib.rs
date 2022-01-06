@@ -8,13 +8,12 @@ use block_height::{BlockHeight, ReadBlockHeight};
 use callee_1::{Callee1State, Callee1Transaction};
 use callee_2::Callee2State;
 use caller::{CallerQuery, CallerState, CallerTransaction};
-// use counter::Counter;
+use counter::Counter;
 // use counter_float::CounterFloat;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
-// use dusk_abi::Transaction;
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
-use microkelvin::HostStore;
+use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
@@ -28,17 +27,14 @@ fn fibonacci_reference(n: u64) -> u64 {
 }
 
 #[test]
-fn counter() {
-    use counter::Counter;
-    use minimal_counter as counter;
-
-    let counter = Counter::new(99);
+fn minimal_counter() {
+    let counter = minimal_counter::Counter::new(99);
 
     let code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -49,21 +45,46 @@ fn counter() {
 
     assert_eq!(
         network
-            .query(contract_id, 0, counter::ReadCount, &mut gas)
+            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
             .unwrap(),
         99
     );
 
+    println!("ok!");
+
     network
-        .transact(contract_id, 0, counter::Increment(1), &mut gas)
+        .transact(contract_id, 0, minimal_counter::Increment(1), &mut gas)
         .unwrap();
+
+    println!("ek!");
 
     assert_eq!(
         network
-            .query(contract_id, 0, counter::ReadCount, &mut gas)
+            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
             .unwrap(),
         100
     );
+}
+
+#[test]
+fn register() {
+    use register::*;
+
+    let reg = Register::new();
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/register.wasm"
+    );
+
+    let store = StoreRef::new(HostStore::new());
+
+    let contract = Contract::new(&reg, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    todo!()
 }
 
 #[test]
@@ -76,7 +97,7 @@ fn string_passthrough() {
         "../target/wasm32-unknown-unknown/release/deps/string_argument.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&stringer, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -92,46 +113,19 @@ fn string_passthrough() {
         String::from("Hello worldHello worldHello world"),
     );
 }
-//
-// #[test]
-// fn stringer_trivial() {
-//     let stringer = Stringer::new(99);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
-// wasm");
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         99
-//     );
-// }
 
 #[test]
 fn delegated_call() {
-    use counter::Counter;
-    use minimal_counter as counter;
-
     let counter = Counter::new(99);
     let delegator = Delegator;
 
     let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
     let delegator_code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/delegator.wasm"
     );
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let counter_contract = Contract::new(&counter, code.to_vec(), &store);
     let delegator_contract =
         Contract::new(&delegator, delegator_code.to_vec(), &store);
@@ -143,7 +137,7 @@ fn delegated_call() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let incr_value = counter::Increment(1);
+    let incr_value = counter::Increment;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
     use rkyv::Archive;
@@ -160,7 +154,7 @@ fn delegated_call() {
             .query(
                 delegator_id,
                 0,
-                QueryForwardData::new(counter_contract_id, &[], "read"),
+                QueryForwardData::new(counter_contract_id, &[], "read_value"),
                 &mut gas,
             )
             .unwrap(),
@@ -176,7 +170,7 @@ fn delegated_call() {
             TransactionForwardData::new(
                 counter_contract_id,
                 &buf[..buffer_len],
-                "incr",
+                "increment",
             ),
             &mut gas,
         )
@@ -186,7 +180,7 @@ fn delegated_call() {
 
     assert_eq!(
         network
-            .query(counter_contract_id, 0, counter::ReadCount, &mut gas)
+            .query(counter_contract_id, 0, counter::ReadValue, &mut gas)
             .unwrap(),
         100
     );
@@ -201,7 +195,7 @@ fn fibonacci() {
         "../target/wasm32-unknown-unknown/release/fibonacci.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&fib, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -230,7 +224,7 @@ fn block_height() {
         "../target/wasm32-unknown-unknown/release/block_height.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&bh, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -255,7 +249,7 @@ fn self_snapshot() {
         "../target/wasm32-unknown-unknown/release/self_snapshot.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&self_snapshot, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -267,7 +261,8 @@ fn self_snapshot() {
     assert_eq!(
         7,
         network
-            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
+            .unwrap()
     );
 
     // returns old value
@@ -286,7 +281,8 @@ fn self_snapshot() {
     assert_eq!(
         9,
         network
-            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
+            .unwrap()
     );
 
     network
@@ -301,7 +297,8 @@ fn self_snapshot() {
     assert_eq!(
         10,
         network
-            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
+            .unwrap()
     );
 
     let result = network.transact(
@@ -316,7 +313,8 @@ fn self_snapshot() {
     assert_eq!(
         10,
         network
-            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
+            .unwrap()
     );
 
     let set_crossover_value = self_snapshot::SetCrossoverTransaction::new(12);
@@ -327,24 +325,26 @@ fn self_snapshot() {
     let mut buf = [0u8; 128];
     let mut ser = BufferSerializer::new(&mut buf);
     let buffer_len = ser.serialize_value(&set_crossover_value).unwrap()
-        + core::mem::size_of::<<::self_snapshot::SetCrossoverTransaction as Archive>::Archived>();
+        + core::mem::size_of::<
+            <::self_snapshot::SetCrossoverTransaction as Archive>::Archived,
+        >();
 
     let self_call_test_b_transaction =
-        self_snapshot::SelfCallTestBTransaction::new(contract_id, &buf[..buffer_len], "set_crossover");
+        self_snapshot::SelfCallTestBTransaction::new(
+            contract_id,
+            &buf[..buffer_len],
+            "set_crossover",
+        );
 
     network
-        .transact(
-            contract_id,
-            0,
-            self_call_test_b_transaction,
-            &mut gas,
-        )
+        .transact(contract_id, 0, self_call_test_b_transaction, &mut gas)
         .unwrap();
 
     assert_eq!(
         12,
         network
-            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
+            .unwrap()
     );
 }
 
@@ -355,7 +355,7 @@ fn tx_vec() {
 
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
 
     let contract = Contract::new(&tx_vec, code.to_vec(), &store);
 
@@ -422,7 +422,7 @@ fn calling() {
         "../target/wasm32-unknown-unknown/release/callee_2.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
 
     let contract0 = Contract::new(&caller, code_caller.to_vec(), &store);
     let contract1 = Contract::new(&callee1, code_callee1.to_vec(), &store);
@@ -461,7 +461,7 @@ fn gas_consumed_host_function_works() {
         "../target/wasm32-unknown-unknown/release/gas_consumed.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&gas_contract, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -497,16 +497,13 @@ fn gas_consumed_host_function_works() {
 
 #[test]
 fn gas_consumption_works() {
-    use counter::Counter;
-    use minimal_counter as counter;
-
     let counter = Counter::new(99);
 
     let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -516,12 +513,12 @@ fn gas_consumption_works() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact(contract_id, 0, counter::Increment(1), &mut gas)
+        .transact(contract_id, 0, counter::Increment, &mut gas)
         .expect("Transaction error");
 
     assert_eq!(
         network
-            .query(contract_id, 0, counter::ReadCount, &mut gas)
+            .query(contract_id, 0, counter::ReadValue, &mut gas)
             .expect("Query error"),
         100
     );
@@ -531,17 +528,14 @@ fn gas_consumption_works() {
 }
 
 #[test]
-fn out_of_gas_aborts_execution() {
-    use counter::Counter;
-    use minimal_counter as counter;
-
+fn out_of_gas_aborts_transaction_execution() {
     let counter = Counter::new(99);
 
     let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -551,200 +545,79 @@ fn out_of_gas_aborts_execution() {
     let mut gas = GasMeter::with_limit(1);
 
     let should_be_err =
-        network.transact(contract_id, 0, counter::Increment(1), &mut gas);
+        network.transact(contract_id, 0, counter::Increment, &mut gas);
     assert!(should_be_err.is_err());
-    // assert!(format!("{:?}", should_be_err).contains("Out of Gaserror")); //
-    // todo! we get "WASMER Trap (UnreachableCodeReached)" here, FIXME
-
+    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
     // Ensure all gas is consumed even the tx did not succeed.
-    // assert_eq!(gas.left(), 0); // todo! this does not work, FIXME
+    assert_eq!(gas.left(), 0);
 }
 
-// #[test]
-// fn deploy_fails_with_floats() {
-//     let stringer = StringerFloat::new(9.99f32);
-//
-//     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/stringer_float.wasm"
-//     );
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let forbidden_floats_schedule = Schedule {
-//         has_forbidden_floats: false,
-//         ..Default::default()
-//     };
-//
-//     let mut network =
-// NetworkState::with_schedule(&forbidden_floats_schedule);
-//
-//     assert!(matches!(
-//         network.deploy(contract),
-//         Err(rusk_vm::VMError::InstrumentationError(_))
-//     ));
-// }
-//
-// #[test]
-// fn deploy_with_id() -> Result<(), VMError> {
-//     // Smallest valid WASM module possible so `deploy` won't raise a
-//     // `InvalidByteCode` error
-//     let code = 0x0000_0001_6D73_6100_u64.to_le_bytes();
-//
-//     // Create a contract with a simple state
-//     let contract = Contract::new(0xfeed_u16, code.to_vec());
-//
-//     // Reserve a `ContractId`
-//     let id = ContractId::reserved(0x10);
-//
-//     // Deploy with the id given
-//     let mut network = NetworkState::new();
-//
-//     // The id is the same returned by the deploy function
-//     assert_eq!(id, network.deploy_with_id(id, contract)?);
-//
-//     // Get the contract deployed using the same id, and verify the state is
-// also     // the same
-//     let state: u16 = network
-//         .get_contract(&id)?
-//         .state()
-//         .cast()
-//         .expect("Cannot cast the state");
-//     assert_eq!(state, 0xfeed);
-//
-//     // Deploy another contract at the same address
-//     let contract = Contract::new(0xcafe_u16, code.to_vec());
-//     network.deploy_with_id(id, contract)?;
-//
-//     // Get the contract deployed using the same id, and verify the state is
-// NOT     // the same as before.
-//     //
-//     // TODO: This means a contract CAN BE overriden once deployed, we need to
-//     // decided if we should raise an error if a contract already exists with
-//     // the same address
-//     network.get_contract(&id)?;
-//
-//     let state: u16 = network
-//         .get_contract(&id)?
-//         .state()
-//         .cast()
-//         .expect("Cannot cast the state");
-//     assert_eq!(state, 0xcafe);
-//
-//     Ok(())
-// }
-//
-// #[cfg(feature = "persistence")]
-// #[test]
-// fn persistence() {
-//     use microkelvin::DiskBackend;
-//
-//     let stringer = Stringer::new(99);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
-// wasm");
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let (persist_id, contract_id) = {
-//         let mut network = NetworkState::new();
-//
-//         let contract_id = network.deploy(contract).unwrap();
-//
-//         let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//         assert_eq!(
-//             network
-//                 .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut
-// gas)                 .unwrap(),
-//             99
-//         );
-//
-//         network
-//             .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
-//             .unwrap();
-//
-//         assert_eq!(
-//             network
-//                 .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut
-// gas)                 .unwrap(),
-//             100
-//         );
-//
-//         (
-//             network
-//                 .persist(|| {
-//                     let dir = std::env::temp_dir().join("test_persist");
-//                     std::fs::create_dir_all(&dir)
-//                         .expect("Error on tmp dir creation");
-//                     DiskBackend::new(dir)
-//                 })
-//                 .expect("Error in persistence"),
-//             contract_id,
-//         )
-//     };
-//
-//     // If the persistence works, We should still read 100 with a freshly
-// created     // NetworkState.
-//     let mut network = NetworkState::new()
-//         .restore(persist_id)
-//         .expect("Error reconstructing the NetworkState");
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         100
-//     );
-//
-//     // Teardown
-//     std::fs::remove_dir_all(std::env::temp_dir().join("test_persist"))
-//         .expect("teardown fn error");
-// }
-//
-// #[test]
-// fn commit_and_reset() {
-//     let stringer = Stringer::new(99);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
-// wasm");
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//     network.commit();
-//
-//     let mut network_clone = network.clone();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     network
-//         .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
-//         .unwrap();
-//     network_clone
-//         .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
-//         .unwrap();
-//
-//     network.commit();
-//
-//     network.reset();
-//     network_clone.reset();
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         100
-//     );
-//     assert_eq!(
-//         network_clone
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         99
-//     );
-// }
+#[test]
+fn out_of_gas_aborts_query_execution() {
+    let counter = Counter::new(99);
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
+    );
+
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&counter, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1);
+
+    let should_be_err =
+        network.query(contract_id, 0, counter::ReadValue, &mut gas);
+    assert!(should_be_err.is_err());
+    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
+    // Ensure all gas is consumed even the tx did not succeed.
+    assert_eq!(gas.left(), 0);
+}
+
+#[test]
+fn commit_and_reset() {
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&counter, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).unwrap();
+    network.commit();
+
+    let mut network_clone = network.clone();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact(contract_id, 0, counter::Increment, &mut gas)
+        .unwrap();
+    network_clone
+        .transact(contract_id, 0, counter::Increment, &mut gas)
+        .unwrap();
+
+    network.commit();
+
+    network.reset();
+    network_clone.reset();
+
+    assert_eq!(
+        network
+            .query(contract_id, 0, counter::ReadValue, &mut gas)
+            .unwrap(),
+        100
+    );
+    assert_eq!(
+        network_clone
+            .query(contract_id, 0, counter::ReadValue, &mut gas)
+            .unwrap(),
+        99
+    );
+}

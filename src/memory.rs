@@ -5,19 +5,16 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::VMError;
-use rusk_uplink::HostRawStore;
 use wasmer::{LazyInit, Memory};
 
 pub struct WasmerMemory {
     pub inner: LazyInit<Memory>,
-    pub store: LazyInit<HostRawStore>,
 }
 
 impl WasmerMemory {
     pub fn new() -> WasmerMemory {
         WasmerMemory {
             inner: LazyInit::new(),
-            store: LazyInit::new(),
         }
     }
     /// Initializes the object with exported memory
@@ -27,9 +24,6 @@ impl WasmerMemory {
     ) -> std::result::Result<(), VMError> {
         let memory = exports.get_memory("memory")?;
         self.inner.initialize(memory.clone());
-        self.store.initialize(unsafe {
-            HostRawStore::new(memory.data_unchecked_mut())
-        });
         Ok(())
     }
 

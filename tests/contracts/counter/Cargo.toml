@@ -1,7 +1,10 @@
 [package]
-name = "string_argument"
+name = "counter"
 version = "0.1.0"
-authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+authors = [
+    "Kristoffer Ström <kristoffer@dusk.network>",
+    "Miłosz Muszyński <milosz@dusk.network>",
+]
 edition = "2018"
 
 [lib]

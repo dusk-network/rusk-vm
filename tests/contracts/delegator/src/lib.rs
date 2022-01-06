@@ -12,7 +12,8 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+use microkelvin::{OffsetLen, StoreRef};
+use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{
     ContractId, Query, RawQuery, RawTransaction, ReturnValue, Transaction,
 };
@@ -91,22 +92,24 @@ impl Delegator {
         &mut self,
         target: &ContractId,
         transaction: &RawTransaction,
+        store: StoreRef<OffsetLen>,
     ) -> ReturnValue {
-        rusk_uplink::transact_raw(self, target, transaction, 0).unwrap()
+        rusk_uplink::transact_raw(self, target, transaction, 0, store).unwrap()
     }
 }
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rusk_uplink::AbiStore;
+    use rkyv::{archived_root, AlignedVec};
+    use rusk_uplink::{AbiStore, StoreContext};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 256] = [0u8; 256];
 
     #[no_mangle]
     fn delegate_query(written_state: u32, written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Delegator>(&SCRATCH[..written_state as usize])
@@ -135,7 +138,8 @@ const _: () = {
 
     #[no_mangle]
     fn delegate_transaction(written_state: u32, written_data: u32) -> u64 {
-        let mut store = AbiStore;
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Delegator>(&SCRATCH[..written_state as usize])
@@ -156,11 +160,11 @@ const _: () = {
         let result: ReturnValue = de_state.delegate_transaction(
             &de_arg.contract_id,
             &RawTransaction::from(query_data, query_name),
+            store,
         );
 
         let len = result.data_len();
         unsafe { &SCRATCH[..len].copy_from_slice(result.data()) };
-        let ret = (len as u64) << 32 + (len as u64); // we write result only, state has the same offset hence is empty
-        ret
+        result.encode_lenghts()
     }
 };

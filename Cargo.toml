@@ -15,10 +15,10 @@ license = "MPL-2.0"
 [dependencies]
 wasmparser = "0.81.0"
 failure = "0.1"
-dusk-hamt = "0.6.0-rc"
-microkelvin = "0.12.0-rc"
+dusk-hamt = "0.7.0"
+microkelvin = "0.13.0-rc.1"
 wasmer = "=2.0.0"
-wasmer-vm = "=2.0.0"
+wasmer-vm = "2.0.0"
 wasmer-compiler-singlepass = "=2.0.0"
 wasmer-engine-universal = "=2.0.0"
 wasmer-middlewares = "=2.0.0"
@@ -28,27 +28,11 @@ thiserror = "1.0.24"
 tracing = "0.1.29"
 loupe = "0.1"
 rusk-uplink = { path = "rusk-uplink" }
-rkyv = { version = "0.7.26", default-features = false, features = ["alloc"] }
+rkyv = { version = "0.7", default-features = false, features = ["alloc"] }
 bytecheck = { version = "0.6.7", default-features = false }
 
 [dev-dependencies]
 criterion = "0.3"
-
-# test contracts
-# counter = { path = "tests/contracts/counter" }
-# fibonacci = { path = "tests/contracts/fibonacci" }
-# delegator = { path = "tests/contracts/delegator" }
-# stack = { path = "tests/contracts/stack" }
-# block_height = { path = "tests/contracts/block_height" }
-# self_snapshot = { path = "tests/contracts/self_snapshot" }
-# host_fn = { path = "tests/contracts/host_fn" }
-# tx_vec = { path = "tests/contracts/tx_vec" }
-# caller = { path = "tests/contracts/caller" }
-# callee_1 = { path = "tests/contracts/callee-1" }
-# callee_2 = { path = "tests/contracts/callee-2" }
-# gas_consumed = { path = "tests/contracts/gas_consumed" }
-# counter_float = { path = "tests/contracts/counter_float" }
-# gas_context = { path = "tests/contracts/gas_context" }
 
 register = { path = "tests/contracts/register" }
 minimal_counter = { path = "tests/contracts/minimal_counter" }
@@ -62,15 +46,9 @@ callee_2 = { path = "tests/contracts/callee-2" }
 gas_consumed = { path = "tests/contracts/gas_consumed" }
 tx_vec = { path = "tests/contracts/tx_vec" }
 self_snapshot = { path = "tests/contracts/self_snapshot" }
-
-
-# [[bench]]
-# name = "fibonacci"
-# harness = false
-
-# [[bench]]
-# name = "stack"
-# harness = false
+gas_context = { path = "tests/contracts/gas_context" }
+counter = { path = "tests/contracts/counter" }
+stack = { path = "tests/contracts/stack" }
 
 [workspace]
 
@@ -78,6 +56,3 @@ members = [
     "tests/contracts/*",
     "rusk-uplink",
 ]
-
-[patch.crates-io]
-microkelvin = { path = "../microkelvin" }

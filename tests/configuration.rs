@@ -4,43 +4,43 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// use counter::Counter;
+use counter::Counter;
+use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule};
 use std::collections::HashMap;
 
-fn execute_contract(network: &mut NetworkState) -> u64 {
+fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
     let counter = Counter::new(99);
 
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
-    let contract = Contract::new(counter, code.to_vec());
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&counter, code.to_vec(), &store);
+    let mut network = NetworkState::with_schedule(store, schedule);
 
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .transact(contract_id, 0, counter::Increment, &mut gas)
         .expect("Transaction error");
 
     network
-        .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+        .query(contract_id, 0, counter::ReadValue, &mut gas)
         .expect("Query error");
 
     gas.spent()
-}
-
-fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
-    let mut network = NetworkState::with_schedule(schedule);
-    execute_contract(&mut network)
 }
 
 #[test]
 #[ignore]
 fn change_gas_cost_per_op_with_schedule() {
     let schedule = Schedule::default();
-    assert!(execute_contract_with_schedule(&schedule) < 10_000);
+
+    // ???
+    assert!(execute_contract_with_schedule(&schedule) < 100);
 
     let per_type_op_cost: HashMap<String, u32> = [
         ("bit", 10000),
@@ -73,7 +73,7 @@ fn change_gas_cost_per_op_with_schedule() {
         per_type_op_cost,
         ..Schedule::with_version(1)
     };
-    assert!(execute_contract_with_schedule(&high_cost_schedule) > 10_000_000);
+    assert!(execute_contract_with_schedule(&high_cost_schedule) > 100_000);
 }
 
 #[test]

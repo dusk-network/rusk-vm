@@ -53,13 +53,13 @@ impl ApplyTransaction {
         let context = env.get_context();
         let result =
             context.transact(contract_id, raw_transaction, &mut gas_meter)?;
-        println!("ops/transact after context transact, ret1={:?}", result);
 
         context.write_memory(result.state(), transact_ofs);
-        context.write_memory(result.data(), transact_ofs + result.state_len() as u64);
+        context.write_memory(
+            result.data(),
+            transact_ofs + result.state_len() as u64,
+        );
 
-        let ret = ((result.data_len() as u64 + result.state_len() as u64) << 32) + result.state_len() as u64;
-        println!("ops/transact after context transact ret2={}", ret);
-        Ok(ret)
+        Ok(result.encode_lenghts())
     }
 }

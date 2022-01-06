@@ -7,12 +7,12 @@
 use dusk_hamt::{Hamt, Lookup};
 
 use bytecheck::CheckBytes;
-use microkelvin::{BranchRef, BranchRefMut, HostStore};
+use microkelvin::{BranchRef, BranchRefMut, HostStore, OffsetLen, StoreRef};
 use rkyv::ser::serializers::AllocSerializer;
 use rkyv::validation::validators::DefaultValidator;
 use rusk_uplink::{
     hash_mocker, ContractId, HostModule, Query, RawQuery, RawTransaction,
-    Transaction,
+    StoreContext, Transaction,
 };
 
 use tracing::{trace, trace_span};
@@ -27,7 +27,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 
 /// State of the contracts on the network.
 #[derive(Archive, Default, Clone)]
-pub struct Contracts(Hamt<ContractId, Contract, (), HostStore>);
+pub struct Contracts(Hamt<ContractId, Contract, (), OffsetLen>);
 
 impl Contracts {
     /// Returns a reference to the specified contracts state.
@@ -88,12 +88,12 @@ pub struct NetworkState {
     head: Contracts,
     modules: HostModules,
     module_config: ModuleConfig,
-    store: HostStore,
+    store: StoreContext,
 }
 
 impl NetworkState {
     /// Returns a new empty [`NetworkState`].
-    pub fn new(store: HostStore) -> Self {
+    pub fn new(store: StoreContext) -> Self {
         NetworkState {
             store,
             origin: Default::default(),
@@ -104,7 +104,7 @@ impl NetworkState {
     }
 
     /// Returns a [`NetworkState`] based on a schedule
-    pub fn with_schedule(store: HostStore, schedule: &Schedule) -> Self {
+    pub fn with_schedule(store: StoreContext, schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
         Self {
             store,
@@ -195,7 +195,7 @@ impl NetworkState {
         Q: Query + Serialize<AllocSerializer<1024>>,
         Q::Return: Archive + Clone,
         <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
-            + Deserialize<Q::Return, HostStore>,
+            + Deserialize<Q::Return, StoreRef<OffsetLen>>,
     {
         let _span = trace_span!(
             "outer query",
@@ -247,7 +247,7 @@ impl NetworkState {
         T: Transaction + Serialize<AllocSerializer<1024>>,
         T::Return: Archive + Clone,
         <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
-            + Deserialize<T::Return, HostStore>,
+            + Deserialize<T::Return, StoreRef<OffsetLen>>,
     {
         let _span = trace_span!(
             "outer transact",

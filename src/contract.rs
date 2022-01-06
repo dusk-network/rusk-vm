@@ -4,23 +4,34 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::{HostStore, MaybeArchived, Store, Stored};
+use std::convert::Infallible;
+
+use bytecheck::CheckBytes;
+use microkelvin::{
+    HostStore, Ident, MaybeArchived, OffsetLen, Store, StoreSerializer, Stored,
+    UnwrapInfallible,
+};
 use rkyv::{
     ser::serializers::AllocSerializer, ser::Serializer, AlignedVec, Archive,
-    Deserialize, Serialize,
+    Deserialize, Fallible, Serialize,
 };
 
+use rusk_uplink::StoreContext;
 pub use rusk_uplink::{ContractId, ContractState};
 
 /// A representation of a contract with a state and bytecode
 #[derive(Archive, Clone, Serialize, Deserialize)]
+#[archive_attr(derive(CheckBytes))]
 pub struct Contract {
     state: Vec<u8>,
     code: Vec<u8>,
 }
 
+/// Trait for wrapping archived/memory Contracts
 pub trait ContractRef {
+    /// Get the bytecode of the contract
     fn bytecode(&self) -> &[u8];
+    /// Get the state of the contract
     fn state(&self) -> &[u8];
 }
 
@@ -69,20 +80,19 @@ impl Contract {
     pub fn new<State, Code>(
         state: &State,
         code: Code,
-        store: &HostStore,
+        store: &StoreContext,
     ) -> Self
     where
+        State: Serialize<StoreSerializer<OffsetLen>>,
         Code: Into<Vec<u8>>,
-        State: Archive + Serialize<AllocSerializer<1024>>,
     {
-        let mut ser = AllocSerializer::default();
-
+        let mut ser = store.serializer();
         ser.serialize_value(state).unwrap();
 
-        let vec = ser.into_serializer().into_inner().into();
+        let state_vec = ser.spill_bytes(|bytes| Vec::from(bytes));
 
         Contract {
-            state: vec,
+            state: state_vec,
             code: code.into(),
         }
     }
