@@ -145,7 +145,7 @@ where
     let state_offset = offsets & 0xffffffff;
     let result = ReturnValue::with_state(
         &buf[state_offset as usize..result_offset as usize],
-        &buf[..state_offset as usize]
+        &buf[..state_offset as usize],
     );
     let cast_state = result.cast_state::<Slf>();
     let mut store = AbiStore;
@@ -170,17 +170,17 @@ where
     T: Transaction + Serialize<AllocSerializer<1024>>,
     T::Return: Archive + Clone,
     <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
-    + Deserialize<T::Return, AbiStore>,
+        + Deserialize<T::Return, AbiStore>,
     Slf: Archive + Clone,
     <Slf as Archive>::Archived: Deserialize<Slf, AbiStore>,
 {
     let raw_transaction = RawTransaction::new(transaction);
 
-    let result = transact_raw( slf, target, &raw_transaction, gas_limit)?;
+    let result = transact_raw(slf, target, &raw_transaction, gas_limit)?;
 
     let cast = result
-    .cast::<T::Return>()
-    .map_err(|_| ArchiveError::ArchiveValidationError)?;
+        .cast::<T::Return>()
+        .map_err(|_| ArchiveError::ArchiveValidationError)?;
     crate::debug!("transact 903");
 
     let mut store = AbiStore;

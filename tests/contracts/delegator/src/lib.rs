@@ -160,7 +160,6 @@ const _: () = {
 
         let len = result.data_len();
         unsafe { &SCRATCH[..len].copy_from_slice(result.data()) };
-        let ret = (len as u64) << 32 + (len as u64); // we write result only, state has the same offset hence is empty
-        ret
+        result.encode_lenghts()
     }
 };

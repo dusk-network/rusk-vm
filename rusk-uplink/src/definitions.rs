@@ -98,7 +98,7 @@ pub trait HostModule {
 
 // TODO, use borrowed bytes here?
 #[derive(Debug, Default)]
-pub struct ReturnValue{
+pub struct ReturnValue {
     data: Box<[u8]>,
     state: Box<[u8]>,
 }
@@ -106,13 +106,22 @@ pub struct ReturnValue{
 impl ReturnValue {
     pub fn new(result: impl AsRef<[u8]>) -> Self {
         let result = Box::from(result.as_ref());
-        ReturnValue { data: result, state: Box::from([].as_ref())}
+        ReturnValue {
+            data: result,
+            state: Box::from([].as_ref()),
+        }
     }
 
-    pub fn with_state(result: impl AsRef<[u8]>, state: impl AsRef<[u8]>) -> Self {
+    pub fn with_state(
+        result: impl AsRef<[u8]>,
+        state: impl AsRef<[u8]>,
+    ) -> Self {
         let result = Box::from(result.as_ref());
         let state = Box::from(state.as_ref());
-        ReturnValue { data: result, state }
+        ReturnValue {
+            data: result,
+            state,
+        }
     }
 
     pub fn cast<'a, T>(
@@ -131,13 +140,12 @@ impl ReturnValue {
         check_archived_root::<T>(&self.data[..])
     }
 
-    pub fn cast_state<T>(
-        &self,
-    ) -> &T::Archived
+    pub fn cast_state<T>(&self) -> &T::Archived
     where
-        T: Archive
+        T: Archive,
     {
-        let state: &T::Archived = unsafe { archived_root::<T>(&self.state[..]) };
+        let state: &T::Archived =
+            unsafe { archived_root::<T>(&self.state[..]) };
         state
     }
 
@@ -155,6 +163,11 @@ impl ReturnValue {
 
     pub fn state(&self) -> &[u8] {
         &self.state[..]
+    }
+
+    pub fn encode_lenghts(&self) -> u64 {
+        ((self.data_len() as u64 + self.state_len() as u64) << 32)
+            + self.state_len() as u64
     }
 }
 

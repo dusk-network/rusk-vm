@@ -13,9 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{
-    ContractId, Query, RawTransaction, Transaction,
-};
+use rusk_uplink::{ContractId, Query, RawTransaction, Transaction};
 extern crate alloc;
 use alloc::boxed::Box;
 
@@ -100,7 +98,8 @@ const _: () = {
             let tx_vec_sum = TxVecSum::new(data);
             let raw_transaction = RawTransaction::new(tx_vec_sum);
             let ret =
-                rusk_uplink::transact_raw(self, target, &raw_transaction, 0).unwrap();
+                rusk_uplink::transact_raw(self, target, &raw_transaction, 0)
+                    .unwrap();
             self.value = *ret.cast::<u8>().unwrap();
         }
     }
@@ -175,8 +174,7 @@ const _: () = {
         };
 
         let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let de_arg: TxVecDelegateSum =
-            (arg).deserialize(&mut store).unwrap();
+        let de_arg: TxVecDelegateSum = (arg).deserialize(&mut store).unwrap();
 
         slf.delegate_sum(&de_arg.contract_id, de_arg.data);
 
