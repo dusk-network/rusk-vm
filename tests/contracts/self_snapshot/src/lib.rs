@@ -133,17 +133,19 @@ const _: () = {
 
         // updates crossover and returns the old value
         pub fn self_call_test_a(&mut self, update: i32) -> i32 {
+            rusk_uplink::debug!("self_call_test_a - 1 - update={} self.crossover={}", update, self.crossover);
             let old_value = self.crossover;
 
             let callee = rusk_uplink::callee();
+            rusk_uplink::debug!("self_call_test_a - 2");
 
             rusk_uplink::transact(
-                self,
                 &callee,
                 SetCrossoverTransaction::new(update),
                 0,
             )
             .unwrap();
+            rusk_uplink::debug!("self_call_test_a - 3 - update={} self.crossover={}", update, self.crossover);
 
             assert_eq!(self.crossover, update);
 
