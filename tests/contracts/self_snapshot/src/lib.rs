@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, Transaction};
+use rusk_uplink::{ContractId, Query, RawTransaction, Transaction};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct SelfSnapshot {
@@ -25,6 +25,47 @@ impl SelfSnapshot {
         SelfSnapshot { crossover: init }
     }
 }
+
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct CrossoverQuery;
+
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct SetCrossoverTransaction;
+
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct SelfCallTestATransaction;
+
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct SelfCallTestBTransaction;
+
+#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+pub struct UpdateAndPanicTransaction;
+
+impl Query for CrossoverQuery {
+    const NAME: &'static str = "crossover";
+    type Return = i32;
+}
+
+impl Transaction for SetCrossoverTransaction {
+    const NAME: &'static str = "set_crossover";
+    type Return = i32;
+}
+
+impl Transaction for SelfCallTestATransaction {
+    const NAME: &'static str = "self_call_test_a";
+    type Return = i32;
+}
+
+impl Transaction for SelfCallTestBTransaction {
+    const NAME: &'static str = "self_call_test_b";
+    type Return = i32;
+}
+
+impl Transaction for UpdateAndPanicTransaction {
+    const NAME: &'static str = "update_and_panic";
+    type Return = ();
+}
+
 
 #[cfg(target_family = "wasm")]
 const _: () = {
@@ -58,7 +99,7 @@ const _: () = {
 
             let callee = rusk_uplink::callee();
 
-            dusk_abi::transact::<_, (), Self>(
+            rusk_uplink::transact::<_, (), Self>(
                 self,
                 &callee,
                 &(SET_CROSSOVER, update),
@@ -75,11 +116,11 @@ const _: () = {
         pub fn self_call_test_b(
             &mut self,
             target: ContractId,
-            transaction: Transaction,
+            raw_transaction: &RawTransaction,
         ) -> i32 {
             self.set_crossover(self.crossover * 2);
 
-            rusk_uplink::transact_raw::<_>(self, &target, &transaction, 0)
+            rusk_uplink::transact_raw(&target, raw_transaction, 0)
                 .unwrap();
 
             self.crossover
@@ -98,7 +139,7 @@ const _: () = {
             // B: we update self, which then should be passed to the transaction
 
             assert_eq!(
-                rusk_uplink::query::<_, i32>(&callee, &(CROSSOVER), 0).unwrap(),
+                rusk_uplink::query(&callee, CrossoverQuery, 0).unwrap(),
                 new_value
             );
 
@@ -115,7 +156,7 @@ const _: () = {
         };
         let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
 
-        let ret = slf.crossover();
+        let ret = state.crossover();
 
         let res: <CrossoverQuery as Query>::Return = ret;
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
@@ -139,7 +180,7 @@ const _: () = {
         let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let to: i32 = to.deserialize(&mut store).unwrap();
 
-        let old = slf.set_crossover(to);
+        let old = state.set_crossover(to);
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
@@ -165,17 +206,21 @@ const _: () = {
             archived_root::<i32>(&SCRATCH[..written_data as usize])
         };
         let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
-        let update: i32 = to.deserialize(&mut store).unwrap();
+        let update: i32 = update.deserialize(&mut store).unwrap();
 
-        let old = slf.self_call_test_a(update);
+        let old = state.self_call_test_a(update);
 
-        let mut sink = Sink::new(&mut bytes[..]);
-        // return new state
-        ContractState::from_canon(&slf).encode(&mut sink);
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
-        // return value
-        ReturnValue::from_canon(&old).encode(&mut sink);
-        Ok(())
+        let state_len = ser.serialize_value(&state).unwrap()
+            + core::mem::size_of::<<SelfSnapshot as Archive>::Archived>();
+
+        let return_len = ser.serialize_value(&old).unwrap()
+            + core::mem::size_of::<
+            <<SelfCallTestATransaction as Transaction>::Return as Archive>::Archived,
+        >();
+
+        [state_len as u32, return_len as u32]
     }
 
     #[no_mangle]
@@ -186,21 +231,24 @@ const _: () = {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
         };
         let target_transaction_pair = unsafe {
-            archived_root::<(ContractId, Transaction)>(&SCRATCH[..written_state as usize])
+            archived_root::<(ContractId, RawTransaction)>(&SCRATCH[..written_state as usize])
         };
         let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let (target, transaction) = target_transaction_pair.deserialize(&mut store).unwrap();
 
-        let old = slf.self_call_test_b(target, transaction);
+        let old = state.self_call_test_b(target, transaction);
 
-        let mut sink = Sink::new(&mut bytes[..]);
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
-        // return new state
-        ContractState::from_canon(&slf).encode(&mut sink);
+        let state_len = ser.serialize_value(&state).unwrap()
+            + core::mem::size_of::<<SelfSnapshot as Archive>::Archived>();
 
-        // return value
-        ReturnValue::from_canon(&old).encode(&mut sink);
-        Ok(())
+        let return_len = ser.serialize_value(&old).unwrap()
+            + core::mem::size_of::<
+            <<SelfCallTestBTransaction as Transaction>::Return as Archive>::Archived,
+        >();
+
+        [state_len as u32, return_len as u32]
     }
 
     #[no_mangle]
@@ -214,14 +262,20 @@ const _: () = {
             archived_root::<i32>(&SCRATCH[..written_data as usize])
         };
         let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
-        let update: i32 = to.deserialize(&mut store).unwrap();
+        let update: i32 = update.deserialize(&mut store).unwrap();
 
-        let update = i32::decode(&mut source)?;
-        slf.update_and_panic(update);
+        state.update_and_panic(update);
 
-        let mut sink = Sink::new(&mut bytes[..]);
-        // return new state
-        ContractState::from_canon(&slf).encode(&mut sink);
-        Ok(())
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+
+        let state_len = ser.serialize_value(&state).unwrap()
+            + core::mem::size_of::<<SelfSnapshot as Archive>::Archived>();
+
+        let return_len = ser.serialize_value(&()).unwrap()
+            + core::mem::size_of::<
+            <<UpdateAndPanicTransaction as Transaction>::Return as Archive>::Archived,
+        >();
+
+        [state_len as u32, return_len as u32]
     }
 };
