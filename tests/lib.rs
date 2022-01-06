@@ -12,12 +12,11 @@ use caller::{CallerQuery, CallerState, CallerTransaction};
 // use counter_float::CounterFloat;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 // use dusk_abi::Transaction;
-// use fibonacci::Fibonacci;
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
 use microkelvin::HostStore;
 use rusk_vm::{Contract, GasMeter, NetworkState};
-// use self_snapshot::SelfSnapshot;
+use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
 
 fn fibonacci_reference(n: u64) -> u64 {
@@ -248,100 +247,106 @@ fn block_height() {
     )
 }
 
-// #[test]
-// fn self_snapshot() {
-//     let bh = SelfSnapshot::new(7);
-//
-//     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/self_snapshot.wasm"
-//     );
-//
-//     let contract = Contract::new(bh, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     assert_eq!(
-//         7,
-//         network
-//             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut
-// gas)             .unwrap()
-//     );
-//
-//     // returns old value
-//     assert_eq!(
-//         network
-//             .transact::<_, i32>(
-//                 contract_id,
-//                 0,
-//                 (self_snapshot::SET_CROSSOVER, 9),
-//                 &mut gas,
-//             )
-//             .unwrap(),
-//         7
-//     );
-//
-//     assert_eq!(
-//         9,
-//         network
-//             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut
-// gas)             .unwrap()
-//     );
-//
-//     network
-//         .transact::<_, ()>(
-//             contract_id,
-//             0,
-//             (self_snapshot::SELF_CALL_TEST_A, 10),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     assert_eq!(
-//         10,
-//         network
-//             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut
-// gas)             .unwrap()
-//     );
-//
-//     let result = network.transact::<_, ()>(
-//         contract_id,
-//         0,
-//         (self_snapshot::UPDATE_AND_PANIC, 11),
-//         &mut gas,
-//     );
-//
-//     assert!(result.is_err());
-//
-//     assert_eq!(
-//         10,
-//         network
-//             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut
-// gas)             .unwrap()
-//     );
-//
-//     let transaction =
-//         Transaction::from_canon(&(self_snapshot::SET_CROSSOVER, 12));
-//
-//     network
-//         .transact::<_, ()>(
-//             contract_id,
-//             0,
-//             (self_snapshot::SELF_CALL_TEST_B, contract_id, transaction),
-//             &mut gas,
-//         )
-//         .unwrap();
-//
-//     assert_eq!(
-//         12,
-//         network
-//             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut
-// gas)             .unwrap()
-//     );
-// }
+#[test]
+fn self_snapshot() {
+    let self_snapshot = SelfSnapshot::new(7);
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/self_snapshot.wasm"
+    );
+
+    let store = HostStore::new();
+    let contract = Contract::new(&self_snapshot, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        7,
+        network
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+    );
+
+    // returns old value
+    assert_eq!(
+        network
+            .transact(
+                contract_id,
+                0,
+                self_snapshot::SetCrossoverTransaction::new(9),
+                &mut gas,
+            )
+            .unwrap(),
+        7
+    );
+
+    assert_eq!(
+        9,
+        network
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+    );
+
+    network
+        .transact(
+            contract_id,
+            0,
+            self_snapshot::SelfCallTestATransaction::new(10),
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        10,
+        network
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+    );
+
+    let result = network.transact(
+        contract_id,
+        0,
+        self_snapshot::UpdateAndPanicTransaction::new(11),
+        &mut gas,
+    );
+
+    assert!(result.is_err());
+
+    assert_eq!(
+        10,
+        network
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+    );
+
+    let set_crossover_value = self_snapshot::SetCrossoverTransaction::new(12);
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rkyv::Archive;
+
+    let mut buf = [0u8; 128];
+    let mut ser = BufferSerializer::new(&mut buf);
+    let buffer_len = ser.serialize_value(&set_crossover_value).unwrap()
+        + core::mem::size_of::<<::self_snapshot::SetCrossoverTransaction as Archive>::Archived>();
+
+    let self_call_test_b_transaction =
+        self_snapshot::SelfCallTestBTransaction::new(contract_id, &buf[..buffer_len], "set_crossover");
+
+    network
+        .transact(
+            contract_id,
+            0,
+            self_call_test_b_transaction,
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        12,
+        network
+            .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas).unwrap()
+    );
+}
 
 #[test]
 fn tx_vec() {

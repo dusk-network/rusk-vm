@@ -143,6 +143,37 @@ pub fn transact_raw(
     }
 }
 
+/// Call another contract at address `target`
+///
+/// Note that you will have to specify the expected return and argument types
+/// yourself.
+pub fn transact<T, Slf>(
+    _slf: &mut Slf, // todo - slf
+    target: &ContractId,
+    transaction: T,
+    gas_limit: u64,
+) -> Result<T::Return, ArchiveError>
+where
+    T: Transaction + Serialize<AllocSerializer<1024>>,
+    T::Return: Archive + Clone,
+    <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
+    + Deserialize<T::Return, AbiStore>,
+{
+    let raw_transaction = RawTransaction::new(transaction);
+
+    let result = transact_raw(target, &raw_transaction, gas_limit)?;
+
+    let cast = result
+    .cast::<T::Return>()
+    .map_err(|_| ArchiveError::ArchiveValidationError)?;
+
+    let mut store = AbiStore;
+    let deserialized: T::Return =
+    cast.deserialize(&mut store).expect("Infallible");
+
+    Ok(deserialized)
+}
+
 ///Returns the hash of the currently executing contract
 pub fn callee() -> ContractId {
     let mut result = ContractId::default();

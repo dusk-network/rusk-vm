@@ -12,8 +12,10 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, RawTransaction, Transaction};
+extern crate alloc;
+use alloc::boxed::Box;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct SelfSnapshot {
@@ -30,16 +32,52 @@ impl SelfSnapshot {
 pub struct CrossoverQuery;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct SetCrossoverTransaction;
+pub struct SetCrossoverTransaction {
+    crossover: i32
+}
+
+impl SetCrossoverTransaction {
+    pub fn new(crossover: i32) -> Self {
+        Self { crossover }
+    }
+}
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct SelfCallTestATransaction;
+pub struct SelfCallTestATransaction {
+    update: i32
+}
+
+impl SelfCallTestATransaction {
+    pub fn new(update: i32) -> Self {
+        Self { update }
+    }
+}
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct SelfCallTestBTransaction;
+pub struct SelfCallTestBTransaction {
+    contract_id: ContractId,
+    tx_data: Box<[u8]>,
+    tx_name: Box<str>,
+}
+
+impl SelfCallTestBTransaction {
+    pub fn new(contract_id: ContractId, data: impl AsRef<[u8]>, name: impl AsRef<str>) -> Self {
+        let tx_data = Box::from(data.as_ref());
+        let tx_name = Box::from(name.as_ref());
+        Self { contract_id, tx_data, tx_name }
+    }
+}
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct UpdateAndPanicTransaction;
+pub struct UpdateAndPanicTransaction {
+    update: i32
+}
+
+impl UpdateAndPanicTransaction {
+    pub fn new(update: i32) -> Self {
+        Self { update }
+    }
+}
 
 impl Query for CrossoverQuery {
     const NAME: &'static str = "crossover";
@@ -99,10 +137,10 @@ const _: () = {
 
             let callee = rusk_uplink::callee();
 
-            rusk_uplink::transact::<_, (), Self>(
+            rusk_uplink::transact(
                 self,
                 &callee,
-                &(SET_CROSSOVER, update),
+                SetCrossoverTransaction::new(update),
                 0,
             )
             .unwrap();
@@ -177,7 +215,7 @@ const _: () = {
         let to = unsafe {
             archived_root::<i32>(&SCRATCH[..written_data as usize])
         };
-        let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
+        let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let to: i32 = to.deserialize(&mut store).unwrap();
 
         let old = state.set_crossover(to);
@@ -205,7 +243,7 @@ const _: () = {
         let update = unsafe {
             archived_root::<i32>(&SCRATCH[..written_data as usize])
         };
-        let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
+        let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let update: i32 = update.deserialize(&mut store).unwrap();
 
         let old = state.self_call_test_a(update);
@@ -230,13 +268,15 @@ const _: () = {
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
         };
-        let target_transaction_pair = unsafe {
-            archived_root::<(ContractId, RawTransaction)>(&SCRATCH[..written_state as usize])
+        let arg = unsafe {
+            archived_root::<SelfCallTestBTransaction>(&SCRATCH[..written_state as usize])
         };
-        let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
-        let (target, transaction) = target_transaction_pair.deserialize(&mut store).unwrap();
+        let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
+        let arg: SelfCallTestBTransaction = arg.deserialize(&mut store).unwrap();
 
-        let old = state.self_call_test_b(target, transaction);
+        let mut tx_data = AlignedVec::new();
+        tx_data.extend_from_slice(arg.tx_data.as_ref());
+        let old = state.self_call_test_b(arg.contract_id, &RawTransaction::from(tx_data, &arg.tx_name));
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
@@ -261,7 +301,7 @@ const _: () = {
         let update = unsafe {
             archived_root::<i32>(&SCRATCH[..written_data as usize])
         };
-        let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
+        let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let update: i32 = update.deserialize(&mut store).unwrap();
 
         state.update_and_panic(update);
