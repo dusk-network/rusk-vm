@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use tracing::trace;
 use rusk_uplink::external::gas_left;
+use tracing::trace;
 
 use crate::env::Env;
 use crate::VMError;

@@ -361,7 +361,7 @@ impl<'a> CallContext<'a> {
                 let result_len = result_written - state_written;
                 ReturnValue::with_state(
                     &mem[state_written as usize..][..result_len as usize],
-                    &mem[..state_written as usize]
+                    &mem[..state_written as usize],
                 )
             })
         };
