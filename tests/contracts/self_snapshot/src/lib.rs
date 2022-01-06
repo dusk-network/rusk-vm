@@ -140,6 +140,7 @@ const _: () = {
             rusk_uplink::debug!("self_call_test_a - 2");
 
             rusk_uplink::transact(
+                self,
                 &callee,
                 SetCrossoverTransaction::new(update),
                 0,

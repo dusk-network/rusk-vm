@@ -39,7 +39,7 @@ pub mod external {
             name: &u8,
             name_len: u32,
             gas_limit: u64,
-        ) -> u32;
+        ) -> u64;
 
         pub fn callee(buffer: &mut u8);
 
@@ -116,8 +116,7 @@ where
 }
 
 /// Call another contract at address `target`
-pub fn transact_raw/*<Slf>*/(
-//    slf: &mut Slf,
+pub fn transact_raw(
     target: &ContractId,
     raw_transaction: &RawTransaction,
     gas_limit: u64,
@@ -126,7 +125,8 @@ pub fn transact_raw/*<Slf>*/(
     let data_len = raw_transaction.data().len();
     buf[..data_len].copy_from_slice(raw_transaction.data());
     let name = raw_transaction.name();
-    let result_offset = unsafe {
+
+    let offsets = unsafe {
         external::transact(
             &target.as_bytes()[0],
             &buf[0],
@@ -136,8 +136,12 @@ pub fn transact_raw/*<Slf>*/(
             gas_limit,
         )
     };
-    let result = ReturnValue::new(&buf[..result_offset as usize]);
-    //*slf = result.cast::<Slf>();
+    let result_offset = (offsets & 0xffffffff00000000) >> 32;
+    let state_offset = offsets & 0xffffffff;
+    let result = ReturnValue::with_state(
+        &buf[state_offset as usize..result_offset as usize],
+        &buf[..state_offset as usize]
+    );
     Ok(result)
 }
 
@@ -145,8 +149,8 @@ pub fn transact_raw/*<Slf>*/(
 ///
 /// Note that you will have to specify the expected return and argument types
 /// yourself.
-pub fn transact<T/*, Slf*/>(
-    // slf: &mut Slf,
+pub fn transact<T, Slf>(
+    slf: &mut Slf,
     target: &ContractId,
     transaction: T,
     gas_limit: u64,
@@ -156,20 +160,28 @@ where
     T::Return: Archive + Clone,
     <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
     + Deserialize<T::Return, AbiStore>,
+    Slf: Archive + Clone,
+    <Slf as Archive>::Archived: Deserialize<Slf, AbiStore>,
 {
     let raw_transaction = RawTransaction::new(transaction);
 
     let result = transact_raw(  target, &raw_transaction, gas_limit)?;
 
+    let cast_state = result.cast_state::<Slf>();
+
     let cast = result
     .cast::<T::Return>()
     .map_err(|_| ArchiveError::ArchiveValidationError)?;
+    crate::debug!("transact 903");
 
     let mut store = AbiStore;
-    let deserialized: T::Return =
-    cast.deserialize(&mut store).expect("Infallible");
+    let deserialized_state: Slf =
+        cast_state.deserialize(&mut store).expect("Infallible");
+    let deserialized_result: T::Return =
+        cast.deserialize(&mut store).expect("Infallible");
 
-    Ok(deserialized)
+    *slf = deserialized_state;
+    Ok(deserialized_result)
 }
 
 ///Returns the hash of the currently executing contract

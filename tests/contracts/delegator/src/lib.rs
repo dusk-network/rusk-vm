@@ -128,8 +128,8 @@ const _: () = {
             &RawQuery::from(query_data, query_name),
         );
 
-        let len = result.0.len();
-        unsafe { &SCRATCH[..len].copy_from_slice(&result.0[..]) };
+        let len = result.data_len();
+        unsafe { &SCRATCH[..len].copy_from_slice(result.data()) };
         len as u32
     }
 
@@ -158,8 +158,8 @@ const _: () = {
             &RawTransaction::from(query_data, query_name),
         );
 
-        let len = result.0.len();
-        unsafe { &SCRATCH[..len].copy_from_slice(&result.0[..]) };
+        let len = result.data_len();
+        unsafe { &SCRATCH[..len].copy_from_slice(result.data()) };
         let ret = (len as u64) << 32 + (len as u64); // we write result only, state has the same offset hence is empty
         ret
     }
