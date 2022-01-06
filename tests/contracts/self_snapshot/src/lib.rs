@@ -133,12 +133,8 @@ const _: () = {
 
         // updates crossover and returns the old value
         pub fn self_call_test_a(&mut self, update: i32) -> i32 {
-            rusk_uplink::debug!("self_call_test_a - 1 - update={} self.crossover={}", update, self.crossover);
             let old_value = self.crossover;
-
             let callee = rusk_uplink::callee();
-            rusk_uplink::debug!("self_call_test_a - 2");
-
             rusk_uplink::transact(
                 self,
                 &callee,
@@ -146,10 +142,7 @@ const _: () = {
                 0,
             )
             .unwrap();
-            rusk_uplink::debug!("self_call_test_a - 3 - update={} self.crossover={}", update, self.crossover);
-
             assert_eq!(self.crossover, update);
-
             old_value
         }
 
@@ -160,10 +153,8 @@ const _: () = {
             raw_transaction: &RawTransaction,
         ) -> i32 {
             self.set_crossover(self.crossover * 2);
-
-            rusk_uplink::transact_raw(&target, raw_transaction, 0)
+            rusk_uplink::transact_raw(self, &target, raw_transaction, 0)
                 .unwrap();
-
             self.crossover
         }
 
@@ -216,7 +207,7 @@ const _: () = {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
         };
         let to = unsafe {
-            archived_root::<i32>(&SCRATCH[..written_data as usize])
+            archived_root::<i32>(&SCRATCH[written_state as usize..written_data as usize])
         };
         let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let to: i32 = to.deserialize(&mut store).unwrap();
@@ -244,7 +235,7 @@ const _: () = {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
         };
         let update = unsafe {
-            archived_root::<i32>(&SCRATCH[..written_data as usize])
+            archived_root::<i32>(&SCRATCH[written_state as usize..written_data as usize])
         };
         let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let update: i32 = update.deserialize(&mut store).unwrap();
@@ -265,14 +256,14 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn set_call_test_b(written_state: u32, written_data: u32) -> [u32; 2] {
+    fn self_call_test_b(written_state: u32, written_data: u32) -> [u32; 2] {
         let mut store = AbiStore;
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
         };
         let arg = unsafe {
-            archived_root::<SelfCallTestBTransaction>(&SCRATCH[..written_state as usize])
+            archived_root::<SelfCallTestBTransaction>(&SCRATCH[written_state as usize..written_data as usize])
         };
         let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let arg: SelfCallTestBTransaction = arg.deserialize(&mut store).unwrap();
@@ -302,7 +293,7 @@ const _: () = {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
         };
         let update = unsafe {
-            archived_root::<i32>(&SCRATCH[..written_data as usize])
+            archived_root::<i32>(&SCRATCH[written_state as usize..written_data as usize])
         };
         let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let update: i32 = update.deserialize(&mut store).unwrap();

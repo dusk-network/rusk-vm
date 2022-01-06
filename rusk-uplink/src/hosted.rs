@@ -116,11 +116,16 @@ where
 }
 
 /// Call another contract at address `target`
-pub fn transact_raw(
+pub fn transact_raw<Slf>(
+    slf: &mut Slf,
     target: &ContractId,
     raw_transaction: &RawTransaction,
     gas_limit: u64,
-) -> Result<ReturnValue, ArchiveError> {
+) -> Result<ReturnValue, ArchiveError>
+where
+    Slf: Archive + Clone,
+    <Slf as Archive>::Archived: Deserialize<Slf, AbiStore>,
+{
     let mut buf = [0u8; BUFFER_SIZE_LIMIT];
     let data_len = raw_transaction.data().len();
     buf[..data_len].copy_from_slice(raw_transaction.data());
@@ -142,6 +147,12 @@ pub fn transact_raw(
         &buf[state_offset as usize..result_offset as usize],
         &buf[..state_offset as usize]
     );
+    let cast_state = result.cast_state::<Slf>();
+    let mut store = AbiStore;
+    let deserialized_state: Slf =
+        cast_state.deserialize(&mut store).expect("Infallible");
+    *slf = deserialized_state;
+
     Ok(result)
 }
 
@@ -165,9 +176,7 @@ where
 {
     let raw_transaction = RawTransaction::new(transaction);
 
-    let result = transact_raw(  target, &raw_transaction, gas_limit)?;
-
-    let cast_state = result.cast_state::<Slf>();
+    let result = transact_raw( slf, target, &raw_transaction, gas_limit)?;
 
     let cast = result
     .cast::<T::Return>()
@@ -175,12 +184,9 @@ where
     crate::debug!("transact 903");
 
     let mut store = AbiStore;
-    let deserialized_state: Slf =
-        cast_state.deserialize(&mut store).expect("Infallible");
     let deserialized_result: T::Return =
         cast.deserialize(&mut store).expect("Infallible");
 
-    *slf = deserialized_state;
     Ok(deserialized_result)
 }
 

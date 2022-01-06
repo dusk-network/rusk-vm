@@ -100,7 +100,7 @@ const _: () = {
             let tx_vec_sum = TxVecSum::new(data);
             let raw_transaction = RawTransaction::new(tx_vec_sum);
             let ret =
-                rusk_uplink::transact_raw(target, &raw_transaction, 0).unwrap();
+                rusk_uplink::transact_raw(self, target, &raw_transaction, 0).unwrap();
             self.value = *ret.cast::<u8>().unwrap();
         }
     }
