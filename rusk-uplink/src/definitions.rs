@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use bytecheck::CheckBytes;
 use rkyv::{
-    check_archived_root,
+    archived_root, check_archived_root,
     ser::{serializers::AllocSerializer, Serializer},
     validation::{
         validators::{DefaultValidator, DefaultValidatorError},
@@ -98,11 +98,21 @@ pub trait HostModule {
 
 // TODO, use borrowed bytes here?
 #[derive(Debug, Default)]
-pub struct ReturnValue(pub Vec<u8>);
+pub struct ReturnValue{
+    data: Box<[u8]>,
+    state: Box<[u8]>,
+}
 
 impl ReturnValue {
-    pub fn new<V: Into<Vec<u8>>>(vec: V) -> Self {
-        ReturnValue(vec.into())
+    pub fn new(result: impl AsRef<[u8]>) -> Self {
+        let result = Box::from(result.as_ref());
+        ReturnValue { data: result, state: Box::from([].as_ref())}
+    }
+
+    pub fn with_state(result: impl AsRef<[u8]>, state: impl AsRef<[u8]>) -> Self {
+        let result = Box::from(result.as_ref());
+        let state = Box::from(state.as_ref());
+        ReturnValue { data: result, state }
     }
 
     pub fn cast<'a, T>(
@@ -118,7 +128,33 @@ impl ReturnValue {
         T: Archive,
         T::Archived: CheckBytes<DefaultValidator<'a>>,
     {
-        check_archived_root::<T>(&self.0[..])
+        check_archived_root::<T>(&self.data[..])
+    }
+
+    pub fn cast_state<T>(
+        &self,
+    ) -> &T::Archived
+    where
+        T: Archive
+    {
+        let state: &T::Archived = unsafe { archived_root::<T>(&self.state[..]) };
+        state
+    }
+
+    pub fn data_len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data[..]
+    }
+
+    pub fn state_len(&self) -> usize {
+        self.state.len()
+    }
+
+    pub fn state(&self) -> &[u8] {
+        &self.state[..]
     }
 }
 

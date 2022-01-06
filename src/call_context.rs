@@ -359,8 +359,9 @@ impl<'a> CallContext<'a> {
                 println!("transact set state to: {:?}", contract.state());
 
                 let result_len = result_written - state_written;
-                ReturnValue::new(
+                ReturnValue::with_state(
                     &mem[state_written as usize..][..result_len as usize],
+                    &mem[..state_written as usize]
                 )
             })
         };

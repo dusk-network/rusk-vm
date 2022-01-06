@@ -25,7 +25,7 @@ impl ApplyTransaction {
         name_ofs: i32,
         name_len: u32,
         gas_limit: u64,
-    ) -> Result<u32, VMError> {
+    ) -> Result<u64, VMError> {
         trace!("Executing 'query' host function");
 
         let contract_id_ofs = contract_id_ofs as u64;
@@ -53,9 +53,13 @@ impl ApplyTransaction {
         let context = env.get_context();
         let result =
             context.transact(contract_id, raw_transaction, &mut gas_meter)?;
+        println!("ops/transact after context transact, ret1={:?}", result);
 
-        context.write_memory(&result.0, transact_ofs);
+        context.write_memory(result.state(), transact_ofs);
+        context.write_memory(result.data(), transact_ofs + result.state_len() as u64);
 
-        Ok(result.0.len() as u32)
+        let ret = ((result.data_len() as u64 + result.state_len() as u64) << 32) + result.state_len() as u64;
+        println!("ops/transact after context transact ret2={}", ret);
+        Ok(ret)
     }
 }
