@@ -116,7 +116,8 @@ where
 }
 
 /// Call another contract at address `target`
-pub fn transact_raw(
+pub fn transact_raw/*<Slf>*/(
+//    slf: &mut Slf,
     target: &ContractId,
     raw_transaction: &RawTransaction,
     gas_limit: u64,
@@ -135,20 +136,17 @@ pub fn transact_raw(
             gas_limit,
         )
     };
-    if result_offset > 0 {
-        let result = ReturnValue::new(&buf[..result_offset as usize]);
-        Ok(result)
-    } else {
-        Ok(ReturnValue::new(Vec::new())) // todo! remove this
-    }
+    let result = ReturnValue::new(&buf[..result_offset as usize]);
+    //*slf = result.cast::<Slf>();
+    Ok(result)
 }
 
 /// Call another contract at address `target`
 ///
 /// Note that you will have to specify the expected return and argument types
 /// yourself.
-pub fn transact<T, Slf>(
-    _slf: &mut Slf, // todo - slf
+pub fn transact<T/*, Slf*/>(
+    // slf: &mut Slf,
     target: &ContractId,
     transaction: T,
     gas_limit: u64,
@@ -161,7 +159,7 @@ where
 {
     let raw_transaction = RawTransaction::new(transaction);
 
-    let result = transact_raw(target, &raw_transaction, gas_limit)?;
+    let result = transact_raw(  target, &raw_transaction, gas_limit)?;
 
     let cast = result
     .cast::<T::Return>()
