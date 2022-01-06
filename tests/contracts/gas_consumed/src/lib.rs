@@ -86,7 +86,7 @@ const _: () = {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
         };
 
-        let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
+        let slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
         let ret = slf.value();
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
@@ -105,7 +105,7 @@ const _: () = {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
         };
 
-        let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
+        let _slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
 
         let ret = (
             rusk_uplink::gas_consumed() as i32,
