@@ -28,9 +28,8 @@ fn fibonacci_reference(n: u64) -> u64 {
 }
 
 #[test]
-fn counter() {
-    use counter::Counter;
-    use minimal_counter as counter;
+fn minimal_counter() {
+    use minimal_counter::Counter;
 
     let counter = Counter::new(99);
 
@@ -49,18 +48,18 @@ fn counter() {
 
     assert_eq!(
         network
-            .query(contract_id, 0, counter::ReadCount, &mut gas)
+            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
             .unwrap(),
         99
     );
 
     network
-        .transact(contract_id, 0, counter::Increment(1), &mut gas)
+        .transact(contract_id, 0, minimal_counter::Increment(1), &mut gas)
         .unwrap();
 
     assert_eq!(
         network
-            .query(contract_id, 0, counter::ReadCount, &mut gas)
+            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
             .unwrap(),
         100
     );
@@ -119,8 +118,7 @@ fn string_passthrough() {
 
 #[test]
 fn delegated_call() {
-    use counter::Counter;
-    use minimal_counter as counter;
+    use minimal_counter::Counter;
 
     let counter = Counter::new(99);
     let delegator = Delegator;
@@ -143,7 +141,7 @@ fn delegated_call() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let incr_value = counter::Increment(1);
+    let incr_value = minimal_counter::Increment(1);
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
     use rkyv::Archive;
@@ -151,7 +149,8 @@ fn delegated_call() {
     let mut buf = [0u8; 128];
     let mut ser = BufferSerializer::new(&mut buf);
     let buffer_len = ser.serialize_value(&incr_value).unwrap()
-        + core::mem::size_of::<<counter::Increment as Archive>::Archived>();
+        + core::mem::size_of::<<minimal_counter::Increment as Archive>::Archived>(
+        );
 
     // delegate query
 
@@ -186,7 +185,7 @@ fn delegated_call() {
 
     assert_eq!(
         network
-            .query(counter_contract_id, 0, counter::ReadCount, &mut gas)
+            .query(counter_contract_id, 0, minimal_counter::ReadCount, &mut gas)
             .unwrap(),
         100
     );
@@ -503,8 +502,7 @@ fn gas_consumed_host_function_works() {
 
 #[test]
 fn gas_consumption_works() {
-    use counter::Counter;
-    use minimal_counter as counter;
+    use minimal_counter::Counter;
 
     let counter = Counter::new(99);
 
@@ -522,12 +520,12 @@ fn gas_consumption_works() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact(contract_id, 0, counter::Increment(1), &mut gas)
+        .transact(contract_id, 0, minimal_counter::Increment(1), &mut gas)
         .expect("Transaction error");
 
     assert_eq!(
         network
-            .query(contract_id, 0, counter::ReadCount, &mut gas)
+            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
             .expect("Query error"),
         100
     );
@@ -538,8 +536,7 @@ fn gas_consumption_works() {
 
 #[test]
 fn out_of_gas_aborts_execution() {
-    use counter::Counter;
-    use minimal_counter as counter;
+    use minimal_counter::Counter;
 
     let counter = Counter::new(99);
 
@@ -556,8 +553,12 @@ fn out_of_gas_aborts_execution() {
 
     let mut gas = GasMeter::with_limit(1);
 
-    let should_be_err =
-        network.transact(contract_id, 0, counter::Increment(1), &mut gas);
+    let should_be_err = network.transact(
+        contract_id,
+        0,
+        minimal_counter::Increment(1),
+        &mut gas,
+    );
     assert!(should_be_err.is_err());
     // assert!(format!("{:?}", should_be_err).contains("Out of Gaserror")); //
     // todo! we get "WASMER Trap (UnreachableCodeReached)" here, FIXME
