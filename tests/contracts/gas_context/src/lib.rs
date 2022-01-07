@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//#![no_std]
+#![no_std]
 #![feature(
     core_intrinsics,
     lang_items,
