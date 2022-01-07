@@ -6,10 +6,10 @@
 
 //#![no_std]
 #![feature(
-core_intrinsics,
-lang_items,
-alloc_error_handler,
-option_result_unwrap_unchecked
+    core_intrinsics,
+    lang_items,
+    alloc_error_handler,
+    option_result_unwrap_unchecked
 )]
 
 use rkyv::{AlignedVec, Archive, Deserialize, Infallible, Serialize};
@@ -67,7 +67,7 @@ impl Transaction for TCompute {
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct SetGasLimits {
-    limits: Vec<u64>
+    limits: Vec<u64>,
 }
 
 impl SetGasLimits {
@@ -89,7 +89,6 @@ impl Query for ReadGasLimits {
     const NAME: &'static str = "read_gas_limits";
     type Return = Vec<u64>;
 }
-
 
 #[cfg(target_family = "wasm")]
 const _: () = {
@@ -118,7 +117,8 @@ const _: () = {
                     call_limit,
                 )
                 .unwrap();
-                self.after_call_gas_limits.insert(0, rusk_uplink::gas_left());
+                self.after_call_gas_limits
+                    .insert(0, rusk_uplink::gas_left());
                 n
             }
         }
@@ -131,13 +131,10 @@ const _: () = {
                     .call_gas_limits
                     .get(n as usize - 1)
                     .expect("Call limit out of bounds");
-                rusk_uplink::query(
-                    &callee,
-                    QCompute::new(n - 1),
-                    call_limit,
-                )
-                .unwrap();
-                self.after_call_gas_limits.insert(0, rusk_uplink::gas_left());
+                rusk_uplink::query(&callee, QCompute::new(n - 1), call_limit)
+                    .unwrap();
+                self.after_call_gas_limits
+                    .insert(0, rusk_uplink::gas_left());
                 n
             }
         }
@@ -169,8 +166,8 @@ const _: () = {
 
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
-            <<ReadGasLimits as Query>::Return as Archive>::Archived,
-        >();
+                <<ReadGasLimits as Query>::Return as Archive>::Archived,
+            >();
         buffer_len as u32
     }
 
@@ -196,8 +193,8 @@ const _: () = {
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
-            <<QCompute as Query>::Return as Archive>::Archived,
-        >();
+                <<QCompute as Query>::Return as Archive>::Archived,
+            >();
         buffer_len as u32
     }
 
@@ -234,8 +231,8 @@ const _: () = {
             + core::mem::size_of::<<GasContextData as Archive>::Archived>();
         let return_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
-            <<QCompute as Query>::Return as Archive>::Archived,
-        >();
+                <<QCompute as Query>::Return as Archive>::Archived,
+            >();
         [state_len as u32, return_len as u32]
     }
 
@@ -272,10 +269,9 @@ const _: () = {
 
         let return_len = ser.serialize_value(&()).unwrap()
             + core::mem::size_of::<
-            <<SetGasLimits as Transaction>::Return as Archive>::Archived,
-        >();
+                <<SetGasLimits as Transaction>::Return as Archive>::Archived,
+            >();
 
         [state_len as u32, return_len as u32]
     }
-
 };
