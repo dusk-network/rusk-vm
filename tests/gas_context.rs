@@ -45,52 +45,52 @@ fn gas_context() {
         )
         .unwrap();
 
-    // network
-    //     .transact::<_, u64>(
-    //         contract_id,
-    //         0,
-    //         (gas_context::COMPUTE, NUMBER_OF_NESTED_CALLS as u64),
-    //         &mut gas,
-    //     )
-    //     .unwrap();
-    //
-    // let limits = network
-    //     .query::<_, Vec<u64>>(
-    //         contract_id,
-    //         0,
-    //         (gas_context::READ_GAS_LIMITS, ()),
-    //         &mut gas,
-    //     )
-    //     .unwrap();
-    //
-    // let mut bounds: Vec<(u64, u64)> = limits
-    //     .iter()
-    //     .map(|limit| {
-    //         (
-    //             *limit * GAS_RESERVE_LOWER_BOUND_PERCENTAGE / 100,
-    //             *limit * GAS_RESERVE_UPPER_BOUND_PERCENTAGE / 100,
-    //         )
-    //     })
-    //     .collect();
-    // bounds.insert(
-    //     0,
-    //     (
-    //         INITIAL_GAS_LIMIT * (100 - GAS_RESERVE_TOLERANCE_PERCENTAGE) / 100,
-    //         INITIAL_GAS_LIMIT,
-    //     ),
-    // );
-    //
-    // let zipped = limits.iter().zip(bounds.iter());
-    //
-    // for (callee_limit, (lower_bound, upper_bound)) in zipped {
-    //     assert!(
-    //         callee_limit > lower_bound && callee_limit < upper_bound,
-    //         "Gas context limit {} should not be out of range {} - {}",
-    //         callee_limit,
-    //         lower_bound,
-    //         upper_bound
-    //     );
-    // }
+    network
+        .transact(
+            contract_id,
+            0,
+            gas_context::TCompute::new(NUMBER_OF_NESTED_CALLS as u64),
+            &mut gas,
+        )
+        .unwrap();
+
+    let limits = network
+        .query(
+            contract_id,
+            0,
+            gas_context::ReadGasLimits,
+            &mut gas,
+        )
+        .unwrap();
+
+    let mut bounds: Vec<(u64, u64)> = limits
+        .iter()
+        .map(|limit| {
+            (
+                *limit * GAS_RESERVE_LOWER_BOUND_PERCENTAGE / 100,
+                *limit * GAS_RESERVE_UPPER_BOUND_PERCENTAGE / 100,
+            )
+        })
+        .collect();
+    bounds.insert(
+        0,
+        (
+            INITIAL_GAS_LIMIT * (100 - GAS_RESERVE_TOLERANCE_PERCENTAGE) / 100,
+            INITIAL_GAS_LIMIT,
+        ),
+    );
+
+    let zipped = limits.iter().zip(bounds.iter());
+
+    for (callee_limit, (lower_bound, upper_bound)) in zipped {
+        assert!(
+            callee_limit > lower_bound && callee_limit < upper_bound,
+            "Gas context limit {} should not be out of range {} - {}",
+            callee_limit,
+            lower_bound,
+            upper_bound
+        );
+    }
 }
 
 // #[ignore]
