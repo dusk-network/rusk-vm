@@ -528,7 +528,7 @@ fn gas_consumption_works() {
 }
 
 #[test]
-fn out_of_gas_aborts_execution() {
+fn out_of_gas_aborts_transaction_execution() {
     let counter = Counter::new(99);
 
     let code = include_bytes!(
@@ -551,11 +551,38 @@ fn out_of_gas_aborts_execution() {
         &mut gas,
     );
     assert!(should_be_err.is_err());
-    // assert!(format!("{:?}", should_be_err).contains("Out of Gaserror")); //
-    // todo! we get "WASMER Trap (UnreachableCodeReached)" here, FIXME
-
+    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
     // Ensure all gas is consumed even the tx did not succeed.
-    // assert_eq!(gas.left(), 0); // todo! this does not work, FIXME
+    assert_eq!(gas.left(), 0);
+}
+
+#[test]
+fn out_of_gas_aborts_query_execution() {
+    let counter = Counter::new(99);
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
+    );
+
+    let store = HostStore::new();
+    let contract = Contract::new(&counter, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1);
+
+    let should_be_err = network.query(
+        contract_id,
+        0,
+        counter::ReadValue,
+        &mut gas,
+    );
+    assert!(should_be_err.is_err());
+    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
+    // Ensure all gas is consumed even the tx did not succeed.
+    assert_eq!(gas.left(), 0);
 }
 
 // #[test]
