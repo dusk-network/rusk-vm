@@ -118,13 +118,13 @@ fn string_passthrough() {
 
 #[test]
 fn delegated_call() {
-    use minimal_counter::Counter;
+    use counter::Counter;
 
     let counter = Counter::new(99);
     let delegator = Delegator;
 
     let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
     let delegator_code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/delegator.wasm"
@@ -141,7 +141,7 @@ fn delegated_call() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let incr_value = minimal_counter::Increment(1);
+    let incr_value = counter::Increment;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
     use rkyv::Archive;
@@ -149,7 +149,7 @@ fn delegated_call() {
     let mut buf = [0u8; 128];
     let mut ser = BufferSerializer::new(&mut buf);
     let buffer_len = ser.serialize_value(&incr_value).unwrap()
-        + core::mem::size_of::<<minimal_counter::Increment as Archive>::Archived>(
+        + core::mem::size_of::<<counter::Increment as Archive>::Archived>(
         );
 
     // delegate query
@@ -159,7 +159,7 @@ fn delegated_call() {
             .query(
                 delegator_id,
                 0,
-                QueryForwardData::new(counter_contract_id, &[], "read"),
+                QueryForwardData::new(counter_contract_id, &[], "read_value"),
                 &mut gas,
             )
             .unwrap(),
@@ -175,7 +175,7 @@ fn delegated_call() {
             TransactionForwardData::new(
                 counter_contract_id,
                 &buf[..buffer_len],
-                "incr",
+                "increment",
             ),
             &mut gas,
         )
@@ -185,7 +185,7 @@ fn delegated_call() {
 
     assert_eq!(
         network
-            .query(counter_contract_id, 0, minimal_counter::ReadCount, &mut gas)
+            .query(counter_contract_id, 0, counter::ReadValue, &mut gas)
             .unwrap(),
         100
     );
@@ -502,12 +502,12 @@ fn gas_consumed_host_function_works() {
 
 #[test]
 fn gas_consumption_works() {
-    use minimal_counter::Counter;
+    use counter::Counter;
 
     let counter = Counter::new(99);
 
     let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
 
     let store = HostStore::new();
@@ -520,12 +520,12 @@ fn gas_consumption_works() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact(contract_id, 0, minimal_counter::Increment(1), &mut gas)
+        .transact(contract_id, 0, counter::Increment, &mut gas)
         .expect("Transaction error");
 
     assert_eq!(
         network
-            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
+            .query(contract_id, 0, counter::ReadValue, &mut gas)
             .expect("Query error"),
         100
     );
@@ -536,12 +536,12 @@ fn gas_consumption_works() {
 
 #[test]
 fn out_of_gas_aborts_execution() {
-    use minimal_counter::Counter;
+    use counter::Counter;
 
     let counter = Counter::new(99);
 
     let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
 
     let store = HostStore::new();
@@ -556,7 +556,7 @@ fn out_of_gas_aborts_execution() {
     let should_be_err = network.transact(
         contract_id,
         0,
-        minimal_counter::Increment(1),
+        counter::Increment,
         &mut gas,
     );
     assert!(should_be_err.is_err());
