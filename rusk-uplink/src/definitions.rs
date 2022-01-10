@@ -22,6 +22,7 @@ use rkyv::{
     Archive,
     Serialize,
     Deserialize,
+    CheckBytes,
 )]
 #[archive(as = "Self")]
 pub struct ContractId([u8; 32]);

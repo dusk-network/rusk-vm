@@ -169,7 +169,6 @@ impl<'a> CallContext<'a> {
 
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
-                store: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
 
@@ -199,11 +198,19 @@ impl<'a> CallContext<'a> {
                     let state = contract.state();
                     let len = state.len();
 
+<<<<<<< HEAD
                     mem[0..len].copy_from_slice(state);
 
                     let data = query.data();
 
                     mem[len..len + data.len()].copy_from_slice(data);
+=======
+                // mem[0..len].copy_from_slice(state);
+
+                // let data = query.data();
+
+                // mem[len..len + data.len()].copy_from_slice(data);
+>>>>>>> Integrate AbiStore
 
                     (len, len + data.len())
                 });
@@ -277,7 +284,6 @@ impl<'a> CallContext<'a> {
 
             let mut memory = WasmerMemory {
                 inner: LazyInit::new(),
-                store: LazyInit::new(),
             };
             memory.init(&instance.exports)?;
 

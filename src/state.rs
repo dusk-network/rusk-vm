@@ -7,7 +7,7 @@
 use dusk_hamt::{Hamt, Lookup};
 
 use bytecheck::CheckBytes;
-use microkelvin::{BranchRef, BranchRefMut, HostStore};
+use microkelvin::{BranchRef, BranchRefMut, HostStore, OffsetLen, StoreRef};
 use rkyv::ser::serializers::AllocSerializer;
 use rkyv::validation::validators::DefaultValidator;
 use rusk_uplink::{
@@ -27,7 +27,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 
 /// State of the contracts on the network.
 #[derive(Archive, Default, Clone)]
-pub struct Contracts(Hamt<ContractId, Contract, (), HostStore>);
+pub struct Contracts(Hamt<ContractId, Contract, (), OffsetLen>);
 
 impl Contracts {
     /// Returns a reference to the specified contracts state.
@@ -195,7 +195,7 @@ impl NetworkState {
         Q: Query + Serialize<AllocSerializer<1024>>,
         Q::Return: Archive + Clone,
         <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
-            + Deserialize<Q::Return, HostStore>,
+            + Deserialize<Q::Return, StoreRef<OffsetLen>>,
     {
         let _span = trace_span!(
             "outer query",
@@ -247,7 +247,7 @@ impl NetworkState {
         T: Transaction + Serialize<AllocSerializer<1024>>,
         T::Return: Archive + Clone,
         <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
-            + Deserialize<T::Return, HostStore>,
+            + Deserialize<T::Return, StoreRef<OffsetLen>>,
     {
         let _span = trace_span!(
             "outer transact",

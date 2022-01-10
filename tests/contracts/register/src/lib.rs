@@ -8,25 +8,28 @@
 #![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use microkelvin::{BranchRef, BranchRefMut, MaybeArchived};
+use bytecheck::CheckBytes;
+use microkelvin::{MaybeArchived, OffsetLen};
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::helpers::Map;
-use rusk_uplink::AbiStore;
 use rusk_uplink::{Apply, Execute, Query, Transaction};
 
-#[derive(Clone, Archive, Deserialize, Serialize, Hash, PartialEq, Eq)]
+use dusk_hamt::{Hamt, Lookup};
+
+#[derive(
+    Clone, Archive, Deserialize, Serialize, Hash, PartialEq, Eq, CheckBytes,
+)]
 #[archive(as = "Self")]
 pub struct SecretHash([u8; 32]);
 
 #[derive(Clone, Archive, Deserialize, Serialize)]
 pub struct Register {
-    open_secrets: Map<SecretHash, u32>,
+    open_secrets: Hamt<SecretHash, u32, (), OffsetLen>,
 }
 
 impl Register {
     pub fn new() -> Self {
         Register {
-            open_secrets: Map::new(),
+            open_secrets: Hamt::new(),
         }
     }
 }
@@ -51,6 +54,7 @@ impl Execute<NumSecrets> for Register {
     fn execute(&self, q: &NumSecrets) -> <NumSecrets as Query>::Return {
         self.open_secrets
             .get(&q.0)
+            .as_ref()
             .map(|branch| match branch.leaf() {
                 MaybeArchived::Memory(m) => *m,
                 MaybeArchived::Archived(a) => (*a).into(),
@@ -69,28 +73,60 @@ impl Apply<Gossip> for Register {
     }
 }
 
-#[no_mangle]
-unsafe fn read(
-    s: *const <Register as Archive>::Archived,
-    q: *const <NumSecrets as Archive>::Archived,
-    _ret: *mut <<NumSecrets as Query>::Return as Archive>::Archived,
-) {
-    let mut store = AbiStore;
-    let state: Register = (&*s).deserialize(&mut store).unwrap();
-    let query: NumSecrets = (&*q).deserialize(&mut store).unwrap();
-    Register::execute(&state, &query);
-    todo!()
-}
+#[cfg(target_family = "wasm")]
+const _: () = {
+    use rkyv::archived_root;
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rusk_uplink::AbiStore;
 
-#[no_mangle]
-unsafe fn incr(
-    s: *mut <Register as Archive>::Archived,
-    t: *const <Gossip as Archive>::Archived,
-    _ret: *mut <<Gossip as Transaction>::Return as Archive>::Archived,
-) {
-    let mut store = AbiStore;
-    let mut state = (&*s).deserialize(&mut store).unwrap();
-    let transaction = (&*t).deserialize(&mut store).unwrap();
-    Register::apply(&mut state, &transaction);
-    todo!()
-}
+    #[no_mangle]
+    static mut SCRATCH: [u8; 128] = [0u8; 128];
+
+    #[no_mangle]
+    fn nums(written: u32) -> u32 {
+        let mut store = AbiStore;
+
+        let (state, arg) = unsafe {
+            archived_root::<(Counter, ReadCount)>(&SCRATCH[..written as usize])
+        };
+
+        let de_state: Counter = (state).deserialize(&mut store).unwrap();
+        let de_query: ReadCount = (arg).deserialize(&mut store).unwrap();
+
+        let res: <ReadCount as Query>::Return = de_state.execute(&de_query);
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let buffer_len = ser.serialize_value(&res).unwrap()
+            + core::mem::size_of::<
+                <<ReadCount as Query>::Return as Archive>::Archived,
+            >();
+        buffer_len as u32
+    }
+
+    #[no_mangle]
+    fn goss(written: u32) -> [u32; 2] {
+        let mut store = AbiStore;
+
+        let (state, arg) = unsafe {
+            archived_root::<(Counter, Increment)>(&SCRATCH[..written as usize])
+        };
+
+        let mut de_state: Counter = (state).deserialize(&mut store).unwrap();
+        let de_transaction: Increment = (arg).deserialize(&mut store).unwrap();
+
+        let res: <Increment as Transaction>::Return =
+            de_state.apply(&de_transaction);
+
+        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+
+        let state_len = ser.serialize_value(&de_state).unwrap()
+            + core::mem::size_of::<<Counter as Archive>::Archived>();
+
+        let return_len = ser.serialize_value(&res).unwrap()
+            + core::mem::size_of::<
+                <<Increment as Transaction>::Return as Archive>::Archived,
+            >();
+
+        [state_len as u32, return_len as u32]
+    }
+};
