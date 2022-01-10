@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use microkelvin::HostStore;
 
 
-fn execute_contract(schedule: &Schedule) -> u64 {
+fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
     let counter = Counter::new(99);
 
     let code =
@@ -35,14 +35,10 @@ fn execute_contract(schedule: &Schedule) -> u64 {
     gas.spent()
 }
 
-fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
-    execute_contract(schedule)
-}
-
-#[ignore] // todo!
+#[test]
 fn change_gas_cost_per_op_with_schedule() {
     let schedule = Schedule::default();
-    assert!(execute_contract_with_schedule(&schedule) < 10_000);
+    assert!(execute_contract_with_schedule(&schedule) < 100);
 
     let per_type_op_cost: HashMap<String, u32> = [
         ("bit", 10000),
@@ -75,7 +71,7 @@ fn change_gas_cost_per_op_with_schedule() {
         per_type_op_cost,
         ..Schedule::with_version(1)
     };
-    assert!(execute_contract_with_schedule(&high_cost_schedule) > 10_000_000);
+    assert!(execute_contract_with_schedule(&high_cost_schedule) > 100_000);
 }
 
 #[test]
