@@ -136,7 +136,7 @@ impl<'a> CallContext<'a> {
 
         let instance: Instance;
 
-        let ret = if let Some(_module) =
+        let r = if let Some(_module) =
             self.state.modules().get_module_ref(&target).get()
         {
             // is this a reserved module call?
@@ -208,14 +208,15 @@ impl<'a> CallContext<'a> {
                     (len, len + data.len())
                 });
 
-            let result_written =
-                run_func.call(written_state as u32, written_data as u32)?;
+            let r =
+                run_func.call(written_state as u32, written_data as u32);
 
-            memory.with_slice_from(buf_offset, |mem| {
-                ReturnValue::new(&mem[..result_written as usize])
+            r.map(|result_written| {
+                memory.with_slice_from(buf_offset, |mem| {
+                    ReturnValue::new(&mem[..result_written as usize])
+                })
             })
         };
-
         match self.gas_reconciliation(&instance) {
             Ok(gas) => *gas_meter = gas,
             Err(e) => {
@@ -229,9 +230,9 @@ impl<'a> CallContext<'a> {
             gas_meter.spent()
         );
 
+        let result = r.map_err(|a|{VMError::ContractPanic(a.message())})?;
         self.stack.pop();
-
-        Ok(ret)
+        Ok(result)
     }
 
     pub fn transact(
@@ -253,7 +254,7 @@ impl<'a> CallContext<'a> {
 
         let config = self.state.get_module_config().clone();
 
-        let ret = {
+        let r = {
             let mut contract = self.state.get_contract_mut(&target)?;
             let mut contract = contract.leaf_mut();
 
@@ -346,23 +347,20 @@ impl<'a> CallContext<'a> {
                 (u32::from_le_bytes(a), u32::from_le_bytes(b))
             }
 
-            println!("about to call function: {}", transaction.name());
+            let r = run_func.call(written_state as u32, written_data as u32);
 
-            let (state_written, result_written) = separate_tuple(
-                run_func.call(written_state as u32, written_data as u32)?,
-            );
-
-            println!("after calling function: {}", transaction.name());
-
-            memory.with_slice_from(buf_offset, |mem| {
-                contract.set_state(Vec::from(&mem[..state_written as usize]));
-                println!("transact set state to: {:?}", contract.state());
-
-                let result_len = result_written - state_written;
-                ReturnValue::with_state(
-                    &mem[state_written as usize..][..result_len as usize],
-                    &mem[..state_written as usize],
-                )
+            r.map(|result| {
+                let (state_written, result_written) = separate_tuple(
+                    result,
+                );
+                memory.with_slice_from(buf_offset, |mem| {
+                    contract.set_state(Vec::from(&mem[..state_written as usize]));
+                    let result_len = result_written - state_written;
+                    ReturnValue::with_state(
+                        &mem[state_written as usize..][..result_len as usize],
+                        &mem[..state_written as usize],
+                    )
+                })
             })
         };
 
@@ -379,9 +377,9 @@ impl<'a> CallContext<'a> {
             gas_meter.spent()
         );
 
+        let result = r.map_err(|a|{VMError::ContractPanic(a.message())})?;
         self.stack.pop();
-
-        Ok(ret)
+        Ok(result)
     }
 
     pub fn block_height(&self) -> u64 {
