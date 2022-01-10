@@ -27,15 +27,29 @@ use rkyv::{
 pub struct ContractId([u8; 32]);
 
 impl ContractId {
+    /// Return a reserved contract id for host fn modules
+    pub const fn reserved(id: u8) -> Self {
+        let mut bytes = [0; 32];
+        bytes[0] = id;
+        ContractId(bytes)
+    }
+
+    /// Returns the contract id as a byte slice
     pub fn as_bytes(&self) -> &[u8] {
         &self.0[..]
     }
+
+    /// Returns the contract id as a mutable slice
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
         &mut self.0[..]
     }
+
+    /// Returns a `ContractId` from an array of 32 bytes
     pub fn as_array(&self) -> [u8; 32] {
         self.0
     }
+
+    /// Returns a `ContractId` from a mutable array of 32 bytes
     pub fn as_array_ref(&self) -> &[u8; 32] {
         &self.0
     }

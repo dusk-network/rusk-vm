@@ -39,7 +39,7 @@ fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
     execute_contract(schedule)
 }
 
-#[ignore]
+#[ignore] // todo!
 fn change_gas_cost_per_op_with_schedule() {
     let schedule = Schedule::default();
     assert!(execute_contract_with_schedule(&schedule) < 10_000);

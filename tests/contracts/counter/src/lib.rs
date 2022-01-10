@@ -12,7 +12,7 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{AlignedVec, Archive, Deserialize, Infallible, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Query, Transaction};
 
 // query ids

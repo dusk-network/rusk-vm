@@ -8,14 +8,13 @@ use block_height::{BlockHeight, ReadBlockHeight};
 use callee_1::{Callee1State, Callee1Transaction};
 use callee_2::Callee2State;
 use caller::{CallerQuery, CallerState, CallerTransaction};
-// use counter::Counter;
+use counter::Counter;
 // use counter_float::CounterFloat;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
-// use dusk_abi::Transaction;
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
 use microkelvin::HostStore;
-use rusk_vm::{Contract, GasMeter, NetworkState};
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
 
@@ -29,9 +28,7 @@ fn fibonacci_reference(n: u64) -> u64 {
 
 #[test]
 fn minimal_counter() {
-    use minimal_counter::Counter;
-
-    let counter = Counter::new(99);
+    let counter = minimal_counter::Counter::new(99);
 
     let code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
@@ -118,8 +115,6 @@ fn string_passthrough() {
 
 #[test]
 fn delegated_call() {
-    use counter::Counter;
-
     let counter = Counter::new(99);
     let delegator = Delegator;
 
@@ -502,8 +497,6 @@ fn gas_consumed_host_function_works() {
 
 #[test]
 fn gas_consumption_works() {
-    use counter::Counter;
-
     let counter = Counter::new(99);
 
     let code = include_bytes!(
@@ -536,8 +529,6 @@ fn gas_consumption_works() {
 
 #[test]
 fn out_of_gas_aborts_execution() {
-    use counter::Counter;
-
     let counter = Counter::new(99);
 
     let code = include_bytes!(
