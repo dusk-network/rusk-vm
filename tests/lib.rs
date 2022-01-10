@@ -701,48 +701,48 @@ fn out_of_gas_aborts_execution() {
 //     std::fs::remove_dir_all(std::env::temp_dir().join("test_persist"))
 //         .expect("teardown fn error");
 // }
-//
-// #[test]
-// fn commit_and_reset() {
-//     let stringer = Stringer::new(99);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
-// wasm");
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//     network.commit();
-//
-//     let mut network_clone = network.clone();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     network
-//         .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
-//         .unwrap();
-//     network_clone
-//         .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
-//         .unwrap();
-//
-//     network.commit();
-//
-//     network.reset();
-//     network_clone.reset();
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         100
-//     );
-//     assert_eq!(
-//         network_clone
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         99
-//     );
-// }
+
+#[test]
+fn commit_and_reset() {
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let store = HostStore::new();
+    let contract = Contract::new(&counter, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).unwrap();
+    network.commit();
+
+    let mut network_clone = network.clone();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact(contract_id, 0, counter::Increment, &mut gas)
+        .unwrap();
+    network_clone
+        .transact(contract_id, 0, counter::Increment, &mut gas)
+        .unwrap();
+
+    network.commit();
+
+    network.reset();
+    network_clone.reset();
+
+    assert_eq!(
+        network
+            .query(contract_id, 0, counter::ReadValue, &mut gas)
+            .unwrap(),
+        100
+    );
+    assert_eq!(
+        network_clone
+            .query(contract_id, 0, counter::ReadValue, &mut gas)
+            .unwrap(),
+        99
+    );
+}
