@@ -15,8 +15,8 @@ license = "MPL-2.0"
 [dependencies]
 wasmparser = "0.81.0"
 failure = "0.1"
-dusk-hamt = "0.6.0-rc"
-microkelvin = "0.12.0-rc"
+dusk-hamt = { path = "../dusk-hamt" }
+microkelvin = { path = "../microkelvin" }
 wasmer = "=2.0.0"
 wasmer-vm = "=2.0.0"
 wasmer-compiler-singlepass = "=2.0.0"
@@ -84,3 +84,4 @@ members = [
 
 [patch.crates-io]
 microkelvin = { path = "../microkelvin" }
+dusk-hamt = { path = "../dusk-hamt" }

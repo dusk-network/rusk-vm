@@ -4,24 +4,30 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::{HostStore, MaybeArchived, Store, Stored};
+use std::convert::Infallible;
+
+use bytecheck::CheckBytes;
+use microkelvin::{
+    HostStore, Ident, MaybeArchived, OffsetLen, Store, Stored, UnwrapInfallible,
+};
 use rkyv::{
     ser::serializers::AllocSerializer, ser::Serializer, AlignedVec, Archive,
-    Deserialize, Serialize,
+    Deserialize, Fallible, Serialize,
 };
 
 pub use rusk_uplink::{ContractId, ContractState};
 
 /// A representation of a contract with a state and bytecode
 #[derive(Archive, Clone, Serialize, Deserialize)]
+#[archive_attr(derive(CheckBytes))]
 pub struct Contract {
-    state: Vec<u8>,
+    state: OffsetLen,
     code: Vec<u8>,
 }
 
 pub trait ContractRef {
     fn bytecode(&self) -> &[u8];
-    fn state(&self) -> &[u8];
+    fn state(&self) -> &OffsetLen;
 }
 
 impl<'a, T> ContractRef for MaybeArchived<'a, T>
@@ -36,7 +42,7 @@ where
         }
     }
 
-    fn state(&self) -> &[u8] {
+    fn state(&self) -> &OffsetLen {
         match self {
             MaybeArchived::Memory(m) => m.state(),
             MaybeArchived::Archived(a) => a.state(),
@@ -49,7 +55,7 @@ impl ContractRef for Contract {
         &self.code[..]
     }
 
-    fn state(&self) -> &[u8] {
+    fn state(&self) -> &OffsetLen {
         &self.state
     }
 }
@@ -59,30 +65,19 @@ impl ContractRef for ArchivedContract {
         &self.code[..]
     }
 
-    fn state(&self) -> &[u8] {
+    fn state(&self) -> &OffsetLen {
         &self.state
     }
 }
 
 impl Contract {
     /// Create a new Contract with initial state and code
-    pub fn new<State, Code>(
-        state: &State,
-        code: Code,
-        store: &HostStore,
-    ) -> Self
+    pub fn new<Code>(state: OffsetLen, code: Code) -> Self
     where
         Code: Into<Vec<u8>>,
-        State: Archive + Serialize<AllocSerializer<1024>>,
     {
-        let mut ser = AllocSerializer::default();
-
-        ser.serialize_value(state).unwrap();
-
-        let vec = ser.into_serializer().into_inner().into();
-
         Contract {
-            state: vec,
+            state,
             code: code.into(),
         }
     }

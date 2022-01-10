@@ -13,15 +13,10 @@ pub fn debug(string: &'static str) {
 /// Store backend over FFI
 #[cfg(not(feature = "host"))]
 mod ffi_store;
-mod ffi_wasmer_store;
 
 /// Store backend over FFI
 #[cfg(not(feature = "host"))]
 pub use ffi_store::*;
-pub use ffi_wasmer_store::*;
-
-pub mod helpers;
-pub use helpers::*;
 
 pub mod definitions;
 pub use definitions::*;
