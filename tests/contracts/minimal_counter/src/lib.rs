@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, Execute, Query, Transaction};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {
@@ -43,7 +43,11 @@ impl Transaction for Increment {
 }
 
 impl Execute<ReadCount> for Counter {
-    fn execute(&self, _: &ReadCount) -> <ReadCount as Query>::Return {
+    fn execute(
+        &self,
+        _: &ReadCount,
+        _: StoreContext,
+    ) -> <ReadCount as Query>::Return {
         self.value.into()
     }
 }
@@ -58,7 +62,6 @@ impl Apply<Increment> for Counter {
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
     use rusk_uplink::AbiStore;
 
@@ -67,7 +70,7 @@ const _: () = {
 
     #[no_mangle]
     fn read(written_state: u32, written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -81,8 +84,11 @@ const _: () = {
         let de_state: Counter = (state).deserialize(&mut store).unwrap();
         let de_query: ReadCount = (arg).deserialize(&mut store).unwrap();
 
-        let res: <ReadCount as Query>::Return = de_state.execute(&de_query);
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let mut ser = store.serializer();
+
+        let res: <ReadCount as Query>::Return =
+            de_state.execute(&de_query, store);
+
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
                 <<ReadCount as Query>::Return as Archive>::Archived,
@@ -92,7 +98,7 @@ const _: () = {
 
     #[no_mangle]
     fn incr(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -109,7 +115,7 @@ const _: () = {
         let res: <Increment as Transaction>::Return =
             de_state.apply(&de_transaction);
 
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let mut ser = store.serializer();
 
         let state_len = ser.serialize_value(&de_state).unwrap()
             + core::mem::size_of::<<Counter as Archive>::Archived>();

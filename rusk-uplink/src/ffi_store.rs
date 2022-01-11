@@ -25,7 +25,7 @@ struct AbiStoreInner {
     token: Token,
 }
 
-struct AbiStore {
+pub struct AbiStore {
     inner: UnsafeCell<AbiStoreInner>,
 }
 
@@ -34,6 +34,14 @@ impl Fallible for AbiStore {
 }
 
 impl AbiStoreInner {
+    fn new() -> Self {
+        AbiStoreInner {
+            data: [0u8; 1024 * 64],
+            written: 0,
+            token: Token::new(),
+        }
+    }
+
     fn get(&mut self, ident: &OffsetLen) -> &[u8] {
         let offset = ident.offset();
         let len = ident.len();
@@ -45,6 +53,14 @@ impl AbiStoreInner {
 
     fn return_token(&mut self, token: Token) {
         self.token.return_token(token)
+    }
+}
+
+impl AbiStore {
+    pub fn new() -> Self {
+        AbiStore {
+            inner: UnsafeCell::new(AbiStoreInner::new()),
+        }
     }
 }
 
@@ -70,7 +86,7 @@ impl Store for AbiStore {
         abi_put(slice)
     }
 
-    fn extend(&self, buffer: &mut TokenBuffer) {
+    fn extend(&self, _buffer: &mut TokenBuffer) {
         // We can't
         ()
     }

@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 
 use bytecheck::CheckBytes;
+use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{
     archived_root, check_archived_root,
     ser::{serializers::AllocSerializer, Serializer},
@@ -26,6 +27,8 @@ use rkyv::{
 )]
 #[archive(as = "Self")]
 pub struct ContractId([u8; 32]);
+
+pub type StoreContext = StoreRef<OffsetLen>;
 
 impl ContractId {
     /// Return a reserved contract id for host fn modules
@@ -71,7 +74,7 @@ pub trait Execute<Q>
 where
     Q: Query,
 {
-    fn execute(&self, q: &Q) -> Q::Return;
+    fn execute(&self, q: &Q, store: StoreContext) -> Q::Return;
 }
 
 pub trait Apply<T>

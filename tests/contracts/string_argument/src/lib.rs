@@ -11,8 +11,9 @@
     option_result_unwrap_unchecked
 )]
 
+use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Execute, Query};
+use rusk_uplink::{Execute, Query, StoreContext};
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Stringer;
@@ -40,7 +41,11 @@ impl Query for Passthrough {
 }
 
 impl Execute<Passthrough> for Stringer {
-    fn execute(&self, p: &Passthrough) -> <Passthrough as Query>::Return {
+    fn execute(
+        &self,
+        p: &Passthrough,
+        _: StoreContext,
+    ) -> <Passthrough as Query>::Return {
         p.string.repeat(p.repeat as usize)
     }
 }
@@ -48,7 +53,6 @@ impl Execute<Passthrough> for Stringer {
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
     use rusk_uplink::AbiStore;
 
@@ -57,7 +61,7 @@ const _: () = {
 
     #[no_mangle]
     fn pass(written_state: u32, written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<Stringer>(&SCRATCH[..written_state as usize])
@@ -71,8 +75,9 @@ const _: () = {
         let de_state: Stringer = state.deserialize(&mut store).unwrap();
         let de_query: Passthrough = arg.deserialize(&mut store).unwrap();
 
-        let res: <Passthrough as Query>::Return = de_state.execute(&de_query);
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let mut ser = store.serializer();
+        let res: <Passthrough as Query>::Return =
+            de_state.execute(&de_query, store);
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
                 <<Passthrough as Query>::Return as Archive>::Archived,

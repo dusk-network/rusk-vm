@@ -12,11 +12,10 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{AlignedVec, Archive, Deserialize, Infallible, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Query, Transaction};
 extern crate alloc;
 use alloc::vec::Vec;
-use rkyv::ser::serializers::{BufferScratch, CompositeSerializer};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct GasContextData {
@@ -95,13 +94,17 @@ const _: () = {
     use rkyv::archived_root;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
-    use rusk_uplink::AbiStore;
+    use rusk_uplink::{AbiStore, StoreContext};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     impl GasContextData {
-        pub fn compute_with_transact(&mut self, n: u64) -> u64 {
+        pub fn compute_with_transact(
+            &mut self,
+            n: u64,
+            store: StoreContext,
+        ) -> u64 {
             if n < 1 {
                 0
             } else {
@@ -115,6 +118,7 @@ const _: () = {
                     &callee,
                     TCompute::new(n - 1),
                     call_limit,
+                    store,
                 )
                 .unwrap();
                 self.after_call_gas_limits
@@ -122,7 +126,11 @@ const _: () = {
                 n
             }
         }
-        pub fn compute_with_query(&mut self, n: u64) -> u64 {
+        pub fn compute_with_query(
+            &mut self,
+            n: u64,
+            store: StoreContext,
+        ) -> u64 {
             if n < 1 {
                 0
             } else {
@@ -131,8 +139,13 @@ const _: () = {
                     .call_gas_limits
                     .get(n as usize - 1)
                     .expect("Call limit out of bounds");
-                rusk_uplink::query(&callee, QCompute::new(n - 1), call_limit)
-                    .unwrap();
+                rusk_uplink::query(
+                    &callee,
+                    QCompute::new(n - 1),
+                    call_limit,
+                    store,
+                )
+                .unwrap();
                 self.after_call_gas_limits
                     .insert(0, rusk_uplink::gas_left());
                 n
@@ -142,7 +155,7 @@ const _: () = {
 
     #[no_mangle]
     fn read_gas_limits(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
@@ -153,16 +166,7 @@ const _: () = {
 
         let res: <ReadGasLimits as Query>::Return = ret;
 
-        const SCRATCH_LEN: usize = 512_000;
-        let mut serialize_scratch = AlignedVec::with_capacity(SCRATCH_LEN);
-        unsafe {
-            serialize_scratch.set_len(SCRATCH_LEN);
-        }
-        let mut ser = CompositeSerializer::new(
-            unsafe { BufferSerializer::new(&mut SCRATCH) },
-            BufferScratch::new(&mut serialize_scratch),
-            Infallible,
-        );
+        let mut ser = store.serializer();
 
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
@@ -173,7 +177,7 @@ const _: () = {
 
     #[no_mangle]
     fn q_compute(written_state: u32, written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
@@ -187,7 +191,7 @@ const _: () = {
         let mut state: GasContextData = state.deserialize(&mut store).unwrap();
         let input: u64 = input.deserialize(&mut store).unwrap();
 
-        let ret: u64 = state.compute_with_transact(input);
+        let ret: u64 = state.compute_with_transact(input, store);
 
         let res: <QCompute as Query>::Return = ret;
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
@@ -200,7 +204,7 @@ const _: () = {
 
     #[no_mangle]
     fn t_compute(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
@@ -214,19 +218,11 @@ const _: () = {
         let mut state: GasContextData = state.deserialize(&mut store).unwrap();
         let input: u64 = input.deserialize(&mut store).unwrap();
 
-        let ret: u64 = state.compute_with_query(input);
+        let mut ser = store.serializer();
 
+        let ret: u64 = state.compute_with_query(input, store);
         let res: <QCompute as Query>::Return = ret;
-        const SCRATCH_LEN: usize = 65536;
-        let mut serialize_scratch = AlignedVec::with_capacity(SCRATCH_LEN);
-        unsafe {
-            serialize_scratch.set_len(SCRATCH_LEN);
-        }
-        let mut ser = CompositeSerializer::new(
-            unsafe { BufferSerializer::new(&mut SCRATCH) },
-            BufferScratch::new(&mut serialize_scratch),
-            Infallible,
-        );
+
         let state_len = ser.serialize_value(&state).unwrap()
             + core::mem::size_of::<<GasContextData as Archive>::Archived>();
         let return_len = ser.serialize_value(&res).unwrap()
@@ -238,7 +234,7 @@ const _: () = {
 
     #[no_mangle]
     fn set_gas_limits(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
@@ -253,16 +249,7 @@ const _: () = {
 
         state.call_gas_limits = limits.limits;
 
-        const SCRATCH_LEN: usize = 65536;
-        let mut serialize_scratch = AlignedVec::with_capacity(SCRATCH_LEN);
-        unsafe {
-            serialize_scratch.set_len(SCRATCH_LEN);
-        }
-        let mut ser = CompositeSerializer::new(
-            unsafe { BufferSerializer::new(&mut SCRATCH) },
-            BufferScratch::new(&mut serialize_scratch),
-            Infallible,
-        );
+        let mut ser = store.serializer();
 
         let state_len = ser.serialize_value(&state).unwrap()
             + core::mem::size_of::<<GasContextData as Archive>::Archived>();

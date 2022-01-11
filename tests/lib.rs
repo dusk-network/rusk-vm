@@ -13,7 +13,7 @@ use counter::Counter;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
-use microkelvin::HostStore;
+use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
@@ -34,7 +34,7 @@ fn minimal_counter() {
         "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -72,7 +72,7 @@ fn register() {
         "../target/wasm32-unknown-unknown/release/deps/register.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
 
     let contract = Contract::new(reg, code.to_vec(), &store);
 
@@ -93,8 +93,8 @@ fn string_passthrough() {
         "../target/wasm32-unknown-unknown/release/deps/string_argument.wasm"
     );
 
-    let store = HostStore::new();
-    let contract = Contract::new(stringer, code.to_vec(), &store);
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(stringer, code.to_vec());
 
     let mut network = NetworkState::new(store);
 
@@ -121,7 +121,7 @@ fn delegated_call() {
     let delegator_code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/delegator.wasm"
     );
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let counter_contract = Contract::new(&counter, code.to_vec(), &store);
     let delegator_contract =
         Contract::new(&delegator, delegator_code.to_vec(), &store);
@@ -191,7 +191,7 @@ fn fibonacci() {
         "../target/wasm32-unknown-unknown/release/fibonacci.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&fib, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -220,7 +220,7 @@ fn block_height() {
         "../target/wasm32-unknown-unknown/release/block_height.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&bh, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -245,7 +245,7 @@ fn self_snapshot() {
         "../target/wasm32-unknown-unknown/release/self_snapshot.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&self_snapshot, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -351,7 +351,7 @@ fn tx_vec() {
 
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/tx_vec.wasm");
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
 
     let contract = Contract::new(&tx_vec, code.to_vec(), &store);
 
@@ -418,7 +418,7 @@ fn calling() {
         "../target/wasm32-unknown-unknown/release/callee_2.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
 
     let contract0 = Contract::new(&caller, code_caller.to_vec(), &store);
     let contract1 = Contract::new(&callee1, code_callee1.to_vec(), &store);
@@ -457,7 +457,7 @@ fn gas_consumed_host_function_works() {
         "../target/wasm32-unknown-unknown/release/gas_consumed.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&gas_contract, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -499,7 +499,7 @@ fn gas_consumption_works() {
         "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -531,7 +531,7 @@ fn out_of_gas_aborts_transaction_execution() {
         "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
@@ -556,8 +556,8 @@ fn out_of_gas_aborts_query_execution() {
         "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
 
-    let store = HostStore::new();
-    let contract = Contract::new(&counter, code.to_vec(), &store);
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&counter, code.to_vec());
 
     let mut network = NetworkState::new(store);
 
@@ -580,7 +580,7 @@ fn commit_and_reset() {
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);

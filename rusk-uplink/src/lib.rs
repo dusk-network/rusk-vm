@@ -13,8 +13,6 @@ pub fn debug(string: &'static str) {
 /// Store backend over FFI
 #[cfg(not(feature = "host"))]
 mod ffi_store;
-
-/// Store backend over FFI
 #[cfg(not(feature = "host"))]
 pub use ffi_store::*;
 
@@ -23,6 +21,9 @@ pub use definitions::*;
 
 pub mod hosted;
 pub use hosted::*;
+
+pub mod helpers;
+pub use helpers::*;
 
 pub mod bufwriter;
 pub use bufwriter::*;

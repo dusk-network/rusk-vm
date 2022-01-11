@@ -10,7 +10,7 @@ use rkyv::ser::Serializer;
 use rkyv::{Archive, Serialize};
 use rusk_uplink::{
     ContractId, ContractState, Query, RawQuery, RawTransaction, ReturnValue,
-    Transaction,
+    StoreContext, Transaction,
 };
 
 use tracing::{trace, trace_span};
@@ -81,14 +81,14 @@ pub struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
     block_height: u64,
-    store: HostStore,
+    store: StoreContext,
 }
 
 impl<'a> CallContext<'a> {
     pub fn new(
         state: &'a mut NetworkState,
         block_height: u64,
-        store: HostStore,
+        store: StoreContext,
     ) -> Self {
         CallContext {
             state,
@@ -98,7 +98,7 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn store(&self) -> &HostStore {
+    pub fn store(&self) -> &StoreContext {
         &self.store
     }
 
@@ -196,27 +196,18 @@ impl<'a> CallContext<'a> {
                 memory.with_mut_slice_from(buf_offset, |mem| {
                     // copy the contract state into scratch memory
                     let state = contract.state();
-                    let len = state.len();
+                    let len = state.len() as usize;
 
-<<<<<<< HEAD
                     mem[0..len].copy_from_slice(state);
 
                     let data = query.data();
 
                     mem[len..len + data.len()].copy_from_slice(data);
-=======
-                // mem[0..len].copy_from_slice(state);
-
-                // let data = query.data();
-
-                // mem[len..len + data.len()].copy_from_slice(data);
->>>>>>> Integrate AbiStore
 
                     (len, len + data.len())
                 });
 
-            let r =
-                run_func.call(written_state as u32, written_data as u32);
+            let r = run_func.call(written_state as u32, written_data as u32);
 
             r.map(|result_written| {
                 memory.with_slice_from(buf_offset, |mem| {
@@ -237,7 +228,7 @@ impl<'a> CallContext<'a> {
             gas_meter.spent()
         );
 
-        let result = r.map_err(|a|{VMError::ContractPanic(a.message())})?;
+        let result = r.map_err(|a| VMError::ContractPanic(a.message()))?;
         self.stack.pop();
         Ok(result)
     }
@@ -356,11 +347,10 @@ impl<'a> CallContext<'a> {
             let r = run_func.call(written_state as u32, written_data as u32);
 
             r.map(|result| {
-                let (state_written, result_written) = separate_tuple(
-                    result,
-                );
+                let (state_written, result_written) = separate_tuple(result);
                 memory.with_slice_from(buf_offset, |mem| {
-                    contract.set_state(Vec::from(&mem[..state_written as usize]));
+                    contract
+                        .set_state(Vec::from(&mem[..state_written as usize]));
                     let result_len = result_written - state_written;
                     ReturnValue::with_state(
                         &mem[state_written as usize..][..result_len as usize],
@@ -383,7 +373,7 @@ impl<'a> CallContext<'a> {
             gas_meter.spent()
         );
 
-        let result = r.map_err(|a|{VMError::ContractPanic(a.message())})?;
+        let result = r.map_err(|a| VMError::ContractPanic(a.message()))?;
         self.stack.pop();
         Ok(result)
     }

@@ -12,7 +12,7 @@ use rkyv::ser::serializers::AllocSerializer;
 use rkyv::validation::validators::DefaultValidator;
 use rusk_uplink::{
     hash_mocker, ContractId, HostModule, Query, RawQuery, RawTransaction,
-    Transaction,
+    StoreContext, Transaction,
 };
 
 use tracing::{trace, trace_span};
@@ -88,12 +88,12 @@ pub struct NetworkState {
     head: Contracts,
     modules: HostModules,
     module_config: ModuleConfig,
-    store: HostStore,
+    store: StoreContext,
 }
 
 impl NetworkState {
     /// Returns a new empty [`NetworkState`].
-    pub fn new(store: HostStore) -> Self {
+    pub fn new(store: StoreContext) -> Self {
         NetworkState {
             store,
             origin: Default::default(),
@@ -104,7 +104,7 @@ impl NetworkState {
     }
 
     /// Returns a [`NetworkState`] based on a schedule
-    pub fn with_schedule(store: HostStore, schedule: &Schedule) -> Self {
+    pub fn with_schedule(store: StoreContext, schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
         Self {
             store,
