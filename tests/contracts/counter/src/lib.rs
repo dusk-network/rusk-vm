@@ -123,6 +123,41 @@ impl Transaction for CompareAndSwap {
     type Return = bool;
 }
 
+impl Counter {
+    pub fn read_value(&self) -> i32 {
+        self.value
+    }
+
+    pub fn xor_values(&self, a: i32, b: i32) -> i32 {
+        self.value ^ a ^ b
+    }
+
+    pub fn is_even(&self) -> bool {
+        self.value % 2 == 0
+    }
+
+    pub fn increment(&mut self) {
+        self.value += 1;
+    }
+
+    pub fn decrement(&mut self) {
+        self.value -= 1;
+    }
+
+    pub fn adjust(&mut self, by: i32) {
+        self.value += by;
+    }
+
+    pub fn compare_and_swap(&mut self, expected: i32, new: i32) -> bool {
+        if self.value == expected {
+            self.value = new;
+            true
+        } else {
+            false
+        }
+    }
+}
+
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
@@ -133,44 +168,9 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    impl Counter {
-        pub fn read_value(&self) -> i32 {
-            self.value
-        }
-
-        pub fn xor_values(&self, a: i32, b: i32) -> i32 {
-            self.value ^ a ^ b
-        }
-
-        pub fn is_even(&self) -> bool {
-            self.value % 2 == 0
-        }
-
-        pub fn increment(&mut self) {
-            self.value += 1;
-        }
-
-        pub fn decrement(&mut self) {
-            self.value -= 1;
-        }
-
-        pub fn adjust(&mut self, by: i32) {
-            self.value += by;
-        }
-
-        pub fn compare_and_swap(&mut self, expected: i32, new: i32) -> bool {
-            if self.value == expected {
-                self.value = new;
-                true
-            } else {
-                false
-            }
-        }
-    }
-
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = AbiStore::new();
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -190,7 +190,7 @@ const _: () = {
 
     #[no_mangle]
     fn xor_values(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = AbiStore::new();
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -214,7 +214,7 @@ const _: () = {
 
     #[no_mangle]
     fn is_even(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = AbiStore::new();
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -233,8 +233,8 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn increment(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+    fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
+        let mut store = AbiStore::new();
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -257,8 +257,8 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn decrement(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+    fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
+        let mut store = AbiStore::new();
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -280,8 +280,8 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn adjust(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+    fn adjust(written_state: u32, _written_data: u32) -> [u32; 2] {
+        let mut store = AbiStore::new();
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -307,8 +307,8 @@ const _: () = {
     }
 
     #[no_mangle]
-    fn compare_and_swap(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+    fn compare_and_swap(written_state: u32, _written_data: u32) -> [u32; 2] {
+        let mut store = AbiStore::new();
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])

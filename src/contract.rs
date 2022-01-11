@@ -21,13 +21,13 @@ pub use rusk_uplink::{ContractId, ContractState};
 #[derive(Archive, Clone, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
 pub struct Contract {
-    state: OffsetLen,
+    state: Vec<u8>,
     code: Vec<u8>,
 }
 
 pub trait ContractRef {
     fn bytecode(&self) -> &[u8];
-    fn state(&self) -> &OffsetLen;
+    fn state(&self) -> &[u8];
 }
 
 impl<'a, T> ContractRef for MaybeArchived<'a, T>
@@ -42,7 +42,7 @@ where
         }
     }
 
-    fn state(&self) -> &OffsetLen {
+    fn state(&self) -> &[u8] {
         match self {
             MaybeArchived::Memory(m) => m.state(),
             MaybeArchived::Archived(a) => a.state(),
@@ -55,7 +55,7 @@ impl ContractRef for Contract {
         &self.code[..]
     }
 
-    fn state(&self) -> &OffsetLen {
+    fn state(&self) -> &[u8] {
         &self.state
     }
 }
@@ -65,19 +65,20 @@ impl ContractRef for ArchivedContract {
         &self.code[..]
     }
 
-    fn state(&self) -> &OffsetLen {
+    fn state(&self) -> &[u8] {
         &self.state
     }
 }
 
 impl Contract {
     /// Create a new Contract with initial state and code
-    pub fn new<Code>(state: OffsetLen, code: Code) -> Self
+    pub fn new<State, Code>(state: State, code: Code) -> Self
     where
+        State: Into<Vec<u8>>,
         Code: Into<Vec<u8>>,
     {
         Contract {
-            state,
+            state: state.into(),
             code: code.into(),
         }
     }

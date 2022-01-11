@@ -12,8 +12,8 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, RawTransaction, Transaction};
+use rkyv::{Archive, Deserialize, Serialize};
+use rusk_uplink::{ContractId, Query, Transaction};
 extern crate alloc;
 use alloc::boxed::Box;
 
@@ -114,10 +114,10 @@ impl Transaction for UpdateAndPanicTransaction {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
-    use rusk_uplink::AbiStore;
+    use rkyv::{archived_root, AlignedVec};
+    use rusk_uplink::{AbiStore, RawTransaction, StoreContext};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
@@ -139,7 +139,11 @@ const _: () = {
         }
 
         // updates crossover and returns the old value
-        pub fn self_call_test_a(&mut self, update: i32) -> i32 {
+        pub fn self_call_test_a(
+            &mut self,
+            update: i32,
+            store: StoreContext,
+        ) -> i32 {
             let old_value = self.crossover;
             let callee = rusk_uplink::callee();
             rusk_uplink::transact(
@@ -147,6 +151,7 @@ const _: () = {
                 &callee,
                 SetCrossoverTransaction::new(update),
                 0,
+                store,
             )
             .unwrap();
             assert_eq!(self.crossover, update);
@@ -158,17 +163,25 @@ const _: () = {
             &mut self,
             target: ContractId,
             raw_transaction: &RawTransaction,
+            store: StoreContext,
         ) -> i32 {
             self.set_crossover(self.crossover * 2);
-            rusk_uplink::transact_raw(self, &target, raw_transaction, 0)
+            rusk_uplink::transact_raw(self, &target, raw_transaction, 0, store)
                 .unwrap();
             self.crossover
         }
 
-        pub fn update_and_panic(&mut self, new_value: i32) {
+        pub fn update_and_panic(
+            &mut self,
+            new_value: i32,
+            store: StoreContext,
+        ) {
             let old_value = self.crossover;
 
-            assert_eq!(self.self_call_test_a(new_value), old_value);
+            assert_eq!(
+                self.self_call_test_a(new_value, store.clone()),
+                old_value
+            );
 
             let callee = rusk_uplink::callee();
 
@@ -178,7 +191,7 @@ const _: () = {
             // B: we update self, which then should be passed to the transaction
 
             assert_eq!(
-                rusk_uplink::query(&callee, CrossoverQuery, 0).unwrap(),
+                rusk_uplink::query(&callee, CrossoverQuery, 0, store).unwrap(),
                 new_value
             );
 
@@ -188,7 +201,7 @@ const _: () = {
 
     #[no_mangle]
     fn crossover(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -208,7 +221,7 @@ const _: () = {
 
     #[no_mangle]
     fn set_crossover(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -238,7 +251,7 @@ const _: () = {
 
     #[no_mangle]
     fn self_call_test_a(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -251,7 +264,7 @@ const _: () = {
         let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let update: i32 = update.deserialize(&mut store).unwrap();
 
-        let old = state.self_call_test_a(update);
+        let old = state.self_call_test_a(update, store);
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 
@@ -268,7 +281,7 @@ const _: () = {
 
     #[no_mangle]
     fn self_call_test_b(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -287,6 +300,7 @@ const _: () = {
         let old = state.self_call_test_b(
             arg.contract_id,
             &RawTransaction::from(tx_data, &arg.tx_name),
+            store,
         );
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
@@ -304,7 +318,7 @@ const _: () = {
 
     #[no_mangle]
     fn update_and_panic(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -317,7 +331,7 @@ const _: () = {
         let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
         let update: i32 = update.deserialize(&mut store).unwrap();
 
-        state.update_and_panic(update);
+        state.update_and_panic(update, store);
 
         let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
 

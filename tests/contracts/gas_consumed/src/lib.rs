@@ -73,14 +73,14 @@ const _: () = {
     use rkyv::archived_root;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
-    use rusk_uplink::AbiStore;
+    use rusk_uplink::{AbiStore, StoreContext};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
     fn value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let slf = unsafe {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
@@ -99,7 +99,7 @@ const _: () = {
 
     #[no_mangle]
     fn get_gas_consumed(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let slf = unsafe {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
@@ -122,7 +122,7 @@ const _: () = {
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let slf = unsafe {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
@@ -146,7 +146,7 @@ const _: () = {
 
     #[no_mangle]
     fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore;
+        let mut store = StoreContext::new(AbiStore::new());
 
         let slf = unsafe {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])

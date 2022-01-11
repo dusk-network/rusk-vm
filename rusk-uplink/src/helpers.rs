@@ -1,23 +1,29 @@
 use core::hash::Hash;
 use std::collections::hash_map::DefaultHasher;
 
-use crate::AbiStore;
-
+use bytecheck::CheckBytes;
 use dusk_hamt::{Hamt, Lookup};
-use microkelvin::{BranchRef, BranchRefMut};
-use rkyv::{Archive, Deserialize, Serialize};
+use microkelvin::{BranchRef, BranchRefMut, OffsetLen, StoreRef};
+use rkyv::{
+    validation::validators::DefaultValidator, Archive, Deserialize, Serialize,
+};
 
 #[derive(Clone, Archive, Deserialize, Serialize)]
 pub struct Map<K, V> {
-    wrapping: Hamt<K, V, (), AbiStore>,
+    wrapping: Hamt<K, V, (), OffsetLen>,
 }
 
 impl<K, V> Map<K, V>
 where
-    K: Archive<Archived = K> + Clone + Hash + Eq,
-    K: Deserialize<K, AbiStore>,
+    K: Archive<Archived = K>
+        + Clone
+        + Hash
+        + Eq
+        + for<'a> CheckBytes<DefaultValidator<'a>>,
+    K: Deserialize<K, StoreRef<OffsetLen>>,
     V: Archive + Clone,
-    V::Archived: Deserialize<V, AbiStore>,
+    V::Archived: Deserialize<V, StoreRef<OffsetLen>>
+        + for<'a> CheckBytes<DefaultValidator<'a>>,
 {
     pub fn new() -> Self {
         Map {

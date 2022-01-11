@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use microkelvin::HostStore;
+use rusk_uplink::StoreContext;
 
 use crate::call_context::CallContext;
 use std::ffi::c_void;
@@ -31,7 +32,7 @@ impl Env {
         unsafe { &mut *(self.context.0 as *mut CallContext) }
     }
 
-    pub fn store(&self) -> &HostStore {
+    pub fn store(&self) -> &StoreContext {
         self.get_context().store()
     }
 }

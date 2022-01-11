@@ -6,10 +6,11 @@
 
 use crate::RawTransaction;
 pub use crate::{
-    AbiStore, ArchiveError, ContractId, ContractState, Query, RawQuery,
-    ReturnValue, Transaction,
+    ArchiveError, ContractId, ContractState, Query, RawQuery, ReturnValue,
+    Transaction,
 };
 use bytecheck::CheckBytes;
+use microkelvin::{OffsetLen, StoreRef};
 use rkyv::validation::validators::DefaultValidator;
 use rkyv::{
     ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
@@ -93,12 +94,13 @@ pub fn query<Q>(
     target: &ContractId,
     q: Q,
     gas_limit: u64,
+    mut store: StoreRef<OffsetLen>,
 ) -> Result<Q::Return, ArchiveError>
 where
     Q: Query + Serialize<AllocSerializer<1024>>,
     Q::Return: Archive + Clone,
     <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
-        + Deserialize<Q::Return, AbiStore>,
+        + Deserialize<Q::Return, StoreRef<OffsetLen>>,
 {
     let raw_query = RawQuery::new(q);
 
@@ -108,7 +110,6 @@ where
         .cast::<Q::Return>()
         .map_err(|_| ArchiveError::ArchiveValidationError)?;
 
-    let mut store = AbiStore;
     let deserialized: Q::Return =
         cast.deserialize(&mut store).expect("Infallible");
 
@@ -121,10 +122,11 @@ pub fn transact_raw<Slf>(
     target: &ContractId,
     raw_transaction: &RawTransaction,
     gas_limit: u64,
+    mut store: StoreRef<OffsetLen>,
 ) -> Result<ReturnValue, ArchiveError>
 where
     Slf: Archive + Clone,
-    <Slf as Archive>::Archived: Deserialize<Slf, AbiStore>,
+    <Slf as Archive>::Archived: Deserialize<Slf, StoreRef<OffsetLen>>,
 {
     let mut buf = [0u8; BUFFER_SIZE_LIMIT];
     let data_len = raw_transaction.data().len();
@@ -148,7 +150,6 @@ where
         &buf[..state_offset as usize],
     );
     let cast_state = result.cast_state::<Slf>();
-    let mut store = AbiStore;
     let deserialized_state: Slf =
         cast_state.deserialize(&mut store).expect("Infallible");
     *slf = deserialized_state;
@@ -165,25 +166,26 @@ pub fn transact<T, Slf>(
     target: &ContractId,
     transaction: T,
     gas_limit: u64,
+    mut store: StoreRef<OffsetLen>,
 ) -> Result<T::Return, ArchiveError>
 where
     T: Transaction + Serialize<AllocSerializer<1024>>,
     T::Return: Archive + Clone,
     <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
-        + Deserialize<T::Return, AbiStore>,
+        + Deserialize<T::Return, StoreRef<OffsetLen>>,
     Slf: Archive + Clone,
-    <Slf as Archive>::Archived: Deserialize<Slf, AbiStore>,
+    <Slf as Archive>::Archived: Deserialize<Slf, StoreRef<OffsetLen>>,
 {
     let raw_transaction = RawTransaction::new(transaction);
 
-    let result = transact_raw(slf, target, &raw_transaction, gas_limit)?;
+    let result =
+        transact_raw(slf, target, &raw_transaction, gas_limit, store.clone())?;
 
     let cast = result
         .cast::<T::Return>()
         .map_err(|_| ArchiveError::ArchiveValidationError)?;
     crate::debug!("transact 903");
 
-    let mut store = AbiStore;
     let deserialized_result: T::Return =
         cast.deserialize(&mut store).expect("Infallible");
 
