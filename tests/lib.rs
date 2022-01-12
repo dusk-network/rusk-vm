@@ -88,30 +88,6 @@ fn string_passthrough() {
         String::from("Hello worldHello worldHello world"),
     );
 }
-//
-// #[test]
-// fn stringer_trivial() {
-//     let stringer = Stringer::new(99);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
-// wasm");
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let mut network = NetworkState::new();
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         99
-//     );
-// }
 
 #[test]
 fn delegated_call() {
@@ -144,8 +120,7 @@ fn delegated_call() {
     let mut buf = [0u8; 128];
     let mut ser = BufferSerializer::new(&mut buf);
     let buffer_len = ser.serialize_value(&incr_value).unwrap()
-        + core::mem::size_of::<<counter::Increment as Archive>::Archived>(
-        );
+        + core::mem::size_of::<<counter::Increment as Archive>::Archived>();
 
     // delegate query
 
@@ -544,12 +519,8 @@ fn out_of_gas_aborts_transaction_execution() {
 
     let mut gas = GasMeter::with_limit(1);
 
-    let should_be_err = network.transact(
-        contract_id,
-        0,
-        counter::Increment,
-        &mut gas,
-    );
+    let should_be_err =
+        network.transact(contract_id, 0, counter::Increment, &mut gas);
     assert!(should_be_err.is_err());
     assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
     // Ensure all gas is consumed even the tx did not succeed.
@@ -573,161 +544,13 @@ fn out_of_gas_aborts_query_execution() {
 
     let mut gas = GasMeter::with_limit(1);
 
-    let should_be_err = network.query(
-        contract_id,
-        0,
-        counter::ReadValue,
-        &mut gas,
-    );
+    let should_be_err =
+        network.query(contract_id, 0, counter::ReadValue, &mut gas);
     assert!(should_be_err.is_err());
     assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
     // Ensure all gas is consumed even the tx did not succeed.
     assert_eq!(gas.left(), 0);
 }
-
-// #[test]
-// fn deploy_fails_with_floats() {
-//     let stringer = StringerFloat::new(9.99f32);
-//
-//     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/stringer_float.wasm"
-//     );
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let forbidden_floats_schedule = Schedule {
-//         has_forbidden_floats: false,
-//         ..Default::default()
-//     };
-//
-//     let mut network =
-// NetworkState::with_schedule(&forbidden_floats_schedule);
-//
-//     assert!(matches!(
-//         network.deploy(contract),
-//         Err(rusk_vm::VMError::InstrumentationError(_))
-//     ));
-// }
-//
-// #[test]
-// fn deploy_with_id() -> Result<(), VMError> {
-//     // Smallest valid WASM module possible so `deploy` won't raise a
-//     // `InvalidByteCode` error
-//     let code = 0x0000_0001_6D73_6100_u64.to_le_bytes();
-//
-//     // Create a contract with a simple state
-//     let contract = Contract::new(0xfeed_u16, code.to_vec());
-//
-//     // Reserve a `ContractId`
-//     let id = ContractId::reserved(0x10);
-//
-//     // Deploy with the id given
-//     let mut network = NetworkState::new();
-//
-//     // The id is the same returned by the deploy function
-//     assert_eq!(id, network.deploy_with_id(id, contract)?);
-//
-//     // Get the contract deployed using the same id, and verify the state is
-// also     // the same
-//     let state: u16 = network
-//         .get_contract(&id)?
-//         .state()
-//         .cast()
-//         .expect("Cannot cast the state");
-//     assert_eq!(state, 0xfeed);
-//
-//     // Deploy another contract at the same address
-//     let contract = Contract::new(0xcafe_u16, code.to_vec());
-//     network.deploy_with_id(id, contract)?;
-//
-//     // Get the contract deployed using the same id, and verify the state is
-// NOT     // the same as before.
-//     //
-//     // TODO: This means a contract CAN BE overriden once deployed, we need to
-//     // decided if we should raise an error if a contract already exists with
-//     // the same address
-//     network.get_contract(&id)?;
-//
-//     let state: u16 = network
-//         .get_contract(&id)?
-//         .state()
-//         .cast()
-//         .expect("Cannot cast the state");
-//     assert_eq!(state, 0xcafe);
-//
-//     Ok(())
-// }
-//
-// #[cfg(feature = "persistence")]
-// #[test]
-// fn persistence() {
-//     use microkelvin::DiskBackend;
-//
-//     let stringer = Stringer::new(99);
-//
-//     let code =
-//         include_bytes!("../target/wasm32-unknown-unknown/release/stringer.
-// wasm");
-//
-//     let contract = Contract::new(stringer, code.to_vec());
-//
-//     let (persist_id, contract_id) = {
-//         let mut network = NetworkState::new();
-//
-//         let contract_id = network.deploy(contract).unwrap();
-//
-//         let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//         assert_eq!(
-//             network
-//                 .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut
-// gas)                 .unwrap(),
-//             99
-//         );
-//
-//         network
-//             .transact::<_, ()>(contract_id, 0, stringer::INCREMENT, &mut gas)
-//             .unwrap();
-//
-//         assert_eq!(
-//             network
-//                 .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut
-// gas)                 .unwrap(),
-//             100
-//         );
-//
-//         (
-//             network
-//                 .persist(|| {
-//                     let dir = std::env::temp_dir().join("test_persist");
-//                     std::fs::create_dir_all(&dir)
-//                         .expect("Error on tmp dir creation");
-//                     DiskBackend::new(dir)
-//                 })
-//                 .expect("Error in persistence"),
-//             contract_id,
-//         )
-//     };
-//
-//     // If the persistence works, We should still read 100 with a freshly
-// created     // NetworkState.
-//     let mut network = NetworkState::new()
-//         .restore(persist_id)
-//         .expect("Error reconstructing the NetworkState");
-//
-//     let mut gas = GasMeter::with_limit(1_000_000_000);
-//
-//     assert_eq!(
-//         network
-//             .query::<_, i32>(contract_id, 0, stringer::READ_VALUE, &mut gas)
-//             .unwrap(),
-//         100
-//     );
-//
-//     // Teardown
-//     std::fs::remove_dir_all(std::env::temp_dir().join("test_persist"))
-//         .expect("teardown fn error");
-// }
 
 #[test]
 fn commit_and_reset() {
