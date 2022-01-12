@@ -11,7 +11,6 @@
     option_result_unwrap_unchecked
 )]
 
-use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
 
