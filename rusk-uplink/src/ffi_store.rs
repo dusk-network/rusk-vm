@@ -4,19 +4,20 @@ use microkelvin::{OffsetLen, Store, Token, TokenBuffer};
 use rkyv::Fallible;
 
 extern "C" {
-    fn s_put(slice: &u8, len: u16) -> u64;
-    fn s_get(offset: u64, buf: &mut u8);
+    fn _put(slice: &u8, len: u16) -> u64;
+    fn _get(offset: u64, len: u16, buf: &mut u8);
 }
 
 fn abi_put(slice: &[u8]) -> OffsetLen {
     assert!(slice.len() <= u16::MAX as usize);
     let len = slice.len() as u16;
-    let ofs = unsafe { s_put(&slice[0], len) };
+    let ofs = unsafe { _put(&slice[0], len) };
     OffsetLen::new(ofs, len)
 }
 
 fn abi_get(offset: u64, buf: &mut [u8]) {
-    unsafe { s_get(offset, &mut buf[0]) }
+    let len = buf.len() as u16;
+    unsafe { _get(offset, len, &mut buf[0]) }
 }
 
 struct AbiStoreInner {
@@ -86,9 +87,9 @@ impl Store for AbiStore {
         abi_put(slice)
     }
 
-    fn extend(&self, _buffer: &mut TokenBuffer) {
+    fn extend(&self, _buffer: &mut TokenBuffer) -> Result<(), ()> {
         // We can't
-        ()
+        Err(())
     }
 
     fn return_token(&self, token: Token) {
