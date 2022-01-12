@@ -14,7 +14,7 @@ use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
 use microkelvin::{HostStore, StoreRef};
-use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
+use rusk_vm::{Contract, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
 
@@ -35,7 +35,7 @@ fn minimal_counter() {
     );
 
     let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(counter, code.to_vec(), &store);
+    let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
 
@@ -62,26 +62,26 @@ fn minimal_counter() {
     );
 }
 
-#[test]
-fn register() {
-    use register::*;
+// #[test]
+// fn register() {
+//     use register::*;
 
-    let reg = Register::new();
+//     let reg = Register::new();
 
-    let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/deps/register.wasm"
-    );
+//     let code = include_bytes!(
+//         "../target/wasm32-unknown-unknown/release/deps/register.wasm"
+//     );
 
-    let store = StoreRef::new(HostStore::new());
+//     let store = StoreRef::new(HostStore::new());
 
-    let contract = Contract::new(reg, code.to_vec(), &store);
+//     let contract = Contract::new(&reg, code.to_vec(), &store);
 
-    let mut network = NetworkState::new(store);
+//     let mut network = NetworkState::new(store);
 
-    let contract_id = network.deploy(contract).unwrap();
+//     let contract_id = network.deploy(contract).unwrap();
 
-    let mut gas = GasMeter::with_limit(1_000_000_000);
-}
+//     todo!()
+// }
 
 #[test]
 fn string_passthrough() {
@@ -94,7 +94,7 @@ fn string_passthrough() {
     );
 
     let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(stringer, code.to_vec());
+    let contract = Contract::new(&stringer, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
 
@@ -557,7 +557,7 @@ fn out_of_gas_aborts_query_execution() {
     );
 
     let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&counter, code.to_vec());
+    let contract = Contract::new(&counter, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store);
 

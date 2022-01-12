@@ -8,13 +8,15 @@ use std::convert::Infallible;
 
 use bytecheck::CheckBytes;
 use microkelvin::{
-    HostStore, Ident, MaybeArchived, OffsetLen, Store, Stored, UnwrapInfallible,
+    HostStore, Ident, MaybeArchived, OffsetLen, Store, StoreSerializer, Stored,
+    UnwrapInfallible,
 };
 use rkyv::{
     ser::serializers::AllocSerializer, ser::Serializer, AlignedVec, Archive,
     Deserialize, Fallible, Serialize,
 };
 
+use rusk_uplink::StoreContext;
 pub use rusk_uplink::{ContractId, ContractState};
 
 /// A representation of a contract with a state and bytecode
@@ -72,13 +74,22 @@ impl ContractRef for ArchivedContract {
 
 impl Contract {
     /// Create a new Contract with initial state and code
-    pub fn new<State, Code>(state: State, code: Code) -> Self
+    pub fn new<State, Code>(
+        state: &State,
+        code: Code,
+        store: &StoreContext,
+    ) -> Self
     where
-        State: Into<Vec<u8>>,
+        State: Serialize<StoreSerializer<OffsetLen>>,
         Code: Into<Vec<u8>>,
     {
+        let mut ser = store.serializer();
+        ser.serialize_value(state).unwrap();
+
+        let state_vec = ser.spill_bytes(|bytes| Vec::from(bytes));
+
         Contract {
-            state: state.into(),
+            state: state_vec,
             code: code.into(),
         }
     }

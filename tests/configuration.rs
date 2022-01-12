@@ -5,10 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use counter::Counter;
+use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule};
 use std::collections::HashMap;
-use microkelvin::HostStore;
-
 
 fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
     let counter = Counter::new(99);
@@ -16,7 +15,7 @@ fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
-    let store = HostStore::new();
+    let store = StoreRef::new(HostStore::new());
     let contract = Contract::new(&counter, code.to_vec(), &store);
     let mut network = NetworkState::with_schedule(store, schedule);
 
