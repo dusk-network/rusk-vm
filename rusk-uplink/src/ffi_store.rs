@@ -52,7 +52,7 @@ impl Storage<Offset> for AbiStorage {
     where
         T: rkyv::Archive,
     {
-        let ofs = id.inner();
+        let ofs = id.0;
         unsafe {
             let ptr: &() = s_get(ofs);
             core::mem::transmute(ptr)

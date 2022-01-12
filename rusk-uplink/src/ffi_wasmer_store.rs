@@ -91,7 +91,7 @@ impl<'a> Storage<Offset> for RawStorage {
     }
 
     fn get<T: Archive>(&self, ofs: &Offset) -> &T::Archived {
-        let ofs = ofs.inner();
+        let ofs = ofs.0;
         let size = core::mem::size_of::<T::Archived>();
         assert!(ofs <= self.length as u64);
         let start_pos = (ofs as usize)

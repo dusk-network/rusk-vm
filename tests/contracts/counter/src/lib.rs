@@ -15,17 +15,6 @@
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Query, Transaction};
 
-// query ids
-pub const READ_VALUE: u8 = 0;
-pub const XOR_VALUES: u8 = 1;
-pub const IS_EVEN: u8 = 2;
-
-// transaction ids
-pub const INCREMENT: u8 = 0;
-pub const DECREMENT: u8 = 1;
-pub const ADJUST: u8 = 2;
-pub const COMPARE_AND_SWAP: u8 = 3;
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
     junk: u32,
