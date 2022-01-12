@@ -76,16 +76,16 @@ impl HostImportsResolver {
                         call_stack::Caller::caller,
                     ),
                 ),
-                "get" => namespace.insert(
-                    "get",
+                "_get" => namespace.insert(
+                    "_get",
                     Function::new_native_with_env(
                         store,
                         env.clone(),
                         store::Get::get,
                     ),
                 ),
-                "put" => namespace.insert(
-                    "put",
+                "_put" => namespace.insert(
+                    "_put",
                     Function::new_native_with_env(
                         store,
                         env.clone(),
