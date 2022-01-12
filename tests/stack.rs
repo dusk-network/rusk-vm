@@ -5,10 +5,10 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use rusk_vm::{Contract, GasMeter, NetworkState};
+use microkelvin::HostStore;
+use stack::{Stack, Peek, Pop, Push};
 
-use stack::Stack;
-
-#[test]
+#[ignore]
 fn stack() {
     type Leaf = u64;
     const N: Leaf = 64;
@@ -18,8 +18,9 @@ fn stack() {
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
 
-    let contract = Contract::new(stack, code.to_vec());
-    let mut network = NetworkState::new();
+    let store = HostStore::new();
+    let contract = Contract::new(stack, code.to_vec(), &store);
+    let mut network = NetworkState::new(store);
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -27,7 +28,7 @@ fn stack() {
 
     for i in 0..N {
         network
-            .transact::<_, ()>(contract_id, 0, (stack::PUSH, i), &mut gas)
+            .transact(contract_id, 0, stack::Push::new(i), &mut gas)
             .unwrap()
             .unwrap();
 
@@ -48,10 +49,10 @@ fn stack() {
 
         assert_eq!(
             network
-                .transact::<_, Option<Leaf>>>(
+                .transact(
                     contract_id,
                     0,
-                    stack::POP,
+                    stack::Pop,
                     &mut gas
                 )
                 .unwrap()
@@ -62,7 +63,7 @@ fn stack() {
 
     assert_eq!(
         network
-            .transact::<_, Option<Leaf>>(contract_id, 0, stack::POP, &mut gas)
+            .transact(contract_id, 0, stack::Pop, &mut gas)
             .unwrap()
             .unwrap(),
         None
@@ -70,7 +71,7 @@ fn stack() {
 }
 
 #[cfg(feature = "persistence")]
-#[test]
+#[ignore]
 fn stack_persist() {
     use microkelvin::DiskBackend;
 
@@ -82,7 +83,8 @@ fn stack_persist() {
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
 
-    let contract = Contract::new(stack, code.to_vec());
+    let store = HostStore::new();
+    let contract = Contract::new(stack, code.to_vec(), &store);
 
     let (persist_id, contract_id) = {
         let mut network = NetworkState::new();
@@ -93,7 +95,7 @@ fn stack_persist() {
 
         for i in 0..N {
             network
-                .transact::<_, ()>(contract_id, 0, (stack::PUSH, i), &mut gas)
+                .transact(contract_id, 0, stack::Push::new(i), &mut gas)
                 .unwrap()
                 .unwrap();
         }
@@ -123,10 +125,10 @@ fn stack_persist() {
 
         assert_eq!(
             network
-                .transact::<_, Option<Leaf>>(
+                .transact(
                     contract_id,
                     0,
-                    stack::POP,
+                    stack::Pop,
                     &mut gas
                 )
                 .unwrap()
@@ -137,7 +139,7 @@ fn stack_persist() {
 
     assert_eq!(
         network
-            .transact::<_, Option<Leaf>>(contract_id, 0, stack::POP, &mut gas)
+            .transact(contract_id, 0, stack::Pop, &mut gas)
             .unwrap()
             .unwrap(),
         None
