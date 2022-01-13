@@ -77,7 +77,8 @@ const _: () = {
 
     #[no_mangle]
     fn call(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<CallerState>(&SCRATCH[..written_state as usize])
@@ -110,7 +111,8 @@ const _: () = {
 
     #[no_mangle]
     fn set_target(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<CallerState>(&SCRATCH[..written_state as usize])

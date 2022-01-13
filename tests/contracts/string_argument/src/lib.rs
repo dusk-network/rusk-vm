@@ -60,7 +60,8 @@ const _: () = {
 
     #[no_mangle]
     fn pass(written_state: u32, written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Stringer>(&SCRATCH[..written_state as usize])

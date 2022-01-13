@@ -201,7 +201,8 @@ const _: () = {
 
     #[no_mangle]
     fn crossover(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -221,7 +222,8 @@ const _: () = {
 
     #[no_mangle]
     fn set_crossover(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -251,7 +253,8 @@ const _: () = {
 
     #[no_mangle]
     fn self_call_test_a(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -281,7 +284,8 @@ const _: () = {
 
     #[no_mangle]
     fn self_call_test_b(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
@@ -318,7 +322,8 @@ const _: () = {
 
     #[no_mangle]
     fn update_and_panic(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])

@@ -163,14 +163,15 @@ const _: () = {
     use rkyv::archived_root;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
-    use rusk_uplink::AbiStore;
+    use rusk_uplink::{AbiStore, StoreContext};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore::new();
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -190,7 +191,8 @@ const _: () = {
 
     #[no_mangle]
     fn xor_values(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore::new();
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -214,7 +216,8 @@ const _: () = {
 
     #[no_mangle]
     fn is_even(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = AbiStore::new();
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -234,7 +237,8 @@ const _: () = {
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore::new();
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -258,7 +262,8 @@ const _: () = {
 
     #[no_mangle]
     fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore::new();
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -281,7 +286,8 @@ const _: () = {
 
     #[no_mangle]
     fn adjust(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore::new();
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -308,7 +314,8 @@ const _: () = {
 
     #[no_mangle]
     fn compare_and_swap(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = AbiStore::new();
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
