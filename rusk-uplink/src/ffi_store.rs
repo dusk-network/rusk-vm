@@ -55,6 +55,20 @@ impl AbiStoreInner {
     fn return_token(&mut self, token: Token) {
         self.token.return_token(token)
     }
+
+    fn request_buffer(&mut self) -> TokenBuffer {
+        let unwritten = &mut self.data[self.written..];
+        let token = self.token.take().expect("token error");
+        TokenBuffer::new(token, unwritten)
+    }
+
+    fn commit(&mut self, buffer: &mut TokenBuffer) -> OffsetLen {
+        let slice = buffer.written_bytes();
+        let len = slice.len();
+        assert!(len <= u16::MAX as usize);
+        self.written += len;
+        abi_put(slice)
+    }
 }
 
 impl AbiStore {
@@ -74,7 +88,8 @@ impl Store for AbiStore {
     }
 
     fn request_buffer(&self) -> TokenBuffer {
-        todo!()
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.request_buffer()
     }
 
     fn persist(&self) -> Result<(), ()> {
@@ -82,9 +97,8 @@ impl Store for AbiStore {
     }
 
     fn commit(&self, buffer: &mut TokenBuffer) -> Self::Identifier {
-        let slice = buffer.written_bytes();
-        assert!(slice.len() <= u16::MAX as usize);
-        abi_put(slice)
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.commit(buffer)
     }
 
     fn extend(&self, _buffer: &mut TokenBuffer) -> Result<(), ()> {
