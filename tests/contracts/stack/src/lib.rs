@@ -12,20 +12,16 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{Archive, Deserialize, Serialize};
-use rkyv::validation::validators::DefaultValidator;
-use rusk_uplink::{Query, Transaction};
-use nstack::NStack;
-use microkelvin::{Cardinality, Compound, OffsetLen, Nth, StoreRef};
 use bytecheck::CheckBytes;
-
+use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
+use nstack::NStack;
+use rkyv::{Archive, Deserialize, Serialize};
+use rusk_uplink::{Query, Transaction};
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
-pub struct Stack<T>
-where
-    T: Archive + Clone + for<'a> bytecheck::CheckBytes<DefaultValidator<'a>>,
-{
-    inner: NStack<T, Cardinality, OffsetLen>,
+#[archive_attr(derive(CheckBytes))]
+pub struct Stack {
+    inner: NStack<u64, Cardinality, OffsetLen>,
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -41,7 +37,7 @@ impl Peek {
 
 impl Query for Peek {
     const NAME: &'static str = "peek";
-    type Return = u64;
+    type Return = Option<u64>;
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -57,7 +53,7 @@ impl Push {
 
 impl Transaction for Push {
     const NAME: &'static str = "push";
-    type Return = u64;
+    type Return = ();
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -65,72 +61,72 @@ pub struct Pop;
 
 impl Transaction for Pop {
     const NAME: &'static str = "pop";
-    type Return = u64;
+    type Return = Option<u64>;
 }
 
+impl Stack {
+    pub fn new() -> Self {
+        Stack {
+            inner: NStack::new(),
+        }
+    }
+
+    pub fn peek(&self, n: u64) -> Option<u64> {
+        self.inner.walk(Nth(n)).map(|n| match n.leaf() {
+            microkelvin::MaybeArchived::Memory(u) => *u,
+            microkelvin::MaybeArchived::Archived(archived) => {
+                u64::from(archived)
+            }
+        })
+    }
+
+    pub fn push(&mut self, value: u64) {
+        self.inner.push(value)
+    }
+
+    pub fn pop(&mut self) -> Option<u64> {
+        self.inner.pop()
+    }
+}
 
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
     use rusk_uplink::{AbiStore, StoreContext};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    impl<T> Stack<T>
-    where
-        T: Archive + Clone + for<'a> bytecheck::CheckBytes<DefaultValidator<'a>>,
-        <T as Archive>::Archived: Deserialize<T, StoreRef<OffsetLen>>
-        + for<'a> bytecheck::CheckBytes<DefaultValidator<'a>>
-    {
-        pub fn new() -> Self {
-            Stack {
-                inner: NStack::new(),
-            }
-        }
-
-        pub fn peek(&self, n: u64) {
-            (self.inner as Nth).walk(Nth(n))?.map(|n| n.clone())
-        }
-
-        pub fn push(&mut self, value: T) {
-            self.inner.push(value)
-        }
-
-        pub fn pop(&mut self) -> Option<T> {
-            self.inner.pop()
-        }
-    }
-
     #[no_mangle]
-    fn peek(written_state: u32, written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+    fn peek(written_state: u32, _written_data: u32) -> u32 {
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Stack>(&SCRATCH[..written_state as usize])
         };
-        let mut state: Stack = state.deserialize(&mut store).unwrap();
+        let state: Stack = state.deserialize(&mut store).unwrap();
         let arg = unsafe {
             archived_root::<Peek>(&SCRATCH[..written_state as usize])
         };
-        let arg: u64 = arg.deserialize(&mut store).unwrap();
+        let arg: Peek = arg.deserialize(&mut store).unwrap();
 
         let ret = state.peek(arg.value);
 
         let res: <Peek as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let mut ser = store.serializer();
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
-            <<Peek as Query>::Return as Archive>::Archived,
-        >();
+                <<Peek as Query>::Return as Archive>::Archived,
+            >();
         buffer_len as u32
     }
 
     #[no_mangle]
-    fn push(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+    fn push(written_state: u32, _written_data: u32) -> [u32; 2] {
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Stack>(&SCRATCH[..written_state as usize])
@@ -139,25 +135,28 @@ const _: () = {
         let arg = unsafe {
             archived_root::<Push>(&SCRATCH[..written_state as usize])
         };
-        let arg: u64 = arg.deserialize(&mut store).unwrap();
+        let arg: Push = arg.deserialize(&mut store).unwrap();
 
         let result = state.push(arg.value);
 
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let mut ser = store.serializer();
         let state_len = ser.serialize_value(&state).unwrap()
             + core::mem::size_of::<<Stack as Archive>::Archived>();
 
         let return_len = ser.serialize_value(&result).unwrap()
             + core::mem::size_of::<
-            <<Push as Transaction>::Return as Archive>::Archived,
-        >();
+                <<Push as Transaction>::Return as Archive>::Archived,
+            >();
 
         [state_len as u32, return_len as u32]
     }
 
     #[no_mangle]
     fn pop(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        rusk_uplink::debug!("ommegott");
+
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Stack>(&SCRATCH[..written_state as usize])
@@ -166,16 +165,15 @@ const _: () = {
 
         let result = state.pop();
 
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
+        let mut ser = store.serializer();
         let state_len = ser.serialize_value(&state).unwrap()
             + core::mem::size_of::<<Stack as Archive>::Archived>();
 
         let return_len = ser.serialize_value(&result).unwrap()
             + core::mem::size_of::<
-            <<Pop as Transaction>::Return as Archive>::Archived,
-        >();
+                <<Pop as Transaction>::Return as Archive>::Archived,
+            >();
 
         [state_len as u32, return_len as u32]
     }
-
 };

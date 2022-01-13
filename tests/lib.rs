@@ -50,9 +50,13 @@ fn minimal_counter() {
         99
     );
 
+    println!("ok!");
+
     network
         .transact(contract_id, 0, minimal_counter::Increment(1), &mut gas)
         .unwrap();
+
+    println!("ek!");
 
     assert_eq!(
         network
@@ -62,26 +66,26 @@ fn minimal_counter() {
     );
 }
 
-// #[test]
-// fn register() {
-//     use register::*;
+#[test]
+fn register() {
+    use register::*;
 
-//     let reg = Register::new();
+    let reg = Register::new();
 
-//     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/deps/register.wasm"
-//     );
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/register.wasm"
+    );
 
-//     let store = StoreRef::new(HostStore::new());
+    let store = StoreRef::new(HostStore::new());
 
-//     let contract = Contract::new(&reg, code.to_vec(), &store);
+    let contract = Contract::new(&reg, code.to_vec(), &store);
 
-//     let mut network = NetworkState::new(store);
+    let mut network = NetworkState::new(store);
 
-//     let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).unwrap();
 
-//     todo!()
-// }
+    todo!()
+}
 
 #[test]
 fn string_passthrough() {

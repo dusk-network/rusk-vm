@@ -70,7 +70,8 @@ const _: () = {
 
     #[no_mangle]
     fn read(written_state: u32, written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -98,7 +99,8 @@ const _: () = {
 
     #[no_mangle]
     fn incr(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -117,14 +119,15 @@ const _: () = {
 
         let mut ser = store.serializer();
 
-        let state_len = ser.serialize_value(&de_state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
+        let state_len = (ser.serialize_value(&de_state).unwrap()
+            + core::mem::size_of::<<Counter as Archive>::Archived>())
+            as u32;
 
-        let return_len = ser.serialize_value(&res).unwrap()
+        let return_len = (ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
                 <<Increment as Transaction>::Return as Archive>::Archived,
-            >();
+            >()) as u32;
 
-        [state_len as u32, return_len as u32]
+        [state_len, return_len]
     }
 };

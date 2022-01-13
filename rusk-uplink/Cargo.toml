@@ -8,6 +8,4 @@ edition = "2018"
 [dependencies]
 microkelvin = { version = "0.13.0-rc", default-features = false }
 rkyv = { version = "0.7.26", default-features = false, features = ["alloc", "validation"] }
-dusk-hamt = { version = "0.7" }
-parking_lot = { version = "0.11.1" }
 bytecheck = { version = "0.6.7", default-features = false }

@@ -80,7 +80,8 @@ const _: () = {
 
     #[no_mangle]
     fn value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let slf = unsafe {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
@@ -99,7 +100,8 @@ const _: () = {
 
     #[no_mangle]
     fn get_gas_consumed(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let slf = unsafe {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
@@ -122,7 +124,8 @@ const _: () = {
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let slf = unsafe {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
@@ -146,7 +149,8 @@ const _: () = {
 
     #[no_mangle]
     fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let slf = unsafe {
             archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])

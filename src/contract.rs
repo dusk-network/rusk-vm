@@ -27,8 +27,11 @@ pub struct Contract {
     code: Vec<u8>,
 }
 
+/// Trait for wrapping archived/memory Contracts
 pub trait ContractRef {
+    /// Get the bytecode of the contract
     fn bytecode(&self) -> &[u8];
+    /// Get the state of the contract
     fn state(&self) -> &[u8];
 }
 

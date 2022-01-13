@@ -88,7 +88,8 @@ const _: () = {
 
     #[no_mangle]
     fn nums(written_state: u32, written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Register>(&SCRATCH[..written_state as usize])
@@ -114,7 +115,8 @@ const _: () = {
 
     #[no_mangle]
     fn goss(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let state = unsafe {
             archived_root::<Register>(&SCRATCH[..written_state as usize])

@@ -115,7 +115,8 @@ const _: () = {
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let slf = unsafe {
             archived_root::<TxVec>(&SCRATCH[..written_state as usize])
@@ -141,7 +142,8 @@ const _: () = {
             written_data
         );
 
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let slf = unsafe {
             archived_root::<TxVec>(&SCRATCH[..written_state as usize])
@@ -171,7 +173,8 @@ const _: () = {
 
     #[no_mangle]
     fn delegate_sum(_: u32, written_data: u32) -> [u32; 2] {
-        let mut store = StoreContext::new(AbiStore::new());
+        let mut store =
+            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
 
         let (slf, arg) = unsafe {
             archived_root::<(TxVec, TxVecDelegateSum)>(

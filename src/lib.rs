@@ -28,7 +28,7 @@ mod state;
 
 pub use rusk_uplink;
 
-pub use contract::{Contract, ContractId};
+pub use contract::{Contract, ContractId, ContractRef};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 

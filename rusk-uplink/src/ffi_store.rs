@@ -21,7 +21,7 @@ fn abi_get(offset: u64, buf: &mut [u8]) {
 }
 
 struct AbiStoreInner {
-    data: [u8; 64 * 1024],
+    data: *mut [u8],
     written: usize,
     token: Token,
 }
@@ -35,9 +35,9 @@ impl Fallible for AbiStore {
 }
 
 impl AbiStoreInner {
-    fn new() -> Self {
+    fn new(buf: &mut [u8]) -> Self {
         AbiStoreInner {
-            data: [0u8; 1024 * 64],
+            data: buf,
             written: 0,
             token: Token::new(),
         }
@@ -46,7 +46,8 @@ impl AbiStoreInner {
     fn get(&mut self, ident: &OffsetLen) -> &[u8] {
         let offset = ident.offset();
         let len = ident.len();
-        let to_write = &mut self.data[self.written..][..len as usize];
+        let slice = unsafe { &mut *self.data };
+        let to_write = &mut slice[self.written..][..len as usize];
         self.written += len as usize;
         abi_get(offset, to_write);
         to_write
@@ -57,7 +58,8 @@ impl AbiStoreInner {
     }
 
     fn request_buffer(&mut self) -> TokenBuffer {
-        let unwritten = &mut self.data[self.written..];
+        let slice = unsafe { &mut *self.data };
+        let unwritten = &mut slice[self.written..];
         let token = self.token.take().expect("token error");
         TokenBuffer::new(token, unwritten)
     }
@@ -72,9 +74,9 @@ impl AbiStoreInner {
 }
 
 impl AbiStore {
-    pub fn new() -> Self {
+    pub fn new(buf: &mut [u8]) -> Self {
         AbiStore {
-            inner: UnsafeCell::new(AbiStoreInner::new()),
+            inner: UnsafeCell::new(AbiStoreInner::new(buf)),
         }
     }
 }
