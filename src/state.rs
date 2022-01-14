@@ -150,7 +150,7 @@ impl NetworkState {
         &mut self.head
     }
 
-    /// Returns a reference to the specified contracts state in the `head`
+    /// Returns a reference to the specified contract's state in the `head`
     /// state.
     pub fn get_contract<'a>(
         &'a self,
@@ -159,8 +159,8 @@ impl NetworkState {
         self.head.get_contract(contract_id)
     }
 
-    /// Returns a mutable reference to the specified contracts state in the
-    /// `origin` state.
+    /// Returns a mutable reference to the specified contract's state in the
+    /// `head` state.
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
