@@ -281,11 +281,11 @@ impl<'a> CallContext<'a> {
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
 
-            println!(
-                "getting exported function '{}': {:?}",
-                transaction.name(),
-                instance.exports.get_function(transaction.name())
-            );
+            // println!(
+            //     "getting exported function '{}': {:?}",
+            //     transaction.name(),
+            //     instance.exports.get_function(transaction.name())
+            // );
 
             let run_func: NativeFunc<(u32, u32), u64> =
                 instance.exports.get_native_function(transaction.name())?;
@@ -309,27 +309,27 @@ impl<'a> CallContext<'a> {
                     // copy the contract state into scratch memory
                     let state = contract.state();
                     let len = state.len();
-                    println!(
-                        "read contract state={:?} for {}",
-                        state,
-                        transaction.name()
-                    );
+                    // println!(
+                    //     "read contract state={:?} for {}",
+                    //     state,
+                    //     transaction.name()
+                    // );
 
                     mem[0..len].copy_from_slice(state);
 
                     let data = transaction.data();
 
                     mem[len..len + data.len()].copy_from_slice(data);
-                    println!(
-                        "written memory={:?} for {}",
-                        &mem[..(len + data.len())],
-                        transaction.name()
-                    );
-                    println!(
-                        "written memory state only ={:?} for {}",
-                        &mem[..len],
-                        transaction.name()
-                    );
+                    // println!(
+                    //     "written memory={:?} for {}",
+                    //     &mem[..(len + data.len())],
+                    //     transaction.name()
+                    // );
+                    // println!(
+                    //     "written memory state only ={:?} for {}",
+                    //     &mem[..len],
+                    //     transaction.name()
+                    // );
 
                     (len, len + data.len())
                 });

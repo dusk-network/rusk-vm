@@ -6,7 +6,9 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
-use stack::Stack;
+use stack::{Push, Stack};
+use microkelvin::{HostStore, StoreRef};
+
 
 fn get_config() -> Criterion {
     Criterion::default().sample_size(10)
@@ -22,14 +24,14 @@ fn stack_64(
 
     for i in 0..N {
         let _ =
-            network.transact::<_, ()>(contract_id, 0, (stack::PUSH, i), gas);
+            network.transact(contract_id, 0, stack::Push::new(i), gas);
     }
 }
 
 fn stack_bench(c: &mut Criterion) {
     type Leaf = u64;
 
-    let stack = Stack::<Leaf>::new();
+    let stack = Stack::new();
 
     let code = include_bytes!(concat!(
         "../target/wasm32-unknown-unknown/release/",
@@ -37,9 +39,10 @@ fn stack_bench(c: &mut Criterion) {
         ".wasm"
     ));
 
-    let contract = Contract::new(stack, code.to_vec());
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&stack, code.to_vec(), &store);
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new(store);
 
     let contract_id = network.deploy(contract).unwrap();
     let mut gas = GasMeter::with_limit(1_000_000_000_000);
