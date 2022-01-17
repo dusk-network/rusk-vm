@@ -166,6 +166,51 @@ impl Counter {
     }
 }
 
+pub fn get_arguments<S, P>(written_state: u32, written_data: u32, scratch: impl AsRef<[u8]>) -> (S, P)
+where S: Archive,
+      <S as Archive>::Archived: Deserialize<S, EmptyStore>,
+      P: Archive,
+      <P as Archive>::Archived: Deserialize<P, EmptyStore>,
+{
+    use rkyv::archived_root;
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rusk_uplink::{AbiStore, StoreContext};
+
+    let mut store = EmptyStore;
+
+    let state = unsafe {
+        archived_root::<S>(&scratch.as_ref()[..written_state as usize])
+    };
+    let state: S = state.deserialize(&mut store).unwrap();
+    let arg = unsafe {
+        archived_root::<P>(&scratch.as_ref()[written_state as usize..written_data as usize])
+    };
+    let arg: P = arg.deserialize(&mut store).unwrap();
+
+    (state, arg)
+}
+
+use rkyv::ser::serializers::BufferSerializer;
+use rkyv::ser::Serializer;
+
+pub fn return_arguments<'a, S, P>(state: &S, arg: &P, scratch: &'a mut [u8]) -> [u32; 2]
+where S: Serialize<BufferSerializer<&'a mut [u8]>>,
+      P: Serialize<BufferSerializer<&'a mut [u8]>> + Transaction,
+      <P as Transaction>::Return: Archive
+{
+    let mut ser = unsafe { BufferSerializer::new(scratch) };
+    let state_len = ser.serialize_value(state).unwrap()
+        + core::mem::size_of::<<S as Archive>::Archived>();
+
+    let return_len = ser.serialize_value(arg).unwrap()
+        + core::mem::size_of::<
+        <<P as Transaction>::Return as Archive>::Archived,
+    >();
+
+    [state_len as u32, return_len as u32]
+}
+
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
@@ -175,6 +220,15 @@ const _: () = {
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
+
+    #[no_mangle]
+    fn adjust(written_state: u32, written_data: u32) -> [u32; 2] {
+        let (mut state, arg): (Counter, Adjust) = unsafe { get_arguments(written_state, written_data, &SCRATCH) };
+
+        state.adjust(arg.by);
+
+        unsafe { return_arguments(&state, &arg, &mut SCRATCH)}
+    }
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
@@ -289,34 +343,6 @@ const _: () = {
         let return_len = ser.serialize_value(&()).unwrap()
             + core::mem::size_of::<
                 <<Decrement as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
-    }
-
-    #[no_mangle]
-    fn adjust(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let mut state: Counter = state.deserialize(&mut store).unwrap();
-        let arg = unsafe {
-            archived_root::<Adjust>(&SCRATCH[..written_state as usize])
-        };
-        let arg: Adjust = arg.deserialize(&mut store).unwrap();
-
-        state.adjust(arg.by);
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<Adjust as Transaction>::Return as Archive>::Archived,
             >();
 
         [state_len as u32, return_len as u32]
