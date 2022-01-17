@@ -13,8 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::Query;
-extern crate alloc;
+use rusk_uplink::{Execute, Query, StoreContext};
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct BlockHeight;
@@ -27,23 +26,23 @@ impl Query for ReadBlockHeight {
     type Return = u64;
 }
 
+impl Execute<ReadBlockHeight> for BlockHeight {
+    fn execute(
+        &self,
+        _: ReadBlockHeight,
+        _: StoreContext,
+    ) -> <ReadBlockHeight as Query>::Return {
+        rusk_uplink::block_height()
+    }
+}
+
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 
-    #[no_mangle]
-    fn read_block_height(_written_state: u32, _written_data: u32) -> u32 {
-        let block_height = rusk_uplink::block_height();
-        let res: <ReadBlockHeight as Query>::Return = block_height;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<ReadBlockHeight as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    q_handler!(read_block_height, BlockHeight, ReadBlockHeight);
 };

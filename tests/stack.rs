@@ -64,7 +64,7 @@ fn stack() {
 }
 
 #[cfg(feature = "persistence")]
-#[ignore]
+#[test]
 fn stack_persist() {
     use microkelvin::DiskBackend;
 

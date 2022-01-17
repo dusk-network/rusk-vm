@@ -13,7 +13,8 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+
 extern crate alloc;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -45,12 +46,35 @@ pub struct GasConsumedQuery;
 
 impl Query for GasConsumedValueQuery {
     const NAME: &'static str = "value";
-    type Return = u32;
+    type Return = i32;
 }
 
 impl Query for GasConsumedQuery {
     const NAME: &'static str = "get_gas_consumed";
     type Return = (u32, u32);
+}
+
+impl Execute<GasConsumedValueQuery> for GasConsumed {
+    fn execute(
+        &self,
+        _: GasConsumedValueQuery,
+        _: StoreContext,
+    ) -> <GasConsumedValueQuery as Query>::Return {
+        self.value()
+    }
+}
+
+impl Execute<GasConsumedQuery> for GasConsumed {
+    fn execute(
+        &self,
+        _: GasConsumedQuery,
+        _: StoreContext,
+    ) -> <GasConsumedQuery as Query>::Return {
+        (
+            rusk_uplink::gas_consumed() as u32,
+            rusk_uplink::gas_left() as u32,
+        )
+    }
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -68,107 +92,38 @@ impl Transaction for GasConsumedDecrement {
     type Return = ();
 }
 
+impl Apply<GasConsumedIncrement> for GasConsumed {
+    fn apply(
+        &mut self,
+        _: GasConsumedIncrement,
+        _: StoreContext,
+    ) -> <GasConsumedIncrement as Transaction>::Return {
+        self.increment()
+    }
+}
+
+impl Apply<GasConsumedDecrement> for GasConsumed {
+    fn apply(
+        &mut self,
+        _: GasConsumedDecrement,
+        _: StoreContext,
+    ) -> <GasConsumedDecrement as Transaction>::Return {
+        self.decrement()
+    }
+}
+
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 512] = [0u8; 512];
+    scratch_memory!(512);
 
-    #[no_mangle]
-    fn value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+    q_handler!(value, GasConsumed, GasConsumedValueQuery);
 
-        let slf = unsafe {
-            archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
-        };
+    q_handler!(get_gas_consumed, GasConsumed, GasConsumedQuery);
 
-        let slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
-        let ret = slf.value();
+    t_handler!(increment, GasConsumed, GasConsumedIncrement);
 
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&ret).unwrap()
-            + core::mem::size_of::<
-                <<GasConsumedValueQuery as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
-
-    #[no_mangle]
-    fn get_gas_consumed(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let slf = unsafe {
-            archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
-        };
-
-        let _slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
-
-        let ret = (
-            rusk_uplink::gas_consumed() as i32,
-            rusk_uplink::gas_left() as i32,
-        );
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&ret).unwrap()
-            + core::mem::size_of::<
-                <<GasConsumedQuery as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
-
-    #[no_mangle]
-    fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let slf = unsafe {
-            archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
-        };
-
-        let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
-        slf.increment();
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&slf).unwrap()
-            + core::mem::size_of::<<GasConsumed as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-            <<GasConsumedIncrement as Transaction>::Return as Archive>::Archived,
-        >();
-
-        [state_len as u32, return_len as u32]
-    }
-
-    #[no_mangle]
-    fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let slf = unsafe {
-            archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
-        };
-
-        let mut slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
-        slf.decrement();
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&slf).unwrap()
-            + core::mem::size_of::<<GasConsumed as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-            <<GasConsumedDecrement as Transaction>::Return as Archive>::Archived,
-        >();
-
-        [state_len as u32, return_len as u32]
-    }
+    t_handler!(decrement, GasConsumed, GasConsumedDecrement);
 };

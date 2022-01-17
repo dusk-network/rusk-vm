@@ -13,8 +13,9 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 extern crate alloc;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -30,22 +31,38 @@ impl GasContextData {
             call_gas_limits: Vec::new(),
         }
     }
-}
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct QCompute {
-    value: u64,
-}
-
-impl QCompute {
-    pub fn new(value: u64) -> Self {
-        Self { value }
+    pub fn compute_with_transact(
+        &mut self,
+        n: u64,
+        store: StoreContext,
+    ) -> u64 {
+        if n < 1 {
+            0
+        } else {
+            let callee = rusk_uplink::callee();
+            let call_limit = *self
+                .call_gas_limits
+                .get(n as usize - 1)
+                .expect("Call limit out of bounds");
+            rusk_uplink::debug!("call TCompute with limit {}", call_limit);
+            rusk_uplink::debug!("limits = {:?}", self.call_gas_limits);
+            rusk_uplink::transact(
+                self,
+                &callee,
+                TCompute::new(n - 1),
+                call_limit,
+                store,
+            )
+            .unwrap();
+            self.after_call_gas_limits
+                .insert(0, rusk_uplink::gas_left());
+            rusk_uplink::debug!(
+                "after limits = {:?}",
+                self.after_call_gas_limits
+            );
+            n
+        }
     }
-}
-
-impl Query for QCompute {
-    const NAME: &'static str = "q_compute";
-    type Return = u64;
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -62,6 +79,16 @@ impl TCompute {
 impl Transaction for TCompute {
     const NAME: &'static str = "t_compute";
     type Return = u64;
+}
+
+impl Apply<TCompute> for GasContextData {
+    fn apply(
+        &mut self,
+        input: TCompute,
+        store: StoreContext,
+    ) -> <TCompute as Transaction>::Return {
+        self.compute_with_transact(input.value, store)
+    }
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -81,188 +108,52 @@ impl Transaction for SetGasLimits {
     type Return = ();
 }
 
+impl Apply<SetGasLimits> for GasContextData {
+    fn apply(
+        &mut self,
+        limits: SetGasLimits,
+        _: StoreContext,
+    ) -> <SetGasLimits as Transaction>::Return {
+        self.call_gas_limits = limits.limits.to_vec();
+    }
+}
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct ReadGasLimits;
 
 impl Query for ReadGasLimits {
     const NAME: &'static str = "read_gas_limits";
-    type Return = Vec<u64>;
+    type Return = Box<[u64]>;
+}
+
+impl Execute<ReadGasLimits> for GasContextData {
+    fn execute(
+        &self,
+        _: ReadGasLimits,
+        _: StoreContext,
+    ) -> <ReadGasLimits as Query>::Return {
+        Box::from(&self.after_call_gas_limits[..])
+    }
 }
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 512] = [0u8; 512];
+    scratch_memory!(512);
 
-    impl GasContextData {
-        pub fn compute_with_transact(
-            &mut self,
-            n: u64,
-            store: StoreContext,
-        ) -> u64 {
-            if n < 1 {
-                0
-            } else {
-                let callee = rusk_uplink::callee();
-                let call_limit = *self
-                    .call_gas_limits
-                    .get(n as usize - 1)
-                    .expect("Call limit out of bounds");
-                rusk_uplink::transact(
-                    self,
-                    &callee,
-                    TCompute::new(n - 1),
-                    call_limit,
-                    store,
-                )
-                .unwrap();
-                self.after_call_gas_limits
-                    .insert(0, rusk_uplink::gas_left());
-                n
-            }
-        }
-        pub fn compute_with_query(
-            &mut self,
-            n: u64,
-            store: StoreContext,
-        ) -> u64 {
-            if n < 1 {
-                0
-            } else {
-                let callee = rusk_uplink::callee();
-                let call_limit = *self
-                    .call_gas_limits
-                    .get(n as usize - 1)
-                    .expect("Call limit out of bounds");
-                rusk_uplink::query(
-                    &callee,
-                    QCompute::new(n - 1),
-                    call_limit,
-                    store,
-                )
-                .unwrap();
-                self.after_call_gas_limits
-                    .insert(0, rusk_uplink::gas_left());
-                n
-            }
-        }
-    }
+    q_handler_store_ser!(
+        read_gas_limits,
+        GasContextData,
+        ReadGasLimits
+    );
 
-    #[no_mangle]
-    fn read_gas_limits(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+    t_handler_store_ser!(t_compute, GasContextData, TCompute);
 
-        let state = unsafe {
-            archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
-        };
-        let state: GasContextData = state.deserialize(&mut store).unwrap();
-
-        let ret = state.after_call_gas_limits;
-
-        let res: <ReadGasLimits as Query>::Return = ret;
-
-        let mut ser = store.serializer();
-
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<ReadGasLimits as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
-
-    #[no_mangle]
-    fn q_compute(written_state: u32, written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
-        };
-        let input = unsafe {
-            archived_root::<u64>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let mut state: GasContextData = state.deserialize(&mut store).unwrap();
-        let input: u64 = input.deserialize(&mut store).unwrap();
-
-        let ret: u64 = state.compute_with_transact(input, store);
-
-        let res: <QCompute as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<QCompute as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
-
-    #[no_mangle]
-    fn t_compute(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
-        };
-        let input = unsafe {
-            archived_root::<u64>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let mut state: GasContextData = state.deserialize(&mut store).unwrap();
-        let input: u64 = input.deserialize(&mut store).unwrap();
-
-        let mut ser = store.serializer();
-
-        let ret: u64 = state.compute_with_query(input, store);
-        let res: <QCompute as Query>::Return = ret;
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<GasContextData as Archive>::Archived>();
-        let return_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<QCompute as Query>::Return as Archive>::Archived,
-            >();
-        [state_len as u32, return_len as u32]
-    }
-
-    #[no_mangle]
-    fn set_gas_limits(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
-        };
-        let limits = unsafe {
-            archived_root::<SetGasLimits>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-        let mut state: GasContextData = state.deserialize(&mut store).unwrap();
-        let limits: SetGasLimits = limits.deserialize(&mut store).unwrap();
-
-        state.call_gas_limits = limits.limits;
-
-        let mut ser = store.serializer();
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<GasContextData as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<SetGasLimits as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
-    }
+    t_handler_store_ser!(
+        set_gas_limits,
+        GasContextData,
+        SetGasLimits
+    );
 };

@@ -8,8 +8,6 @@
 //!
 //! The main engine for executing WASM on the network state
 #![warn(missing_docs)]
-#![allow(unreachable_code)]
-#![allow(unused)]
 
 use std::collections::HashMap;
 use std::{fmt, io};

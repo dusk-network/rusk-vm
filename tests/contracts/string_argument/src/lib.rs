@@ -42,7 +42,7 @@ impl Query for Passthrough {
 impl Execute<Passthrough> for Stringer {
     fn execute(
         &self,
-        p: &Passthrough,
+        p: Passthrough,
         _: StoreContext,
     ) -> <Passthrough as Query>::Return {
         p.string.repeat(p.repeat as usize)
@@ -51,37 +51,10 @@ impl Execute<Passthrough> for Stringer {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::AbiStore;
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 1024] = [0u8; 1024];
+    scratch_memory!(1024);
 
-    #[no_mangle]
-    fn pass(written_state: u32, written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Stringer>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<Passthrough>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let de_state: Stringer = state.deserialize(&mut store).unwrap();
-        let de_query: Passthrough = arg.deserialize(&mut store).unwrap();
-
-        let mut ser = store.serializer();
-        let res: <Passthrough as Query>::Return =
-            de_state.execute(&de_query, store);
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<Passthrough as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    q_handler!(pass, Stringer, Passthrough);
 };

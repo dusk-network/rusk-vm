@@ -74,14 +74,14 @@ pub trait Execute<Q>
 where
     Q: Query,
 {
-    fn execute(&self, q: &Q, store: StoreContext) -> Q::Return;
+    fn execute(&self, q: Q, store: StoreContext) -> Q::Return;
 }
 
 pub trait Apply<T>
 where
     T: Transaction,
 {
-    fn apply(&mut self, t: &T) -> T::Return;
+    fn apply(&mut self, t: T, store: StoreContext) -> T::Return;
 }
 
 pub trait Query: Archive {
@@ -165,6 +165,14 @@ impl ReturnValue {
         let state: &T::Archived =
             unsafe { archived_root::<T>(&self.state[..]) };
         state
+    }
+
+    pub fn cast_data<T>(&self) -> &T::Archived
+    where
+        T: Archive,
+    {
+        let data: &T::Archived = unsafe { archived_root::<T>(&self.data[..]) };
+        data
     }
 
     pub fn data_len(&self) -> usize {

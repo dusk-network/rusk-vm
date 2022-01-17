@@ -11,7 +11,7 @@
 use bytecheck::CheckBytes;
 use microkelvin::{MaybeArchived, OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, Execute, Query, Transaction};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 
 use dusk_hamt::{Hamt, Lookup};
 
@@ -53,7 +53,7 @@ impl Transaction for Gossip {
 impl Execute<NumSecrets> for Register {
     fn execute(
         &self,
-        q: &NumSecrets,
+        q: NumSecrets,
         _: StoreRef<OffsetLen>,
     ) -> <NumSecrets as Query>::Return {
         self.open_secrets
@@ -68,7 +68,11 @@ impl Execute<NumSecrets> for Register {
 }
 
 impl Apply<Gossip> for Register {
-    fn apply(&mut self, t: &Gossip) -> <Gossip as Transaction>::Return {
+    fn apply(
+        &mut self,
+        t: Gossip,
+        _: StoreContext,
+    ) -> <Gossip as Transaction>::Return {
         if let Some(mut branch) = self.open_secrets.get_mut(&t.0) {
             *branch.leaf_mut() += 1;
         }
@@ -81,7 +85,7 @@ impl Apply<Gossip> for Register {
 const _: () = {
     use rkyv::archived_root;
     use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::AbiStore;
 
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
@@ -104,7 +108,7 @@ const _: () = {
         let query: NumSecrets = query.deserialize(&mut store).unwrap();
 
         let mut ser = store.serializer();
-        let res = state.execute(&query, store);
+        let res = state.execute(query, store);
 
         let buffer_len = ser.serialize_value(&res).unwrap()
             + core::mem::size_of::<
@@ -130,7 +134,8 @@ const _: () = {
         let mut state: Register = state.deserialize(&mut store).unwrap();
         let gossip: Gossip = transaction.deserialize(&mut store).unwrap();
 
-        state.apply(&gossip);
+        state.apply(gossip, store.clone()); // todo use clone temporarily to get it to compile as Kris will change
+                                             // this contract anyway
 
         let mut ser = store.serializer();
 

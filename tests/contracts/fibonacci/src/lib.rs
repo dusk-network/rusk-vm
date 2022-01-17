@@ -38,7 +38,7 @@ impl Query for ComputeFrom {
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(
         &self,
-        compute_from: &ComputeFrom,
+        compute_from: ComputeFrom,
         store: StoreRef<OffsetLen>,
     ) -> <ComputeFrom as Query>::Return {
         let n = compute_from.value;
@@ -69,38 +69,10 @@ impl Execute<ComputeFrom> for Fibonacci {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::{framing_imports, StoreContext};
+    framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 128] = [0u8; 128];
+    scratch_memory!(128);
 
-    #[no_mangle]
-    fn compute(written_state: u32, written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Fibonacci>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<ComputeFrom>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let de_state: Fibonacci = state.deserialize(&mut store).unwrap();
-        let de_query: ComputeFrom = arg.deserialize(&mut store).unwrap();
-
-        let res: <ComputeFrom as Query>::Return =
-            de_state.execute(&de_query, store);
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<ComputeFrom as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    q_handler!(compute, Fibonacci, ComputeFrom);
 };

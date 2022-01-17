@@ -13,18 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction};
-
-// query ids
-pub const READ_VALUE: u8 = 0;
-pub const XOR_VALUES: u8 = 1;
-pub const IS_EVEN: u8 = 2;
-
-// transaction ids
-pub const INCREMENT: u8 = 0;
-pub const DECREMENT: u8 = 1;
-pub const ADJUST: u8 = 2;
-pub const COMPARE_AND_SWAP: u8 = 3;
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
@@ -123,6 +112,76 @@ impl Transaction for CompareAndSwap {
     type Return = bool;
 }
 
+impl Apply<Adjust> for Counter {
+    fn apply(
+        &mut self,
+        arg: Adjust,
+        _: StoreContext,
+    ) -> <Adjust as Transaction>::Return {
+        self.adjust(arg.by);
+    }
+}
+
+impl Execute<ReadValue> for Counter {
+    fn execute(
+        &self,
+        _: ReadValue,
+        _: StoreContext,
+    ) -> <ReadValue as Query>::Return {
+        self.value
+    }
+}
+
+impl Execute<XorValues> for Counter {
+    fn execute(
+        &self,
+        arg: XorValues,
+        _: StoreContext,
+    ) -> <XorValues as Query>::Return {
+        self.xor_values(arg.a, arg.b)
+    }
+}
+
+impl Execute<IsEven> for Counter {
+    fn execute(
+        &self,
+        _: IsEven,
+        _: StoreContext,
+    ) -> <IsEven as Query>::Return {
+        self.is_even()
+    }
+}
+
+impl Apply<Increment> for Counter {
+    fn apply(
+        &mut self,
+        _: Increment,
+        _: StoreContext,
+    ) -> <Increment as Transaction>::Return {
+        self.increment();
+    }
+}
+
+impl Apply<Decrement> for Counter {
+    fn apply(
+        &mut self,
+        _: Decrement,
+        _: StoreContext,
+    ) -> <Decrement as Transaction>::Return {
+        self.decrement();
+    }
+}
+
+impl Apply<CompareAndSwap> for Counter {
+    fn apply(
+        &mut self,
+        arg: CompareAndSwap,
+        _: StoreContext,
+    ) -> <CompareAndSwap as Transaction>::Return {
+        self.compare_and_swap(arg.expected, arg.new)
+    }
+}
+
 impl Counter {
     pub fn read_value(&self) -> i32 {
         self.value
@@ -160,183 +219,38 @@ impl Counter {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 512] = [0u8; 512];
+    scratch_memory!(512);
+
+    t_handler!(adjust, Counter, Adjust);
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let state: Counter = state.deserialize(&mut store).unwrap();
+        let state: Counter = unsafe { get_state(written_state, &SCRATCH) };
 
         let ret = state.read_value();
 
-        let res: <ReadValue as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<ReadValue as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
+        unsafe { q_return(&ret, &mut SCRATCH) }
     }
+    // q_handler!(read_value, Counter, ReadValue);
 
-    #[no_mangle]
-    fn xor_values(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+    q_handler!(xor_values, Counter, XorValues);
 
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let state: Counter = state.deserialize(&mut store).unwrap();
-        let arg = unsafe {
-            archived_root::<XorValues>(&SCRATCH[..written_state as usize])
-        };
-        let arg: XorValues = arg.deserialize(&mut store).unwrap();
-
-        let ret = state.xor_values(arg.a, arg.b);
-
-        let res: <XorValues as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<XorValues as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
-
-    #[no_mangle]
-    fn is_even(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let state: Counter = state.deserialize(&mut store).unwrap();
-
-        let ret = state.is_even();
-
-        let res: <IsEven as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<IsEven as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    q_handler!(is_even, Counter, IsEven);
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let mut state: Counter = state.deserialize(&mut store).unwrap();
+        let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
 
         state.increment();
 
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<Increment as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
+        unsafe { t_return(&state, &(), &mut SCRATCH) }
     }
+    // t_handler!(increment, Counter, Increment);
 
-    #[no_mangle]
-    fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+    t_handler!(decrement, Counter, Decrement);
 
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let mut state: Counter = state.deserialize(&mut store).unwrap();
-
-        state.decrement();
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<Decrement as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
-    }
-
-    #[no_mangle]
-    fn adjust(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let mut state: Counter = state.deserialize(&mut store).unwrap();
-        let arg = unsafe {
-            archived_root::<Adjust>(&SCRATCH[..written_state as usize])
-        };
-        let arg: Adjust = arg.deserialize(&mut store).unwrap();
-
-        state.adjust(arg.by);
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<Adjust as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
-    }
-
-    #[no_mangle]
-    fn compare_and_swap(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let mut state: Counter = state.deserialize(&mut store).unwrap();
-        let arg = unsafe {
-            archived_root::<CompareAndSwap>(&SCRATCH[..written_state as usize])
-        };
-        let arg: CompareAndSwap = arg.deserialize(&mut store).unwrap();
-
-        let res = state.compare_and_swap(arg.expected, arg.new);
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<CompareAndSwap as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
-    }
+    t_handler!(compare_and_swap, Counter, CompareAndSwap);
 };

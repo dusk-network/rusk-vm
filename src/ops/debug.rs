@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use tracing::{debug, trace};
+use tracing::trace;
 
 use crate::env::Env;
 use crate::VMError;

@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::HostStore;
 use rusk_uplink::StoreContext;
 
 use crate::call_context::CallContext;

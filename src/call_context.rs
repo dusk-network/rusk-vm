@@ -4,13 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::{BranchRef, BranchRefMut, HostStore, Store};
-use rkyv::ser::serializers::BufferSerializer;
-use rkyv::ser::Serializer;
-use rkyv::{Archive, Serialize};
+use microkelvin::{BranchRef, BranchRefMut};
 use rusk_uplink::{
-    ContractId, ContractState, Query, RawQuery, RawTransaction, ReturnValue,
-    StoreContext, Transaction,
+    ContractId, RawQuery, RawTransaction, ReturnValue, StoreContext,
 };
 
 use tracing::{trace, trace_span};
@@ -26,7 +22,7 @@ use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
 use crate::modules::compile_module;
 use crate::resolver::HostImportsResolver;
-use crate::state::{Contracts, NetworkState};
+use crate::state::NetworkState;
 use crate::VMError;
 
 pub struct StackFrame {
@@ -62,10 +58,6 @@ impl StackFrame {
         offset: u64,
     ) -> Result<(), VMError> {
         self.memory.write(offset, source_slice)
-    }
-
-    fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
-        self.memory.read_from(offset)
     }
 
     fn read_memory(
@@ -181,7 +173,7 @@ impl<'a> CallContext<'a> {
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
                 .get_global("SCRATCH")
-                .map_err(|e| VMError::InvalidWASMModule)?
+                .map_err(|_| VMError::InvalidWASMModule)?
                 .get()
             {
                 ofs as usize
@@ -192,9 +184,11 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
 
+            // Write the current archived state and the query into contract
+            // scratch buffer
+
             let (written_state, written_data) =
                 memory.with_mut_slice_from(buf_offset, |mem| {
-                    // copy the contract state into scratch memory
                     let state = contract.state();
                     let len = state.len() as usize;
 
@@ -254,7 +248,7 @@ impl<'a> CallContext<'a> {
 
         let r = {
             let mut contract = self.state.get_contract_mut(&target)?;
-            let mut contract = contract.leaf_mut();
+            let contract = contract.leaf_mut();
 
             let module = compile_module(contract.bytecode(), &config)?;
 
@@ -281,19 +275,13 @@ impl<'a> CallContext<'a> {
             self.stack
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
 
-            println!(
-                "getting exported function '{}': {:?}",
-                transaction.name(),
-                instance.exports.get_function(transaction.name())
-            );
-
             let run_func: NativeFunc<(u32, u32), u64> =
                 instance.exports.get_native_function(transaction.name())?;
 
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
                 .get_global("SCRATCH")
-                .map_err(|e| VMError::InvalidWASMModule)?
+                .map_err(|_| VMError::InvalidWASMModule)?
                 .get()
             {
                 ofs as usize
@@ -304,38 +292,31 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
 
+            println!("buf ofs transaction {:?}", buf_offset);
+
+            // Copy the contract state and the transaction into scratch memory
+
             let (written_state, written_data) =
                 memory.with_mut_slice_from(buf_offset, |mem| {
                     // copy the contract state into scratch memory
                     let state = contract.state();
-                    let len = state.len();
-                    println!(
-                        "read contract state={:?} for {}",
-                        state,
-                        transaction.name()
-                    );
 
-                    mem[0..len].copy_from_slice(state);
+                    let len = state.len();
+
+                    mem[..len].copy_from_slice(state);
 
                     let data = transaction.data();
+                    let data_len = data.len();
 
-                    mem[len..len + data.len()].copy_from_slice(data);
-                    println!(
-                        "written memory={:?} for {}",
-                        &mem[..(len + data.len())],
-                        transaction.name()
-                    );
-                    println!(
-                        "written memory state only ={:?} for {}",
-                        &mem[..len],
-                        transaction.name()
-                    );
+                    println!("transaction data {:?}", data);
 
-                    (len, len + data.len())
+                    mem[len..len + data_len].copy_from_slice(data);
+
+                    (len, len + data_len)
                 });
 
+            // refactor plz
             fn separate_tuple(tuple: u64) -> (u32, u32) {
-                println!("original tuple = {:x}", tuple);
                 let bytes = tuple.to_le_bytes();
                 let mut a = [0u8; 4];
                 let mut b = [0u8; 4];
@@ -348,9 +329,16 @@ impl<'a> CallContext<'a> {
 
             r.map(|result| {
                 let (state_written, result_written) = separate_tuple(result);
+
+                println!(
+                    "state_written, result_written {:?}",
+                    (state_written, result_written)
+                );
+
                 memory.with_slice_from(buf_offset, |mem| {
-                    contract
-                        .set_state(Vec::from(&mem[..state_written as usize]));
+                    let new_state = &mem[..state_written as usize];
+
+                    contract.set_state(new_state);
                     let result_len = result_written - state_written;
                     ReturnValue::with_state(
                         &mem[state_written as usize..][..result_len as usize],
@@ -406,10 +394,6 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    pub fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
-        self.top().read_memory_from(offset)
-    }
-
     pub fn read_memory(
         &self,
         offset: u64,
@@ -428,10 +412,6 @@ impl<'a> CallContext<'a> {
             .expect("Invalid stack")
             .write_memory(source_slice, offset)?;
         Ok(())
-    }
-
-    pub fn state_mut(&mut self) -> &mut Contracts {
-        self.state.head_mut()
     }
 
     /// Reconcile the gas usage across the stack.

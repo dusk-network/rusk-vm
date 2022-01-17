@@ -9,7 +9,6 @@ use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, Gas, GasMeter, NetworkState};
 
 #[test]
-#[ignore]
 fn gas_context() {
     let gas_context_data = GasContextData::new();
 
@@ -25,11 +24,11 @@ fn gas_context() {
     let contract_id = network.deploy(contract).unwrap();
 
     const INITIAL_GAS_LIMIT: Gas = 1_000_000_000;
-    const GAS_RESERVE_TOLERANCE_PERCENTAGE: u64 = 1;
-    const GAS_RESERVE_UPPER_BOUND_PERCENTAGE: u64 =
-        GasMeter::RESERVE_PERCENTAGE;
-    const GAS_RESERVE_LOWER_BOUND_PERCENTAGE: u64 =
-        GasMeter::RESERVE_PERCENTAGE - GAS_RESERVE_TOLERANCE_PERCENTAGE;
+    // const GAS_RESERVE_TOLERANCE_PERCENTAGE: u64 = 1;
+    // const GAS_RESERVE_UPPER_BOUND_PERCENTAGE: u64 =
+    //     GasMeter::RESERVE_PERCENTAGE;
+    // const GAS_RESERVE_LOWER_BOUND_PERCENTAGE: u64 =
+    //     GasMeter::RESERVE_PERCENTAGE - GAS_RESERVE_TOLERANCE_PERCENTAGE;
     const NUMBER_OF_NESTED_CALLS: usize = 10;
 
     let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
@@ -39,6 +38,8 @@ fn gas_context() {
     network
         .transact(contract_id, 0, SetGasLimits::new(call_gas_limits), &mut gas)
         .unwrap();
+
+    let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
 
     network
         .transact(
@@ -53,26 +54,27 @@ fn gas_context() {
         .query(contract_id, 0, gas_context::ReadGasLimits, &mut gas)
         .unwrap();
 
-    let mut bounds: Vec<(u64, u64)> = limits
-        .iter()
-        .map(|limit| {
-            (
-                *limit * GAS_RESERVE_LOWER_BOUND_PERCENTAGE / 100,
-                *limit * GAS_RESERVE_UPPER_BOUND_PERCENTAGE / 100,
-            )
-        })
-        .collect();
-    bounds.insert(
-        0,
-        (
-            INITIAL_GAS_LIMIT * (100 - GAS_RESERVE_TOLERANCE_PERCENTAGE) / 100,
-            INITIAL_GAS_LIMIT,
-        ),
-    );
+    let bounds: Vec<(u64, u64)> = vec![
+        // todo! replace it with a formula driven code
+        (930000000, 1000000000),
+        (864900000, 930000000),
+        (804357000, 864900000),
+        (748052010, 804357000),
+        (695688369, 748052010),
+        (646990183, 695688369),
+        (601700870, 646990183),
+        (559581809, 601700870),
+        (520411082, 559581809),
+        (483982306, 520411082),
+    ];
 
     let zipped = limits.iter().zip(bounds.iter());
 
     for (callee_limit, (lower_bound, upper_bound)) in zipped {
+        println!(
+            "limit {} should be in {} - {}",
+            callee_limit, lower_bound, upper_bound
+        );
         assert!(
             callee_limit > lower_bound && callee_limit < upper_bound,
             "Gas context limit {} should not be out of range {} - {}",
@@ -84,7 +86,6 @@ fn gas_context() {
 }
 
 #[test]
-#[ignore]
 fn gas_context_with_call_limit() {
     let gas_context_data = GasContextData::new();
 
