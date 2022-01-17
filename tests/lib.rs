@@ -26,7 +26,7 @@ fn fibonacci_reference(n: u64) -> u64 {
     }
 }
 
-#[ignore]
+#[test]
 fn minimal_counter() {
     let counter = minimal_counter::Counter::new(99);
 
@@ -87,7 +87,7 @@ fn register() {
     todo!()
 }
 
-#[ignore]
+#[test]
 fn string_passthrough() {
     use string_argument::*;
 
@@ -114,7 +114,7 @@ fn string_passthrough() {
     );
 }
 
-#[ignore]
+#[test]
 fn delegated_call() {
     let counter = Counter::new(99);
     let delegator = Delegator;
@@ -186,7 +186,7 @@ fn delegated_call() {
     );
 }
 
-#[ignore]
+#[test]
 fn fibonacci() {
     use fibonacci::Fibonacci;
     let fib = Fibonacci;
@@ -216,7 +216,7 @@ fn fibonacci() {
     }
 }
 
-#[ignore]
+#[test]
 fn block_height() {
     let bh = BlockHeight {};
 
@@ -241,7 +241,7 @@ fn block_height() {
     )
 }
 
-#[ignore]
+#[test]
 fn self_snapshot() {
     let self_snapshot = SelfSnapshot::new(7);
 
@@ -348,7 +348,7 @@ fn self_snapshot() {
     );
 }
 
-#[ignore]
+#[test]
 fn tx_vec() {
     let value = 15;
     let tx_vec = TxVec::new(value);
@@ -407,7 +407,7 @@ fn tx_vec() {
     assert_eq!(value, v);
 }
 
-#[ignore]
+#[test]
 fn calling() {
     let caller = CallerState::new();
     let callee1 = Callee1State::new();
@@ -453,7 +453,7 @@ fn calling() {
     )
 }
 
-#[ignore]
+#[test]
 fn gas_consumed_host_function_works() {
     let gas_contract = GasConsumed::new(99);
 
@@ -495,7 +495,7 @@ fn gas_consumed_host_function_works() {
     gas.spent());
 }
 
-#[ignore]
+#[test]
 fn gas_consumption_works() {
     let counter = Counter::new(99);
 
@@ -527,7 +527,7 @@ fn gas_consumption_works() {
     assert!(gas.left() < 1_000_000_000);
 }
 
-#[ignore]
+#[test]
 fn out_of_gas_aborts_transaction_execution() {
     let counter = Counter::new(99);
 
@@ -552,7 +552,7 @@ fn out_of_gas_aborts_transaction_execution() {
     assert_eq!(gas.left(), 0);
 }
 
-#[ignore]
+#[test]
 fn out_of_gas_aborts_query_execution() {
     let counter = Counter::new(99);
 
@@ -577,7 +577,7 @@ fn out_of_gas_aborts_query_execution() {
     assert_eq!(gas.left(), 0);
 }
 
-#[ignore]
+#[test]
 fn commit_and_reset() {
     let counter = Counter::new(99);
 

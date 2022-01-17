@@ -15,17 +15,6 @@
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Query, Transaction};
 
-// query ids
-pub const READ_VALUE: u8 = 0;
-pub const XOR_VALUES: u8 = 1;
-pub const IS_EVEN: u8 = 2;
-
-// transaction ids
-pub const INCREMENT: u8 = 0;
-pub const DECREMENT: u8 = 1;
-pub const ADJUST: u8 = 2;
-pub const COMPARE_AND_SWAP: u8 = 3;
-
 use rkyv::Fallible;
 
 pub struct EmptyStore;
@@ -173,9 +162,6 @@ where S: Archive,
       <P as Archive>::Archived: Deserialize<P, EmptyStore>,
 {
     use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
 
     let mut store = EmptyStore;
 
@@ -196,9 +182,6 @@ where S: Archive,
       <S as Archive>::Archived: Deserialize<S, EmptyStore>,
 {
     use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
 
     let mut store = EmptyStore;
 
@@ -213,28 +196,27 @@ where S: Archive,
 use rkyv::ser::serializers::BufferSerializer;
 use rkyv::ser::Serializer;
 
-pub fn tx_return<'a, S, P>(state: &S, arg: &P, scratch: &'a mut [u8]) -> [u32; 2]
+pub fn t_return<'a, S, R>(state: &S, ret: &R, scratch: &'a mut [u8]) -> [u32; 2]
 where S: Serialize<BufferSerializer<&'a mut [u8]>>,
-      P: Serialize<BufferSerializer<&'a mut [u8]>> + Transaction,
-      <P as Transaction>::Return: Archive
+      R: Archive + Serialize<BufferSerializer<&'a mut [u8]>>,
 {
     let mut ser = unsafe { BufferSerializer::new(scratch) };
     let state_len = ser.serialize_value(state).unwrap()
         + core::mem::size_of::<<S as Archive>::Archived>();
 
-    let return_len = ser.serialize_value(arg).unwrap()
+    let return_len = ser.serialize_value(ret).unwrap()
         + core::mem::size_of::<
-        <<P as Transaction>::Return as Archive>::Archived,
+        <R as Archive>::Archived,
     >();
 
     [state_len as u32, return_len as u32]
 }
 
-pub fn q_return<'a, R>(ret: R, scratch: &'a mut [u8]) -> u32
+pub fn q_return<'a, R>(ret: &R, scratch: &'a mut [u8]) -> u32
 where R: Archive + Serialize<BufferSerializer<&'a mut [u8]>>
 {
     let mut ser = unsafe { BufferSerializer::new(scratch) };
-    let buffer_len = ser.serialize_value(&ret).unwrap()
+    let buffer_len = ser.serialize_value(ret).unwrap()
         + core::mem::size_of::<
         <R as Archive>::Archived,
     >();
@@ -257,7 +239,7 @@ const _: () = {
 
         state.adjust(arg.by);
 
-        unsafe { tx_return(&state, &arg, &mut SCRATCH)}
+        unsafe { t_return(&state, &(), &mut SCRATCH)}
     }
 
     #[no_mangle]
@@ -266,53 +248,25 @@ const _: () = {
 
         let ret = state.read_value();
 
-        unsafe { q_return(ret, &mut SCRATCH) }
+        unsafe { q_return(&ret, &mut SCRATCH) }
     }
 
     #[no_mangle]
-    fn xor_values(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let state: Counter = state.deserialize(&mut store).unwrap();
-        let arg = unsafe {
-            archived_root::<XorValues>(&SCRATCH[..written_state as usize])
-        };
-        let arg: XorValues = arg.deserialize(&mut store).unwrap();
+    fn xor_values(written_state: u32, written_data: u32) -> u32 {
+        let (mut state, arg): (Counter, XorValues) = unsafe { get_arguments(written_state, written_data, &SCRATCH) };
 
         let ret = state.xor_values(arg.a, arg.b);
 
-        let res: <XorValues as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<XorValues as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
+        unsafe { q_return(&ret, &mut SCRATCH) }
     }
 
     #[no_mangle]
     fn is_even(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let state: Counter = state.deserialize(&mut store).unwrap();
+        let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
 
         let ret = state.is_even();
 
-        let res: <IsEven as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<IsEven as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
+        unsafe { q_return(&ret, &mut SCRATCH) }
     }
 
     #[no_mangle]
@@ -321,58 +275,24 @@ const _: () = {
 
         state.increment();
 
-        unsafe { tx_return(&state, &Increment, &mut SCRATCH)}
+        unsafe { t_return(&state, &(), &mut SCRATCH)}
     }
 
     #[no_mangle]
     fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let mut state: Counter = state.deserialize(&mut store).unwrap();
+        let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
 
         state.decrement();
 
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<Decrement as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
+        unsafe { t_return(&state, &(), &mut SCRATCH)}
     }
 
     #[no_mangle]
-    fn compare_and_swap(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let mut state: Counter = state.deserialize(&mut store).unwrap();
-        let arg = unsafe {
-            archived_root::<CompareAndSwap>(&SCRATCH[..written_state as usize])
-        };
-        let arg: CompareAndSwap = arg.deserialize(&mut store).unwrap();
+    fn compare_and_swap(written_state: u32, written_data: u32) -> [u32; 2] {
+        let (mut state, arg): (Counter, CompareAndSwap) = unsafe { get_arguments(written_state, written_data, &SCRATCH) };
 
         let res = state.compare_and_swap(arg.expected, arg.new);
 
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<CompareAndSwap as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
+        unsafe { t_return(&state, &res, &mut SCRATCH)}
     }
 };
