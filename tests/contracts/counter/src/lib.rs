@@ -191,10 +191,29 @@ where S: Archive,
     (state, arg)
 }
 
+pub fn get_state<S>(written_state: u32, scratch: impl AsRef<[u8]>) -> S
+where S: Archive,
+      <S as Archive>::Archived: Deserialize<S, EmptyStore>,
+{
+    use rkyv::archived_root;
+    use rkyv::ser::serializers::BufferSerializer;
+    use rkyv::ser::Serializer;
+    use rusk_uplink::{AbiStore, StoreContext};
+
+    let mut store = EmptyStore;
+
+    let state = unsafe {
+        archived_root::<S>(&scratch.as_ref()[..written_state as usize])
+    };
+    let state: S = state.deserialize(&mut store).unwrap();
+
+    state
+}
+
 use rkyv::ser::serializers::BufferSerializer;
 use rkyv::ser::Serializer;
 
-pub fn return_arguments<'a, S, P>(state: &S, arg: &P, scratch: &'a mut [u8]) -> [u32; 2]
+pub fn tx_return<'a, S, P>(state: &S, arg: &P, scratch: &'a mut [u8]) -> [u32; 2]
 where S: Serialize<BufferSerializer<&'a mut [u8]>>,
       P: Serialize<BufferSerializer<&'a mut [u8]>> + Transaction,
       <P as Transaction>::Return: Archive
@@ -209,6 +228,17 @@ where S: Serialize<BufferSerializer<&'a mut [u8]>>,
     >();
 
     [state_len as u32, return_len as u32]
+}
+
+pub fn q_return<'a, R>(ret: R, scratch: &'a mut [u8]) -> u32
+where R: Archive + Serialize<BufferSerializer<&'a mut [u8]>>
+{
+    let mut ser = unsafe { BufferSerializer::new(scratch) };
+    let buffer_len = ser.serialize_value(&ret).unwrap()
+        + core::mem::size_of::<
+        <R as Archive>::Archived,
+    >();
+    buffer_len as u32
 }
 
 #[cfg(target_family = "wasm")]
@@ -227,29 +257,16 @@ const _: () = {
 
         state.adjust(arg.by);
 
-        unsafe { return_arguments(&state, &arg, &mut SCRATCH)}
+        unsafe { tx_return(&state, &arg, &mut SCRATCH)}
     }
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        // let mut store =
-        //     StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-        let mut store = EmptyStore;
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let state: Counter = state.deserialize(&mut store).unwrap();
+        let state: Counter = unsafe { get_state(written_state, &SCRATCH) };
 
         let ret = state.read_value();
 
-        let res: <ReadValue as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<ReadValue as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
+        unsafe { q_return(ret, &mut SCRATCH) }
     }
 
     #[no_mangle]
