@@ -5,22 +5,24 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fibonacci::Fibonacci;
+use fibonacci::{Fibonacci, ComputeFrom};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
+use microkelvin::{HostStore, StoreRef};
+
 
 fn get_config() -> Criterion {
     Criterion::default().sample_size(10)
 }
 
-fn fibonacci_3(
+fn fibonacci_15(
     network: &mut NetworkState,
     contract_id: ContractId,
     gas: &mut GasMeter,
 ) {
-    let n: u64 = 3;
+    let n: u64 = 15;
 
     network
-        .query::<_, u64>(contract_id, 0, (fibonacci::COMPUTE, n), gas)
+        .query(contract_id, 0, fibonacci::ComputeFrom::new(n as u32), gas)
         .unwrap();
 }
 
@@ -31,15 +33,16 @@ fn fibonacci_bench(c: &mut Criterion) {
         ".wasm"
     ));
 
-    let contract = Contract::new(Fibonacci, code.to_vec());
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&Fibonacci, code.to_vec(), &store);
 
-    let mut network = NetworkState::default();
+    let mut network = NetworkState::new(store);
 
     let contract_id = network.deploy(contract).unwrap();
     let mut gas = GasMeter::with_limit(1_000_000_000_000);
     c.bench_function("fibonacci 3", |b| {
         b.iter(|| {
-            fibonacci_3(
+            fibonacci_15(
                 black_box(&mut network),
                 black_box(contract_id),
                 black_box(&mut gas),
