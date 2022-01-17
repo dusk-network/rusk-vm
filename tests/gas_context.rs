@@ -9,7 +9,6 @@ use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, Gas, GasMeter, NetworkState};
 
 #[test]
-#[ignore]
 fn gas_context() {
     let gas_context_data = GasContextData::new();
 
@@ -84,7 +83,6 @@ fn gas_context() {
 }
 
 #[test]
-#[ignore]
 fn gas_context_with_call_limit() {
     let gas_context_data = GasContextData::new();
 
