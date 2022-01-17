@@ -66,7 +66,7 @@ fn minimal_counter() {
     );
 }
 
-#[test]
+#[ignore]
 fn register() {
     use register::*;
 

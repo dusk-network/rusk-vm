@@ -26,6 +26,14 @@ pub const DECREMENT: u8 = 1;
 pub const ADJUST: u8 = 2;
 pub const COMPARE_AND_SWAP: u8 = 3;
 
+use rkyv::Fallible;
+
+pub struct EmptyStore;
+
+impl Fallible for EmptyStore {
+    type Error = core::convert::Infallible;
+}
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
     junk: u32,
@@ -170,8 +178,9 @@ const _: () = {
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+        // let mut store =
+        //     StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+        let mut store = EmptyStore;
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
@@ -237,8 +246,9 @@ const _: () = {
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+        // let mut store =
+        //     StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+        let mut store = EmptyStore;
 
         let state = unsafe {
             archived_root::<Counter>(&SCRATCH[..written_state as usize])
