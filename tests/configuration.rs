@@ -24,7 +24,7 @@ fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact(contract_id, 0, counter::Adjust::new(1), &mut gas)
+        .transact(contract_id, 0, counter::Increment, &mut gas)
         .expect("Transaction error");
 
     network

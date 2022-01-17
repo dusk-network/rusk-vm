@@ -317,28 +317,11 @@ const _: () = {
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        // let mut store =
-        //     StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-        let mut store = EmptyStore;
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let mut state: Counter = state.deserialize(&mut store).unwrap();
+        let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
 
         state.increment();
 
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<Increment as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
+        unsafe { tx_return(&state, &Increment, &mut SCRATCH)}
     }
 
     #[no_mangle]
