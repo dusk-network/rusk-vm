@@ -81,7 +81,7 @@ pub trait Apply<T>
 where
     T: Transaction,
 {
-    fn apply(&mut self, t: &T) -> T::Return;
+    fn apply(&mut self, t: &T, store: StoreContext) -> T::Return;
 }
 
 pub trait Query: Archive {
