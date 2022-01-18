@@ -13,10 +13,15 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, Transaction};
-use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return};
+use rusk_uplink::{ContractId, Execute, Query, Transaction};
+use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return, query_state_arg_fun};
+use rusk_uplink::StoreContext;
 extern crate alloc;
 use alloc::boxed::Box;
+
+// #[macro_use]
+// extern crate rusk_uplink;
+
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct TxVec {
@@ -29,12 +34,54 @@ impl TxVec {
     }
 }
 
+use rusk_uplink::{AbiStore, RawTransaction};
+impl TxVec {
+    pub fn read_value(&self) -> u8 {
+        self.value
+    }
+
+    pub fn sum(&mut self, values: impl AsRef<[u8]>) {
+        let values: &[u8] = &Box::from(values.as_ref());
+        self.value +=
+            values.into_iter().fold(0u8, |s, v| s.wrapping_add(*v));
+    }
+
+    pub fn delegate_sum(
+        &mut self,
+        target: &ContractId,
+        data: impl AsRef<[u8]>,
+        store: StoreContext,
+    ) -> () {
+        let tx_vec_sum = TxVecSum::new(data);
+        let raw_transaction = RawTransaction::new(tx_vec_sum);
+        let ret = rusk_uplink::transact_raw(
+            self,
+            target,
+            &raw_transaction,
+            0,
+            store,
+        )
+            .unwrap();
+        self.value = *ret.cast::<u8>().unwrap();
+    }
+}
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct TxVecReadValue;
 
 impl Query for TxVecReadValue {
     const NAME: &'static str = "read_value";
     type Return = u8;
+}
+
+impl Execute<TxVecReadValue> for TxVec {
+    fn execute(
+        &self,
+        _: &TxVecReadValue,
+        _: StoreContext,
+    ) -> <TxVecReadValue as Query>::Return {
+        self.read_value()
+    }
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -75,50 +122,19 @@ impl Transaction for TxVecDelegateSum {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rusk_uplink::{AbiStore, RawTransaction, StoreContext};
-
-    impl TxVec {
-        pub fn read_value(&self) -> u8 {
-            self.value
-        }
-
-        pub fn sum(&mut self, values: impl AsRef<[u8]>) {
-            let values: &[u8] = &Box::from(values.as_ref());
-            self.value +=
-                values.into_iter().fold(0u8, |s, v| s.wrapping_add(*v));
-        }
-
-        pub fn delegate_sum(
-            &mut self,
-            target: &ContractId,
-            data: impl AsRef<[u8]>,
-            store: StoreContext,
-        ) -> () {
-            let tx_vec_sum = TxVecSum::new(data);
-            let raw_transaction = RawTransaction::new(tx_vec_sum);
-            let ret = rusk_uplink::transact_raw(
-                self,
-                target,
-                &raw_transaction,
-                0,
-                store,
-            )
-            .unwrap();
-            self.value = *ret.cast::<u8>().unwrap();
-        }
-    }
 
     #[no_mangle]
     static mut SCRATCH: [u8; 8192] = [0u8; 8192];
 
-    #[no_mangle]
-    fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let slf: TxVec = unsafe { get_state(written_state, &SCRATCH) };
-
-        let ret: <TxVecReadValue as Query>::Return = slf.read_value();
-
-        unsafe { q_return(&ret, &mut SCRATCH) }
-    }
+    // #[no_mangle]
+    // fn read_value(written_state: u32, _written_data: u32) -> u32 {
+    //     let slf: TxVec = unsafe { get_state(written_state, &SCRATCH) };
+    //
+    //     let ret: <TxVecReadValue as Query>::Return = slf.read_value();
+    //
+    //     unsafe { q_return(&ret, &mut SCRATCH) }
+    // }
+    query_state_arg_fun!(read_value, TxVec, TxVecReadValue);
 
     #[no_mangle]
     fn sum(written_state: u32, written_data: u32) -> [u32; 2] {
