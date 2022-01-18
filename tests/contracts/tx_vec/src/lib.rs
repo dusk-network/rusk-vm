@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Execute, Query, Transaction};
+use rusk_uplink::{Apply, ContractId, Execute, Query, Transaction, transaction_state_arg_fun};
 use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return, query_state_arg_fun};
 use rusk_uplink::StoreContext;
 extern crate alloc;
@@ -84,6 +84,16 @@ impl Execute<TxVecReadValue> for TxVec {
     }
 }
 
+impl Apply<TxVecSum> for TxVec {
+    fn apply(
+        &mut self,
+        s: &TxVecSum,
+    ) -> <TxVecSum as Transaction>::Return {
+        self.sum(&s.values);
+        self.value
+    }
+}
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct TxVecSum {
     values: Box<[u8]>,
@@ -136,14 +146,15 @@ const _: () = {
     // }
     query_state_arg_fun!(read_value, TxVec, TxVecReadValue);
 
-    #[no_mangle]
-    fn sum(written_state: u32, written_data: u32) -> [u32; 2] {
-        let (mut slf, de_arg): (TxVec, TxVecSum) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
-
-        slf.sum(de_arg.values);
-
-        unsafe { t_return(&slf, &slf.value, &mut SCRATCH)}
-    }
+    // #[no_mangle]
+    // fn sum(written_state: u32, written_data: u32) -> [u32; 2] {
+    //     let (mut slf, de_arg): (TxVec, TxVecSum) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+    //
+    //     let res = slf.apply(&de_arg);
+    //
+    //     unsafe { t_return(&slf, &res, &mut SCRATCH)}
+    // }
+    transaction_state_arg_fun!(sum, TxVec, TxVecSum);
 
     #[no_mangle]
     fn delegate_sum(written_state: u32, written_data: u32) -> [u32; 2] {
