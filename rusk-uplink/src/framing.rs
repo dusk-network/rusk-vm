@@ -54,7 +54,7 @@ pub fn t_return<'a, S, R>(state: &S, ret: &R, scratch: &'a mut [u8]) -> [u32; 2]
     where S: Serialize<BufferSerializer<&'a mut [u8]>>,
           R: Archive + Serialize<BufferSerializer<&'a mut [u8]>>,
 {
-    let mut ser = unsafe { BufferSerializer::new(scratch) };
+    let mut ser = BufferSerializer::new(scratch);
     let state_len = ser.serialize_value(state).unwrap()
         + core::mem::size_of::<<S as Archive>::Archived>();
 
@@ -69,7 +69,7 @@ pub fn t_return<'a, S, R>(state: &S, ret: &R, scratch: &'a mut [u8]) -> [u32; 2]
 pub fn q_return<'a, R>(ret: &R, scratch: &'a mut [u8]) -> u32
     where R: Archive + Serialize<BufferSerializer<&'a mut [u8]>>
 {
-    let mut ser = unsafe { BufferSerializer::new(scratch) };
+    let mut ser = BufferSerializer::new(scratch);
     let buffer_len = ser.serialize_value(ret).unwrap()
         + core::mem::size_of::<
         <R as Archive>::Archived,

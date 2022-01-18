@@ -14,6 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, Transaction};
+use rusk_uplink::{get_state, q_return};
 extern crate alloc;
 use alloc::boxed::Box;
 
@@ -75,7 +76,6 @@ impl Transaction for TxVecDelegateSum {
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
     use rusk_uplink::{AbiStore, RawTransaction, StoreContext};
 
@@ -115,23 +115,11 @@ const _: () = {
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+        let slf: TxVec = unsafe { get_state(written_state, &SCRATCH) };
 
-        let slf = unsafe {
-            archived_root::<TxVec>(&SCRATCH[..written_state as usize])
-        };
+        let ret: <TxVecReadValue as Query>::Return = slf.read_value();
 
-        let slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let ret = slf.read_value();
-
-        let res: <TxVecReadValue as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<TxVecReadValue as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
+        unsafe { q_return(&ret, &mut SCRATCH) }
     }
 
     #[no_mangle]

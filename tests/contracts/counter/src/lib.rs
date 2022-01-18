@@ -150,11 +150,6 @@ impl Counter {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
-
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
@@ -178,7 +173,7 @@ const _: () = {
 
     #[no_mangle]
     fn xor_values(written_state: u32, written_data: u32) -> u32 {
-        let (mut state, arg): (Counter, XorValues) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+        let (state, arg): (Counter, XorValues) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
 
         let ret = state.xor_values(arg.a, arg.b);
 
@@ -187,7 +182,7 @@ const _: () = {
 
     #[no_mangle]
     fn is_even(written_state: u32, _written_data: u32) -> u32 {
-        let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
+        let state: Counter = unsafe { get_state(written_state, &SCRATCH) };
 
         let ret = state.is_even();
 
