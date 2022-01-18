@@ -14,6 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return, query_state_arg_fun, transaction_state_arg_fun};
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {
@@ -68,66 +69,7 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 
-    #[no_mangle]
-    fn read(written_state: u32, written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+    query_state_arg_fun!(read, Counter, ReadCount);
 
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<ReadCount>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let de_state: Counter = (state).deserialize(&mut store).unwrap();
-        let de_query: ReadCount = (arg).deserialize(&mut store).unwrap();
-
-        let mut ser = store.serializer();
-
-        let res: <ReadCount as Query>::Return =
-            de_state.execute(&de_query, store);
-
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<ReadCount as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
-
-    #[no_mangle]
-    fn incr(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Counter>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<Increment>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let mut de_state: Counter = state.deserialize(&mut store).unwrap();
-        let de_transaction: Increment = arg.deserialize(&mut store).unwrap();
-
-        let res: <Increment as Transaction>::Return =
-            de_state.apply(&de_transaction);
-
-        let mut ser = store.serializer();
-
-        let state_len = (ser.serialize_value(&de_state).unwrap()
-            + core::mem::size_of::<<Counter as Archive>::Archived>())
-            as u32;
-
-        let return_len = (ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<Increment as Transaction>::Return as Archive>::Archived,
-            >()) as u32;
-
-        [state_len, return_len]
-    }
+    transaction_state_arg_fun!(incr, Counter, Increment);
 };
