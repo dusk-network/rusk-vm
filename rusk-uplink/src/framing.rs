@@ -77,3 +77,19 @@ pub fn q_return<'a, R>(ret: &R, scratch: &'a mut [u8]) -> u32
     buffer_len as u32
 }
 
+#[macro_export]
+macro_rules! query_state_arg_fun {
+    ($fun_name:ident, $state_type:ty, $arg_type:ty) => (
+        #[no_mangle]
+        fn $fun_name(written_state: u32, written_data: u32) -> u32 {
+            let (state, arg): ($state_type, $arg_type) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+
+            let store =
+                StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+            let res: <$arg_type as Query>::Return =
+                state.execute(&arg, store);
+
+            unsafe { q_return(&res, &mut SCRATCH) }
+        }
+    );
+}
