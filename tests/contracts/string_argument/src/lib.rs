@@ -13,6 +13,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
+use rusk_uplink::{get_state_and_arg, q_return};
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Stringer;
@@ -51,8 +52,6 @@ impl Execute<Passthrough> for Stringer {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::Serializer;
     use rusk_uplink::AbiStore;
 
     #[no_mangle]
@@ -60,28 +59,13 @@ const _: () = {
 
     #[no_mangle]
     fn pass(written_state: u32, written_data: u32) -> u32 {
-        let mut store =
+        let (de_state, de_query): (Stringer, Passthrough) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+
+        let store =
             StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Stringer>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<Passthrough>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let de_state: Stringer = state.deserialize(&mut store).unwrap();
-        let de_query: Passthrough = arg.deserialize(&mut store).unwrap();
-
-        let mut ser = store.serializer();
         let res: <Passthrough as Query>::Return =
             de_state.execute(&de_query, store);
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<Passthrough as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
+
+        unsafe { q_return(&res, &mut SCRATCH) }
     }
 };
