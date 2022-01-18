@@ -14,14 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Query, Transaction};
-
-use rkyv::Fallible;
-
-pub struct EmptyStore;
-
-impl Fallible for EmptyStore {
-    type Error = core::convert::Infallible;
-}
+use rusk_uplink::{get_state_and_arg, get_state, t_return, q_return};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
@@ -155,74 +148,6 @@ impl Counter {
     }
 }
 
-pub fn get_arguments<S, P>(written_state: u32, written_data: u32, scratch: impl AsRef<[u8]>) -> (S, P)
-where S: Archive,
-      <S as Archive>::Archived: Deserialize<S, EmptyStore>,
-      P: Archive,
-      <P as Archive>::Archived: Deserialize<P, EmptyStore>,
-{
-    use rkyv::archived_root;
-
-    let mut store = EmptyStore;
-
-    let state = unsafe {
-        archived_root::<S>(&scratch.as_ref()[..written_state as usize])
-    };
-    let state: S = state.deserialize(&mut store).unwrap();
-    let arg = unsafe {
-        archived_root::<P>(&scratch.as_ref()[written_state as usize..written_data as usize])
-    };
-    let arg: P = arg.deserialize(&mut store).unwrap();
-
-    (state, arg)
-}
-
-pub fn get_state<S>(written_state: u32, scratch: impl AsRef<[u8]>) -> S
-where S: Archive,
-      <S as Archive>::Archived: Deserialize<S, EmptyStore>,
-{
-    use rkyv::archived_root;
-
-    let mut store = EmptyStore;
-
-    let state = unsafe {
-        archived_root::<S>(&scratch.as_ref()[..written_state as usize])
-    };
-    let state: S = state.deserialize(&mut store).unwrap();
-
-    state
-}
-
-use rkyv::ser::serializers::BufferSerializer;
-use rkyv::ser::Serializer;
-
-pub fn t_return<'a, S, R>(state: &S, ret: &R, scratch: &'a mut [u8]) -> [u32; 2]
-where S: Serialize<BufferSerializer<&'a mut [u8]>>,
-      R: Archive + Serialize<BufferSerializer<&'a mut [u8]>>,
-{
-    let mut ser = unsafe { BufferSerializer::new(scratch) };
-    let state_len = ser.serialize_value(state).unwrap()
-        + core::mem::size_of::<<S as Archive>::Archived>();
-
-    let return_len = ser.serialize_value(ret).unwrap()
-        + core::mem::size_of::<
-        <R as Archive>::Archived,
-    >();
-
-    [state_len as u32, return_len as u32]
-}
-
-pub fn q_return<'a, R>(ret: &R, scratch: &'a mut [u8]) -> u32
-where R: Archive + Serialize<BufferSerializer<&'a mut [u8]>>
-{
-    let mut ser = unsafe { BufferSerializer::new(scratch) };
-    let buffer_len = ser.serialize_value(ret).unwrap()
-        + core::mem::size_of::<
-        <R as Archive>::Archived,
-    >();
-    buffer_len as u32
-}
-
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::archived_root;
@@ -235,7 +160,7 @@ const _: () = {
 
     #[no_mangle]
     fn adjust(written_state: u32, written_data: u32) -> [u32; 2] {
-        let (mut state, arg): (Counter, Adjust) = unsafe { get_arguments(written_state, written_data, &SCRATCH) };
+        let (mut state, arg): (Counter, Adjust) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
 
         state.adjust(arg.by);
 
@@ -253,7 +178,7 @@ const _: () = {
 
     #[no_mangle]
     fn xor_values(written_state: u32, written_data: u32) -> u32 {
-        let (mut state, arg): (Counter, XorValues) = unsafe { get_arguments(written_state, written_data, &SCRATCH) };
+        let (mut state, arg): (Counter, XorValues) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
 
         let ret = state.xor_values(arg.a, arg.b);
 
@@ -289,7 +214,7 @@ const _: () = {
 
     #[no_mangle]
     fn compare_and_swap(written_state: u32, written_data: u32) -> [u32; 2] {
-        let (mut state, arg): (Counter, CompareAndSwap) = unsafe { get_arguments(written_state, written_data, &SCRATCH) };
+        let (mut state, arg): (Counter, CompareAndSwap) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
 
         let res = state.compare_and_swap(arg.expected, arg.new);
 
