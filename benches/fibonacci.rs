@@ -40,7 +40,7 @@ fn fibonacci_bench(c: &mut Criterion) {
 
     let contract_id = network.deploy(contract).unwrap();
     let mut gas = GasMeter::with_limit(1_000_000_000_000);
-    c.bench_function("fibonacci 3", |b| {
+    c.bench_function("fibonacci 15", |b| {
         b.iter(|| {
             fibonacci_15(
                 black_box(&mut network),

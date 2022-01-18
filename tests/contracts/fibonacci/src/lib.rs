@@ -15,6 +15,8 @@
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query};
+use rusk_uplink::{get_state_and_arg, q_return, query_state_arg_fun};
+
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
@@ -77,30 +79,5 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 
-    #[no_mangle]
-    fn compute(written_state: u32, written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Fibonacci>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<ComputeFrom>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let de_state: Fibonacci = state.deserialize(&mut store).unwrap();
-        let de_query: ComputeFrom = arg.deserialize(&mut store).unwrap();
-
-        let res: <ComputeFrom as Query>::Return =
-            de_state.execute(&de_query, store);
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<ComputeFrom as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    query_state_arg_fun!(compute, Fibonacci, ComputeFrom);
 };
