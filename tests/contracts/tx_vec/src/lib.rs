@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, Transaction};
-use rusk_uplink::{get_state, q_return};
+use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return};
 extern crate alloc;
 use alloc::boxed::Box;
 
@@ -75,8 +75,6 @@ impl Transaction for TxVecDelegateSum {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::Serializer;
     use rusk_uplink::{AbiStore, RawTransaction, StoreContext};
 
     impl TxVec {
@@ -124,67 +122,21 @@ const _: () = {
 
     #[no_mangle]
     fn sum(written_state: u32, written_data: u32) -> [u32; 2] {
-        rusk_uplink::debug!(
-            "sum - entered1 {} {}",
-            written_state,
-            written_data
-        );
-
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let slf = unsafe {
-            archived_root::<TxVec>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<TxVecSum>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-        let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let de_arg: TxVecSum = (arg).deserialize(&mut store).unwrap();
+        let (mut slf, de_arg): (TxVec, TxVecSum) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
 
         slf.sum(de_arg.values);
 
-        let mut ser = store.serializer();
-
-        let state_len = ser.serialize_value(&slf).unwrap()
-            + core::mem::size_of::<<TxVec as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&slf.value).unwrap()
-            + core::mem::size_of::<
-                <<TxVecSum as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
+        unsafe { t_return(&slf, &slf.value, &mut SCRATCH)}
     }
 
     #[no_mangle]
-    fn delegate_sum(_: u32, written_data: u32) -> [u32; 2] {
+    fn delegate_sum(written_state: u32, written_data: u32) -> [u32; 2] {
+        let (mut slf, de_arg): (TxVec, TxVecDelegateSum) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+
         let mut store =
             StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let (slf, arg) = unsafe {
-            archived_root::<(TxVec, TxVecDelegateSum)>(
-                &SCRATCH[..written_data as usize],
-            )
-        };
-
-        let mut slf: TxVec = (slf).deserialize(&mut store).unwrap();
-        let de_arg: TxVecDelegateSum = (arg).deserialize(&mut store).unwrap();
-
-        let mut ser = store.serializer();
-
         slf.delegate_sum(&de_arg.contract_id, de_arg.data, store);
 
-        let state_len = ser.serialize_value(&slf).unwrap()
-            + core::mem::size_of::<<TxVec as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-            <<TxVecDelegateSum as Transaction>::Return as Archive>::Archived,
-        >();
-
-        [state_len as u32, return_len as u32]
+        unsafe { t_return(&slf, &(), &mut SCRATCH)}
     }
 };
