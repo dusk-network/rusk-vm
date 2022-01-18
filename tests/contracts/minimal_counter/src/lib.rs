@@ -54,7 +54,7 @@ impl Execute<ReadCount> for Counter {
 }
 
 impl Apply<Increment> for Counter {
-    fn apply(&mut self, t: &Increment) -> <Increment as Transaction>::Return {
+    fn apply(&mut self, t: &Increment, _: StoreContext) -> <Increment as Transaction>::Return {
         self.value += t.0;
     }
 }
