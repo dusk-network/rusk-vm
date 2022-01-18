@@ -133,7 +133,7 @@ const _: () = {
     fn delegate_sum(written_state: u32, written_data: u32) -> [u32; 2] {
         let (mut slf, de_arg): (TxVec, TxVecDelegateSum) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
 
-        let mut store =
+        let store =
             StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
         slf.delegate_sum(&de_arg.contract_id, de_arg.data, store);
 
