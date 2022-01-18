@@ -13,10 +13,10 @@
 )]
 
 use microkelvin::{OffsetLen, StoreRef};
-use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{
-    ContractId, Query, RawQuery, RawTransaction, ReturnValue, Transaction,
-};
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+use rusk_uplink::{ContractId, Query, RawQuery, RawTransaction, ReturnValue, Transaction, Execute, Apply, StoreContext};
+use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return, query_delegate_state_arg_fun, transaction_state_arg_fun};
+
 extern crate alloc;
 use alloc::boxed::Box;
 
@@ -79,6 +79,25 @@ impl Transaction for TransactionForwardData {
     type Return = ();
 }
 
+impl Execute<QueryForwardData> for Delegator {
+    fn execute(
+        &self,
+        arg: &QueryForwardData,
+        store: StoreContext,
+    ) -> <QueryForwardData as Query>::Return {
+        let query_name = arg.name.as_ref();
+        let mut query_data = AlignedVec::new();
+        query_data.extend_from_slice(arg.data.as_ref());
+        let result: ReturnValue = self.delegate_query(
+            &arg.contract_id,
+            &RawQuery::from(query_data, query_name),
+        );
+        let len = result.data_len();
+        store.put_raw(result.data());
+        len as u32
+    }
+}
+
 impl Delegator {
     pub fn delegate_query(
         &self,
@@ -101,40 +120,12 @@ impl Delegator {
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rkyv::{archived_root, AlignedVec};
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::AbiStore;
 
     #[no_mangle]
     static mut SCRATCH: [u8; 256] = [0u8; 256];
 
-    #[no_mangle]
-    fn delegate_query(written_state: u32, written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Delegator>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<QueryForwardData>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let de_state: Delegator = state.deserialize(&mut store).unwrap();
-        let de_arg: QueryForwardData = arg.deserialize(&mut store).unwrap();
-
-        let query_name = de_arg.name.as_ref();
-        let mut query_data = AlignedVec::new();
-        query_data.extend_from_slice(de_arg.data.as_ref());
-        let result: ReturnValue = de_state.delegate_query(
-            &de_arg.contract_id,
-            &RawQuery::from(query_data, query_name),
-        );
-
-        let len = result.data_len();
-        unsafe { &SCRATCH[..len].copy_from_slice(result.data()) };
-        len as u32
-    }
+    query_delegate_state_arg_fun!(delegate_query, Delegator, QueryForwardData);
 
     #[no_mangle]
     fn delegate_transaction(written_state: u32, written_data: u32) -> u64 {
