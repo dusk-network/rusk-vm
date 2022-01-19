@@ -105,6 +105,16 @@ impl Transaction for SetGasLimits {
     type Return = ();
 }
 
+impl Apply<SetGasLimits> for GasContextData {
+    fn apply(
+        &mut self,
+        limits: &SetGasLimits,
+        _: StoreContext
+    ) -> <SetGasLimits as Transaction>::Return {
+        self.call_gas_limits = limits.limits.to_vec();
+    }
+}
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct ReadGasLimits;
 
@@ -126,49 +136,15 @@ impl Execute<ReadGasLimits> for GasContextData {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    use rusk_uplink::q_return_store;
-    rusk_uplink::query_state_arg_fun_store!(read_gas_limits, GasContextData, ReadGasLimits);
+    query_state_arg_fun_store!(read_gas_limits, GasContextData, ReadGasLimits);
 
-    use rusk_uplink::{get_state_and_arg, t_return_store};
-    rusk_uplink::transaction_state_arg_fun_store!(t_compute, GasContextData, TCompute);
+    transaction_state_arg_fun_store!(t_compute, GasContextData, TCompute);
 
-    #[no_mangle]
-    fn set_gas_limits(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
-        };
-        let limits = unsafe {
-            archived_root::<SetGasLimits>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-        let mut state: GasContextData = state.deserialize(&mut store).unwrap();
-        let limits: SetGasLimits = limits.deserialize(&mut store).unwrap();
-
-        rusk_uplink::debug!("setting limits to {:?}", limits.limits);
-        state.call_gas_limits = limits.limits;
-
-        let mut ser = store.serializer();
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<GasContextData as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<SetGasLimits as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
-    }
+    transaction_state_arg_fun_store!(set_gas_limits, GasContextData, SetGasLimits);
 };
