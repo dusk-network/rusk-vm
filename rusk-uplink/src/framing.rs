@@ -78,6 +78,14 @@ pub fn q_return<'a, R>(ret: &R, scratch: &'a mut [u8]) -> u32
 }
 
 #[macro_export]
+macro_rules! framing_imports {
+    () => {
+        use rusk_uplink::{get_state_and_arg, q_return, t_return, query_state_arg_fun, transaction_state_arg_fun};
+        use rusk_uplink::AbiStore;
+    }
+}
+
+#[macro_export]
 macro_rules! query_state_arg_fun {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => (
         #[no_mangle]

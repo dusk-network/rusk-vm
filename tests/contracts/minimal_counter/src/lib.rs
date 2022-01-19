@@ -63,7 +63,8 @@ impl Apply<Increment> for Counter {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rusk_uplink::{AbiStore, get_state_and_arg, q_return, t_return, query_state_arg_fun, transaction_state_arg_fun};
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];

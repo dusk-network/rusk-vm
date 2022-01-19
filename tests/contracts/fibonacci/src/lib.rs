@@ -70,8 +70,8 @@ impl Execute<ComputeFrom> for Fibonacci {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rusk_uplink::{AbiStore, StoreContext};
-    use rusk_uplink::{get_state_and_arg, q_return, query_state_arg_fun};
+    use rusk_uplink::{StoreContext, framing_imports};
+    framing_imports!();
 
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
