@@ -13,7 +13,9 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction};
+use rusk_uplink::{Query, Transaction, Apply, Execute, StoreContext};
+use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return, query_state_arg_fun, transaction_state_arg_fun};
+
 extern crate alloc;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -45,12 +47,35 @@ pub struct GasConsumedQuery;
 
 impl Query for GasConsumedValueQuery {
     const NAME: &'static str = "value";
-    type Return = u32;
+    type Return = i32;
 }
 
 impl Query for GasConsumedQuery {
     const NAME: &'static str = "get_gas_consumed";
     type Return = (u32, u32);
+}
+
+impl Execute<GasConsumedValueQuery> for GasConsumed {
+    fn execute(
+        &self,
+        _: &GasConsumedValueQuery,
+        _: StoreContext,
+    ) -> <GasConsumedValueQuery as Query>::Return {
+        self.value()
+    }
+}
+
+impl Execute<GasConsumedQuery> for GasConsumed {
+    fn execute(
+        &self,
+        _: &GasConsumedQuery,
+        _: StoreContext,
+    ) -> <GasConsumedQuery as Query>::Return {
+        (
+            rusk_uplink::gas_consumed() as u32,
+            rusk_uplink::gas_left() as u32,
+        )
+    }
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -78,49 +103,9 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    #[no_mangle]
-    fn value(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+    query_state_arg_fun!(value, GasConsumed, GasConsumedValueQuery);
 
-        let slf = unsafe {
-            archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
-        };
-
-        let slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
-        let ret = slf.value();
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&ret).unwrap()
-            + core::mem::size_of::<
-                <<GasConsumedValueQuery as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
-
-    #[no_mangle]
-    fn get_gas_consumed(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let slf = unsafe {
-            archived_root::<GasConsumed>(&SCRATCH[..written_state as usize])
-        };
-
-        let _slf: GasConsumed = (slf).deserialize(&mut store).unwrap();
-
-        let ret = (
-            rusk_uplink::gas_consumed() as i32,
-            rusk_uplink::gas_left() as i32,
-        );
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&ret).unwrap()
-            + core::mem::size_of::<
-                <<GasConsumedQuery as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    query_state_arg_fun!(get_gas_consumed, GasConsumed, GasConsumedQuery);
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
