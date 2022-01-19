@@ -51,7 +51,8 @@ impl Execute<Passthrough> for Stringer {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rusk_uplink::{AbiStore, q_return, get_state_and_arg, query_state_arg_fun};
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
     #[no_mangle]
     static mut SCRATCH: [u8; 1024] = [0u8; 1024];
