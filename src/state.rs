@@ -10,10 +10,6 @@ use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
 use canonical_derive::Canon;
 use dusk_abi::{HostModule, Query, Transaction};
 use dusk_hamt::Map;
-#[cfg(feature = "persistence")]
-use microkelvin::{
-    BackendCtor, Compound, DiskBackend, PersistError, PersistedId, Persistence,
-};
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
@@ -22,6 +18,9 @@ use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
+
+#[cfg(feature = "persistence")]
+pub mod persist;
 
 /// State of the contracts on the network.
 #[derive(Clone, Default, Canon)]
@@ -171,28 +170,6 @@ impl NetworkState {
     /// Returns a reference to the map of registered host modules
     pub fn modules(&self) -> &HostModules {
         &self.modules
-    }
-
-    #[cfg(feature = "persistence")]
-    /// Persists the origin contracts stored on the [`NetworkState`] specifying
-    /// a backend ctor function.
-    pub fn persist(
-        &self,
-        ctor: fn() -> Result<DiskBackend, PersistError>,
-    ) -> Result<PersistedId, PersistError> {
-        Persistence::persist(&BackendCtor::new(ctor), &self.head.0)
-    }
-
-    #[cfg(feature = "persistence")]
-    /// Given a [`PersistedId`] restores the [`Hamt`] which stores the contracts
-    /// of the entire blockchain state.
-    pub fn restore(mut self, id: PersistedId) -> Result<Self, PersistError> {
-        let map = Map::from_generic(&id.restore()?)?;
-
-        self.origin = Contracts(map);
-        self.head = self.origin.clone();
-
-        Ok(self)
     }
 
     /// Deploys a contract to the `head` state, returning the address of the
