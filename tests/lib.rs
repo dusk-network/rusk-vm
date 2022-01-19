@@ -603,7 +603,10 @@ fn deploy_with_id() -> Result<(), VMError> {
 #[cfg(feature = "persistence")]
 #[test]
 fn persistence() {
-    use microkelvin::DiskBackend;
+    use microkelvin::{BackendCtor, DiskBackend};
+    fn testbackend() -> BackendCtor<DiskBackend> {
+        BackendCtor::new(|| DiskBackend::ephemeral())
+    }
 
     let counter = Counter::new(99);
 
@@ -639,12 +642,7 @@ fn persistence() {
 
         (
             network
-                .persist(|| {
-                    let dir = std::env::temp_dir().join("test_persist");
-                    std::fs::create_dir_all(&dir)
-                        .expect("Error on tmp dir creation");
-                    DiskBackend::new(dir)
-                })
+                .persist(&testbackend())
                 .expect("Error in persistence"),
             contract_id,
         )
@@ -664,10 +662,6 @@ fn persistence() {
             .unwrap(),
         100
     );
-
-    // Teardown
-    std::fs::remove_dir_all(std::env::temp_dir().join("test_persist"))
-        .expect("teardown fn error");
 }
 
 #[test]
@@ -708,6 +702,62 @@ fn commit_and_reset() {
     );
     assert_eq!(
         network_clone
+            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .unwrap(),
+        99
+    );
+}
+
+#[cfg(feature = "persistence")]
+#[test]
+fn persist_commit_and_reset() {
+    use microkelvin::{BackendCtor, DiskBackend};
+    fn testbackend() -> BackendCtor<DiskBackend> {
+        BackendCtor::new(|| DiskBackend::ephemeral())
+    }
+
+    let counter = Counter::new(99);
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
+
+    let contract = Contract::new(counter, code.to_vec());
+
+    let mut network = NetworkState::new();
+
+    let contract_id = network.deploy(contract).unwrap();
+    network.commit();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .unwrap();
+
+    assert_eq!(
+        network
+            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .unwrap(),
+        100
+    );
+
+    let id = network
+        .persist(&testbackend())
+        .expect("Error in persistence");
+
+    let mut new_network = NetworkState::new()
+        .restore(id)
+        .expect("Error reconstructing the NetworkState");
+
+    assert_eq!(
+        new_network
+            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .unwrap(),
+        100
+    );
+    new_network.reset();
+    assert_eq!(
+        new_network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
             .unwrap(),
         99
