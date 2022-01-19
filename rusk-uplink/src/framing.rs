@@ -108,7 +108,8 @@ pub fn q_return_store<R>(ret: &R, store: StoreContext) -> u32
 macro_rules! framing_imports {
     () => {
         use rusk_uplink::{get_state_and_arg, q_return, t_return, query_state_arg_fun, transaction_state_arg_fun};
-        use rusk_uplink::AbiStore;
+        use rusk_uplink::{AbiStore, q_return_store, t_return_store};
+        use rusk_uplink::{query_state_arg_fun_store, transaction_state_arg_fun_store};
     }
 }
 
