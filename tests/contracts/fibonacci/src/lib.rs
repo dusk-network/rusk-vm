@@ -15,7 +15,6 @@
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query};
-use rusk_uplink::{get_state_and_arg, q_return, query_state_arg_fun};
 
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
@@ -71,10 +70,8 @@ impl Execute<ComputeFrom> for Fibonacci {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
     use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::{get_state_and_arg, q_return, query_state_arg_fun};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];

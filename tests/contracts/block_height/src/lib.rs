@@ -14,8 +14,6 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
-use rusk_uplink::{get_state_and_arg, q_return, query_state_arg_fun};
-use rusk_uplink::AbiStore;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct BlockHeight;
@@ -40,6 +38,9 @@ impl Execute<ReadBlockHeight> for BlockHeight {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
+    use rusk_uplink::{get_state_and_arg, q_return, query_state_arg_fun};
+    use rusk_uplink::AbiStore;
+
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 

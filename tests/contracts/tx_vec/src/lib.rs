@@ -13,9 +13,9 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, ContractId, Execute, Query, Transaction, transaction_state_arg_fun};
-use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return, query_state_arg_fun};
+use rusk_uplink::{Apply, ContractId, Execute, RawTransaction, Query, Transaction};
 use rusk_uplink::StoreContext;
+
 extern crate alloc;
 use alloc::boxed::Box;
 
@@ -30,7 +30,6 @@ impl TxVec {
     }
 }
 
-use rusk_uplink::{AbiStore, RawTransaction};
 impl TxVec {
     pub fn read_value(&self) -> u8 {
         self.value
@@ -139,6 +138,7 @@ impl Transaction for TxVecDelegateSum {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
+    use rusk_uplink::{AbiStore, get_state_and_arg, q_return, t_return, query_state_arg_fun, transaction_state_arg_fun};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 8192] = [0u8; 8192];

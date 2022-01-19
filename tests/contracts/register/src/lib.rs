@@ -81,7 +81,7 @@ impl Apply<Gossip> for Register {
 const _: () = {
     use rkyv::archived_root;
     use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::AbiStore;
 
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];

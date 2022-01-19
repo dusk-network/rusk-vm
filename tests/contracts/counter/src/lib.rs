@@ -14,7 +14,6 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Query, Transaction};
-use rusk_uplink::{get_state_and_arg, get_state, t_return, q_return};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
@@ -150,6 +149,8 @@ impl Counter {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
+    use rusk_uplink::{get_state_and_arg, get_state, t_return, q_return};
+
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
