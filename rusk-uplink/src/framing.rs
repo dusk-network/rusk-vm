@@ -139,7 +139,7 @@ macro_rules! query_state_arg_fun_store {
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
             let res: <$arg_type as Query>::Return =
-                state.execute(&arg, store);
+                state.execute(&arg, store.clone());
 
             unsafe { q_return_store(&res, store) }
         }

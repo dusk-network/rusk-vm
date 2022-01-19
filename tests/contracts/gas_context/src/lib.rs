@@ -16,6 +16,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Query, Apply, Execute, Transaction, StoreContext};
 extern crate alloc;
 use alloc::vec::Vec;
+use alloc::boxed::Box;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct GasContextData {
@@ -109,8 +110,19 @@ pub struct ReadGasLimits;
 
 impl Query for ReadGasLimits {
     const NAME: &'static str = "read_gas_limits";
-    type Return = Vec<u64>;
+    type Return = Box<[u64]>;
 }
+
+impl Execute<ReadGasLimits> for GasContextData {
+    fn execute(
+        &self,
+        _: &ReadGasLimits,
+        _: StoreContext,
+    ) -> <ReadGasLimits as Query>::Return {
+        Box::from(&self.after_call_gas_limits[..])
+    }
+}
+
 
 #[cfg(target_family = "wasm")]
 const _: () = {
@@ -122,28 +134,8 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    #[no_mangle]
-    fn read_gas_limits(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
-        };
-        let state: GasContextData = state.deserialize(&mut store).unwrap();
-
-        let ret = state.after_call_gas_limits;
-
-        let res: <ReadGasLimits as Query>::Return = ret;
-
-        let mut ser = store.serializer();
-
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<ReadGasLimits as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    use rusk_uplink::q_return_store;
+    rusk_uplink::query_state_arg_fun_store!(read_gas_limits, GasContextData, ReadGasLimits);
 
     use rusk_uplink::{get_state_and_arg, t_return_store};
     rusk_uplink::transaction_state_arg_fun_store!(t_compute, GasContextData, TCompute);
