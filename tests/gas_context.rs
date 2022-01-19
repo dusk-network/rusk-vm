@@ -54,7 +54,7 @@ fn gas_context() {
         .query(contract_id, 0, gas_context::ReadGasLimits, &mut gas)
         .unwrap();
 
-    let bounds: Vec<(u64, u64)> = vec![ // todo! replace it with a formula
+    let bounds: Vec<(u64, u64)> = vec![ // todo! replace it with a formula driven code
         (930000000, 1000000000),
         (864900000, 930000000),
         (804357000, 864900000),
