@@ -145,36 +145,8 @@ const _: () = {
         buffer_len as u32
     }
 
-    #[no_mangle]
-    fn t_compute(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<GasContextData>(&SCRATCH[..written_state as usize])
-        };
-        let input = unsafe {
-            archived_root::<TCompute>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let mut state: GasContextData = state.deserialize(&mut store).unwrap();
-        let input: TCompute = input.deserialize(&mut store).unwrap();
-
-        let ret: u64 = state.apply(&input, store.clone());
-
-        let res: <TCompute as Transaction>::Return = ret;
-
-        let mut ser = store.serializer();
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<GasContextData as Archive>::Archived>();
-        let return_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-            <<TCompute as Transaction>::Return as Archive>::Archived,
-        >();
-        [state_len as u32, return_len as u32]
-    }
+    use rusk_uplink::{get_state_and_arg, t_return_store};
+    rusk_uplink::transaction_state_arg_fun_store!(t_compute, GasContextData, TCompute);
 
     #[no_mangle]
     fn set_gas_limits(written_state: u32, written_data: u32) -> [u32; 2] {
