@@ -84,7 +84,10 @@ fn stack() {
 #[cfg(feature = "persistence")]
 #[test]
 fn stack_persist() {
-    use microkelvin::DiskBackend;
+    use microkelvin::{BackendCtor, DiskBackend};
+    fn testbackend() -> BackendCtor<DiskBackend> {
+        BackendCtor::new(|| DiskBackend::ephemeral())
+    }
 
     type Leaf = u64;
     const N: Leaf = 64;
@@ -117,12 +120,7 @@ fn stack_persist() {
 
         (
             network
-                .persist(|| {
-                    let dir = std::env::temp_dir().join("test_persist_stack");
-                    std::fs::create_dir_all(&dir)
-                        .expect("Error on tmp dir creation");
-                    DiskBackend::new(dir)
-                })
+                .persist(&testbackend())
                 .expect("Error in persistence"),
             contract_id,
         )
@@ -164,8 +162,4 @@ fn stack_persist() {
             .unwrap(),
         None
     );
-
-    // Teardown
-    std::fs::remove_dir_all(std::env::temp_dir().join("test_persist_stack"))
-        .expect("teardown fn error");
 }
