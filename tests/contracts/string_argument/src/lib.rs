@@ -13,10 +13,6 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
-use rusk_uplink::{get_state_and_arg, q_return, query_state_arg_fun};
-
-// #[macro_use]
-// extern crate rusk_uplink;
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Stringer;
@@ -55,21 +51,10 @@ impl Execute<Passthrough> for Stringer {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rusk_uplink::AbiStore;
+    use rusk_uplink::{AbiStore, q_return, get_state_and_arg, query_state_arg_fun};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 1024] = [0u8; 1024];
 
-    // #[no_mangle]
-    // fn pass(written_state: u32, written_data: u32) -> u32 {
-    //     let (de_state, de_query): (Stringer, Passthrough) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
-    //
-    //     let store =
-    //         StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-    //     let res: <Passthrough as Query>::Return =
-    //         de_state.execute(&de_query, store);
-    //
-    //     unsafe { q_return(&res, &mut SCRATCH) }
-    // }
     query_state_arg_fun!(pass, Stringer, Passthrough);
 };

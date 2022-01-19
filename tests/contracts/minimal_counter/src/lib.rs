@@ -14,8 +14,6 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return, query_state_arg_fun, transaction_state_arg_fun};
-use rusk_uplink::AbiStore;
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {
@@ -55,13 +53,18 @@ impl Execute<ReadCount> for Counter {
 }
 
 impl Apply<Increment> for Counter {
-    fn apply(&mut self, t: &Increment, _: StoreContext) -> <Increment as Transaction>::Return {
+    fn apply(
+        &mut self, t: &Increment,
+        _: StoreContext
+    ) -> <Increment as Transaction>::Return {
         self.value += t.0;
     }
 }
 
 #[cfg(target_family = "wasm")]
 const _: () = {
+    use rusk_uplink::{AbiStore, get_state_and_arg, q_return, t_return, query_state_arg_fun, transaction_state_arg_fun};
+
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 

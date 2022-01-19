@@ -14,8 +14,7 @@
 
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, RawQuery, RawTransaction, ReturnValue, Transaction, Execute, Apply, StoreContext};
-use rusk_uplink::{get_state, get_state_and_arg, q_return, t_return, query_delegate_state_arg_fun, transaction_state_arg_fun};
+use rusk_uplink::{ContractId, Query, RawQuery, RawTransaction, ReturnValue, Transaction, Execute, StoreContext};
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -119,8 +118,10 @@ impl Delegator {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::{archived_root, AlignedVec};
+    use rkyv::archived_root;
     use rusk_uplink::AbiStore;
+    use rusk_uplink::{get_state_and_arg, query_delegate_state_arg_fun};
+
 
     #[no_mangle]
     static mut SCRATCH: [u8; 256] = [0u8; 256];
