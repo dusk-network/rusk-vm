@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction};
+use rusk_uplink::{Query, Transaction, Apply, Execute, StoreContext, query_state_arg_fun};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
@@ -112,6 +112,77 @@ impl Transaction for CompareAndSwap {
     type Return = bool;
 }
 
+impl Apply<Adjust> for Counter {
+    fn apply(
+        &mut self,
+        arg: &Adjust,
+        _: StoreContext
+    ) -> <Adjust as Transaction>::Return {
+        self.adjust(arg.by);
+    }
+}
+
+impl Execute<ReadValue> for Counter {
+    fn execute(
+        &self,
+        _: &ReadValue,
+        _: StoreContext,
+    ) -> <ReadValue as Query>::Return {
+        self.value
+    }
+}
+
+impl Execute<XorValues> for Counter {
+    fn execute(
+        &self,
+        arg: &XorValues,
+        _: StoreContext,
+    ) -> <XorValues as Query>::Return {
+        self.xor_values(arg.a, arg.b)
+    }
+}
+
+impl Execute<IsEven> for Counter {
+    fn execute(
+        &self,
+        _: &IsEven,
+        _: StoreContext
+    ) -> <IsEven as Query>::Return {
+        self.is_even()
+    }
+}
+
+impl Apply<Increment> for Counter {
+    fn apply(
+        &mut self,
+        _: &Increment,
+        _: StoreContext
+    ) -> <Increment as Transaction>::Return {
+        self.increment();
+    }
+}
+
+impl Apply<Decrement> for Counter {
+    fn apply(
+        &mut self,
+        _: &Decrement,
+        _: StoreContext
+    ) -> <Decrement as Transaction>::Return {
+        self.decrement();
+    }
+}
+
+impl Apply<CompareAndSwap> for Counter {
+    fn apply(
+        &mut self,
+        arg: &CompareAndSwap,
+        _: StoreContext
+    ) -> <CompareAndSwap as Transaction>::Return {
+        self.compare_and_swap(arg.expected, arg.new)
+    }
+}
+
+
 impl Counter {
     pub fn read_value(&self) -> i32 {
         self.value
@@ -149,19 +220,21 @@ impl Counter {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rusk_uplink::{get_state_and_arg, get_state, t_return, q_return};
+    use rusk_uplink::framing_imports;
+    framing_imports!();
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    #[no_mangle]
-    fn adjust(written_state: u32, written_data: u32) -> [u32; 2] {
-        let (mut state, arg): (Counter, Adjust) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
-
-        state.adjust(arg.by);
-
-        unsafe { t_return(&state, &(), &mut SCRATCH)}
-    }
+    // #[no_mangle]
+    // fn adjust(written_state: u32, written_data: u32) -> [u32; 2] {
+    //     let (mut state, arg): (Counter, Adjust) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+    //
+    //     state.adjust(arg.by);
+    //
+    //     unsafe { t_return(&state, &(), &mut SCRATCH)}
+    // }
+    transaction_state_arg_fun!(adjust, Counter, Adjust);
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
@@ -171,24 +244,27 @@ const _: () = {
 
         unsafe { q_return(&ret, &mut SCRATCH) }
     }
+    // query_state_arg_fun!(read_value, Counter, ReadValue);
 
-    #[no_mangle]
-    fn xor_values(written_state: u32, written_data: u32) -> u32 {
-        let (state, arg): (Counter, XorValues) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+    // #[no_mangle]
+    // fn xor_values(written_state: u32, written_data: u32) -> u32 {
+    //     let (state, arg): (Counter, XorValues) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+    //
+    //     let ret = state.xor_values(arg.a, arg.b);
+    //
+    //     unsafe { q_return(&ret, &mut SCRATCH) }
+    // }
+    query_state_arg_fun!(xor_values, Counter, XorValues);
 
-        let ret = state.xor_values(arg.a, arg.b);
-
-        unsafe { q_return(&ret, &mut SCRATCH) }
-    }
-
-    #[no_mangle]
-    fn is_even(written_state: u32, _written_data: u32) -> u32 {
-        let state: Counter = unsafe { get_state(written_state, &SCRATCH) };
-
-        let ret = state.is_even();
-
-        unsafe { q_return(&ret, &mut SCRATCH) }
-    }
+    // #[no_mangle]
+    // fn is_even(written_state: u32, _written_data: u32) -> u32 {
+    //     let state: Counter = unsafe { get_state(written_state, &SCRATCH) };
+    //
+    //     let ret = state.is_even();
+    //
+    //     unsafe { q_return(&ret, &mut SCRATCH) }
+    // }
+    query_state_arg_fun!(is_even, Counter, IsEven);
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
@@ -198,22 +274,27 @@ const _: () = {
 
         unsafe { t_return(&state, &(), &mut SCRATCH)}
     }
+    // transaction_state_arg_fun!(increment, Counter, Increment);
 
-    #[no_mangle]
-    fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
 
-        state.decrement();
+    // #[no_mangle]
+    // fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
+    //     let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
+    //
+    //     state.decrement();
+    //
+    //     unsafe { t_return(&state, &(), &mut SCRATCH)}
+    // }
+    transaction_state_arg_fun!(decrement, Counter, Decrement);
 
-        unsafe { t_return(&state, &(), &mut SCRATCH)}
-    }
+    // #[no_mangle]
+    // fn compare_and_swap(written_state: u32, written_data: u32) -> [u32; 2] {
+    //     let (mut state, arg): (Counter, CompareAndSwap) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
+    //
+    //     let res = state.compare_and_swap(arg.expected, arg.new);
+    //
+    //     unsafe { t_return(&state, &res, &mut SCRATCH)}
+    // }
+    transaction_state_arg_fun!(compare_and_swap, Counter, CompareAndSwap);
 
-    #[no_mangle]
-    fn compare_and_swap(written_state: u32, written_data: u32) -> [u32; 2] {
-        let (mut state, arg): (Counter, CompareAndSwap) = unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
-
-        let res = state.compare_and_swap(arg.expected, arg.new);
-
-        unsafe { t_return(&state, &res, &mut SCRATCH)}
-    }
 };
