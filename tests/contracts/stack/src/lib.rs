@@ -16,7 +16,7 @@ use bytecheck::CheckBytes;
 use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction};
+use rusk_uplink::{Query, Transaction, Apply, Execute, StoreContext};
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
@@ -40,6 +40,16 @@ impl Query for Peek {
     type Return = Option<u64>;
 }
 
+impl Execute<Peek> for Stack {
+    fn execute(
+        &self,
+        arg: &Peek,
+        _: StoreContext,
+    ) -> <Peek as Query>::Return {
+        self.peek(arg.value)
+    }
+}
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Push {
     value: u64,
@@ -56,6 +66,16 @@ impl Transaction for Push {
     type Return = ();
 }
 
+impl Apply<Push> for Stack {
+    fn apply(
+        &mut self,
+        arg: &Push,
+        _: StoreContext,
+    ) -> <Push as Transaction>::Return {
+        self.push(arg.value);
+    }
+}
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Pop;
 
@@ -63,6 +83,17 @@ impl Transaction for Pop {
     const NAME: &'static str = "pop";
     type Return = Option<u64>;
 }
+
+impl Apply<Pop> for Stack {
+    fn apply(
+        &mut self,
+        _: &Pop,
+        _: StoreContext,
+    ) -> <Pop as Transaction>::Return {
+        self.pop()
+    }
+}
+
 
 impl Stack {
     pub fn new() -> Self {
@@ -112,7 +143,7 @@ const _: () = {
         };
         let arg: Peek = arg.deserialize(&mut store).unwrap();
 
-        let ret = state.peek(arg.value);
+        let ret = state.execute(&arg, store.clone());
 
         let res: <Peek as Query>::Return = ret;
         let mut ser = store.serializer();
@@ -137,7 +168,8 @@ const _: () = {
         };
         let arg: Push = arg.deserialize(&mut store).unwrap();
 
-        let result = state.push(arg.value);
+        // let result = state.push(arg.value);
+        let result = state.apply(&arg, store.clone());
 
         let mut ser = store.serializer();
         let state_len = ser.serialize_value(&state).unwrap()
@@ -163,7 +195,8 @@ const _: () = {
         };
         let mut state: Stack = state.deserialize(&mut store).unwrap();
 
-        let result = state.pop();
+        //let result = state.pop();
+        let result = state.apply(&Pop, store.clone());
 
         let mut ser = store.serializer();
         let state_len = ser.serialize_value(&state).unwrap()
