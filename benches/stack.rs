@@ -5,10 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 use stack::{Push, Stack};
-use microkelvin::{HostStore, StoreRef};
-
 
 fn get_config() -> Criterion {
     Criterion::default().sample_size(10)
@@ -23,8 +22,7 @@ fn stack_64(
     const N: Leaf = 64;
 
     for i in 0..N {
-        let _ =
-            network.transact(contract_id, 0, stack::Push::new(i), gas);
+        let _ = network.transact(contract_id, 0, stack::Push::new(i), gas);
     }
 }
 

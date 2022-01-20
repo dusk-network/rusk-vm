@@ -13,10 +13,10 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Apply, Execute, Transaction, StoreContext};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 extern crate alloc;
-use alloc::vec::Vec;
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct GasContextData {
@@ -53,10 +53,13 @@ impl GasContextData {
                 call_limit,
                 store,
             )
-                .unwrap();
+            .unwrap();
             self.after_call_gas_limits
                 .insert(0, rusk_uplink::gas_left());
-            rusk_uplink::debug!("after limits = {:?}", self.after_call_gas_limits);
+            rusk_uplink::debug!(
+                "after limits = {:?}",
+                self.after_call_gas_limits
+            );
             n
         }
     }
@@ -109,7 +112,7 @@ impl Apply<SetGasLimits> for GasContextData {
     fn apply(
         &mut self,
         limits: &SetGasLimits,
-        _: StoreContext
+        _: StoreContext,
     ) -> <SetGasLimits as Transaction>::Return {
         self.call_gas_limits = limits.limits.to_vec();
     }
@@ -133,7 +136,6 @@ impl Execute<ReadGasLimits> for GasContextData {
     }
 }
 
-
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rusk_uplink::framing_imports;
@@ -142,9 +144,17 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    query_state_arg_fun_store!(read_gas_limits, GasContextData, ReadGasLimits);
+    query_state_arg_fun_store_ser!(
+        read_gas_limits,
+        GasContextData,
+        ReadGasLimits
+    );
 
-    transaction_state_arg_fun_store!(t_compute, GasContextData, TCompute);
+    transaction_state_arg_fun_store_ser!(t_compute, GasContextData, TCompute);
 
-    transaction_state_arg_fun_store!(set_gas_limits, GasContextData, SetGasLimits);
+    transaction_state_arg_fun_store_ser!(
+        set_gas_limits,
+        GasContextData,
+        SetGasLimits
+    );
 };

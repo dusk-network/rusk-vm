@@ -13,8 +13,10 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, ContractId, Execute, RawTransaction, Query, Transaction};
 use rusk_uplink::StoreContext;
+use rusk_uplink::{
+    Apply, ContractId, Execute, Query, RawTransaction, Transaction,
+};
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -37,8 +39,7 @@ impl TxVec {
 
     pub fn sum(&mut self, values: impl AsRef<[u8]>) {
         let values: &[u8] = &Box::from(values.as_ref());
-        self.value +=
-            values.into_iter().fold(0u8, |s, v| s.wrapping_add(*v));
+        self.value += values.into_iter().fold(0u8, |s, v| s.wrapping_add(*v));
     }
 
     pub fn delegate_sum(
@@ -49,14 +50,9 @@ impl TxVec {
     ) {
         let tx_vec_sum = TxVecSum::new(data);
         let raw_transaction = RawTransaction::new(tx_vec_sum);
-        let ret = rusk_uplink::transact_raw(
-            self,
-            target,
-            &raw_transaction,
-            0,
-            store,
-        )
-            .unwrap();
+        let ret =
+            rusk_uplink::transact_raw(self, target, &raw_transaction, 0, store)
+                .unwrap();
         self.value = *ret.cast::<u8>().unwrap();
     }
 }
@@ -135,7 +131,6 @@ impl Apply<TxVecDelegateSum> for TxVec {
         self.delegate_sum(&s.contract_id, &s.data, store)
     }
 }
-
 
 #[cfg(target_family = "wasm")]
 const _: () = {

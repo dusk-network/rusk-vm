@@ -16,7 +16,6 @@ use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query};
 
-
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
 
@@ -70,7 +69,7 @@ impl Execute<ComputeFrom> for Fibonacci {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rusk_uplink::{StoreContext, framing_imports};
+    use rusk_uplink::{framing_imports, StoreContext};
     framing_imports!();
 
     #[no_mangle]
