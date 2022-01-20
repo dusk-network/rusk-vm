@@ -94,9 +94,7 @@ impl Execute<QueryForwardData> for Delegator {
             &arg.contract_id,
             &RawQuery::from(query_data, query_name),
         );
-        let res = unsafe {
-            archived_root::<<QueryForwardData as Query>::Return>(result.data())
-        };
+        let res = result.cast_data::<<QueryForwardData as Query>::Return>();
         let res: <QueryForwardData as Query>::Return =
             res.deserialize(&mut store.clone()).unwrap();
         res
