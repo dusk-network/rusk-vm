@@ -13,7 +13,7 @@
 )]
 
 use microkelvin::{OffsetLen, StoreRef};
-use rkyv::{archived_root, AlignedVec, Archive, Deserialize, Serialize};
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
