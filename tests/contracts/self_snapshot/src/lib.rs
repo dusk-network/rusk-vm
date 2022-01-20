@@ -12,8 +12,11 @@
     option_result_unwrap_unchecked
 )]
 
-use rkyv::{Archive, Deserialize, Serialize, AlignedVec};
-use rusk_uplink::{ContractId, Query, Transaction, Apply, Execute, StoreContext, RawTransaction};
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+use rusk_uplink::{
+    Apply, ContractId, Execute, Query, RawTransaction, StoreContext,
+    Transaction,
+};
 extern crate alloc;
 use alloc::boxed::Box;
 
@@ -34,10 +37,10 @@ impl SelfSnapshot {
     pub fn set_crossover(&mut self, to: i32) -> i32 {
         let old_val = self.crossover;
         rusk_uplink::debug!(
-                "setting crossover from {:?} to {:?}",
-                self.crossover,
-                to
-            );
+            "setting crossover from {:?} to {:?}",
+            self.crossover,
+            to
+        );
         self.crossover = to;
         old_val
     }
@@ -57,7 +60,7 @@ impl SelfSnapshot {
             0,
             store,
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(self.crossover, update);
         old_value
     }
@@ -75,17 +78,10 @@ impl SelfSnapshot {
         self.crossover
     }
 
-    pub fn update_and_panic(
-        &mut self,
-        new_value: i32,
-        store: StoreContext,
-    ) {
+    pub fn update_and_panic(&mut self, new_value: i32, store: StoreContext) {
         let old_value = self.crossover;
 
-        assert_eq!(
-            self.self_call_test_a(new_value, store.clone()),
-            old_value
-        );
+        assert_eq!(self.self_call_test_a(new_value, store.clone()), old_value);
 
         let callee = rusk_uplink::callee();
 
@@ -244,21 +240,33 @@ impl Apply<UpdateAndPanicTransaction> for SelfSnapshot {
 const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rkyv::{archived_root, AlignedVec};
-    use rusk_uplink::StoreContext;
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     query_state_arg_fun!(crossover, SelfSnapshot, CrossoverQuery);
 
-    transaction_state_arg_fun!(set_crossover, SelfSnapshot, SetCrossoverTransaction);
+    transaction_state_arg_fun!(
+        set_crossover,
+        SelfSnapshot,
+        SetCrossoverTransaction
+    );
 
-    transaction_state_arg_fun!(self_call_test_a, SelfSnapshot, SelfCallTestATransaction);
+    transaction_state_arg_fun!(
+        self_call_test_a,
+        SelfSnapshot,
+        SelfCallTestATransaction
+    );
 
-    transaction_state_arg_fun!(self_call_test_b, SelfSnapshot, SelfCallTestBTransaction);
+    transaction_state_arg_fun!(
+        self_call_test_b,
+        SelfSnapshot,
+        SelfCallTestBTransaction
+    );
 
-    transaction_state_arg_fun!(update_and_panic, SelfSnapshot, UpdateAndPanicTransaction);
+    transaction_state_arg_fun!(
+        update_and_panic,
+        SelfSnapshot,
+        UpdateAndPanicTransaction
+    );
 };

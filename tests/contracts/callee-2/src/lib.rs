@@ -51,30 +51,15 @@ pub struct Callee2Return {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::{get_state_and_arg, q_return};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
     #[no_mangle]
     fn get(written_state: u32, written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<Callee2State>(&SCRATCH[..written_state as usize])
-        };
-        let callee2 = unsafe {
-            archived_root::<Callee2Query>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let mut _state: Callee2State = state.deserialize(&mut store).unwrap();
-        let callee: Callee2Query = callee2.deserialize(&mut store).unwrap();
+        let (_state, callee2): (Callee2State, Callee2Query) =
+            unsafe { get_state_and_arg(written_state, written_data, &SCRATCH) };
 
         assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");
 
@@ -83,15 +68,11 @@ const _: () = {
         );
 
         let ret = Callee2Return {
-            sender_sender: callee.sender_sender,
-            sender: callee.sender,
+            sender_sender: callee2.sender_sender,
+            sender: callee2.sender,
             callee: rusk_uplink::callee(),
         };
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&ret).unwrap()
-            + core::mem::size_of::<
-                <<Callee2Query as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
+
+        unsafe { q_return(&ret, &mut SCRATCH) }
     }
 };
