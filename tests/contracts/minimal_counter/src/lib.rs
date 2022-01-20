@@ -56,7 +56,7 @@ impl Apply<Increment> for Counter {
     fn apply(
         &mut self,
         t: &Increment,
-        _: StoreContext
+        _: StoreContext,
     ) -> <Increment as Transaction>::Return {
         self.value += t.0;
     }

@@ -68,7 +68,11 @@ impl Execute<NumSecrets> for Register {
 }
 
 impl Apply<Gossip> for Register {
-    fn apply(&mut self, t: &Gossip, _: StoreContext) -> <Gossip as Transaction>::Return {
+    fn apply(
+        &mut self,
+        t: &Gossip,
+        _: StoreContext,
+    ) -> <Gossip as Transaction>::Return {
         if let Some(mut branch) = self.open_secrets.get_mut(&t.0) {
             *branch.leaf_mut() += 1;
         }
@@ -130,7 +134,8 @@ const _: () = {
         let mut state: Register = state.deserialize(&mut store).unwrap();
         let gossip: Gossip = transaction.deserialize(&mut store).unwrap();
 
-        state.apply(&gossip, store.clone()); // todo use clone temporarily to get it to compile as Kris will change this contract anyway
+        state.apply(&gossip, store.clone()); // todo use clone temporarily to get it to compile as Kris will change
+                                             // this contract anyway
 
         let mut ser = store.serializer();
 

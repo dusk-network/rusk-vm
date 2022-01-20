@@ -54,7 +54,8 @@ fn gas_context() {
         .query(contract_id, 0, gas_context::ReadGasLimits, &mut gas)
         .unwrap();
 
-    let bounds: Vec<(u64, u64)> = vec![ // todo! replace it with a formula driven code
+    let bounds: Vec<(u64, u64)> = vec![
+        // todo! replace it with a formula driven code
         (930000000, 1000000000),
         (864900000, 930000000),
         (804357000, 864900000),
@@ -65,12 +66,15 @@ fn gas_context() {
         (559581809, 601700870),
         (520411082, 559581809),
         (483982306, 520411082),
-    ] ;
+    ];
 
     let zipped = limits.iter().zip(bounds.iter());
 
     for (callee_limit, (lower_bound, upper_bound)) in zipped {
-        println!("limit {} should be in {} - {}", callee_limit, lower_bound, upper_bound);
+        println!(
+            "limit {} should be in {} - {}",
+            callee_limit, lower_bound, upper_bound
+        );
         assert!(
             callee_limit > lower_bound && callee_limit < upper_bound,
             "Gas context limit {} should not be out of range {} - {}",

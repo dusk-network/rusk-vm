@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction, Apply, Execute, StoreContext};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 
 extern crate alloc;
 
@@ -96,7 +96,7 @@ impl Apply<GasConsumedIncrement> for GasConsumed {
     fn apply(
         &mut self,
         _: &GasConsumedIncrement,
-        _: StoreContext
+        _: StoreContext,
     ) -> <GasConsumedIncrement as Transaction>::Return {
         self.increment()
     }
@@ -106,7 +106,7 @@ impl Apply<GasConsumedDecrement> for GasConsumed {
     fn apply(
         &mut self,
         _: &GasConsumedDecrement,
-        _: StoreContext
+        _: StoreContext,
     ) -> <GasConsumedDecrement as Transaction>::Return {
         self.decrement()
     }
