@@ -242,157 +242,23 @@ impl Apply<UpdateAndPanicTransaction> for SelfSnapshot {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
+    use rusk_uplink::framing_imports;
+    framing_imports!();
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
     use rkyv::{archived_root, AlignedVec};
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::StoreContext;
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    #[no_mangle]
-    fn crossover(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+    query_state_arg_fun!(crossover, SelfSnapshot, CrossoverQuery);
 
-        let state = unsafe {
-            archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
-        };
-        let state: SelfSnapshot = state.deserialize(&mut store).unwrap();
+    transaction_state_arg_fun!(set_crossover, SelfSnapshot, SetCrossoverTransaction);
 
-        let ret = state.execute(&CrossoverQuery, store);
+    transaction_state_arg_fun!(self_call_test_a, SelfSnapshot, SelfCallTestATransaction);
 
-        let res: <CrossoverQuery as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<CrossoverQuery as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    transaction_state_arg_fun!(self_call_test_b, SelfSnapshot, SelfCallTestBTransaction);
 
-    #[no_mangle]
-    fn set_crossover(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
-        };
-        let to = unsafe {
-            archived_root::<i32>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-        let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
-        let to: i32 = to.deserialize(&mut store).unwrap();
-
-        let old = state.apply(&SetCrossoverTransaction::new(to), store);
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<SelfSnapshot as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&old).unwrap()
-            + core::mem::size_of::<
-            <<SetCrossoverTransaction as Transaction>::Return as Archive>::Archived,
-        >();
-
-        [state_len as u32, return_len as u32]
-    }
-
-    #[no_mangle]
-    fn self_call_test_a(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
-        };
-        let update = unsafe {
-            archived_root::<i32>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-        let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
-        let update: i32 = update.deserialize(&mut store).unwrap();
-
-        let old = state.apply(&SelfCallTestATransaction::new(update), store);
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<SelfSnapshot as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&old).unwrap()
-            + core::mem::size_of::<
-            <<SelfCallTestATransaction as Transaction>::Return as Archive>::Archived,
-        >();
-
-        [state_len as u32, return_len as u32]
-    }
-
-    #[no_mangle]
-    fn self_call_test_b(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
-        };
-        let arg = unsafe {
-            archived_root::<SelfCallTestBTransaction>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-        let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
-        let arg: SelfCallTestBTransaction =
-            arg.deserialize(&mut store).unwrap();
-
-        let old = state.apply(&arg, store);
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<SelfSnapshot as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&old).unwrap()
-            + core::mem::size_of::<
-            <<SelfCallTestBTransaction as Transaction>::Return as Archive>::Archived,
-        >();
-
-        [state_len as u32, return_len as u32]
-    }
-
-    #[no_mangle]
-    fn update_and_panic(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<SelfSnapshot>(&SCRATCH[..written_state as usize])
-        };
-        let update = unsafe {
-            archived_root::<i32>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-        let mut state: SelfSnapshot = state.deserialize(&mut store).unwrap();
-        let update: i32 = update.deserialize(&mut store).unwrap();
-
-        state.apply(&UpdateAndPanicTransaction::new(update), store);
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<SelfSnapshot as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-            <<UpdateAndPanicTransaction as Transaction>::Return as Archive>::Archived,
-        >();
-
-        [state_len as u32, return_len as u32]
-    }
+    transaction_state_arg_fun!(update_and_panic, SelfSnapshot, UpdateAndPanicTransaction);
 };
