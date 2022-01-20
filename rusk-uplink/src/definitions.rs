@@ -167,6 +167,15 @@ impl ReturnValue {
         state
     }
 
+    pub fn cast_data<T>(&self) -> &T::Archived
+    where
+        T: Archive,
+    {
+        let data: &T::Archived =
+            unsafe { archived_root::<T>(&self.data[..]) };
+        data
+    }
+
     pub fn data_len(&self) -> usize {
         self.data.len()
     }
