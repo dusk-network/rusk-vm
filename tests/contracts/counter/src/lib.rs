@@ -13,9 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{
-    Apply, Execute, Query, StoreContext, Transaction,
-};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
