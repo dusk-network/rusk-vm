@@ -39,6 +39,34 @@ where
     (state, arg)
 }
 
+pub fn get_state_and_arg_store<S, P>(
+    written_state: u32,
+    written_data: u32,
+    scratch: impl AsRef<[u8]>,
+    store: StoreContext,
+) -> (S, P)
+where
+    S: Archive,
+    <S as Archive>::Archived: Deserialize<S, StoreContext>,
+    P: Archive,
+    <P as Archive>::Archived: Deserialize<P, StoreContext>,
+{
+    use rkyv::archived_root;
+
+    let state = unsafe {
+        archived_root::<S>(&scratch.as_ref()[..written_state as usize])
+    };
+    let state: S = state.deserialize(&mut store.clone()).unwrap();
+    let arg = unsafe {
+        archived_root::<P>(
+            &scratch.as_ref()[written_state as usize..written_data as usize],
+        )
+    };
+    let arg: P = arg.deserialize(&mut store.clone()).unwrap();
+
+    (state, arg)
+}
+
 pub fn get_state<S>(written_state: u32, scratch: impl AsRef<[u8]>) -> S
 where
     S: Archive,
@@ -114,10 +142,11 @@ where
 macro_rules! framing_imports {
     () => {
         use rusk_uplink::{
-            get_state, get_state_and_arg, q_return, q_return_store_ser,
-            query_state_arg_fun, query_state_arg_fun_store_ser, t_return,
-            t_return_store_ser, transaction_state_arg_fun,
-            transaction_state_arg_fun_store_ser, AbiStore,
+            get_state, get_state_and_arg, get_state_and_arg_store, q_return,
+            q_return_store_ser, query_state_arg_fun,
+            query_state_arg_fun_store_ser, t_return, t_return_store_ser,
+            transaction_state_arg_fun, transaction_state_arg_fun_store_ser,
+            AbiStore,
         };
     };
 }
@@ -145,12 +174,17 @@ macro_rules! query_state_arg_fun_store_ser {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> u32 {
-            let (state, arg): ($state_type, $arg_type) = unsafe {
-                get_state_and_arg(written_state, written_data, &SCRATCH)
-            };
-
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+            let (state, arg): ($state_type, $arg_type) = unsafe {
+                get_state_and_arg_store(
+                    written_state,
+                    written_data,
+                    &SCRATCH,
+                    store.clone(),
+                )
+            };
+
             let res: <$arg_type as Query>::Return =
                 state.execute(&arg, store.clone());
 
@@ -183,12 +217,17 @@ macro_rules! transaction_state_arg_fun_store_ser {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
-            let (mut state, arg): ($state_type, $arg_type) = unsafe {
-                get_state_and_arg(written_state, written_data, &SCRATCH)
-            };
-
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
+            let (mut state, arg): ($state_type, $arg_type) = unsafe {
+                get_state_and_arg_store(
+                    written_state,
+                    written_data,
+                    &SCRATCH,
+                    store.clone(),
+                )
+            };
+
             let res: <$arg_type as Transaction>::Return =
                 state.apply(&arg, store.clone());
 

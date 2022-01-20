@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fibonacci::{ComputeFrom, Fibonacci};
+use fibonacci::Fibonacci;
 use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 

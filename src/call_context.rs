@@ -335,7 +335,6 @@ impl<'a> CallContext<'a> {
                 });
 
             fn separate_tuple(tuple: u64) -> (u32, u32) {
-                println!("original tuple = {:x}", tuple);
                 let bytes = tuple.to_le_bytes();
                 let mut a = [0u8; 4];
                 let mut b = [0u8; 4];

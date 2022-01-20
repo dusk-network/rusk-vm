@@ -7,7 +7,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
-use stack::{Push, Stack};
+use stack::Stack;
 
 fn get_config() -> Criterion {
     Criterion::default().sample_size(10)
@@ -27,8 +27,6 @@ fn stack_64(
 }
 
 fn stack_bench(c: &mut Criterion) {
-    type Leaf = u64;
-
     let stack = Stack::new();
 
     let code = include_bytes!(concat!(

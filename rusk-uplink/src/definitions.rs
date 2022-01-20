@@ -171,8 +171,7 @@ impl ReturnValue {
     where
         T: Archive,
     {
-        let data: &T::Archived =
-            unsafe { archived_root::<T>(&self.data[..]) };
+        let data: &T::Archived = unsafe { archived_root::<T>(&self.data[..]) };
         data
     }
 
