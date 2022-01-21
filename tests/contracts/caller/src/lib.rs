@@ -36,8 +36,31 @@ pub struct CallerQuery;
 
 impl Query for CallerQuery {
     const NAME: &'static str = "call";
-    type Return = ([u8; 32], [u8; 32], [u8; 32]);
+    type Return = <Callee1Query as Query>::Return;
 }
+
+impl Execute<CallerQuery> for CallerState {
+    fn execute(
+        &self,
+        _: &CallerQuery,
+        store: StoreContext,
+    ) -> <Callee1Query as Query>::Return {
+        rusk_uplink::debug!(
+            "caller: calling state target 'call' with param: callee"
+        );
+        let call_data = Callee1Query {
+            sender: rusk_uplink::callee(),
+        };
+        rusk_uplink::query::<Callee1Query>(
+            &self.target_address,
+            call_data,
+            0,
+            store,
+        )
+        .unwrap()
+    }
+}
+
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct CallerTransaction {
@@ -85,47 +108,10 @@ const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    use rkyv::archived_root;
-    use rkyv::ser::serializers::BufferSerializer;
-    use rkyv::ser::Serializer;
-    use rusk_uplink::{StoreContext};
-
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    #[no_mangle]
-    fn call(written_state: u32, _written_data: u32) -> u32 {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<CallerState>(&SCRATCH[..written_state as usize])
-        };
-
-        let state: CallerState = (state).deserialize(&mut store).unwrap();
-
-        rusk_uplink::debug!(
-            "caller: calling state target 'call' with param: callee"
-        );
-        let call_data = Callee1Query {
-            sender: rusk_uplink::callee(),
-        };
-        let ret = rusk_uplink::query::<Callee1Query>(
-            &state.target_address,
-            call_data,
-            0,
-            store,
-        )
-        .unwrap();
-
-        let res: <Callee1Query as Query>::Return = ret;
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-        let buffer_len = ser.serialize_value(&res).unwrap()
-            + core::mem::size_of::<
-                <<Callee1Query as Query>::Return as Archive>::Archived,
-            >();
-        buffer_len as u32
-    }
+    query_state_arg_fun!(call, CallerState, CallerQuery);
 
     transaction_state_arg_fun!(set_target, CallerState, CallerTransaction);
 };
