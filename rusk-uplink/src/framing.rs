@@ -10,7 +10,7 @@ impl Fallible for EmptyStore {
     type Error = core::convert::Infallible;
 }
 
-pub fn get_state_and_arg<S, P>(
+pub fn get_state_arg<S, P>(
     written_state: u32,
     written_data: u32,
     scratch: impl AsRef<[u8]>,
@@ -39,7 +39,7 @@ where
     (state, arg)
 }
 
-pub fn get_state_and_arg_store<S, P>(
+pub fn get_state_arg_store<S, P>(
     written_state: u32,
     written_data: u32,
     scratch: impl AsRef<[u8]>,
@@ -142,7 +142,7 @@ where
 macro_rules! framing_imports {
     () => {
         use rusk_uplink::{
-            get_state, get_state_and_arg, get_state_and_arg_store, q_return,
+            get_state, get_state_arg, get_state_arg_store, q_return,
             q_return_store_ser, q_handler,
             q_handler_store_ser, t_return, t_return_store_ser,
             t_handler, t_handler_store_ser,
@@ -157,7 +157,7 @@ macro_rules! q_handler {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> u32 {
             let (state, arg): ($state_type, $arg_type) = unsafe {
-                get_state_and_arg(written_state, written_data, &SCRATCH)
+                get_state_arg(written_state, written_data, &SCRATCH)
             };
 
             let store =
@@ -177,7 +177,7 @@ macro_rules! q_handler_store_ser {
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
             let (state, arg): ($state_type, $arg_type) = unsafe {
-                get_state_and_arg_store(
+                get_state_arg_store(
                     written_state,
                     written_data,
                     &SCRATCH,
@@ -199,7 +199,7 @@ macro_rules! t_handler {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
             let (mut state, arg): ($state_type, $arg_type) = unsafe {
-                get_state_and_arg(written_state, written_data, &SCRATCH)
+                get_state_arg(written_state, written_data, &SCRATCH)
             };
 
             let store =
@@ -220,7 +220,7 @@ macro_rules! t_handler_store_ser {
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
             let (mut state, arg): ($state_type, $arg_type) = unsafe {
-                get_state_and_arg_store(
+                get_state_arg_store(
                     written_state,
                     written_data,
                     &SCRATCH,
