@@ -140,9 +140,9 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 8192] = [0u8; 8192];
 
-    query_state_arg_fun!(read_value, TxVec, TxVecReadValue);
+    q_handler!(read_value, TxVec, TxVecReadValue);
 
-    transaction_state_arg_fun!(sum, TxVec, TxVecSum);
+    t_handler!(sum, TxVec, TxVecSum);
 
-    transaction_state_arg_fun!(delegate_sum, TxVec, TxVecDelegateSum);
+    t_handler!(delegate_sum, TxVec, TxVecDelegateSum);
 };

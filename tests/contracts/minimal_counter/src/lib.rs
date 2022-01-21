@@ -70,7 +70,7 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 
-    query_state_arg_fun!(read, Counter, ReadCount);
+    q_handler!(read, Counter, ReadCount);
 
-    transaction_state_arg_fun!(incr, Counter, Increment);
+    t_handler!(incr, Counter, Increment);
 };

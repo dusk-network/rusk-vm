@@ -75,5 +75,5 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 
-    query_state_arg_fun!(compute, Fibonacci, ComputeFrom);
+    q_handler!(compute, Fibonacci, ComputeFrom);
 };

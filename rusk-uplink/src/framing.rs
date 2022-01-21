@@ -143,16 +143,16 @@ macro_rules! framing_imports {
     () => {
         use rusk_uplink::{
             get_state, get_state_and_arg, get_state_and_arg_store, q_return,
-            q_return_store_ser, query_state_arg_fun,
-            query_state_arg_fun_store_ser, t_return, t_return_store_ser,
-            transaction_state_arg_fun, transaction_state_arg_fun_store_ser,
+            q_return_store_ser, q_handler,
+            q_handler_store_ser, t_return, t_return_store_ser,
+            t_handler, t_handler_store_ser,
             AbiStore,
         };
     };
 }
 
 #[macro_export]
-macro_rules! query_state_arg_fun {
+macro_rules! q_handler {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> u32 {
@@ -170,7 +170,7 @@ macro_rules! query_state_arg_fun {
 }
 
 #[macro_export]
-macro_rules! query_state_arg_fun_store_ser {
+macro_rules! q_handler_store_ser {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> u32 {
@@ -194,7 +194,7 @@ macro_rules! query_state_arg_fun_store_ser {
 }
 
 #[macro_export]
-macro_rules! transaction_state_arg_fun {
+macro_rules! t_handler {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
@@ -213,7 +213,7 @@ macro_rules! transaction_state_arg_fun {
 }
 
 #[macro_export]
-macro_rules! transaction_state_arg_fun_store_ser {
+macro_rules! t_handler_store_ser {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> [u32; 2] {

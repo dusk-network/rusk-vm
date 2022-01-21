@@ -244,27 +244,27 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    query_state_arg_fun!(crossover, SelfSnapshot, CrossoverQuery);
+    q_handler!(crossover, SelfSnapshot, CrossoverQuery);
 
-    transaction_state_arg_fun!(
+    t_handler!(
         set_crossover,
         SelfSnapshot,
         SetCrossoverTransaction
     );
 
-    transaction_state_arg_fun!(
+    t_handler!(
         self_call_test_a,
         SelfSnapshot,
         SelfCallTestATransaction
     );
 
-    transaction_state_arg_fun!(
+    t_handler!(
         self_call_test_b,
         SelfSnapshot,
         SelfCallTestBTransaction
     );
 
-    transaction_state_arg_fun!(
+    t_handler!(
         update_and_panic,
         SelfSnapshot,
         UpdateAndPanicTransaction
