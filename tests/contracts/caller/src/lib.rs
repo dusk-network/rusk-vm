@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, Transaction};
+use rusk_uplink::{ContractId, Query, Transaction, Apply, Execute, StoreContext};
 extern crate alloc;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -55,6 +55,21 @@ impl Transaction for CallerTransaction {
     type Return = ();
 }
 
+impl Apply<CallerTransaction> for CallerState {
+    fn apply(
+        &mut self,
+        target: &CallerTransaction,
+        _: StoreContext,
+    ) -> <CallerTransaction as Transaction>::Return {
+        self.set_target(target.target_id);
+        rusk_uplink::debug!(
+            "setting state.set_target to: {:?}",
+            target.target_id
+        );
+    }
+}
+
+
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Callee1Query {
     sender: ContractId,
@@ -67,10 +82,13 @@ impl Query for Callee1Query {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
+    use rusk_uplink::framing_imports;
+    framing_imports!();
+
     use rkyv::archived_root;
     use rkyv::ser::serializers::BufferSerializer;
     use rkyv::ser::Serializer;
-    use rusk_uplink::{AbiStore, StoreContext};
+    use rusk_uplink::{StoreContext};
 
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
@@ -109,39 +127,5 @@ const _: () = {
         buffer_len as u32
     }
 
-    #[no_mangle]
-    fn set_target(written_state: u32, written_data: u32) -> [u32; 2] {
-        let mut store =
-            StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-
-        let state = unsafe {
-            archived_root::<CallerState>(&SCRATCH[..written_state as usize])
-        };
-        let target = unsafe {
-            archived_root::<CallerTransaction>(
-                &SCRATCH[written_state as usize..written_data as usize],
-            )
-        };
-
-        let mut state: CallerState = state.deserialize(&mut store).unwrap();
-        let target: CallerTransaction = target.deserialize(&mut store).unwrap();
-
-        state.set_target(target.target_id);
-        rusk_uplink::debug!(
-            "setting state.set_target to: {:?}",
-            target.target_id
-        );
-
-        let mut ser = unsafe { BufferSerializer::new(&mut SCRATCH) };
-
-        let state_len = ser.serialize_value(&state).unwrap()
-            + core::mem::size_of::<<CallerTransaction as Archive>::Archived>();
-
-        let return_len = ser.serialize_value(&()).unwrap()
-            + core::mem::size_of::<
-                <<CallerTransaction as Transaction>::Return as Archive>::Archived,
-            >();
-
-        [state_len as u32, return_len as u32]
-    }
+    transaction_state_arg_fun!(set_target, CallerState, CallerTransaction);
 };
