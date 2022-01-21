@@ -228,7 +228,7 @@ const _: () = {
     // #[no_mangle]
     // fn adjust(written_state: u32, written_data: u32) -> [u32; 2] {
     //     let (mut state, arg): (Counter, Adjust) = unsafe {
-    // get_state_and_arg(written_state, written_data, &SCRATCH) };
+    // get_state_arg(written_state, written_data, &SCRATCH) };
     //
     //     state.adjust(arg.by);
     //
@@ -249,7 +249,7 @@ const _: () = {
     // #[no_mangle]
     // fn xor_values(written_state: u32, written_data: u32) -> u32 {
     //     let (state, arg): (Counter, XorValues) = unsafe {
-    // get_state_and_arg(written_state, written_data, &SCRATCH) };
+    // get_state_arg(written_state, written_data, &SCRATCH) };
     //
     //     let ret = state.xor_values(arg.a, arg.b);
     //
@@ -291,7 +291,7 @@ const _: () = {
     // #[no_mangle]
     // fn compare_and_swap(written_state: u32, written_data: u32) -> [u32; 2] {
     //     let (mut state, arg): (Counter, CompareAndSwap) = unsafe {
-    // get_state_and_arg(written_state, written_data, &SCRATCH) };
+    // get_state_arg(written_state, written_data, &SCRATCH) };
     //
     //     let res = state.compare_and_swap(arg.expected, arg.new);
     //
