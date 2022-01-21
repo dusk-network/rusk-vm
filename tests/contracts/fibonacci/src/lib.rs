@@ -72,8 +72,7 @@ const _: () = {
     use rusk_uplink::{framing_imports, StoreContext};
     framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 128] = [0u8; 128];
+    scratch_memory!(128);
 
     q_handler!(compute, Fibonacci, ComputeFrom);
 };

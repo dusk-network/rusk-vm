@@ -54,8 +54,7 @@ const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 1024] = [0u8; 1024];
+    scratch_memory!(1024);
 
     q_handler!(pass, Stringer, Passthrough);
 };
