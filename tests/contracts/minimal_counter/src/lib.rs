@@ -67,8 +67,7 @@ const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 128] = [0u8; 128];
+    scratch_memory!(512);
 
     q_handler!(read, Counter, ReadCount);
 

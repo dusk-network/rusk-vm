@@ -143,8 +143,7 @@ const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 256] = [0u8; 256];
+    scratch_memory!(256);
 
     q_handler!(delegate_query, Delegator, QueryForwardData);
 

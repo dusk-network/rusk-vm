@@ -222,8 +222,7 @@ const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 512] = [0u8; 512];
+    scratch_memory!(512);
 
     // #[no_mangle]
     // fn adjust(written_state: u32, written_data: u32) -> [u32; 2] {

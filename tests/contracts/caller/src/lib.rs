@@ -108,8 +108,7 @@ const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 512] = [0u8; 512];
+    scratch_memory!(512);
 
     q_handler!(call, CallerState, CallerQuery);
 

@@ -137,8 +137,7 @@ const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 8192] = [0u8; 8192];
+    scratch_memory!(8192);
 
     q_handler!(read_value, TxVec, TxVecReadValue);
 

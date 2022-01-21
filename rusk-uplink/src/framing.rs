@@ -146,7 +146,7 @@ macro_rules! framing_imports {
             q_return_store_ser, q_handler,
             q_handler_store_ser, t_return, t_return_store_ser,
             t_handler, t_handler_store_ser,
-            AbiStore,
+            AbiStore, scratch_memory
         };
     };
 }
@@ -234,4 +234,12 @@ macro_rules! t_handler_store_ser {
             unsafe { t_return_store_ser(&state, &res, store) }
         }
     };
+}
+
+#[macro_export]
+macro_rules! scratch_memory {
+    ($sz:expr) => {
+        #[no_mangle]
+        static mut SCRATCH: [u8; $sz] = [0u8; $sz];
+    }
 }
