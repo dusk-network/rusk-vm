@@ -44,5 +44,5 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 128] = [0u8; 128];
 
-    query_state_arg_fun!(read_block_height, BlockHeight, ReadBlockHeight);
+    q_handler!(read_block_height, BlockHeight, ReadBlockHeight);
 };

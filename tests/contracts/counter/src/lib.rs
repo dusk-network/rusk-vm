@@ -234,7 +234,7 @@ const _: () = {
     //
     //     unsafe { t_return(&state, &(), &mut SCRATCH)}
     // }
-    transaction_state_arg_fun!(adjust, Counter, Adjust);
+    t_handler!(adjust, Counter, Adjust);
 
     #[no_mangle]
     fn read_value(written_state: u32, _written_data: u32) -> u32 {
@@ -244,7 +244,7 @@ const _: () = {
 
         unsafe { q_return(&ret, &mut SCRATCH) }
     }
-    // query_state_arg_fun!(read_value, Counter, ReadValue);
+    // q_handler!(read_value, Counter, ReadValue);
 
     // #[no_mangle]
     // fn xor_values(written_state: u32, written_data: u32) -> u32 {
@@ -255,7 +255,7 @@ const _: () = {
     //
     //     unsafe { q_return(&ret, &mut SCRATCH) }
     // }
-    query_state_arg_fun!(xor_values, Counter, XorValues);
+    q_handler!(xor_values, Counter, XorValues);
 
     // #[no_mangle]
     // fn is_even(written_state: u32, _written_data: u32) -> u32 {
@@ -265,7 +265,7 @@ const _: () = {
     //
     //     unsafe { q_return(&ret, &mut SCRATCH) }
     // }
-    query_state_arg_fun!(is_even, Counter, IsEven);
+    q_handler!(is_even, Counter, IsEven);
 
     #[no_mangle]
     fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
@@ -275,7 +275,7 @@ const _: () = {
 
         unsafe { t_return(&state, &(), &mut SCRATCH) }
     }
-    // transaction_state_arg_fun!(increment, Counter, Increment);
+    // t_handler!(increment, Counter, Increment);
 
     // #[no_mangle]
     // fn decrement(written_state: u32, _written_data: u32) -> [u32; 2] {
@@ -286,7 +286,7 @@ const _: () = {
     //
     //     unsafe { t_return(&state, &(), &mut SCRATCH)}
     // }
-    transaction_state_arg_fun!(decrement, Counter, Decrement);
+    t_handler!(decrement, Counter, Decrement);
 
     // #[no_mangle]
     // fn compare_and_swap(written_state: u32, written_data: u32) -> [u32; 2] {
@@ -297,5 +297,5 @@ const _: () = {
     //
     //     unsafe { t_return(&state, &res, &mut SCRATCH)}
     // }
-    transaction_state_arg_fun!(compare_and_swap, Counter, CompareAndSwap);
+    t_handler!(compare_and_swap, Counter, CompareAndSwap);
 };

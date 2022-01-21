@@ -120,11 +120,11 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    query_state_arg_fun!(value, GasConsumed, GasConsumedValueQuery);
+    q_handler!(value, GasConsumed, GasConsumedValueQuery);
 
-    query_state_arg_fun!(get_gas_consumed, GasConsumed, GasConsumedQuery);
+    q_handler!(get_gas_consumed, GasConsumed, GasConsumedQuery);
 
-    transaction_state_arg_fun!(increment, GasConsumed, GasConsumedIncrement);
+    t_handler!(increment, GasConsumed, GasConsumedIncrement);
 
-    transaction_state_arg_fun!(decrement, GasConsumed, GasConsumedDecrement);
+    t_handler!(decrement, GasConsumed, GasConsumedDecrement);
 };

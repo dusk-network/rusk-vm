@@ -144,15 +144,15 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    query_state_arg_fun_store_ser!(
+    q_handler_store_ser!(
         read_gas_limits,
         GasContextData,
         ReadGasLimits
     );
 
-    transaction_state_arg_fun_store_ser!(t_compute, GasContextData, TCompute);
+    t_handler_store_ser!(t_compute, GasContextData, TCompute);
 
-    transaction_state_arg_fun_store_ser!(
+    t_handler_store_ser!(
         set_gas_limits,
         GasContextData,
         SetGasLimits

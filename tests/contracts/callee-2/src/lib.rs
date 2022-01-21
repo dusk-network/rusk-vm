@@ -77,5 +77,5 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    query_state_arg_fun!(get, Callee2State, Callee2Query);
+    q_handler!(get, Callee2State, Callee2Query);
 };

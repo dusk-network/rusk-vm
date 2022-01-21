@@ -111,7 +111,7 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    query_state_arg_fun!(call, CallerState, CallerQuery);
+    q_handler!(call, CallerState, CallerQuery);
 
-    transaction_state_arg_fun!(set_target, CallerState, CallerTransaction);
+    t_handler!(set_target, CallerState, CallerTransaction);
 };

@@ -123,9 +123,9 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 512] = [0u8; 512];
 
-    query_state_arg_fun_store_ser!(peek, Stack, Peek);
+    q_handler_store_ser!(peek, Stack, Peek);
 
-    transaction_state_arg_fun_store_ser!(push, Stack, Push);
+    t_handler_store_ser!(push, Stack, Push);
 
-    transaction_state_arg_fun_store_ser!(pop, Stack, Pop);
+    t_handler_store_ser!(pop, Stack, Pop);
 };

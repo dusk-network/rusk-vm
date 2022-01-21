@@ -57,5 +57,5 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 1024] = [0u8; 1024];
 
-    query_state_arg_fun!(pass, Stringer, Passthrough);
+    q_handler!(pass, Stringer, Passthrough);
 };

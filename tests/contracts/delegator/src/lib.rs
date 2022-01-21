@@ -146,9 +146,9 @@ const _: () = {
     #[no_mangle]
     static mut SCRATCH: [u8; 256] = [0u8; 256];
 
-    query_state_arg_fun!(delegate_query, Delegator, QueryForwardData);
+    q_handler!(delegate_query, Delegator, QueryForwardData);
 
-    transaction_state_arg_fun!(
+    t_handler!(
         delegate_transaction,
         Delegator,
         TransactionForwardData
