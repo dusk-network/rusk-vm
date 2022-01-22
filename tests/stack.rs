@@ -10,8 +10,8 @@ use rusk_vm::{Contract, GasMeter, NetworkState};
 
 use stack::Stack;
 
-#[test]
-fn stack() {
+#[tokio::test]
+async fn stack() {
     type Leaf = u64;
     const N: Leaf = 64;
 
@@ -23,7 +23,7 @@ fn stack() {
     let contract = Contract::new(stack, code.to_vec());
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
@@ -35,14 +35,15 @@ fn stack() {
                 (stack::PUSH, i),
                 &mut gas,
             )
+            .await
             .unwrap()
             .unwrap();
 
         // all the peeks
 
         for o in 0..i {
-            let contract: &Contract =
-                &*network.get_contract(&contract_id).expect("A result");
+            let contract_ref = network.get_contract(&contract_id).await;
+            let contract = &*contract_ref.get().expect("A result");
 
             let cast = contract.state().cast::<Stack<Leaf>>().unwrap();
 
@@ -61,6 +62,7 @@ fn stack() {
                     stack::POP,
                     &mut gas
                 )
+                .await
                 .unwrap()
                 .unwrap(),
             Some(i)
@@ -75,6 +77,7 @@ fn stack() {
                 stack::POP,
                 &mut gas
             )
+            .await
             .unwrap()
             .unwrap(),
         None
@@ -82,8 +85,8 @@ fn stack() {
 }
 
 #[cfg(feature = "persistence")]
-#[test]
-fn stack_persist() {
+#[tokio::test]
+async fn stack_persist() {
     use microkelvin::{BackendCtor, DiskBackend};
     fn testbackend() -> BackendCtor<DiskBackend> {
         BackendCtor::new(|| DiskBackend::ephemeral())
@@ -102,7 +105,7 @@ fn stack_persist() {
     let (persist_id, contract_id) = {
         let mut network = NetworkState::new();
 
-        let contract_id = network.deploy(contract).unwrap();
+        let contract_id = network.deploy(contract).await.unwrap();
 
         let mut gas = GasMeter::with_limit(1_000_000_000);
 
@@ -114,6 +117,7 @@ fn stack_persist() {
                     (stack::PUSH, i),
                     &mut gas,
                 )
+                .await
                 .unwrap()
                 .unwrap();
         }
@@ -121,6 +125,7 @@ fn stack_persist() {
         (
             network
                 .persist(&testbackend())
+                .await
                 .expect("Error in persistence"),
             contract_id,
         )
@@ -129,6 +134,7 @@ fn stack_persist() {
     // If the persistence works, We should be able to correctly pop the stack
     let mut network = NetworkState::new()
         .restore(persist_id)
+        .await
         .expect("Error reconstructing the NetworkState");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
@@ -144,6 +150,7 @@ fn stack_persist() {
                     stack::POP,
                     &mut gas
                 )
+                .await
                 .unwrap()
                 .unwrap(),
             Some(i)
@@ -158,6 +165,7 @@ fn stack_persist() {
                 stack::POP,
                 &mut gas
             )
+            .await
             .unwrap()
             .unwrap(),
         None

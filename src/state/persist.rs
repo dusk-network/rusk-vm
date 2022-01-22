@@ -55,28 +55,36 @@ impl NetworkStateId {
 impl NetworkState {
     /// Persists the origin contracts stored on the [`NetworkState`] specifying
     /// a backend ctor function.
-    pub fn persist<B>(
+    pub async fn persist<B>(
         &self,
         ctor: &BackendCtor<B>,
     ) -> Result<NetworkStateId, PersistError>
     where
         B: 'static + Backend,
     {
-        let head = Persistence::persist(&ctor, &self.head.0)?;
-        let origin = Persistence::persist(&ctor, &self.origin.0)?;
+        let guard = self.0.read().await;
+
+        let head = Persistence::persist(ctor, &guard.head.0)?;
+        let origin = Persistence::persist(ctor, &guard.origin.0)?;
 
         Ok(NetworkStateId { head, origin })
     }
 
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which stores the
     /// contracts of the entire blockchain state.
-    pub fn restore(mut self, id: NetworkStateId) -> Result<Self, PersistError> {
+    pub async fn restore(
+        self,
+        id: NetworkStateId,
+    ) -> Result<Self, PersistError> {
+        let mut guard = self.0.write().await;
+
         let map = Map::from_generic(&id.origin.restore()?)?;
-        self.origin = Contracts(map);
+        guard.origin = Contracts(map);
 
         let map = Map::from_generic(&id.head.restore()?)?;
-        self.head = Contracts(map);
+        guard.head = Contracts(map);
 
+        drop(guard);
         Ok(self)
     }
 }

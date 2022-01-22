@@ -28,8 +28,8 @@ fn fibonacci_reference(n: u64) -> u64 {
     }
 }
 
-#[test]
-fn counter() {
+#[tokio::test]
+async fn counter() {
     let counter = Counter::new(99);
 
     let code =
@@ -39,31 +39,34 @@ fn counter() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     assert_eq!(
         network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         99
     );
 
     network
         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .await
         .unwrap();
 
     assert_eq!(
         network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         100
     );
 }
 
-#[test]
-fn counter_trivial() {
+#[tokio::test]
+async fn counter_trivial() {
     let counter = Counter::new(99);
 
     let code =
@@ -73,20 +76,21 @@ fn counter_trivial() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     assert_eq!(
         network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         99
     );
 }
 
-#[test]
-fn delegated_call() {
+#[tokio::test]
+async fn delegated_call() {
     let counter = Counter::new(99);
     let delegator = Delegator;
 
@@ -96,13 +100,13 @@ fn delegated_call() {
         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
     let counter_contract = Contract::new(counter, counter_code.to_vec());
-    let counter_id = network.deploy(counter_contract).unwrap();
+    let counter_id = network.deploy(counter_contract).await.unwrap();
 
     let delegator_code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/delegator.wasm"
     );
     let delegator_contract = Contract::new(delegator, delegator_code.to_vec());
-    let delegator_id = network.deploy(delegator_contract).unwrap();
+    let delegator_id = network.deploy(delegator_contract).await.unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
@@ -116,6 +120,7 @@ fn delegated_call() {
                 (delegator::DELEGATE_QUERY, counter_id, counter::READ_VALUE),
                 &mut gas
             )
+            .await
             .unwrap(),
         99
     );
@@ -133,6 +138,7 @@ fn delegated_call() {
             ),
             &mut gas,
         )
+        .await
         .unwrap();
 
     // changed the value of counter
@@ -140,13 +146,14 @@ fn delegated_call() {
     assert_eq!(
         network
             .query::<_, i32>(counter_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         100
     );
 }
 
-#[test]
-fn fibonacci() {
+#[tokio::test]
+async fn fibonacci() {
     let fib = Fibonacci;
 
     let code = include_bytes!(
@@ -157,7 +164,7 @@ fn fibonacci() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
@@ -172,14 +179,15 @@ fn fibonacci() {
                     (fibonacci::COMPUTE, i),
                     &mut gas
                 )
+                .await
                 .unwrap(),
             fibonacci_reference(i)
         );
     }
 }
 
-#[test]
-fn block_height() {
+#[tokio::test]
+async fn block_height() {
     let bh = BlockHeight::new();
 
     let code = include_bytes!(
@@ -190,7 +198,7 @@ fn block_height() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
@@ -203,12 +211,13 @@ fn block_height() {
                 block_height::BLOCK_HEIGHT,
                 &mut gas
             )
+            .await
             .unwrap()
     )
 }
 
-#[test]
-fn self_snapshot() {
+#[tokio::test]
+async fn self_snapshot() {
     let bh = SelfSnapshot::new(7);
 
     let code = include_bytes!(
@@ -219,7 +228,7 @@ fn self_snapshot() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
@@ -227,6 +236,7 @@ fn self_snapshot() {
         7,
         network
             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
+            .await
             .unwrap()
     );
 
@@ -239,6 +249,7 @@ fn self_snapshot() {
                 (self_snapshot::SET_CROSSOVER, 9),
                 &mut gas,
             )
+            .await
             .unwrap(),
         7
     );
@@ -247,6 +258,7 @@ fn self_snapshot() {
         9,
         network
             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
+            .await
             .unwrap()
     );
 
@@ -257,21 +269,25 @@ fn self_snapshot() {
             (self_snapshot::SELF_CALL_TEST_A, 10),
             &mut gas,
         )
+        .await
         .unwrap();
 
     assert_eq!(
         10,
         network
             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
+            .await
             .unwrap()
     );
 
-    let result = network.transact::<_, ()>(
-        contract_id,
-        0,
-        (self_snapshot::UPDATE_AND_PANIC, 11),
-        &mut gas,
-    );
+    let result = network
+        .transact::<_, ()>(
+            contract_id,
+            0,
+            (self_snapshot::UPDATE_AND_PANIC, 11),
+            &mut gas,
+        )
+        .await;
 
     assert!(result.is_err());
 
@@ -279,6 +295,7 @@ fn self_snapshot() {
         10,
         network
             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
+            .await
             .unwrap()
     );
 
@@ -292,18 +309,20 @@ fn self_snapshot() {
             (self_snapshot::SELF_CALL_TEST_B, contract_id, transaction),
             &mut gas,
         )
+        .await
         .unwrap();
 
     assert_eq!(
         12,
         network
             .query::<_, i32>(contract_id, 0, self_snapshot::CROSSOVER, &mut gas)
+            .await
             .unwrap()
     );
 }
 
-#[test]
-fn tx_vec() {
+#[tokio::test]
+async fn tx_vec() {
     let value = 15;
     let tx_vec = TxVec::new(value);
 
@@ -312,11 +331,12 @@ fn tx_vec() {
     let contract = Contract::new(tx_vec, code.to_vec());
 
     let mut network = NetworkState::new();
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     let v = network
         .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
+        .await
         .unwrap();
     assert_eq!(value, v);
 
@@ -325,10 +345,12 @@ fn tx_vec() {
 
     network
         .transact::<_, ()>(contract_id, 0, (tx_vec::SUM, values), &mut gas)
+        .await
         .unwrap();
 
     let v = network
         .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
+        .await
         .unwrap();
     assert_eq!(value, v);
 
@@ -343,10 +365,12 @@ fn tx_vec() {
             (tx_vec::DELEGATE_SUM, contract_id, tx),
             &mut gas,
         )
+        .await
         .unwrap();
 
     let v = network
         .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
+        .await
         .unwrap();
     assert_eq!(value, v);
 
@@ -361,16 +385,18 @@ fn tx_vec() {
             (tx_vec::DELEGATE_SUM, contract_id, tx),
             &mut gas,
         )
+        .await
         .unwrap();
 
     let v = network
         .query::<_, u8>(contract_id, 0, tx_vec::READ_VALUE, &mut gas)
+        .await
         .unwrap();
     assert_eq!(value, v);
 }
 
-#[test]
-fn calling() {
+#[tokio::test]
+async fn calling() {
     let caller = Caller::new();
     let callee1 = Callee1::new();
     let callee2 = Callee2::new();
@@ -388,12 +414,15 @@ fn calling() {
 
     let caller_id = network
         .deploy(Contract::new(caller, code_caller.to_vec()))
+        .await
         .unwrap();
     let callee1_id = network
         .deploy(Contract::new(callee1, code_callee1.to_vec()))
+        .await
         .unwrap();
     let callee2_id = network
         .deploy(Contract::new(callee2, code_callee2.to_vec()))
+        .await
         .unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
@@ -405,6 +434,7 @@ fn calling() {
             (caller::SET_TARGET, callee1_id),
             &mut gas,
         )
+        .await
         .unwrap();
 
     network
@@ -414,6 +444,7 @@ fn calling() {
             (caller::SET_TARGET, callee2_id),
             &mut gas,
         )
+        .await
         .unwrap();
 
     assert_eq!(
@@ -424,14 +455,15 @@ fn calling() {
                 caller::CALL,
                 &mut gas
             )
+            .await
             .unwrap(),
         (caller_id, callee1_id, callee2_id),
         "Expected Callers and Callees"
     )
 }
 
-#[test]
-fn gas_consumed_host_function_works() {
+#[tokio::test]
+async fn gas_consumed_host_function_works() {
     let gas_contract = GasConsumed::new(99);
 
     let code = include_bytes!(
@@ -442,7 +474,7 @@ fn gas_consumed_host_function_works() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).expect("Deploy error");
+    let contract_id = network.deploy(contract).await.expect("Deploy error");
 
     // 2050 is the gas held that is known will be spent in the contract
     // after the `dusk_abi::gas_left()` call
@@ -451,11 +483,13 @@ fn gas_consumed_host_function_works() {
 
     network
         .transact::<_, ()>(contract_id, 0, gas_consumed::INCREMENT, &mut gas)
+        .await
         .expect("Transaction error");
 
     assert_eq!(
         network
             .query::<_, i32>(contract_id, 0, gas_consumed::VALUE, &mut gas)
+            .await
             .expect("Query error"),
         100
     );
@@ -467,6 +501,7 @@ fn gas_consumed_host_function_works() {
             gas_consumed::GAS_CONSUMED,
             &mut gas,
         )
+        .await
         .expect("Query error");
 
     assert_eq!(gas.left() + gas.spent(), CALLER_GAS_LIMIT,
@@ -475,8 +510,8 @@ fn gas_consumed_host_function_works() {
         GasMeter values: gas.left() = {}, gas.spent() = {}", gas.left(), gas.spent());
 }
 
-#[test]
-fn gas_consumption_works() {
+#[tokio::test]
+async fn gas_consumption_works() {
     let counter = Counter::new(99);
 
     let code =
@@ -486,17 +521,19 @@ fn gas_consumption_works() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).expect("Deploy error");
+    let contract_id = network.deploy(contract).await.expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .await
         .expect("Transaction error");
 
     assert_eq!(
         network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .expect("Query error"),
         100
     );
@@ -505,8 +542,8 @@ fn gas_consumption_works() {
     assert!(gas.left() < 1_000_000_000);
 }
 
-#[test]
-fn out_of_gas_aborts_execution() {
+#[tokio::test]
+async fn out_of_gas_aborts_execution() {
     let counter = Counter::new(99);
 
     let code =
@@ -516,20 +553,21 @@ fn out_of_gas_aborts_execution() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).expect("Deploy error");
+    let contract_id = network.deploy(contract).await.expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1);
 
-    let should_be_err =
-        network.transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas);
+    let should_be_err = network
+        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .await;
     assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
 
     // Ensure all gas is consumed even the tx did not succeed.
     assert_eq!(gas.left(), 0);
 }
 
-#[test]
-fn deploy_fails_with_floats() {
+#[tokio::test]
+async fn deploy_fails_with_floats() {
     let counter = CounterFloat::new(9.99f32);
 
     let code = include_bytes!(
@@ -546,13 +584,13 @@ fn deploy_fails_with_floats() {
     let mut network = NetworkState::with_schedule(&forbidden_floats_schedule);
 
     assert!(matches!(
-        network.deploy(contract),
+        network.deploy(contract).await,
         Err(rusk_vm::VMError::InstrumentationError(_))
     ));
 }
 
-#[test]
-fn deploy_with_id() -> Result<(), VMError> {
+#[tokio::test]
+async fn deploy_with_id() -> Result<(), VMError> {
     // Smallest valid WASM module possible so `deploy` won't raise a
     // `InvalidByteCode` error
     let code = 0x0000_0001_6D73_6100_u64.to_le_bytes();
@@ -567,12 +605,14 @@ fn deploy_with_id() -> Result<(), VMError> {
     let mut network = NetworkState::new();
 
     // The id is the same returned by the deploy function
-    assert_eq!(id, network.deploy_with_id(id, contract)?);
+    assert_eq!(id, network.deploy_with_id(id, contract).await?);
 
     // Get the contract deployed using the same id, and verify the state is also
     // the same
     let state: u16 = network
-        .get_contract(&id)?
+        .get_contract(&id)
+        .await
+        .get()?
         .state()
         .cast()
         .expect("Cannot cast the state");
@@ -580,7 +620,7 @@ fn deploy_with_id() -> Result<(), VMError> {
 
     // Deploy another contract at the same address
     let contract = Contract::new(0xcafe_u16, code.to_vec());
-    network.deploy_with_id(id, contract)?;
+    network.deploy_with_id(id, contract).await?;
 
     // Get the contract deployed using the same id, and verify the state is NOT
     // the same as before.
@@ -588,10 +628,12 @@ fn deploy_with_id() -> Result<(), VMError> {
     // TODO: This means a contract CAN BE overriden once deployed, we need to
     // decided if we should raise an error if a contract already exists with
     // the same address
-    network.get_contract(&id)?;
+    network.get_contract(&id).await.get()?;
 
     let state: u16 = network
-        .get_contract(&id)?
+        .get_contract(&id)
+        .await
+        .get()?
         .state()
         .cast()
         .expect("Cannot cast the state");
@@ -601,8 +643,8 @@ fn deploy_with_id() -> Result<(), VMError> {
 }
 
 #[cfg(feature = "persistence")]
-#[test]
-fn persistence() {
+#[tokio::test]
+async fn persistence() {
     use microkelvin::{BackendCtor, DiskBackend};
     fn testbackend() -> BackendCtor<DiskBackend> {
         BackendCtor::new(|| DiskBackend::ephemeral())
@@ -618,24 +660,27 @@ fn persistence() {
     let (persist_id, contract_id) = {
         let mut network = NetworkState::new();
 
-        let contract_id = network.deploy(contract).unwrap();
+        let contract_id = network.deploy(contract).await.unwrap();
 
         let mut gas = GasMeter::with_limit(1_000_000_000);
 
         assert_eq!(
             network
                 .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+                .await
                 .unwrap(),
             99
         );
 
         network
             .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+            .await
             .unwrap();
 
         assert_eq!(
             network
                 .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+                .await
                 .unwrap(),
             100
         );
@@ -643,6 +688,7 @@ fn persistence() {
         (
             network
                 .persist(&testbackend())
+                .await
                 .expect("Error in persistence"),
             contract_id,
         )
@@ -652,6 +698,7 @@ fn persistence() {
     // NetworkState.
     let mut network = NetworkState::new()
         .restore(persist_id)
+        .await
         .expect("Error reconstructing the NetworkState");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
@@ -659,13 +706,14 @@ fn persistence() {
     assert_eq!(
         network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         100
     );
 }
 
-#[test]
-fn commit_and_reset() {
+#[tokio::test]
+async fn commit_and_reset() {
     let counter = Counter::new(99);
 
     let code =
@@ -673,44 +721,48 @@ fn commit_and_reset() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let mut network = NetworkState::new();
+    let mut network_1 = NetworkState::new();
+    let mut network_2 = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
-    network.commit();
+    let _ = network_1.deploy(contract.clone()).await.unwrap();
+    let contract_id = network_2.deploy(contract).await.unwrap();
 
-    let mut network_clone = network.clone();
+    network_1.commit().await;
+    network_2.commit().await;
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
+    network_1
         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .await
         .unwrap();
-    network_clone
+    network_2
         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .await
         .unwrap();
 
-    network.commit();
-
-    network.reset();
-    network_clone.reset();
+    network_1.commit().await;
+    network_2.reset().await;
 
     assert_eq!(
-        network
+        network_1
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         100
     );
     assert_eq!(
-        network_clone
+        network_2
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         99
     );
 }
 
 #[cfg(feature = "persistence")]
-#[test]
-fn persist_commit_and_reset() {
+#[tokio::test]
+async fn persist_commit_and_reset() {
     use microkelvin::{BackendCtor, DiskBackend};
     fn testbackend() -> BackendCtor<DiskBackend> {
         BackendCtor::new(|| DiskBackend::ephemeral())
@@ -725,40 +777,46 @@ fn persist_commit_and_reset() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
-    network.commit();
+    let contract_id = network.deploy(contract).await.unwrap();
+    network.commit().await;
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .await
         .unwrap();
 
     assert_eq!(
         network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         100
     );
 
     let id = network
         .persist(&testbackend())
+        .await
         .expect("Error in persistence");
 
     let mut new_network = NetworkState::new()
         .restore(id)
+        .await
         .expect("Error reconstructing the NetworkState");
 
     assert_eq!(
         new_network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         100
     );
-    new_network.reset();
+    new_network.reset().await;
     assert_eq!(
         new_network
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+            .await
             .unwrap(),
         99
     );

@@ -16,9 +16,9 @@ use crate::contract::ContractId;
 use crate::env::Env;
 use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
-use crate::modules::compile_module;
+use crate::modules::{compile_module, HostModules, ModuleConfig};
 use crate::resolver::HostImportsResolver;
-use crate::state::{Contracts, NetworkState};
+use crate::state::Contracts;
 use crate::VMError;
 
 pub struct StackFrame {
@@ -70,15 +70,24 @@ impl StackFrame {
 }
 
 pub struct CallContext<'a> {
-    state: &'a mut NetworkState,
+    contracts: &'a mut Contracts,
+    config: ModuleConfig,
+    modules: HostModules,
     stack: Vec<StackFrame>,
     block_height: u64,
 }
 
 impl<'a> CallContext<'a> {
-    pub fn new(state: &'a mut NetworkState, block_height: u64) -> Self {
+    pub fn new(
+        contracts: &'a mut Contracts,
+        config: ModuleConfig,
+        modules: HostModules,
+        block_height: u64,
+    ) -> Self {
         CallContext {
-            state,
+            contracts,
+            config,
+            modules,
             stack: vec![],
             block_height,
         }
@@ -118,17 +127,13 @@ impl<'a> CallContext<'a> {
 
         let instance: Instance;
 
-        if let Some(module) = self.state.modules().get_module_ref(&target).get()
-        {
+        if let Some(module) = self.modules.get_module_ref(&target).get() {
             // is this a reserved module call?
             return module.execute(query).map_err(VMError::from_store_error);
         } else {
-            let contract = self.state.get_contract(&target)?;
+            let contract = self.contracts.get_contract(&target)?;
 
-            let module = compile_module(
-                contract.bytecode(),
-                self.state.get_module_config(),
-            )?;
+            let module = compile_module(contract.bytecode(), &self.config)?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -206,12 +211,9 @@ impl<'a> CallContext<'a> {
         let instance;
 
         {
-            let contract = self.state.get_contract(&target)?;
+            let contract = self.contracts.get_contract(&target)?;
 
-            let module = compile_module(
-                contract.bytecode(),
-                self.state.get_module_config(),
-            )?;
+            let module = compile_module(contract.bytecode(), &self.config)?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -259,7 +261,7 @@ impl<'a> CallContext<'a> {
         r?;
 
         let ret = {
-            let mut contract = self.state.get_contract_mut(&target)?;
+            let mut contract = self.contracts.get_contract_mut(&target)?;
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
             let read_buffer = memory.read_from(0)?;
@@ -273,9 +275,10 @@ impl<'a> CallContext<'a> {
 
         let state = if self.stack.len() > 1 {
             self.stack.pop();
-            self.state.get_contract(self.callee())?.state().clone()
+            self.contracts.get_contract(self.callee())?.state().clone()
         } else {
-            let state = self.state.get_contract(self.callee())?.state().clone();
+            let state =
+                self.contracts.get_contract(self.callee())?.state().clone();
             self.stack.pop();
             state
         };
@@ -336,7 +339,7 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn state_mut(&mut self) -> &mut Contracts {
-        self.state.head_mut()
+        self.contracts
     }
 
     /// Reconcile the gas usage across the stack.

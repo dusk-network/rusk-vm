@@ -7,8 +7,8 @@
 use gas_context::GasContextData;
 use rusk_vm::{Contract, Gas, GasMeter, NetworkState};
 
-#[test]
-fn gas_context() {
+#[tokio::test]
+async fn gas_context() {
     let gas_context_data = GasContextData::new();
 
     let code = include_bytes!(
@@ -19,7 +19,7 @@ fn gas_context() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
 
     const INITIAL_GAS_LIMIT: Gas = 1_000_000_000;
     const GAS_RESERVE_TOLERANCE_PERCENTAGE: u64 = 1;
@@ -40,6 +40,7 @@ fn gas_context() {
             (gas_context::SET_GAS_LIMITS, call_gas_limits),
             &mut gas,
         )
+        .await
         .unwrap();
 
     network
@@ -49,6 +50,7 @@ fn gas_context() {
             (gas_context::COMPUTE, NUMBER_OF_NESTED_CALLS as u64),
             &mut gas,
         )
+        .await
         .unwrap();
 
     let limits = network
@@ -58,6 +60,7 @@ fn gas_context() {
             (gas_context::READ_GAS_LIMITS, ()),
             &mut gas,
         )
+        .await
         .unwrap();
 
     let mut bounds: Vec<(u64, u64)> = limits
@@ -90,8 +93,8 @@ fn gas_context() {
     }
 }
 
-#[test]
-fn gas_context_with_call_limit() {
+#[tokio::test]
+async fn gas_context_with_call_limit() {
     let gas_context_data = GasContextData::new();
 
     let code = include_bytes!(
@@ -102,7 +105,7 @@ fn gas_context_with_call_limit() {
 
     let mut network = NetworkState::new();
 
-    let contract_id = network.deploy(contract).unwrap();
+    let contract_id = network.deploy(contract).await.unwrap();
 
     const INITIAL_GAS_LIMIT: Gas = 900_000_000;
 
@@ -121,6 +124,7 @@ fn gas_context_with_call_limit() {
             (gas_context::SET_GAS_LIMITS, call_gas_limits),
             &mut gas,
         )
+        .await
         .unwrap();
 
     network
@@ -130,6 +134,7 @@ fn gas_context_with_call_limit() {
             (gas_context::COMPUTE, number_of_nested_calls as u64),
             &mut gas,
         )
+        .await
         .unwrap();
 
     let limits = network
@@ -139,6 +144,7 @@ fn gas_context_with_call_limit() {
             (gas_context::READ_GAS_LIMITS, ()),
             &mut gas,
         )
+        .await
         .unwrap();
 
     upper_bounds.remove(0);

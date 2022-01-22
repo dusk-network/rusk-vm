@@ -8,7 +8,7 @@ use counter::Counter;
 use rusk_vm::{Contract, GasMeter, NetworkState, Schedule};
 use std::collections::HashMap;
 
-fn execute_contract(network: &mut NetworkState) -> u64 {
+async fn execute_contract(network: &mut NetworkState) -> u64 {
     let counter = Counter::new(99);
 
     let code =
@@ -16,30 +16,32 @@ fn execute_contract(network: &mut NetworkState) -> u64 {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let contract_id = network.deploy(contract).expect("Deploy error");
+    let contract_id = network.deploy(contract).await.expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
         .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
+        .await
         .expect("Transaction error");
 
     network
         .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
+        .await
         .expect("Query error");
 
     gas.spent()
 }
 
-fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
+async fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
     let mut network = NetworkState::with_schedule(schedule);
-    execute_contract(&mut network)
+    execute_contract(&mut network).await
 }
 
-#[test]
-fn change_gas_cost_per_op_with_schedule() {
+#[tokio::test]
+async fn change_gas_cost_per_op_with_schedule() {
     let schedule = Schedule::default();
-    assert!(execute_contract_with_schedule(&schedule) < 10_000);
+    assert!(execute_contract_with_schedule(&schedule).await < 10_000);
 
     let per_type_op_cost: HashMap<String, u32> = [
         ("bit", 10000),
@@ -72,14 +74,19 @@ fn change_gas_cost_per_op_with_schedule() {
         per_type_op_cost,
         ..Schedule::with_version(1)
     };
-    assert!(execute_contract_with_schedule(&high_cost_schedule) > 10_000_000);
+    assert!(
+        execute_contract_with_schedule(&high_cost_schedule).await > 10_000_000
+    );
 }
 
-#[test]
-fn no_gas_consumption_when_metering_is_off() {
+#[tokio::test]
+async fn no_gas_consumption_when_metering_is_off() {
     let no_metering_schedule = Schedule {
         has_metering: false,
         ..Schedule::with_version(2)
     };
-    assert_eq!(execute_contract_with_schedule(&no_metering_schedule), 0);
+    assert_eq!(
+        execute_contract_with_schedule(&no_metering_schedule).await,
+        0
+    );
 }

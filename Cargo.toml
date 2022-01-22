@@ -13,6 +13,7 @@ description = "Rusk VM is the virtual machine running Dusk Network's Smart contr
 license = "MPL-2.0"
 
 [dependencies]
+tokio = { version = "1.15", features = ["sync"] }
 wasmparser = "0.81.0"
 failure = "0.1"
 dusk-abi = "0.10"
@@ -36,6 +37,7 @@ wasmer-compiler-singlepass = "2.1.0"
 wasmer-compiler-cranelift = "2.1.0"
 
 [dev-dependencies]
+tokio = { version = "1.15", features = ["rt", "macros"] }
 dusk-bls12_381 = "0.8"
 dusk-bytes = "0.1"
 criterion = "0.3"

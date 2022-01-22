@@ -5,11 +5,13 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
-use canonical::{Canon, CanonError, EncodeToVec, Sink, Source, Store};
+use canonical::{Canon, EncodeToVec, Source, Store};
 use canonical_derive::Canon;
 use dusk_abi::{HostModule, Query, Transaction};
 use dusk_hamt::Map;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
@@ -87,6 +89,60 @@ impl Contracts {
     }
 }
 
+/// A read-only reference to a contract.
+pub struct ContractRef<'id, 'guard> {
+    contract_id: &'id ContractId,
+    guard: RwLockReadGuard<'guard, NetworkStateInner>,
+}
+
+impl<'id, 'guard> ContractRef<'id, 'guard> {
+    /// Gets the reference to the contract in the `head` state.
+    pub fn get(&self) -> Result<impl Deref<Target = Contract> + '_, VMError> {
+        self.guard.head.get_contract(self.contract_id)
+    }
+
+    /// Gets the reference to the contract in the `origin` state.
+    pub fn get_origin(
+        &self,
+    ) -> Result<impl Deref<Target = Contract> + '_, VMError> {
+        self.guard.origin.get_contract(self.contract_id)
+    }
+}
+
+/// A mutable reference to a contract.
+pub struct ContractMutRef<'id, 'guard> {
+    contract_id: &'id ContractId,
+    guard: RwLockWriteGuard<'guard, NetworkStateInner>,
+}
+
+impl<'id, 'guard> ContractMutRef<'id, 'guard> {
+    /// Gets the reference to the contract in the `head` state.
+    pub fn get(&self) -> Result<impl Deref<Target = Contract> + '_, VMError> {
+        self.guard.head.get_contract(self.contract_id)
+    }
+
+    /// Gets the reference to the contract in the `origin` state.
+    pub fn get_origin(
+        &self,
+    ) -> Result<impl Deref<Target = Contract> + '_, VMError> {
+        self.guard.origin.get_contract(self.contract_id)
+    }
+
+    /// Gets the mutable reference to the contract in the `head` state.
+    pub fn get_mut(
+        &mut self,
+    ) -> Result<impl DerefMut<Target = Contract> + '_, VMError> {
+        self.guard.head.get_contract_mut(self.contract_id)
+    }
+
+    /// Gets the reference to the contract in the `origin` state.
+    pub fn get_origin_mut(
+        &mut self,
+    ) -> Result<impl DerefMut<Target = Contract> + '_, VMError> {
+        self.guard.origin.get_contract_mut(self.contract_id)
+    }
+}
+
 /// The main network state.
 ///
 /// It keeps two different states, the `origin` and the `head`. The `origin` is
@@ -97,35 +153,19 @@ impl Contracts {
 /// turning it into the new `origin`, or [reset](`Self::reset`) it back to
 /// `origin`.
 #[derive(Clone, Default)]
-pub struct NetworkState {
+pub struct NetworkState(Arc<RwLock<NetworkStateInner>>);
+
+#[derive(Clone, Default)]
+struct NetworkStateInner {
     origin: Contracts,
     head: Contracts,
     modules: HostModules,
     module_config: ModuleConfig,
 }
 
-/// Custom implementation of Canon ensuring only the `head` state is encoded.
-/// When restored, `head` is set to be a copy of `origin` and the modules are to
-/// be set by the caller.
-impl Canon for NetworkState {
-    fn encode(&self, sink: &mut Sink) {
-        self.origin.encode(sink);
-    }
-
-    fn decode(source: &mut Source) -> Result<Self, CanonError> {
-        let origin = Contracts::decode(source)?;
-        let head = origin.clone();
-
-        Ok(Self {
-            origin,
-            head,
-            modules: HostModules::default(),
-            module_config: ModuleConfig::new(),
-        })
-    }
-
-    fn encoded_len(&self) -> usize {
-        Canon::encoded_len(&self.origin)
+impl From<NetworkStateInner> for NetworkState {
+    fn from(nsi: NetworkStateInner) -> Self {
+        Self(Arc::new(RwLock::new(nsi)))
     }
 }
 
@@ -138,60 +178,67 @@ impl NetworkState {
     /// Returns a [`NetworkState`] based on a schedule
     pub fn with_schedule(schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
-        Self {
+        NetworkStateInner {
             module_config,
-            ..Self::default()
+            ..NetworkStateInner::default()
         }
-    }
-
-    /// Returns the state of contracts in the `head`.
-    pub(crate) fn head_mut(&mut self) -> &mut Contracts {
-        &mut self.head
+        .into()
     }
 
     /// Returns a reference to the specified contracts state in the `head`
     /// state.
-    pub fn get_contract<'a>(
-        &'a self,
-        contract_id: &ContractId,
-    ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
-        self.head.get_contract(contract_id)
+    pub async fn get_contract<'id, 'guard>(
+        &'guard self,
+        contract_id: &'id ContractId,
+    ) -> ContractRef<'id, 'guard> {
+        ContractRef {
+            guard: self.0.read().await,
+            contract_id,
+        }
     }
 
     /// Returns a mutable reference to the specified contracts state in the
-    /// `origin` state.
-    pub fn get_contract_mut<'a>(
-        &'a mut self,
-        contract_id: &ContractId,
-    ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
-        self.head.get_contract_mut(contract_id)
+    /// `head` state.
+    pub async fn get_contract_mut<'id, 'guard>(
+        &'guard mut self,
+        contract_id: &'id ContractId,
+    ) -> ContractMutRef<'id, 'guard> {
+        ContractMutRef {
+            guard: self.0.write().await,
+            contract_id,
+        }
     }
 
     /// Returns a reference to the map of registered host modules
-    pub fn modules(&self) -> &HostModules {
-        &self.modules
+    pub async fn modules(&self) -> HostModules {
+        let guard = self.0.read().await;
+        guard.modules.clone()
     }
 
     /// Deploys a contract to the `head` state, returning the address of the
     /// created contract or an error.
-    pub fn deploy(
+    pub async fn deploy(
         &mut self,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy(contract, &self.module_config)
+        let mut guard = self.0.write().await;
+        let config = guard.module_config.clone();
+        guard.head.deploy(contract, &config)
     }
 
     /// Deploys a contract to the `head` state with the given id / address.
-    pub fn deploy_with_id(
+    pub async fn deploy_with_id(
         &mut self,
         id: ContractId,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy_with_id(id, contract, &self.module_config)
+        let mut guard = self.0.write().await;
+        let config = guard.module_config.clone();
+        guard.head.deploy_with_id(id, contract, &config)
     }
 
     /// Query the contract at `target` address in the `head` state.
-    pub fn query<A, R>(
+    pub async fn query<A, R>(
         &mut self,
         target: ContractId,
         block_height: u64,
@@ -209,7 +256,13 @@ impl NetworkState {
             gas_limit = ?gas_meter.limit()
         );
 
-        let mut context = CallContext::new(self, block_height);
+        let mut guard = self.0.write().await;
+
+        let modules = guard.modules.clone();
+        let config = guard.module_config.clone();
+
+        let mut context =
+            CallContext::new(&mut guard.head, config, modules, block_height);
 
         let result =
             match context.query(target, Query::from_canon(&query), gas_meter) {
@@ -233,7 +286,7 @@ impl NetworkState {
     /// returning the result of the transaction.
     ///
     /// This will advance the `head` to the resultant state.
-    pub fn transact<A, R>(
+    pub async fn transact<A, R>(
         &mut self,
         target: ContractId,
         block_height: u64,
@@ -251,11 +304,17 @@ impl NetworkState {
             gas_limit = ?gas_meter.limit(),
         );
 
-        // Fork the current network's state
-        let mut fork = self.clone();
+        let mut guard = self.0.write().await;
+
+        // Fork the current head state
+        let mut fork = guard.head.clone();
+
+        let modules = guard.modules.clone();
+        let config = guard.module_config.clone();
 
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(&mut fork, block_height);
+        let mut context =
+            CallContext::new(&mut fork, config, modules, block_height);
 
         let result = match context.transact(
             target,
@@ -279,43 +338,48 @@ impl NetworkState {
 
         // If we reach this point, everything went well and we can use the
         // updates made in the forked state.
-        *self = fork;
+        guard.head = fork;
 
         Ok(ret)
     }
 
     /// Returns the root of the tree in the `head` state.
-    pub fn root(&self) -> [u8; 32] {
-        self.head.root()
+    pub async fn root(&self) -> [u8; 32] {
+        let guard = self.0.read().await;
+        guard.head.root()
     }
 
     /// Resets the `head` state to `origin`.
-    pub fn reset(&mut self) {
-        self.head = self.origin.clone();
+    pub async fn reset(&mut self) {
+        let mut guard = self.0.write().await;
+        guard.head = guard.origin.clone();
     }
 
     /// Commits to the `head` state, making it the new `origin`.
-    pub fn commit(&mut self) {
-        self.origin = self.head.clone();
+    pub async fn commit(&mut self) {
+        let mut guard = self.0.write().await;
+        guard.origin = guard.head.clone();
     }
 
     /// Register a host function handler.
-    pub fn register_host_module<M>(&mut self, module: M)
+    pub async fn register_host_module<M>(&mut self, module: M)
     where
         M: HostModule + 'static,
     {
-        self.modules.insert(module);
+        let mut guard = self.0.write().await;
+        guard.modules.insert(module);
     }
 
     /// Gets the state of the given contract in the `head` state.
-    pub fn get_contract_cast_state<C>(
+    pub async fn get_contract_cast_state<C>(
         &self,
         contract_id: &ContractId,
     ) -> Result<C, VMError>
     where
         C: Canon,
     {
-        self.head.get_contract(contract_id).map_or(
+        let guard = self.0.read().await;
+        guard.head.get_contract(contract_id).map_or(
             Err(VMError::UnknownContract),
             |contract| {
                 let mut source = Source::new((*contract).state().as_bytes());
@@ -325,7 +389,8 @@ impl NetworkState {
     }
 
     /// Gets module config
-    pub fn get_module_config(&self) -> &ModuleConfig {
-        &self.module_config
+    pub async fn get_module_config(&self) -> ModuleConfig {
+        let guard = self.0.read().await;
+        guard.module_config.clone()
     }
 }
