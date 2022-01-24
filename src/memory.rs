@@ -27,12 +27,6 @@ impl WasmerMemory {
         Ok(())
     }
 
-    /// Read bytes from memory at a given offset
-    pub fn read_from(&self, offset: u64) -> Result<&[u8], VMError> {
-        let offset = offset as usize;
-        Ok(unsafe { &self.inner.get_unchecked().data_unchecked()[offset..] })
-    }
-
     /// Read bytes from memory at a given offset and length
     pub fn read(&self, offset: u64, length: usize) -> Result<&[u8], VMError> {
         let offset = offset as usize;
@@ -70,14 +64,14 @@ impl WasmerMemory {
         }
     }
 
-    /// Write bytes into memory at a given offset
-    pub fn with_slice_from<F, R>(&self, offset: usize, mut closure: F) -> R
+    /// Get a reference into memory
+    pub fn with_slice_from<F, R>(&self, ofs: usize, mut closure: F) -> R
     where
         F: FnMut(&[u8]) -> R,
     {
         unsafe {
-            let slice = &self.inner.get_unchecked().data_unchecked()[offset..];
-            closure(slice)
+            let slice = self.inner.get_unchecked().data_unchecked();
+            closure(&slice[ofs..])
         }
     }
 }

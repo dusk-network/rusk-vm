@@ -7,7 +7,7 @@
 use dusk_hamt::{Hamt, Lookup};
 
 use bytecheck::CheckBytes;
-use microkelvin::{BranchRef, BranchRefMut, HostStore, OffsetLen, StoreRef};
+use microkelvin::{BranchRef, BranchRefMut, OffsetLen, StoreRef};
 use rkyv::ser::serializers::AllocSerializer;
 use rkyv::validation::validators::DefaultValidator;
 use rusk_uplink::{
@@ -115,11 +115,6 @@ impl NetworkState {
         }
     }
 
-    /// Returns the state of contracts in the `head`.
-    pub(crate) fn head_mut(&mut self) -> &mut Contracts {
-        &mut self.head
-    }
-
     /// Returns a reference to the specified contracts state in the `head`
     /// state.
     pub fn get_contract<'a>(
@@ -223,7 +218,7 @@ impl NetworkState {
 
         let cast = result
             .cast::<Q::Return>()
-            .map_err(|e| VMError::InvalidData)?;
+            .map_err(|_| VMError::InvalidData)?;
 
         let deserialized: Q::Return = cast
             .deserialize(&mut self.store.clone())
@@ -282,7 +277,7 @@ impl NetworkState {
 
         let cast = result
             .cast::<T::Return>()
-            .map_err(|e| VMError::InvalidData)?;
+            .map_err(|_| VMError::InvalidData)?;
 
         let deserialized: T::Return = cast
             .deserialize(&mut self.store.clone())
