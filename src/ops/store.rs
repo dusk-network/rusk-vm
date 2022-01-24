@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::{Ident, OffsetLen};
+use microkelvin::OffsetLen;
 use tracing::trace;
 
 use crate::env::Env;

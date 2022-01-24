@@ -52,7 +52,7 @@ impl ExecuteQuery {
         let context = env.get_context();
         let result = context.query(contract_id, raw_query, &mut gas_meter)?;
 
-        context.write_memory(result.data(), query_ofs);
+        context.write_memory(result.data(), query_ofs)?;
 
         Ok(result.data_len() as u32)
     }
