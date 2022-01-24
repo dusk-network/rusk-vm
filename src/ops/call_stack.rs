@@ -19,9 +19,7 @@ impl Callee {
         let context = env.get_context();
         let callee = *context.callee();
 
-        context.write_memory(callee.as_bytes(), result_ofs as u64);
-
-        Ok(())
+        context.write_memory(callee.as_bytes(), result_ofs as u64)
     }
 }
 
@@ -35,8 +33,6 @@ impl Caller {
         let context = env.get_context();
         let caller = *context.caller();
 
-        context.write_memory(caller.as_bytes(), result_ofs as u64);
-
-        Ok(())
+        context.write_memory(caller.as_bytes(), result_ofs as u64)
     }
 }

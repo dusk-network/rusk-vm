@@ -54,11 +54,11 @@ impl ApplyTransaction {
         let result =
             context.transact(contract_id, raw_transaction, &mut gas_meter)?;
 
-        context.write_memory(result.state(), transact_ofs);
+        context.write_memory(result.state(), transact_ofs)?;
         context.write_memory(
             result.data(),
             transact_ofs + result.state_len() as u64,
-        );
+        )?;
 
         Ok(result.encode_lenghts())
     }

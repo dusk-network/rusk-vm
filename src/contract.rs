@@ -4,17 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::convert::Infallible;
-
 use bytecheck::CheckBytes;
-use microkelvin::{
-    HostStore, Ident, MaybeArchived, OffsetLen, Store, StoreSerializer, Stored,
-    UnwrapInfallible,
-};
-use rkyv::{
-    ser::serializers::AllocSerializer, ser::Serializer, AlignedVec, Archive,
-    Deserialize, Fallible, Serialize,
-};
+use microkelvin::{MaybeArchived, OffsetLen, StoreSerializer};
+use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
 use rusk_uplink::StoreContext;
 pub use rusk_uplink::{ContractId, ContractState};
@@ -98,7 +90,8 @@ impl Contract {
     }
 
     /// Upgrade the contract state
-    pub fn set_state(&mut self, state: Vec<u8>) {
-        self.state = state
+    pub fn set_state(&mut self, state: &[u8]) {
+        self.state.truncate(0);
+        self.state.extend_from_slice(state);
     }
 }
