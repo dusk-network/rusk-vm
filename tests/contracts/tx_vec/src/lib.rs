@@ -68,7 +68,7 @@ impl Query for TxVecReadValue {
 impl Execute<TxVecReadValue> for TxVec {
     fn execute(
         &self,
-        _: &TxVecReadValue,
+        _: TxVecReadValue,
         _: StoreContext,
     ) -> <TxVecReadValue as Query>::Return {
         self.read_value()
@@ -96,7 +96,7 @@ impl Transaction for TxVecSum {
 impl Apply<TxVecSum> for TxVec {
     fn apply(
         &mut self,
-        s: &TxVecSum,
+        s: TxVecSum,
         _: StoreContext,
     ) -> <TxVecSum as Transaction>::Return {
         self.sum(&s.values);
@@ -125,7 +125,7 @@ impl Transaction for TxVecDelegateSum {
 impl Apply<TxVecDelegateSum> for TxVec {
     fn apply(
         &mut self,
-        s: &TxVecDelegateSum,
+        s: TxVecDelegateSum,
         store: StoreContext,
     ) -> <TxVecDelegateSum as Transaction>::Return {
         self.delegate_sum(&s.contract_id, &s.data, store)

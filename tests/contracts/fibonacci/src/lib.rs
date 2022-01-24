@@ -38,7 +38,7 @@ impl Query for ComputeFrom {
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(
         &self,
-        compute_from: &ComputeFrom,
+        compute_from: ComputeFrom,
         store: StoreRef<OffsetLen>,
     ) -> <ComputeFrom as Query>::Return {
         let n = compute_from.value;

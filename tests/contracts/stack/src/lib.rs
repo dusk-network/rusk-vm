@@ -41,7 +41,7 @@ impl Query for Peek {
 }
 
 impl Execute<Peek> for Stack {
-    fn execute(&self, arg: &Peek, _: StoreContext) -> <Peek as Query>::Return {
+    fn execute(&self, arg: Peek, _: StoreContext) -> <Peek as Query>::Return {
         self.peek(arg.value)
     }
 }
@@ -65,7 +65,7 @@ impl Transaction for Push {
 impl Apply<Push> for Stack {
     fn apply(
         &mut self,
-        arg: &Push,
+        arg: Push,
         _: StoreContext,
     ) -> <Push as Transaction>::Return {
         self.push(arg.value);
@@ -83,7 +83,7 @@ impl Transaction for Pop {
 impl Apply<Pop> for Stack {
     fn apply(
         &mut self,
-        _: &Pop,
+        _: Pop,
         _: StoreContext,
     ) -> <Pop as Transaction>::Return {
         self.pop()

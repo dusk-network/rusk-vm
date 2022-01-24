@@ -74,14 +74,14 @@ pub trait Execute<Q>
 where
     Q: Query,
 {
-    fn execute(&self, q: &Q, store: StoreContext) -> Q::Return;
+    fn execute(&self, q: Q, store: StoreContext) -> Q::Return;
 }
 
 pub trait Apply<T>
 where
     T: Transaction,
 {
-    fn apply(&mut self, t: &T, store: StoreContext) -> T::Return;
+    fn apply(&mut self, t: T, store: StoreContext) -> T::Return;
 }
 
 pub trait Query: Archive {

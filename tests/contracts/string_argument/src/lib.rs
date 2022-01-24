@@ -42,7 +42,7 @@ impl Query for Passthrough {
 impl Execute<Passthrough> for Stringer {
     fn execute(
         &self,
-        p: &Passthrough,
+        p: Passthrough,
         _: StoreContext,
     ) -> <Passthrough as Query>::Return {
         p.string.repeat(p.repeat as usize)

@@ -162,7 +162,7 @@ macro_rules! q_handler {
 
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-            let res: <$arg_type as Query>::Return = state.execute(&arg, store);
+            let res: <$arg_type as Query>::Return = state.execute(arg, store);
 
             unsafe { q_return(&res, &mut SCRATCH) }
         }
@@ -186,7 +186,7 @@ macro_rules! q_handler_store_ser {
             };
 
             let res: <$arg_type as Query>::Return =
-                state.execute(&arg, store.clone());
+                state.execute(arg, store.clone());
 
             unsafe { q_return_store_ser(&res, store) }
         }
@@ -205,7 +205,7 @@ macro_rules! t_handler {
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
             let res: <$arg_type as Transaction>::Return =
-                state.apply(&arg, store);
+                state.apply(arg, store);
 
             unsafe { t_return(&state, &res, &mut SCRATCH) }
         }
@@ -229,7 +229,7 @@ macro_rules! t_handler_store_ser {
             };
 
             let res: <$arg_type as Transaction>::Return =
-                state.apply(&arg, store.clone());
+                state.apply(arg, store.clone());
 
             unsafe { t_return_store_ser(&state, &res, store) }
         }

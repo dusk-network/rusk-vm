@@ -84,7 +84,7 @@ impl Transaction for TransactionForwardData {
 impl Execute<QueryForwardData> for Delegator {
     fn execute(
         &self,
-        arg: &QueryForwardData,
+        arg: QueryForwardData,
         store: StoreContext,
     ) -> <QueryForwardData as Query>::Return {
         let query_name = arg.name.as_ref();
@@ -104,7 +104,7 @@ impl Execute<QueryForwardData> for Delegator {
 impl Apply<TransactionForwardData> for Delegator {
     fn apply(
         &mut self,
-        arg: &TransactionForwardData,
+        arg: TransactionForwardData,
         store: StoreContext,
     ) -> <TransactionForwardData as Transaction>::Return {
         let query_name = arg.name.as_ref();

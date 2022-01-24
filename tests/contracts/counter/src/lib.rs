@@ -115,7 +115,7 @@ impl Transaction for CompareAndSwap {
 impl Apply<Adjust> for Counter {
     fn apply(
         &mut self,
-        arg: &Adjust,
+        arg: Adjust,
         _: StoreContext,
     ) -> <Adjust as Transaction>::Return {
         self.adjust(arg.by);
@@ -125,7 +125,7 @@ impl Apply<Adjust> for Counter {
 impl Execute<ReadValue> for Counter {
     fn execute(
         &self,
-        _: &ReadValue,
+        _: ReadValue,
         _: StoreContext,
     ) -> <ReadValue as Query>::Return {
         self.value
@@ -135,7 +135,7 @@ impl Execute<ReadValue> for Counter {
 impl Execute<XorValues> for Counter {
     fn execute(
         &self,
-        arg: &XorValues,
+        arg: XorValues,
         _: StoreContext,
     ) -> <XorValues as Query>::Return {
         self.xor_values(arg.a, arg.b)
@@ -145,7 +145,7 @@ impl Execute<XorValues> for Counter {
 impl Execute<IsEven> for Counter {
     fn execute(
         &self,
-        _: &IsEven,
+        _: IsEven,
         _: StoreContext,
     ) -> <IsEven as Query>::Return {
         self.is_even()
@@ -155,7 +155,7 @@ impl Execute<IsEven> for Counter {
 impl Apply<Increment> for Counter {
     fn apply(
         &mut self,
-        _: &Increment,
+        _: Increment,
         _: StoreContext,
     ) -> <Increment as Transaction>::Return {
         self.increment();
@@ -165,7 +165,7 @@ impl Apply<Increment> for Counter {
 impl Apply<Decrement> for Counter {
     fn apply(
         &mut self,
-        _: &Decrement,
+        _: Decrement,
         _: StoreContext,
     ) -> <Decrement as Transaction>::Return {
         self.decrement();
@@ -175,7 +175,7 @@ impl Apply<Decrement> for Counter {
 impl Apply<CompareAndSwap> for Counter {
     fn apply(
         &mut self,
-        arg: &CompareAndSwap,
+        arg: CompareAndSwap,
         _: StoreContext,
     ) -> <CompareAndSwap as Transaction>::Return {
         self.compare_and_swap(arg.expected, arg.new)
