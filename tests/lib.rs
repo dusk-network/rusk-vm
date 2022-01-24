@@ -9,7 +9,6 @@ use callee_1::{Callee1State, Callee1Transaction};
 use callee_2::Callee2State;
 use caller::{CallerQuery, CallerState, CallerTransaction};
 use counter::Counter;
-// use counter_float::CounterFloat;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
@@ -65,27 +64,6 @@ fn minimal_counter() {
         100
     );
 }
-
-// #[ignore]
-// fn register() {
-//     use register::*;
-//
-//     let reg = Register::new();
-//
-//     let code = include_bytes!(
-//         "../target/wasm32-unknown-unknown/release/deps/register.wasm"
-//     );
-//
-//     let store = StoreRef::new(HostStore::new());
-//
-//     let contract = Contract::new(&reg, code.to_vec(), &store);
-//
-//     let mut network = NetworkState::new(store);
-//
-//     let contract_id = network.deploy(contract).unwrap();
-//
-//     todo!()
-// }
 
 #[test]
 fn string_passthrough() {
