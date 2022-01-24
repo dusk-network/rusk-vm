@@ -142,11 +142,10 @@ where
 macro_rules! framing_imports {
     () => {
         use rusk_uplink::{
-            get_state, get_state_arg, get_state_arg_store, q_return,
-            q_return_store_ser, q_handler,
-            q_handler_store_ser, t_return, t_return_store_ser,
-            t_handler, t_handler_store_ser,
-            AbiStore, scratch_memory
+            get_state, get_state_arg, get_state_arg_store, q_handler,
+            q_handler_store_ser, q_return, q_return_store_ser, scratch_memory,
+            t_handler, t_handler_store_ser, t_return, t_return_store_ser,
+            AbiStore,
         };
     };
 }
@@ -156,9 +155,8 @@ macro_rules! q_handler {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> u32 {
-            let (state, arg): ($state_type, $arg_type) = unsafe {
-                get_state_arg(written_state, written_data, &SCRATCH)
-            };
+            let (state, arg): ($state_type, $arg_type) =
+                unsafe { get_state_arg(written_state, written_data, &SCRATCH) };
 
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
@@ -198,9 +196,8 @@ macro_rules! t_handler {
     ($fun_name:ident, $state_type:ty, $arg_type:ty) => {
         #[no_mangle]
         fn $fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
-            let (mut state, arg): ($state_type, $arg_type) = unsafe {
-                get_state_arg(written_state, written_data, &SCRATCH)
-            };
+            let (mut state, arg): ($state_type, $arg_type) =
+                unsafe { get_state_arg(written_state, written_data, &SCRATCH) };
 
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
@@ -241,5 +238,5 @@ macro_rules! scratch_memory {
     ($sz:expr) => {
         #[no_mangle]
         static mut SCRATCH: [u8; $sz] = [0u8; $sz];
-    }
+    };
 }

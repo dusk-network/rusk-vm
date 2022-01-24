@@ -26,7 +26,7 @@ impl Counter {
     }
 }
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[derive(Archive, Serialize, Debug, Deserialize, Clone)]
 pub struct ReadCount;
 
 impl Query for ReadCount {
@@ -34,7 +34,7 @@ impl Query for ReadCount {
     type Return = u32;
 }
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[derive(Archive, Serialize, Debug, Deserialize, Clone)]
 pub struct Increment(pub u32);
 
 impl Transaction for Increment {

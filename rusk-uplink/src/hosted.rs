@@ -10,18 +10,15 @@ pub use crate::{
     Transaction,
 };
 use bytecheck::CheckBytes;
-use microkelvin::{OffsetLen, StoreRef};
+use microkelvin::{OffsetLen, StoreRef, StoreSerializer};
 use rkyv::validation::validators::DefaultValidator;
-use rkyv::{
-    ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
-};
+use rkyv::{Archive, Deserialize, Serialize};
 
 const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
 
 // declare available host-calls
 pub mod external {
     extern "C" {
-        #[allow(unused)]
         pub fn debug(buffer: &u8, len: i32);
 
         pub fn query(
@@ -97,12 +94,12 @@ pub fn query<Q>(
     mut store: StoreRef<OffsetLen>,
 ) -> Result<Q::Return, ArchiveError>
 where
-    Q: Query + Serialize<AllocSerializer<1024>>,
-    Q::Return: Archive + Clone,
+    Q: Query + Serialize<StoreSerializer<OffsetLen>>,
+    Q::Return: Archive,
     <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
         + Deserialize<Q::Return, StoreRef<OffsetLen>>,
 {
-    let raw_query = RawQuery::new(q);
+    let raw_query = RawQuery::new(q, &store);
 
     let result = query_raw(target, &raw_query, gas_limit)?;
 
@@ -125,7 +122,7 @@ pub fn transact_raw<Slf>(
     mut store: StoreRef<OffsetLen>,
 ) -> Result<ReturnValue, ArchiveError>
 where
-    Slf: Archive + Clone,
+    Slf: Archive,
     <Slf as Archive>::Archived: Deserialize<Slf, StoreRef<OffsetLen>>,
 {
     let mut buf = [0u8; BUFFER_SIZE_LIMIT];
@@ -169,14 +166,14 @@ pub fn transact<T, Slf>(
     mut store: StoreRef<OffsetLen>,
 ) -> Result<T::Return, ArchiveError>
 where
-    T: Transaction + Serialize<AllocSerializer<1024>>,
-    T::Return: Archive + Clone,
+    T: Transaction + Serialize<StoreSerializer<OffsetLen>>,
+    T::Return: Archive,
     <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
         + Deserialize<T::Return, StoreRef<OffsetLen>>,
-    Slf: Archive + Clone,
+    Slf: Archive,
     <Slf as Archive>::Archived: Deserialize<Slf, StoreRef<OffsetLen>>,
 {
-    let raw_transaction = RawTransaction::new(transaction);
+    let raw_transaction = RawTransaction::new(transaction, &store);
 
     let result =
         transact_raw(slf, target, &raw_transaction, gas_limit, store.clone())?;
@@ -184,7 +181,6 @@ where
     let cast = result
         .cast::<T::Return>()
         .map_err(|_| ArchiveError::ArchiveValidationError)?;
-    crate::debug!("transact 903");
 
     let deserialized_result: T::Return =
         cast.deserialize(&mut store).expect("Infallible");

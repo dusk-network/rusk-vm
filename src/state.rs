@@ -7,8 +7,9 @@
 use dusk_hamt::{Hamt, Lookup};
 
 use bytecheck::CheckBytes;
-use microkelvin::{BranchRef, BranchRefMut, OffsetLen, StoreRef};
-use rkyv::ser::serializers::AllocSerializer;
+use microkelvin::{
+    BranchRef, BranchRefMut, OffsetLen, StoreRef, StoreSerializer,
+};
 use rkyv::validation::validators::DefaultValidator;
 use rusk_uplink::{
     hash_mocker, ContractId, HostModule, Query, RawQuery, RawTransaction,
@@ -187,8 +188,8 @@ impl NetworkState {
         gas_meter: &mut GasMeter,
     ) -> Result<Q::Return, VMError>
     where
-        Q: Query + Serialize<AllocSerializer<1024>>,
-        Q::Return: Archive + Clone,
+        Q: Query + Serialize<StoreSerializer<OffsetLen>>,
+        Q::Return: Archive,
         <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
             + Deserialize<Q::Return, StoreRef<OffsetLen>>,
     {
@@ -199,22 +200,25 @@ impl NetworkState {
             gas_limit = ?gas_meter.limit()
         );
 
+        let store = self.store.clone();
+
         let mut context =
             CallContext::new(self, block_height, self.store.clone());
 
-        let result =
-            match context.query(target, RawQuery::new(query), gas_meter) {
-                Ok(result) => {
-                    trace!("query was successful");
-                    Ok(result)
-                }
-                Err(e) => {
-                    trace!("query returned an error: {}", e);
-                    Err(e)
-                }
-            }?;
-
-        //println!("query '{}' return value is: {:?}", Q::NAME, result);
+        let result = match context.query(
+            target,
+            RawQuery::new(query, &store),
+            gas_meter,
+        ) {
+            Ok(result) => {
+                trace!("query was successful");
+                Ok(result)
+            }
+            Err(e) => {
+                trace!("query returned an error: {}", e);
+                Err(e)
+            }
+        }?;
 
         let cast = result
             .cast::<Q::Return>()
@@ -239,8 +243,8 @@ impl NetworkState {
         gas_meter: &mut GasMeter,
     ) -> Result<T::Return, VMError>
     where
-        T: Transaction + Serialize<AllocSerializer<1024>>,
-        T::Return: Archive + Clone,
+        T: Transaction + Serialize<StoreSerializer<OffsetLen>>,
+        T::Return: Archive,
         <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
             + Deserialize<T::Return, StoreRef<OffsetLen>>,
     {
@@ -260,7 +264,7 @@ impl NetworkState {
 
         let result = match context.transact(
             target,
-            RawTransaction::new(transaction),
+            RawTransaction::new(transaction, &self.store),
             gas_meter,
         ) {
             Ok(result) => {
@@ -272,8 +276,6 @@ impl NetworkState {
                 Err(e)
             }
         }?;
-
-        //println!("transaction '{}' return value is: {:?}", T::NAME, result);
 
         let cast = result
             .cast::<T::Return>()
