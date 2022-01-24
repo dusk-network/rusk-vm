@@ -57,7 +57,7 @@ impl Query for GasConsumedQuery {
 impl Execute<GasConsumedValueQuery> for GasConsumed {
     fn execute(
         &self,
-        _: &GasConsumedValueQuery,
+        _: GasConsumedValueQuery,
         _: StoreContext,
     ) -> <GasConsumedValueQuery as Query>::Return {
         self.value()
@@ -67,7 +67,7 @@ impl Execute<GasConsumedValueQuery> for GasConsumed {
 impl Execute<GasConsumedQuery> for GasConsumed {
     fn execute(
         &self,
-        _: &GasConsumedQuery,
+        _: GasConsumedQuery,
         _: StoreContext,
     ) -> <GasConsumedQuery as Query>::Return {
         (
@@ -95,7 +95,7 @@ impl Transaction for GasConsumedDecrement {
 impl Apply<GasConsumedIncrement> for GasConsumed {
     fn apply(
         &mut self,
-        _: &GasConsumedIncrement,
+        _: GasConsumedIncrement,
         _: StoreContext,
     ) -> <GasConsumedIncrement as Transaction>::Return {
         self.increment()
@@ -105,7 +105,7 @@ impl Apply<GasConsumedIncrement> for GasConsumed {
 impl Apply<GasConsumedDecrement> for GasConsumed {
     fn apply(
         &mut self,
-        _: &GasConsumedDecrement,
+        _: GasConsumedDecrement,
         _: StoreContext,
     ) -> <GasConsumedDecrement as Transaction>::Return {
         self.decrement()

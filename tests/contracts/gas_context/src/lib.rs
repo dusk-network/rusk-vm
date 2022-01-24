@@ -84,7 +84,7 @@ impl Transaction for TCompute {
 impl Apply<TCompute> for GasContextData {
     fn apply(
         &mut self,
-        input: &TCompute,
+        input: TCompute,
         store: StoreContext,
     ) -> <TCompute as Transaction>::Return {
         self.compute_with_transact(input.value, store)
@@ -111,7 +111,7 @@ impl Transaction for SetGasLimits {
 impl Apply<SetGasLimits> for GasContextData {
     fn apply(
         &mut self,
-        limits: &SetGasLimits,
+        limits: SetGasLimits,
         _: StoreContext,
     ) -> <SetGasLimits as Transaction>::Return {
         self.call_gas_limits = limits.limits.to_vec();
@@ -129,7 +129,7 @@ impl Query for ReadGasLimits {
 impl Execute<ReadGasLimits> for GasContextData {
     fn execute(
         &self,
-        _: &ReadGasLimits,
+        _: ReadGasLimits,
         _: StoreContext,
     ) -> <ReadGasLimits as Query>::Return {
         Box::from(&self.after_call_gas_limits[..])

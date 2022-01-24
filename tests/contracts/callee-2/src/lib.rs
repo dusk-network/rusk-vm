@@ -40,7 +40,7 @@ impl Callee2Query {
 impl Execute<Callee2Query> for Callee2State {
     fn execute(
         &self,
-        callee2: &Callee2Query,
+        callee2: Callee2Query,
         _: StoreContext,
     ) -> <Callee2Query as Query>::Return {
         assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");

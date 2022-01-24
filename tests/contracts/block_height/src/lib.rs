@@ -29,7 +29,7 @@ impl Query for ReadBlockHeight {
 impl Execute<ReadBlockHeight> for BlockHeight {
     fn execute(
         &self,
-        _: &ReadBlockHeight,
+        _: ReadBlockHeight,
         _: StoreContext,
     ) -> <ReadBlockHeight as Query>::Return {
         rusk_uplink::block_height()

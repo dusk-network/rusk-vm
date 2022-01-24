@@ -49,7 +49,7 @@ impl Transaction for Callee1Transaction {
 impl Apply<Callee1Transaction> for Callee1State {
     fn apply(
         &mut self,
-        target: &Callee1Transaction,
+        target: Callee1Transaction,
         _: StoreContext,
     ) -> <Callee1Transaction as Transaction>::Return {
         self.set_target(target.target_id);
@@ -84,7 +84,7 @@ impl Query for SenderParameter {
 impl Execute<SenderParameter> for Callee1State {
     fn execute(
         &self,
-        sender: &SenderParameter,
+        sender: SenderParameter,
         store: StoreContext,
     ) -> <SenderParameter as Query>::Return {
         assert_eq!(sender.sender_id, rusk_uplink::caller(), "Expected Caller");

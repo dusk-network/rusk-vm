@@ -42,7 +42,7 @@ impl Query for CallerQuery {
 impl Execute<CallerQuery> for CallerState {
     fn execute(
         &self,
-        _: &CallerQuery,
+        _: CallerQuery,
         store: StoreContext,
     ) -> <Callee1Query as Query>::Return {
         rusk_uplink::debug!(
@@ -81,7 +81,7 @@ impl Transaction for CallerTransaction {
 impl Apply<CallerTransaction> for CallerState {
     fn apply(
         &mut self,
-        target: &CallerTransaction,
+        target: CallerTransaction,
         _: StoreContext,
     ) -> <CallerTransaction as Transaction>::Return {
         self.set_target(target.target_id);

@@ -166,7 +166,7 @@ impl Query for CrossoverQuery {
 impl Execute<CrossoverQuery> for SelfSnapshot {
     fn execute(
         &self,
-        _: &CrossoverQuery,
+        _: CrossoverQuery,
         _: StoreContext,
     ) -> <CrossoverQuery as Query>::Return {
         self.crossover
@@ -181,7 +181,7 @@ impl Transaction for SetCrossoverTransaction {
 impl Apply<SetCrossoverTransaction> for SelfSnapshot {
     fn apply(
         &mut self,
-        to: &SetCrossoverTransaction,
+        to: SetCrossoverTransaction,
         _: StoreContext,
     ) -> <SetCrossoverTransaction as Transaction>::Return {
         self.set_crossover(to.crossover)
@@ -196,7 +196,7 @@ impl Transaction for SelfCallTestATransaction {
 impl Apply<SelfCallTestATransaction> for SelfSnapshot {
     fn apply(
         &mut self,
-        update: &SelfCallTestATransaction,
+        update: SelfCallTestATransaction,
         store: StoreContext,
     ) -> <SelfCallTestATransaction as Transaction>::Return {
         self.self_call_test_a(update.update, store)
@@ -211,7 +211,7 @@ impl Transaction for SelfCallTestBTransaction {
 impl Apply<SelfCallTestBTransaction> for SelfSnapshot {
     fn apply(
         &mut self,
-        arg: &SelfCallTestBTransaction,
+        arg: SelfCallTestBTransaction,
         store: StoreContext,
     ) -> <SelfCallTestBTransaction as Transaction>::Return {
         let mut tx_data = AlignedVec::new();
@@ -229,7 +229,7 @@ impl Transaction for UpdateAndPanicTransaction {
 impl Apply<UpdateAndPanicTransaction> for SelfSnapshot {
     fn apply(
         &mut self,
-        update_and_panic: &UpdateAndPanicTransaction,
+        update_and_panic: UpdateAndPanicTransaction,
         store: StoreContext,
     ) -> <UpdateAndPanicTransaction as Transaction>::Return {
         self.update_and_panic(update_and_panic.update, store);
