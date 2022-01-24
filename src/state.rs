@@ -188,7 +188,7 @@ impl NetworkState {
     ) -> Result<Q::Return, VMError>
     where
         Q: Query + Serialize<AllocSerializer<1024>>,
-        Q::Return: Archive + Clone,
+        Q::Return: Archive,
         <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
             + Deserialize<Q::Return, StoreRef<OffsetLen>>,
     {
@@ -240,7 +240,7 @@ impl NetworkState {
     ) -> Result<T::Return, VMError>
     where
         T: Transaction + Serialize<AllocSerializer<1024>>,
-        T::Return: Archive + Clone,
+        T::Return: Archive,
         <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
             + Deserialize<T::Return, StoreRef<OffsetLen>>,
     {

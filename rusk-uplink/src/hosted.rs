@@ -98,7 +98,7 @@ pub fn query<Q>(
 ) -> Result<Q::Return, ArchiveError>
 where
     Q: Query + Serialize<AllocSerializer<1024>>,
-    Q::Return: Archive + Clone,
+    Q::Return: Archive,
     <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
         + Deserialize<Q::Return, StoreRef<OffsetLen>>,
 {
@@ -125,7 +125,7 @@ pub fn transact_raw<Slf>(
     mut store: StoreRef<OffsetLen>,
 ) -> Result<ReturnValue, ArchiveError>
 where
-    Slf: Archive + Clone,
+    Slf: Archive,
     <Slf as Archive>::Archived: Deserialize<Slf, StoreRef<OffsetLen>>,
 {
     let mut buf = [0u8; BUFFER_SIZE_LIMIT];
@@ -170,10 +170,10 @@ pub fn transact<T, Slf>(
 ) -> Result<T::Return, ArchiveError>
 where
     T: Transaction + Serialize<AllocSerializer<1024>>,
-    T::Return: Archive + Clone,
+    T::Return: Archive,
     <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
         + Deserialize<T::Return, StoreRef<OffsetLen>>,
-    Slf: Archive + Clone,
+    Slf: Archive,
     <Slf as Archive>::Archived: Deserialize<Slf, StoreRef<OffsetLen>>,
 {
     let raw_transaction = RawTransaction::new(transaction);
