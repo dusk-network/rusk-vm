@@ -29,13 +29,18 @@ fn fibonacci_reference(n: u64) -> u64 {
 fn minimal_counter() {
 
     use rusk_uplink_derive::HelloMacro;
+    use rusk_uplink_derive::query_gen;
     use rusk_uplink::HelloMacro;
+    use rusk_uplink::Query;
 
-    #[derive(HelloMacro)]
-    pub struct XiongMao3;
+    #[derive(rkyv::Archive)]
+    pub struct XiongMao4;
 
-    XiongMao3::hello_macro();
-    println!("abc={}", XiongMao3::NAME);
+    //#[derive(HelloMacro)]
+    #[query_gen]
+    pub fn peek_fun(n: u64) -> Option<u64> { Some(1u64) }
+
+    println!("abcde={}", <XiongMao4 as Query>::NAME);
 
     let counter = minimal_counter::Counter::new(99);
 
