@@ -13,6 +13,7 @@ use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
 use microkelvin::{HostStore, StoreRef};
+use rusk_uplink::Execute;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
@@ -180,7 +181,7 @@ fn delegated_call() {
     );
 }
 
-#[ignore]
+#[test]
 fn fibonacci() {
     use fibonacci::Fibonacci;
     let fib = Fibonacci;
