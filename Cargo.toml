@@ -28,6 +28,7 @@ thiserror = "1.0.24"
 tracing = "0.1.29"
 loupe = "0.1"
 rusk-uplink = { path = "rusk-uplink" }
+rusk-uplink_derive = { path = "./rusk-uplink_derive"}
 rkyv = { version = "0.7", default-features = false, features = ["alloc"] }
 bytecheck = { version = "0.6.7", default-features = false }
 
@@ -62,4 +63,5 @@ harness = false
 members = [
     "tests/contracts/*",
     "rusk-uplink",
+    "rusk-uplink_derive",
 ]

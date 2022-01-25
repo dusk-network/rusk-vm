@@ -84,6 +84,14 @@ where
     fn apply(&mut self, t: T, store: StoreContext) -> T::Return;
 }
 
+use rusk_uplink_derive::HelloMacro;
+
+pub trait HelloMacro {
+    const NAME: &'static str;
+    fn hello_macro();
+}
+
+
 pub trait Query: Archive {
     const NAME: &'static str;
 
