@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
 use bytecheck::CheckBytes;
-use microkelvin::{OffsetLen, StoreRef};
+use microkelvin::{OffsetLen, StoreRef, StoreSerializer};
 use rkyv::{
     archived_root, check_archived_root,
     ser::{serializers::AllocSerializer, Serializer},
@@ -103,6 +103,7 @@ impl ContractState {
     pub fn new(v: Vec<u8>) -> Self {
         Self(v)
     }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.0[..]
     }
@@ -199,25 +200,28 @@ impl ReturnValue {
 
 #[derive(Debug, Default)]
 pub struct RawQuery<'a> {
-    data: AlignedVec,
+    data: Vec<u8>,
     name: &'a str,
 }
 
 impl<'a> RawQuery<'a> {
-    pub fn new<Q>(q: Q) -> Self
+    pub fn new<Q>(q: Q, store: &StoreRef<OffsetLen>) -> Self
     where
-        Q: Query + Serialize<AllocSerializer<1024>>,
+        Q: Query + Serialize<StoreSerializer<OffsetLen>>,
     {
-        let mut ser = AllocSerializer::default();
+        let mut ser = store.serializer();
         ser.serialize_value(&q).unwrap();
         RawQuery {
-            data: ser.into_serializer().into_inner(),
+            data: ser.spill_bytes(|bytes| Vec::from(bytes)),
             name: Q::NAME,
         }
     }
 
-    pub fn from(data: AlignedVec, name: &'a str) -> Self {
-        Self { data, name }
+    pub fn from<D: Into<Vec<u8>>>(data: D, name: &'a str) -> Self {
+        Self {
+            data: data.into(),
+            name,
+        }
     }
 
     pub fn name(&self) -> &str {
@@ -231,25 +235,28 @@ impl<'a> RawQuery<'a> {
 
 #[derive(Debug, Default)]
 pub struct RawTransaction<'a> {
-    data: AlignedVec,
+    data: Vec<u8>,
     name: &'a str,
 }
 
 impl<'a> RawTransaction<'a> {
-    pub fn new<T>(q: T) -> Self
+    pub fn new<T>(q: T, store: &StoreRef<OffsetLen>) -> Self
     where
-        T: Transaction + Serialize<AllocSerializer<1024>>,
+        T: Transaction + Serialize<StoreSerializer<OffsetLen>>,
     {
-        let mut ser = AllocSerializer::default();
+        let mut ser = store.serializer();
         ser.serialize_value(&q).unwrap();
         RawTransaction {
-            data: ser.into_serializer().into_inner(),
+            data: ser.spill_bytes(|bytes| Vec::from(bytes)),
             name: T::NAME,
         }
     }
 
-    pub fn from(data: AlignedVec, name: &'a str) -> Self {
-        Self { data, name }
+    pub fn from<D: Into<Vec<u8>>>(data: D, name: &'a str) -> Self {
+        Self {
+            data: data.into(),
+            name,
+        }
     }
 
     pub fn name(&self) -> &str {

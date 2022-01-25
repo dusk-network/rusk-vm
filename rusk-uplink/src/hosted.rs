@@ -10,7 +10,7 @@ pub use crate::{
     Transaction,
 };
 use bytecheck::CheckBytes;
-use microkelvin::{OffsetLen, StoreRef};
+use microkelvin::{OffsetLen, StoreRef, StoreSerializer};
 use rkyv::validation::validators::DefaultValidator;
 use rkyv::{
     ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
@@ -97,12 +97,12 @@ pub fn query<Q>(
     mut store: StoreRef<OffsetLen>,
 ) -> Result<Q::Return, ArchiveError>
 where
-    Q: Query + Serialize<AllocSerializer<1024>>,
+    Q: Query + Serialize<StoreSerializer<OffsetLen>>,
     Q::Return: Archive,
     <Q::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
         + Deserialize<Q::Return, StoreRef<OffsetLen>>,
 {
-    let raw_query = RawQuery::new(q);
+    let raw_query = RawQuery::new(q, &store);
 
     let result = query_raw(target, &raw_query, gas_limit)?;
 
@@ -169,14 +169,14 @@ pub fn transact<T, Slf>(
     mut store: StoreRef<OffsetLen>,
 ) -> Result<T::Return, ArchiveError>
 where
-    T: Transaction + Serialize<AllocSerializer<1024>>,
+    T: Transaction + Serialize<StoreSerializer<OffsetLen>>,
     T::Return: Archive,
     <T::Return as Archive>::Archived: for<'a> CheckBytes<DefaultValidator<'a>>
         + Deserialize<T::Return, StoreRef<OffsetLen>>,
     Slf: Archive,
     <Slf as Archive>::Archived: Deserialize<Slf, StoreRef<OffsetLen>>,
 {
-    let raw_transaction = RawTransaction::new(transaction);
+    let raw_transaction = RawTransaction::new(transaction, &store);
 
     let result =
         transact_raw(slf, target, &raw_transaction, gas_limit, store.clone())?;
