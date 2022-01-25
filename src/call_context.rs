@@ -292,8 +292,6 @@ impl<'a> CallContext<'a> {
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
 
-            println!("buf ofs transaction {:?}", buf_offset);
-
             // Copy the contract state and the transaction into scratch memory
 
             let (written_state, written_data) =
@@ -307,8 +305,6 @@ impl<'a> CallContext<'a> {
 
                     let data = transaction.data();
                     let data_len = data.len();
-
-                    println!("transaction data {:?}", data);
 
                     mem[len..len + data_len].copy_from_slice(data);
 

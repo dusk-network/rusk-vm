@@ -4,12 +4,12 @@ use bytecheck::CheckBytes;
 use microkelvin::{OffsetLen, StoreRef, StoreSerializer};
 use rkyv::{
     archived_root, check_archived_root,
-    ser::{serializers::AllocSerializer, Serializer},
+    ser::Serializer,
     validation::{
         validators::{DefaultValidator, DefaultValidatorError},
         CheckArchiveError,
     },
-    AlignedVec, Archive, Deserialize, Serialize,
+    Archive, Deserialize, Serialize,
 };
 
 #[derive(

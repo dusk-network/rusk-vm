@@ -12,9 +12,7 @@ pub use crate::{
 use bytecheck::CheckBytes;
 use microkelvin::{OffsetLen, StoreRef, StoreSerializer};
 use rkyv::validation::validators::DefaultValidator;
-use rkyv::{
-    ser::serializers::AllocSerializer, Archive, Deserialize, Serialize,
-};
+use rkyv::{Archive, Deserialize, Serialize};
 
 const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
 

@@ -245,27 +245,11 @@ const _: () = {
 
     q_handler!(crossover, SelfSnapshot, CrossoverQuery);
 
-    t_handler!(
-        set_crossover,
-        SelfSnapshot,
-        SetCrossoverTransaction
-    );
+    t_handler!(set_crossover, SelfSnapshot, SetCrossoverTransaction);
 
-    t_handler!(
-        self_call_test_a,
-        SelfSnapshot,
-        SelfCallTestATransaction
-    );
+    t_handler!(self_call_test_a, SelfSnapshot, SelfCallTestATransaction);
 
-    t_handler!(
-        self_call_test_b,
-        SelfSnapshot,
-        SelfCallTestBTransaction
-    );
+    t_handler!(self_call_test_b, SelfSnapshot, SelfCallTestBTransaction);
 
-    t_handler!(
-        update_and_panic,
-        SelfSnapshot,
-        UpdateAndPanicTransaction
-    );
+    t_handler!(update_and_panic, SelfSnapshot, UpdateAndPanicTransaction);
 };

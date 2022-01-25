@@ -120,7 +120,7 @@ const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    scratch_memory!(512);
+    scratch_memory!(1024 * 64);
 
     q_handler_store_ser!(peek, Stack, Peek);
 
