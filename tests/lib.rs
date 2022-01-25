@@ -40,7 +40,8 @@ fn minimal_counter() {
     #[query_gen]
     pub fn peek_fun(n: u64) -> Option<u64> { Some(1u64) }
 
-    println!("abcde={}", <XiongMao4 as Query>::NAME);
+    let x: <XiongMao4 as Query>::Return = Some(7u64);
+    println!("abcde={} {:?}", <XiongMao4 as Query>::NAME, x);
 
     let counter = minimal_counter::Counter::new(99);
 
