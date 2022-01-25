@@ -38,7 +38,7 @@ fn minimal_counter() {
 
     //#[derive(HelloMacro)]
     #[query_gen]
-    pub fn peek_fun(n: u64) -> Option<u64> { Some(1u64) }
+    pub fn peek_fun(n: XiongMao4) -> Option<u64> { Some(1u64) }
 
     let x: <XiongMao4 as Query>::Return = Some(7u64);
     println!("abcde={} {:?}", <XiongMao4 as Query>::NAME, x);

@@ -34,17 +34,26 @@ fn impl_hello_macro(ast: &syn::DeriveInput) -> TokenStream {
 pub fn query_gen(_attrs: TokenStream, input: TokenStream) -> TokenStream {
     let my_fn: syn::ItemFn = parse_macro_input!(input as syn::ItemFn);
     let fn_name = my_fn.sig.ident.clone();
-    let ret_type = my_fn.sig.output.clone();
-    let ret = match ret_type {
+    let ret_obj = my_fn.sig.output.clone();
+    let ret = match ret_obj {
         syn::ReturnType::Default => quote::quote_spanned!(my_fn.sig.paren_token.span=> ()),
         syn::ReturnType::Type(_, r) => quote!(#r),
     };
     let ret_t = syn::Type::Verbatim(ret);
-    // let arg = my_fn.sig.inputs.first().unwrap().to_token_stream();
+    let arg_obj = my_fn.sig.inputs.first().unwrap();
+    let arg =  match arg_obj {
+        syn::FnArg::Receiver(_) => quote::quote_spanned!(my_fn.sig.paren_token.span=> ()),
+        syn::FnArg::Typed(pt) => {
+            let t = &pt.ty;
+            quote!(#t)
+        },
+    };
+    let arg_t = syn::Type::Verbatim(arg);
     // let arg_t = syn::Type::Verbatim(arg);
     let gen = quote! {
-        impl Query for XiongMao4 {
+        impl Query for #arg_t {
             const NAME: &'static str = stringify!(#fn_name);
+            // const NAME: &'static str = stringify!(#arg_t);
             type Return = #ret_t;
         }
         #my_fn
