@@ -18,6 +18,7 @@ use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
 };
+use rusk_uplink_derive::{query, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -81,44 +82,6 @@ impl Transaction for TransactionForwardData {
     type Return = ();
 }
 
-impl Execute<QueryForwardData> for Delegator {
-    fn execute(
-        &self,
-        arg: QueryForwardData,
-        store: StoreContext,
-    ) -> <QueryForwardData as Query>::Return {
-        let query_name = arg.name.as_ref();
-        let mut query_data = AlignedVec::new();
-        query_data.extend_from_slice(arg.data.as_ref());
-        let result: ReturnValue = self.delegate_query(
-            &arg.contract_id,
-            &RawQuery::from(query_data, query_name),
-        );
-        let res = result.cast_data::<<QueryForwardData as Query>::Return>();
-        let res: <QueryForwardData as Query>::Return =
-            res.deserialize(&mut store.clone()).unwrap();
-        res
-    }
-}
-
-impl Apply<TransactionForwardData> for Delegator {
-    fn apply(
-        &mut self,
-        arg: TransactionForwardData,
-        store: StoreContext,
-    ) -> <TransactionForwardData as Transaction>::Return {
-        let query_name = arg.name.as_ref();
-        let mut query_data = AlignedVec::new();
-        query_data.extend_from_slice(arg.data.as_ref());
-        let result: ReturnValue = self.delegate_transaction(
-            &arg.contract_id,
-            &RawTransaction::from(query_data, query_name),
-            store.clone(),
-        );
-        store.put_raw(result.state());
-    }
-}
-
 impl Delegator {
     pub fn delegate_query(
         &self,
@@ -145,11 +108,31 @@ const _: () = {
 
     scratch_memory!(256);
 
-    q_handler!(delegate_query, Delegator, QueryForwardData);
+    #[query]
+    pub fn delegate_query(state: &Delegator, query_forward_data: QueryForwardData, store: StoreRef<OffsetLen>) -> u32 {
+        let query_name = query_forward_data.name.as_ref();
+        let mut query_data = AlignedVec::new();
+        query_data.extend_from_slice(query_forward_data.data.as_ref());
+        let result: ReturnValue = state.delegate_query(
+            &query_forward_data.contract_id,
+            &RawQuery::from(query_data, query_name),
+        );
+        let res = result.cast_data::<<QueryForwardData as Query>::Return>();
+        let res: <QueryForwardData as Query>::Return =
+            res.deserialize(&mut store.clone()).unwrap();
+        res
+    }
 
-    t_handler!(
-        delegate_transaction,
-        Delegator,
-        TransactionForwardData
-    );
+    #[transaction]
+    pub fn delegate_transaction(state: &mut Delegator, transaction_forward_data: TransactionForwardData, store: StoreRef<OffsetLen>) {
+        let query_name = transaction_forward_data.name.as_ref();
+        let mut query_data = AlignedVec::new();
+        query_data.extend_from_slice(transaction_forward_data.data.as_ref());
+        let result: ReturnValue = state.delegate_transaction(
+            &transaction_forward_data.contract_id,
+            &RawTransaction::from(query_data, query_name),
+            store.clone(),
+        );
+        store.put_raw(result.state());
+    }
 };
