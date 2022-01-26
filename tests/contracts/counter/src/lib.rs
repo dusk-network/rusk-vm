@@ -12,8 +12,10 @@
     option_result_unwrap_unchecked
 )]
 
+use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink_derive::{query, transaction};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
@@ -112,76 +114,6 @@ impl Transaction for CompareAndSwap {
     type Return = bool;
 }
 
-impl Apply<Adjust> for Counter {
-    fn apply(
-        &mut self,
-        arg: Adjust,
-        _: StoreContext,
-    ) -> <Adjust as Transaction>::Return {
-        self.adjust(arg.by);
-    }
-}
-
-impl Execute<ReadValue> for Counter {
-    fn execute(
-        &self,
-        _: ReadValue,
-        _: StoreContext,
-    ) -> <ReadValue as Query>::Return {
-        self.value
-    }
-}
-
-impl Execute<XorValues> for Counter {
-    fn execute(
-        &self,
-        arg: XorValues,
-        _: StoreContext,
-    ) -> <XorValues as Query>::Return {
-        self.xor_values(arg.a, arg.b)
-    }
-}
-
-impl Execute<IsEven> for Counter {
-    fn execute(
-        &self,
-        _: IsEven,
-        _: StoreContext,
-    ) -> <IsEven as Query>::Return {
-        self.is_even()
-    }
-}
-
-impl Apply<Increment> for Counter {
-    fn apply(
-        &mut self,
-        _: Increment,
-        _: StoreContext,
-    ) -> <Increment as Transaction>::Return {
-        self.increment();
-    }
-}
-
-impl Apply<Decrement> for Counter {
-    fn apply(
-        &mut self,
-        _: Decrement,
-        _: StoreContext,
-    ) -> <Decrement as Transaction>::Return {
-        self.decrement();
-    }
-}
-
-impl Apply<CompareAndSwap> for Counter {
-    fn apply(
-        &mut self,
-        arg: CompareAndSwap,
-        _: StoreContext,
-    ) -> <CompareAndSwap as Transaction>::Return {
-        self.compare_and_swap(arg.expected, arg.new)
-    }
-}
-
 impl Counter {
     pub fn read_value(&self) -> i32 {
         self.value
@@ -224,33 +156,43 @@ const _: () = {
 
     scratch_memory!(512);
 
-    t_handler!(adjust, Counter, Adjust);
-
-    #[no_mangle]
-    fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let state: Counter = unsafe { get_state(written_state, &SCRATCH) };
-
-        let ret = state.read_value();
-
-        unsafe { q_return(&ret, &mut SCRATCH) }
+    #[transaction]
+    pub fn adjust(state: &mut Counter, adjust: Adjust, _store: StoreRef<OffsetLen>) {
+        state.adjust(adjust.by);
     }
-    // q_handler!(read_value, Counter, ReadValue);
 
-    q_handler!(xor_values, Counter, XorValues);
+    #[query]
+    pub fn read_value(state: &Counter, _: ReadValue, _store: StoreRef<OffsetLen>) -> i32 {
+        state.read_value()
+    }
 
-    q_handler!(is_even, Counter, IsEven);
+    #[query]
+    pub fn xor_values(state: &Counter, xv: XorValues, _store: StoreRef<OffsetLen>) -> i32 {
+        state.xor_values(xv.a, xv.b)
+    }
 
-    #[no_mangle]
-    fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
+    #[query]
+    pub fn is_even(state: &Counter, _: IsEven, _store: StoreRef<OffsetLen>) -> bool {
+        state.is_even()
+    }
 
+    #[transaction]
+    pub fn increment(state: &mut Counter, increment: Increment, _store: StoreRef<OffsetLen>) {
         state.increment();
-
-        unsafe { t_return(&state, &(), &mut SCRATCH) }
     }
-    // t_handler!(increment, Counter, Increment);
 
-    t_handler!(decrement, Counter, Decrement);
+    #[transaction]
+    pub fn decrement(state: &mut Counter, decrement: Decrement, _store: StoreRef<OffsetLen>) {
+        state.decrement();
+    }
 
-    t_handler!(compare_and_swap, Counter, CompareAndSwap);
+    #[transaction]
+    pub fn compare_and_swap(state: &mut Counter, compare_and_swap: CompareAndSwap, _store: StoreRef<OffsetLen>) -> bool {
+        if state.value == compare_and_swap.expected {
+            state.value = compare_and_swap.new;
+            true
+        } else {
+            false
+        }
+    }
 };

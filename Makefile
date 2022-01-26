@@ -4,7 +4,7 @@ help: ## Display this help screen
 all: test-contracts
 
 test: test-contracts ## Run the contracts' tests
-	cargo test -- --nocapture
+	cargo test --all-features
 
 test-contracts: ## Build the test contracts
 	$(MAKE) -C tests
