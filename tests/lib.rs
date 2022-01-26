@@ -26,26 +26,16 @@ fn fibonacci_reference(n: u64) -> u64 {
     }
 }
 
-#[ignore]
+#[test]
 fn minimal_counter() {
 
-    use rusk_uplink_derive::HelloMacro;
-    use rusk_uplink_derive::query;
-    use rusk_uplink::HelloMacro;
-    use rusk_uplink::Query;
-
-    // #[derive(rkyv::Archive)]
-    // pub struct XiongState;
+    // use rusk_uplink_derive::ContractQuery;
+    // use rusk_uplink::Query;
     //
-    // #[derive(rkyv::Archive)]
-    // pub struct XiongMao4;
+    // #[derive(rkyv::Archive, ContractQuery)]
+    // pub struct XiongMao3;
     //
-    // #[query]
-    // pub fn peek_fun(s: XiongState, n: XiongMao4) -> Option<u64> { Some(1u64) }
-    //
-    // let x: <XiongMao4 as Query>::Return = Some(7u64);
-    // println!("abcde={} {:?}", <XiongMao4 as Query>::NAME, x);
-
+    // println!("abc={}", XiongMao3::NAME);
     let counter = minimal_counter::Counter::new(99);
 
     let code = include_bytes!(

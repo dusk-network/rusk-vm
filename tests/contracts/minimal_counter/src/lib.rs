@@ -12,8 +12,10 @@
     option_result_unwrap_unchecked
 )]
 
+use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink_derive::{query, transaction};
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {
@@ -42,26 +44,6 @@ impl Transaction for Increment {
     type Return = ();
 }
 
-impl Execute<ReadCount> for Counter {
-    fn execute(
-        &self,
-        _: ReadCount,
-        _: StoreContext,
-    ) -> <ReadCount as Query>::Return {
-        self.value
-    }
-}
-
-impl Apply<Increment> for Counter {
-    fn apply(
-        &mut self,
-        t: Increment,
-        _: StoreContext,
-    ) -> <Increment as Transaction>::Return {
-        self.value += t.0;
-    }
-}
-
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rusk_uplink::framing_imports;
@@ -69,7 +51,13 @@ const _: () = {
 
     scratch_memory!(512);
 
-    q_handler!(read, Counter, ReadCount);
+    #[query]
+    pub fn read(state: Counter, _read_count: ReadCount, _store: StoreRef<OffsetLen>) -> u32 {
+        state.value
+    }
 
-    t_handler!(incr, Counter, Increment);
+    #[transaction]
+    pub fn incr(state: &mut Counter, increment: Increment, _store: StoreRef<OffsetLen>) {
+        state.value += increment.0;
+    }
 };

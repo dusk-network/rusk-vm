@@ -1,7 +1,10 @@
 [package]
 name = "minimal_counter"
 version = "0.1.0"
-authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+authors = [
+    "Kristoffer Ström <kristoffer@dusk.network>",
+    "Miłosz Muszyński <milosz@dusk.network>",
+]
 edition = "2018"
 
 [lib]
@@ -10,4 +13,5 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 microkelvin = { version = "0.13.0-rc", default-features = false }
 rusk-uplink = { path = "../../../rusk-uplink" }
+rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }
 rkyv = { version = "0.7.20", default-features = false, features = ["archive_le", "size_32"] }
