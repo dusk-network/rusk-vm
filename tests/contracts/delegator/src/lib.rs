@@ -18,7 +18,6 @@ use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
 };
-use rusk_uplink_derive::{query, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
