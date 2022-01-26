@@ -111,7 +111,7 @@ const _: () = {
 
     scratch_memory!(512);
 
-    q_handler!(call, Callee1State, SenderParameter);
+    q_handler!(_call, Callee1State, SenderParameter);
 
-    t_handler!(set_target, Callee1State, Callee1Transaction);
+    t_handler!(_set_target, Callee1State, Callee1Transaction);
 };

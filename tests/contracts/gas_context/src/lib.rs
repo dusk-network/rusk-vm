@@ -144,15 +144,15 @@ const _: () = {
     scratch_memory!(512);
 
     q_handler_store_ser!(
-        read_gas_limits,
+        _read_gas_limits,
         GasContextData,
         ReadGasLimits
     );
 
-    t_handler_store_ser!(t_compute, GasContextData, TCompute);
+    t_handler_store_ser!(_t_compute, GasContextData, TCompute);
 
     t_handler_store_ser!(
-        set_gas_limits,
+        _set_gas_limits,
         GasContextData,
         SetGasLimits
     );

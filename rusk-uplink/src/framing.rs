@@ -146,7 +146,7 @@ macro_rules! framing_imports {
             q_return_store_ser, q_handler,
             q_handler_store_ser, t_return, t_return_store_ser,
             t_handler, t_handler_store_ser,
-            AbiStore, scratch_memory
+            AbiStore, scratch_memory, StoreContext
         };
         use rusk_uplink_derive::{query, transaction};
         use microkelvin::{OffsetLen, StoreRef};

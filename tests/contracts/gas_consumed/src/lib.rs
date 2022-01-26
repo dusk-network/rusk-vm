@@ -119,11 +119,11 @@ const _: () = {
 
     scratch_memory!(512);
 
-    q_handler!(value, GasConsumed, GasConsumedValueQuery);
+    q_handler!(_value, GasConsumed, GasConsumedValueQuery);
 
-    q_handler!(get_gas_consumed, GasConsumed, GasConsumedQuery);
+    q_handler!(_get_gas_consumed, GasConsumed, GasConsumedQuery);
 
-    t_handler!(increment, GasConsumed, GasConsumedIncrement);
+    t_handler!(_increment, GasConsumed, GasConsumedIncrement);
 
-    t_handler!(decrement, GasConsumed, GasConsumedDecrement);
+    t_handler!(_decrement, GasConsumed, GasConsumedDecrement);
 };

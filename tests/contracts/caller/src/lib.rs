@@ -110,7 +110,7 @@ const _: () = {
 
     scratch_memory!(512);
 
-    q_handler!(call, CallerState, CallerQuery);
+    q_handler!(_call, CallerState, CallerQuery);
 
-    t_handler!(set_target, CallerState, CallerTransaction);
+    t_handler!(_set_target, CallerState, CallerTransaction);
 };

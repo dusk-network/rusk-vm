@@ -12,10 +12,8 @@
     option_result_unwrap_unchecked
 )]
 
-use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{query, transaction};
+use rusk_uplink::{Query, Transaction};
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {

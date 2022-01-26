@@ -15,8 +15,8 @@
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 use rusk_uplink::{
-    Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
-    StoreContext, Transaction,
+    ContractId, Query, RawQuery, RawTransaction, ReturnValue,
+    Transaction,
 };
 
 extern crate alloc;

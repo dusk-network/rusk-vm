@@ -12,9 +12,8 @@
     option_result_unwrap_unchecked
 )]
 
-use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Execute, Query};
+use rusk_uplink::Query;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
@@ -37,7 +36,7 @@ impl Query for ComputeFrom {
 
 #[cfg(target_family = "wasm")]
 const _: () = {
-    use rusk_uplink::{framing_imports, StoreContext};
+    use rusk_uplink::framing_imports;
     framing_imports!();
 
     scratch_memory!(128);

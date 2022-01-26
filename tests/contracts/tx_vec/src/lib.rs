@@ -139,9 +139,9 @@ const _: () = {
 
     scratch_memory!(8192);
 
-    q_handler!(read_value, TxVec, TxVecReadValue);
+    q_handler!(_read_value, TxVec, TxVecReadValue);
 
-    t_handler!(sum, TxVec, TxVecSum);
+    t_handler!(_sum, TxVec, TxVecSum);
 
-    t_handler!(delegate_sum, TxVec, TxVecDelegateSum);
+    t_handler!(_delegate_sum, TxVec, TxVecDelegateSum);
 };

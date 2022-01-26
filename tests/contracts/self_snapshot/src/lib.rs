@@ -243,28 +243,28 @@ const _: () = {
 
     scratch_memory!(512);
 
-    q_handler!(crossover, SelfSnapshot, CrossoverQuery);
+    q_handler!(_crossover, SelfSnapshot, CrossoverQuery);
 
     t_handler!(
-        set_crossover,
+        _set_crossover,
         SelfSnapshot,
         SetCrossoverTransaction
     );
 
     t_handler!(
-        self_call_test_a,
+        _self_call_test_a,
         SelfSnapshot,
         SelfCallTestATransaction
     );
 
     t_handler!(
-        self_call_test_b,
+        _self_call_test_b,
         SelfSnapshot,
         SelfCallTestBTransaction
     );
 
     t_handler!(
-        update_and_panic,
+        _update_and_panic,
         SelfSnapshot,
         UpdateAndPanicTransaction
     );

@@ -13,7 +13,6 @@ use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
 use microkelvin::{HostStore, StoreRef};
-use rusk_uplink::Execute;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
@@ -74,7 +73,7 @@ fn minimal_counter() {
     );
 }
 
-#[ignore]
+#[test]
 fn string_passthrough() {
     use string_argument::*;
 
@@ -228,7 +227,7 @@ fn block_height() {
     )
 }
 
-#[ignore]
+#[test]
 fn self_snapshot() {
     let self_snapshot = SelfSnapshot::new(7);
 
@@ -335,7 +334,7 @@ fn self_snapshot() {
     );
 }
 
-#[ignore]
+#[test]
 fn tx_vec() {
     let value = 15;
     let tx_vec = TxVec::new(value);
@@ -440,7 +439,7 @@ fn calling() {
     )
 }
 
-#[ignore]
+#[test]
 fn gas_consumed_host_function_works() {
     let gas_contract = GasConsumed::new(99);
 
@@ -482,7 +481,7 @@ fn gas_consumed_host_function_works() {
     gas.spent());
 }
 
-#[ignore]
+#[test]
 fn gas_consumption_works() {
     let counter = Counter::new(99);
 
@@ -514,7 +513,7 @@ fn gas_consumption_works() {
     assert!(gas.left() < 1_000_000_000);
 }
 
-#[ignore]
+#[test]
 fn out_of_gas_aborts_transaction_execution() {
     let counter = Counter::new(99);
 
@@ -539,7 +538,7 @@ fn out_of_gas_aborts_transaction_execution() {
     assert_eq!(gas.left(), 0);
 }
 
-#[ignore]
+#[test]
 fn out_of_gas_aborts_query_execution() {
     let counter = Counter::new(99);
 
@@ -564,7 +563,7 @@ fn out_of_gas_aborts_query_execution() {
     assert_eq!(gas.left(), 0);
 }
 
-#[ignore]
+#[test]
 fn commit_and_reset() {
     let counter = Counter::new(99);
 

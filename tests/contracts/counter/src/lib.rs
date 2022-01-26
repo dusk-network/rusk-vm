@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink::{Query, Transaction};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
@@ -175,12 +175,12 @@ const _: () = {
     }
 
     #[transaction]
-    pub fn increment(state: &mut Counter, increment: Increment, _store: StoreRef<OffsetLen>) {
+    pub fn increment(state: &mut Counter, _: Increment, _store: StoreRef<OffsetLen>) {
         state.increment();
     }
 
     #[transaction]
-    pub fn decrement(state: &mut Counter, decrement: Decrement, _store: StoreRef<OffsetLen>) {
+    pub fn decrement(state: &mut Counter, _: Decrement, _store: StoreRef<OffsetLen>) {
         state.decrement();
     }
 

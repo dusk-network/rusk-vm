@@ -16,7 +16,7 @@ use bytecheck::CheckBytes;
 use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, StoreContext, Transaction};
+use rusk_uplink::{Query, Transaction};
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]

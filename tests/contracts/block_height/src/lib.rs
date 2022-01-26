@@ -13,7 +13,7 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Execute, Query, StoreContext};
+use rusk_uplink::Query;
 
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
