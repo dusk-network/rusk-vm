@@ -9,7 +9,7 @@ extern "C" {
 }
 
 fn abi_put(slice: &[u8]) -> OffsetLen {
-    crate::debug!("entered abi_put {:?}", slice);
+    //crate::debug!("entered abi_put {:?}", slice);
     assert!(slice.len() <= u16::MAX as usize);
     let len = slice.len() as u16;
     let ofs = unsafe { _put(&slice[0], len) };
@@ -17,7 +17,7 @@ fn abi_put(slice: &[u8]) -> OffsetLen {
 }
 
 fn abi_get(offset: u64, buf: &mut [u8]) {
-    crate::debug!("entered abi_get {:?}", offset);
+    //crate::debug!("entered abi_get {:?}", offset);
     let len = buf.len() as u16;
     unsafe { _get(offset, len, &mut buf[0]) }
 }

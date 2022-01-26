@@ -16,7 +16,7 @@ use bytecheck::CheckBytes;
 use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink::{Query, StoreContext, Transaction};
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
@@ -40,12 +40,6 @@ impl Query for Peek {
     type Return = Option<u64>;
 }
 
-impl Execute<Peek> for Stack {
-    fn execute(&self, arg: Peek, _: StoreContext) -> <Peek as Query>::Return {
-        self.peek(arg.value)
-    }
-}
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Push {
     value: u64,
@@ -62,32 +56,12 @@ impl Transaction for Push {
     type Return = ();
 }
 
-impl Apply<Push> for Stack {
-    fn apply(
-        &mut self,
-        arg: Push,
-        _: StoreContext,
-    ) -> <Push as Transaction>::Return {
-        self.push(arg.value);
-    }
-}
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Pop;
 
 impl Transaction for Pop {
     const NAME: &'static str = "pop";
     type Return = Option<u64>;
-}
-
-impl Apply<Pop> for Stack {
-    fn apply(
-        &mut self,
-        _: Pop,
-        _: StoreContext,
-    ) -> <Pop as Transaction>::Return {
-        self.pop()
-    }
 }
 
 impl Stack {
@@ -122,9 +96,18 @@ const _: () = {
 
     scratch_memory!(512);
 
-    q_handler_store_ser!(peek, Stack, Peek);
+    #[query]
+    pub fn peek(state: &Stack, arg: Peek, _store: StoreRef<OffsetLen>) -> Option<u64> {
+        state.peek(arg.value)
+    }
 
-    t_handler_store_ser!(push, Stack, Push);
+    #[transaction]
+    pub fn push(state: &mut Stack, arg: Push, _store: StoreRef<OffsetLen>) {
+        state.push(arg.value);
+    }
 
-    t_handler_store_ser!(pop, Stack, Pop);
+    #[transaction]
+    pub fn pop(state: &mut Stack, _: Pop, _store: StoreRef<OffsetLen>) -> Option<u64> {
+        state.pop()
+    }
 };

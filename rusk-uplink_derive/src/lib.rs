@@ -68,15 +68,15 @@ pub fn query(_attrs: TokenStream, input: TokenStream) -> TokenStream {
 
         #[no_mangle]
         fn #wrapper_fun_name(written_state: u32, written_data: u32) -> u32 {
-            let (state, arg): (#state_t, #arg_t) = unsafe {
-                get_state_arg(written_state, written_data, &SCRATCH)
-            };
-
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-            let res: #ret_t = #fn_name(&state, arg, store);
+            let (state, arg): (#state_t, #arg_t) = unsafe {
+                get_state_arg_store(written_state, written_data, &SCRATCH, store.clone())
+            };
 
-            unsafe { q_return(&res, &mut SCRATCH) }
+            let res: #ret_t = #fn_name(&state, arg, store.clone());
+
+            unsafe { q_return_store_ser(&res, store) }
         }
 
     };
@@ -131,15 +131,15 @@ pub fn transaction(_attrs: TokenStream, input: TokenStream) -> TokenStream {
 
         #[no_mangle]
         fn #wrapper_fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
-            let (mut state, arg): (#state_t, #arg_t) = unsafe {
-                get_state_arg(written_state, written_data, &SCRATCH)
-            };
-
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-            let res: #ret_t = #fn_name(&mut state, arg, store);
+            let (mut state, arg): (#state_t, #arg_t) = unsafe {
+                get_state_arg_store(written_state, written_data, &SCRATCH, store.clone())
+            };
 
-            unsafe { t_return(&state, &res, &mut SCRATCH) }
+            let res: #ret_t = #fn_name(&mut state, arg, store.clone());
+
+            unsafe { t_return_store_ser(&state, &res, store) }
         }
 
     };
