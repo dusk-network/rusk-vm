@@ -12,8 +12,11 @@
     option_result_unwrap_unchecked
 )]
 
+use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
+use rusk_uplink_derive::query;
+
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct BlockHeight;
@@ -26,23 +29,25 @@ impl Query for ReadBlockHeight {
     type Return = u64;
 }
 
-impl Execute<ReadBlockHeight> for BlockHeight {
-    fn execute(
-        &self,
-        _: ReadBlockHeight,
-        _: StoreContext,
-    ) -> <ReadBlockHeight as Query>::Return {
-        rusk_uplink::block_height()
-    }
-}
+// impl Execute<ReadBlockHeight> for BlockHeight {
+//     fn execute(
+//         &self,
+//         _: ReadBlockHeight,
+//         _: StoreContext,
+//     ) -> <ReadBlockHeight as Query>::Return {
+//         rusk_uplink::block_height()
+//     }
+// }
 
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rusk_uplink::framing_imports;
     framing_imports!();
 
-    #[no_mangle]
-    static mut SCRATCH: [u8; 128] = [0u8; 128];
+    scratch_memory!(128);
 
-    q_handler!(read_block_height, BlockHeight, ReadBlockHeight);
+    #[query]
+    pub fn read_block_height(_state: BlockHeight, _arg: ReadBlockHeight, _store: StoreRef<OffsetLen>) -> u64 {
+        rusk_uplink::block_height()
+    }
 };

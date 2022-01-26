@@ -15,7 +15,7 @@
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query};
-use rusk_uplink_derive::query_gen;
+use rusk_uplink_derive::query;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
@@ -31,47 +31,21 @@ impl ComputeFrom {
     }
 }
 
-// impl Query for ComputeFrom {
-//     const NAME: &'static str = "compute";
-//     type Return = u32;
+impl Query for ComputeFrom {
+    const NAME: &'static str = "compute";
+    type Return = u32;
+}
+
+
+// impl Execute<ComputeFrom> for Fibonacci {
+//     fn execute(
+//         &self,
+//         compute_from: ComputeFrom,
+//         store: StoreRef<OffsetLen>,
+//     ) -> <ComputeFrom as Query>::Return {
+//         compute(self, compute_from, store)
+//     }
 // }
-
-#[query_gen]
-pub fn compute(compute_from: ComputeFrom, store: StoreRef<OffsetLen>) -> u32 {
-    let n = compute_from.value;
-    if n < 2 {
-        n
-    } else {
-        let callee = rusk_uplink::callee();
-
-        let a = rusk_uplink::query::<ComputeFrom>(
-            &callee,
-            ComputeFrom::new(n - 1),
-            0,
-            store.clone(),
-        )
-            .unwrap();
-
-        let b = rusk_uplink::query::<ComputeFrom>(
-            &callee,
-            ComputeFrom::new(n - 2),
-            0,
-            store,
-        )
-            .unwrap();
-        a + b
-    }
-}
-
-impl Execute<ComputeFrom> for Fibonacci {
-    fn execute(
-        &self,
-        compute_from: ComputeFrom,
-        store: StoreRef<OffsetLen>,
-    ) -> <ComputeFrom as Query>::Return {
-        compute(compute_from, store)
-    }
-}
 
 #[cfg(target_family = "wasm")]
 const _: () = {
@@ -80,5 +54,32 @@ const _: () = {
 
     scratch_memory!(128);
 
-    q_handler!(compute, Fibonacci, ComputeFrom);
+    #[query]
+    pub fn compute(_state: Fibonacci, compute_from: ComputeFrom, store: StoreRef<OffsetLen>) -> u32 {
+        let n = compute_from.value;
+        if n < 2 {
+            n
+        } else {
+            let callee = rusk_uplink::callee();
+
+            let a = rusk_uplink::query::<ComputeFrom>(
+                &callee,
+                ComputeFrom::new(n - 1),
+                0,
+                store.clone(),
+            )
+                .unwrap();
+
+            let b = rusk_uplink::query::<ComputeFrom>(
+                &callee,
+                ComputeFrom::new(n - 2),
+                0,
+                store,
+            )
+                .unwrap();
+            a + b
+        }
+    }
+
+    // q_handler!(compute, Fibonacci, ComputeFrom);
 };

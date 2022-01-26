@@ -168,7 +168,7 @@ impl<'a> CallContext<'a> {
                 .push(StackFrame::new(target, memory, gas_meter.clone()));
 
             let run_func: NativeFunc<(u32, u32), u32> =
-                instance.exports.get_native_function(query.name())?;
+                instance.exports.get_native_function(format!("_{}", query.name()).as_str())?;
 
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
