@@ -29,16 +29,6 @@ impl Query for ReadBlockHeight {
     type Return = u64;
 }
 
-// impl Execute<ReadBlockHeight> for BlockHeight {
-//     fn execute(
-//         &self,
-//         _: ReadBlockHeight,
-//         _: StoreContext,
-//     ) -> <ReadBlockHeight as Query>::Return {
-//         rusk_uplink::block_height()
-//     }
-// }
-
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rusk_uplink::framing_imports;
@@ -47,7 +37,7 @@ const _: () = {
     scratch_memory!(128);
 
     #[query]
-    pub fn read_block_height(_state: BlockHeight, _arg: ReadBlockHeight, _store: StoreRef<OffsetLen>) -> u64 {
+    pub fn read_block_height(_state: &BlockHeight, _arg: ReadBlockHeight, _store: StoreRef<OffsetLen>) -> u64 {
         rusk_uplink::block_height()
     }
 };

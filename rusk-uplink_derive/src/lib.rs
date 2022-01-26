@@ -36,7 +36,11 @@ pub fn query(_attrs: TokenStream, input: TokenStream) -> TokenStream {
     let state =  match state_obj {
         syn::FnArg::Receiver(_) => quote::quote_spanned!(my_fn.sig.paren_token.span=> ()),
         syn::FnArg::Typed(pt) => {
-            let t = &pt.ty;
+            let mut t = &pt.ty;
+            t = match t.as_ref() {
+                syn::Type::Reference(t) => &t.elem,
+                _ => t,
+            };
             quote!(#t)
         },
     };
@@ -70,7 +74,7 @@ pub fn query(_attrs: TokenStream, input: TokenStream) -> TokenStream {
 
             let store =
                 StoreContext::new(AbiStore::new(unsafe { &mut SCRATCH }));
-            let res: #ret_t = #fn_name(state, arg, store);
+            let res: #ret_t = #fn_name(&state, arg, store);
 
             unsafe { q_return(&res, &mut SCRATCH) }
         }

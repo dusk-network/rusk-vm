@@ -52,7 +52,7 @@ const _: () = {
     scratch_memory!(512);
 
     #[query]
-    pub fn read(state: Counter, _read_count: ReadCount, _store: StoreRef<OffsetLen>) -> u32 {
+    pub fn read(state: &Counter, _read_count: ReadCount, _store: StoreRef<OffsetLen>) -> u32 {
         state.value
     }
 

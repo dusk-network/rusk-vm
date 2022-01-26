@@ -36,17 +36,6 @@ impl Query for ComputeFrom {
     type Return = u32;
 }
 
-
-// impl Execute<ComputeFrom> for Fibonacci {
-//     fn execute(
-//         &self,
-//         compute_from: ComputeFrom,
-//         store: StoreRef<OffsetLen>,
-//     ) -> <ComputeFrom as Query>::Return {
-//         compute(self, compute_from, store)
-//     }
-// }
-
 #[cfg(target_family = "wasm")]
 const _: () = {
     use rusk_uplink::{framing_imports, StoreContext};
@@ -55,7 +44,7 @@ const _: () = {
     scratch_memory!(128);
 
     #[query]
-    pub fn compute(_state: Fibonacci, compute_from: ComputeFrom, store: StoreRef<OffsetLen>) -> u32 {
+    pub fn compute(_state: &Fibonacci, compute_from: ComputeFrom, store: StoreRef<OffsetLen>) -> u32 {
         let n = compute_from.value;
         if n < 2 {
             n
@@ -80,6 +69,4 @@ const _: () = {
             a + b
         }
     }
-
-    // q_handler!(compute, Fibonacci, ComputeFrom);
 };
