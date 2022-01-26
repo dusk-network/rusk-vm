@@ -220,8 +220,6 @@ impl NetworkState {
             }
         }?;
 
-        //println!("query '{}' return value is: {:?}", Q::NAME, result);
-
         let cast = result
             .cast::<Q::Return>()
             .map_err(|_| VMError::InvalidData)?;
@@ -278,8 +276,6 @@ impl NetworkState {
                 Err(e)
             }
         }?;
-
-        //println!("transaction '{}' return value is: {:?}", T::NAME, result);
 
         let cast = result
             .cast::<T::Return>()

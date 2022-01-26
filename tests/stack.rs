@@ -24,13 +24,13 @@ fn stack() {
     }
 
     for i in 0..N {
-        assert_eq!(test.execute(Peek::new(i)), Some(i))
+        assert_eq!(test.execute(Peek::new(i)), Some(i));
     }
 
     for i in 0..N {
         let i = N - i - 1;
 
-        assert_eq!(test.apply(Pop), Some(i))
+        assert_eq!(test.apply(Pop), Some(i));
     }
 
     assert_eq!(test.apply(Pop), None);

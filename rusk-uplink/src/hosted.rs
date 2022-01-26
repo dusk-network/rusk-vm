@@ -19,7 +19,6 @@ const BUFFER_SIZE_LIMIT: usize = 1024 * 16;
 // declare available host-calls
 pub mod external {
     extern "C" {
-        #[allow(unused)]
         pub fn debug(buffer: &u8, len: i32);
 
         pub fn query(
@@ -182,7 +181,6 @@ where
     let cast = result
         .cast::<T::Return>()
         .map_err(|_| ArchiveError::ArchiveValidationError)?;
-    crate::debug!("transact 903");
 
     let deserialized_result: T::Return =
         cast.deserialize(&mut store).expect("Infallible");

@@ -311,7 +311,7 @@ impl<'a> CallContext<'a> {
                     (len, len + data_len)
                 });
 
-            // refactor plz
+            // note to self: refactor plz, this can be done with bit-shifting
             fn separate_tuple(tuple: u64) -> (u32, u32) {
                 let bytes = tuple.to_le_bytes();
                 let mut a = [0u8; 4];
@@ -335,6 +335,7 @@ impl<'a> CallContext<'a> {
                     let new_state = &mem[..state_written as usize];
 
                     contract.set_state(new_state);
+
                     let result_len = result_written - state_written;
                     ReturnValue::with_state(
                         &mem[state_written as usize..][..result_len as usize],

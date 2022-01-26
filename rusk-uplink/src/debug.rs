@@ -7,16 +7,12 @@
 #[doc(hidden)]
 pub const BUFFER_SIZE: usize = 1024;
 
-#[doc(hidden)]
-pub fn _debug(buf: &[u8]) {
-    let len = buf.len() as i32;
-    unsafe { crate::hosted::external::debug(&buf[0], len) }
-}
-
+#[cfg(target_family = "wasm")]
 /// Macro to format and send debug output to the host
 #[macro_export]
 macro_rules! debug {
     ($($tt:tt)*) => {
+	#[allow(unused)]
         use core::fmt::Write as _;
         let mut buffer = [0u8; $crate::debug::BUFFER_SIZE];
         let len = {
@@ -24,6 +20,17 @@ macro_rules! debug {
             write!(bw, $($tt)*).unwrap();
             bw.ofs()
         };
-        $crate::debug::_debug(&buffer[0..len])
+	unsafe {
+            $crate::hosted::external::debug(&buffer[0], len as i32)
+	}
+    };
+}
+
+#[cfg(not(target_family = "wasm"))]
+#[macro_export]
+macro_rules! debug {
+    ($($tt:tt)*) => {
+        // TODO, make debugging possible from host env, with features;
+        ()
     };
 }
