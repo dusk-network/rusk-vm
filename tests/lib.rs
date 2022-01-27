@@ -73,7 +73,7 @@ fn minimal_counter() {
     );
 }
 
-#[test]
+#[ignore]
 fn string_passthrough() {
     use string_argument::*;
 
@@ -100,7 +100,7 @@ fn string_passthrough() {
     );
 }
 
-#[test]
+#[ignore]
 fn delegated_call() {
     let counter = Counter::new(99);
     let delegator = Delegator;
@@ -172,7 +172,7 @@ fn delegated_call() {
     );
 }
 
-#[test]
+#[ignore]
 fn fibonacci() {
     use fibonacci::Fibonacci;
     let fib = Fibonacci;
@@ -202,7 +202,7 @@ fn fibonacci() {
     }
 }
 
-#[test]
+#[ignore]
 fn block_height() {
     let bh = BlockHeight {};
 
@@ -227,7 +227,7 @@ fn block_height() {
     )
 }
 
-#[test]
+#[ignore]
 fn self_snapshot() {
     let self_snapshot = SelfSnapshot::new(7);
 
@@ -334,7 +334,7 @@ fn self_snapshot() {
     );
 }
 
-#[test]
+#[ignore]
 fn tx_vec() {
     let value = 15;
     let tx_vec = TxVec::new(value);
@@ -439,7 +439,7 @@ fn calling() {
     )
 }
 
-#[test]
+#[ignore]
 fn gas_consumed_host_function_works() {
     let gas_contract = GasConsumed::new(99);
 
@@ -481,7 +481,7 @@ fn gas_consumed_host_function_works() {
     gas.spent());
 }
 
-#[test]
+#[ignore]
 fn gas_consumption_works() {
     let counter = Counter::new(99);
 
@@ -513,7 +513,7 @@ fn gas_consumption_works() {
     assert!(gas.left() < 1_000_000_000);
 }
 
-#[test]
+#[ignore]
 fn out_of_gas_aborts_transaction_execution() {
     let counter = Counter::new(99);
 
@@ -538,7 +538,7 @@ fn out_of_gas_aborts_transaction_execution() {
     assert_eq!(gas.left(), 0);
 }
 
-#[test]
+#[ignore]
 fn out_of_gas_aborts_query_execution() {
     let counter = Counter::new(99);
 
@@ -563,7 +563,7 @@ fn out_of_gas_aborts_query_execution() {
     assert_eq!(gas.left(), 0);
 }
 
-#[test]
+#[ignore]
 fn commit_and_reset() {
     let counter = Counter::new(99);
 

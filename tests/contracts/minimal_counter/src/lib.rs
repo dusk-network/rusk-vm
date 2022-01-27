@@ -13,7 +13,8 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink_derive::query2;
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {
@@ -26,7 +27,7 @@ impl Counter {
     }
 }
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[derive(Archive, Serialize, Debug, Deserialize, Clone)]
 pub struct ReadCount;
 
 impl Query for ReadCount {
@@ -34,12 +35,33 @@ impl Query for ReadCount {
     type Return = u32;
 }
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[derive(Archive, Serialize, Debug, Deserialize, Clone)]
 pub struct Increment(pub u32);
 
 impl Transaction for Increment {
     const NAME: &'static str = "incr";
     type Return = ();
+}
+
+#[query2]
+impl Execute<ReadCount> for Counter {
+    fn execute(
+        &self,
+        _: ReadCount,
+        _: StoreContext,
+    ) -> <ReadCount as Query>::Return {
+        self.value
+    }
+}
+
+impl Apply<Increment> for Counter {
+    fn apply(
+        &mut self,
+        t: Increment,
+        _: StoreContext,
+    ) -> <Increment as Transaction>::Return {
+        self.value += t.0;
+    }
 }
 
 #[cfg(target_family = "wasm")]
@@ -49,13 +71,7 @@ const _: () = {
 
     scratch_memory!(512);
 
-    #[query]
-    pub fn read(state: &Counter, _read_count: ReadCount, _store: StoreRef<OffsetLen>) -> u32 {
-        state.value
-    }
+    q_handler!(_read, Counter, ReadCount);
 
-    #[transaction]
-    pub fn incr(state: &mut Counter, increment: Increment, _store: StoreRef<OffsetLen>) {
-        state.value += increment.0;
-    }
+    t_handler!(_incr, Counter, Increment);
 };

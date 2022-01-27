@@ -5,6 +5,9 @@ use quote::{format_ident, quote};
 use syn::parse_macro_input;
 
 
+mod macro_helper;
+use macro_helper::*;
+
 #[proc_macro_derive(ContractQuery)]
 pub fn derive_query(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
@@ -18,6 +21,22 @@ pub fn derive_query(input: TokenStream) -> TokenStream {
     };
     gen.into()
 }
+
+#[proc_macro_attribute]
+pub fn query2(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let my_impl = parse_macro_input!(input as syn::ItemImpl);
+
+    let x_t = my_impl.self_ty.as_ref();
+    let x = quote!(#x_t);
+    println!("self type of this impl is: {}", x);
+
+    let my_method_sig = first_method_signature(my_impl.clone()).unwrap();
+    let a = arg_types(&my_method_sig);
+    let gen = quote!(#my_impl);
+    gen.into()
+}
+
+
 
 #[proc_macro_attribute]
 pub fn query(_attrs: TokenStream, input: TokenStream) -> TokenStream {
