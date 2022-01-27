@@ -243,5 +243,5 @@ macro_rules! scratch_memory {
     ($sz:expr) => {
         #[no_mangle]
         static mut SCRATCH: [u8; $sz] = [0u8; $sz];
-    }
+    };
 }

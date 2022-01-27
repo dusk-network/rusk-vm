@@ -49,7 +49,7 @@ impl TxVec {
         store: StoreContext,
     ) {
         let tx_vec_sum = TxVecSum::new(data);
-        let raw_transaction = RawTransaction::new(tx_vec_sum);
+        let raw_transaction = RawTransaction::new(tx_vec_sum, &store);
         let ret =
             rusk_uplink::transact_raw(self, target, &raw_transaction, 0, store)
                 .unwrap();
