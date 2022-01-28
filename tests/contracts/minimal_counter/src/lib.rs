@@ -71,7 +71,7 @@ const _: () = {
 
     scratch_memory!(512);
 
-    q_handler!(_read, Counter, ReadCount);
+    //q_handler!(_read, Counter, ReadCount);
 
     t_handler!(_incr, Counter, Increment);
 };

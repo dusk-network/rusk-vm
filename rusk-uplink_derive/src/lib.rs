@@ -29,7 +29,6 @@ pub fn derive_query(input: TokenStream) -> TokenStream {
 pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let my_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
-    println!("Aaargs= {}", args.name);
     let fn_name = args.name;
 
     let state_t = my_impl.self_ty.as_ref();
@@ -40,28 +39,9 @@ pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let arg_t = arg_types.get(0).unwrap();
 
     let ret_t = return_type_of_sig(&my_method.sig);
-    let x = quote!(#ret_t);
-    println!("Fnreturn type= {}", x);
 
-    //let fn_name = ""; // this comes from <arg_t as Query>::NAME
-
-    // let name_input: TokenStream = quote! {
-    //     const NAME: &'static str = <#arg_t as Query>::NAME;
-    // }.into();
-    // let fn_name_impl = parse_macro_input!(name_input as syn::ItemConst);
-    // let fn_name = fn_name_impl.expr.as_ref();
-    // let x = quote!(#fn_name);
-    // println!("Fnname= {}", x);
-    //
-    //
-    // let ret_type_input: TokenStream = quote! {
-    //     <#arg_t as Query>::Return
-    // }.into();
-    // let ret_t_impl = parse_macro_input!(ret_type_input as syn::TypeReference);
-    // let ret_t = ret_t_impl.elem.as_ref();
-
-
-//    let wrapper_fun_name = format_ident!("_{}", "read");
+    let wrapper_fun_name = format_ident!("_{}", fn_name);
+    let scratch_name = format_ident!("scratch_{}", fn_name);
     let gen = quote! {
 
         impl Query for #arg_t {
@@ -70,6 +50,35 @@ pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #my_impl
+
+        #[cfg(target_family = "wasm")]
+        const _: () = {
+            use rusk_uplink::framing_imports;
+            use rusk_uplink::{
+                get_state, get_state_arg, get_state_arg_store, q_return,
+                q_return_store_ser, q_handler,
+                q_handler_store_ser,
+                AbiStore, StoreContext
+            };
+            use rusk_uplink_derive::{query, transaction};
+            use microkelvin::{OffsetLen, StoreRef};
+
+            static mut #scratch_name: [u8; 512] = [0u8; 512];
+
+            #[no_mangle]
+            fn #wrapper_fun_name(written_state: u32, written_data: u32) -> u32 {
+                let (state, arg): (#state_t, #arg_t) = unsafe {
+                    get_state_arg(written_state, written_data, &#scratch_name)
+                };
+
+                let store =
+                    StoreContext::new(AbiStore::new(unsafe { &mut #scratch_name }));
+                let res: <#arg_t as Query>::Return = state.execute(arg, store);
+
+                unsafe { q_return(&res, &mut #scratch_name) }
+            }
+
+        };
 
     };
     gen.into()
