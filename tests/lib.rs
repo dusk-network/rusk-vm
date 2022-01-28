@@ -73,7 +73,7 @@ fn minimal_counter() {
     );
 }
 
-#[ignore]
+#[test]
 fn string_passthrough() {
     use string_argument::*;
 
@@ -172,7 +172,7 @@ fn delegated_call() {
     );
 }
 
-#[ignore]
+#[test]
 fn fibonacci() {
     use fibonacci::Fibonacci;
     let fib = Fibonacci;

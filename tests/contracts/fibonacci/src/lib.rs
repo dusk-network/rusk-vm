@@ -12,8 +12,10 @@
     option_result_unwrap_unchecked
 )]
 
+use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::Query;
+use rusk_uplink::{Execute, Query};
+use rusk_uplink_derive::query2;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
@@ -29,20 +31,13 @@ impl ComputeFrom {
     }
 }
 
-impl Query for ComputeFrom {
-    const NAME: &'static str = "compute";
-    type Return = u32;
-}
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(128);
-
-    #[query]
-    pub fn compute(_state: &Fibonacci, compute_from: ComputeFrom, store: StoreRef<OffsetLen>) -> u32 {
+#[query2(name="compute")]
+impl Execute<ComputeFrom> for Fibonacci {
+    fn execute(
+        &self,
+        compute_from: ComputeFrom,
+        store: StoreRef<OffsetLen>,
+    ) -> u32 {
         let n = compute_from.value;
         if n < 2 {
             n
@@ -55,7 +50,7 @@ const _: () = {
                 0,
                 store.clone(),
             )
-                .unwrap();
+            .unwrap();
 
             let b = rusk_uplink::query::<ComputeFrom>(
                 &callee,
@@ -63,8 +58,8 @@ const _: () = {
                 0,
                 store,
             )
-                .unwrap();
+            .unwrap();
             a + b
         }
     }
-};
+}

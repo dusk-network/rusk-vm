@@ -12,7 +12,8 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::Query;
+use rusk_uplink::{Execute, Query, StoreContext};
+use rusk_uplink_derive::query2;
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Stringer;
@@ -34,20 +35,13 @@ impl Passthrough {
     }
 }
 
-impl Query for Passthrough {
-    const NAME: &'static str = "pass";
-    type Return = String;
-}
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(1024);
-
-    #[query]
-    pub fn pass(_: &Stringer, p: Passthrough, _store: StoreRef<OffsetLen>) -> String {
+#[query2(name="pass")]
+impl Execute<Passthrough> for Stringer {
+    fn execute(
+        &self,
+        p: Passthrough,
+        _: StoreContext,
+    ) -> String {
         p.string.repeat(p.repeat as usize)
     }
-};
+}
