@@ -202,7 +202,7 @@ fn fibonacci() {
     }
 }
 
-#[ignore]
+#[test]
 fn block_height() {
     let bh = BlockHeight {};
 

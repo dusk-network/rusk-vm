@@ -170,9 +170,11 @@ impl<'a> CallContext<'a> {
             let run_func: NativeFunc<(u32, u32), u32> =
                 instance.exports.get_native_function(format!("_{}", query.name()).as_str())?;
 
+            let global_scratch = format!("scratch_{}", query.name());
+
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
-                .get_global("SCRATCH")
+                .get_global(global_scratch.as_str())
                 .map_err(|_| VMError::InvalidWASMModule)?
                 .get()
             {

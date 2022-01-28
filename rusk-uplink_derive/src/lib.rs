@@ -63,6 +63,7 @@ pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
             use rusk_uplink_derive::{query, transaction};
             use microkelvin::{OffsetLen, StoreRef};
 
+            #[no_mangle]
             static mut #scratch_name: [u8; 512] = [0u8; 512];
 
             #[no_mangle]
