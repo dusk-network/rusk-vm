@@ -43,13 +43,13 @@ impl Transaction for Increment {
     type Return = ();
 }
 
-#[query2]
+#[query2(name="read")]
 impl Execute<ReadCount> for Counter {
     fn execute(
         &self,
         _: ReadCount,
         _: StoreContext,
-    ) -> <ReadCount as Query>::Return {
+    ) -> u32 {
         self.value
     }
 }

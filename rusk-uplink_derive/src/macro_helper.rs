@@ -1,13 +1,13 @@
 use syn::{FnArg, Type};
 use quote::{quote, ToTokens};
 
-pub fn first_method_signature(
+pub fn first_method_of_impl(
     an_impl: syn::ItemImpl,
-) -> Option<syn::Signature> {
+) -> Option<syn::ImplItemMethod> {
     for item in an_impl.items {
         if let syn::ImplItem::Method(method) = item
         {
-            return Some(method.sig);
+            return Some(method);
         }
     }
     None
@@ -34,10 +34,21 @@ pub fn non_self_argument_type(arg: &FnArg) -> Option<syn::Type> {
     arg_ts_opt.map(syn::Type::Verbatim)
 }
 
-pub fn arg_types(sig: &syn::Signature) -> Vec<Option<syn::Type>> {
+pub fn non_self_argument_types(sig: &syn::Signature) -> Vec<syn::Type> {
     let mut v = Vec::new();
     for input in &sig.inputs {
-        v.push(non_self_argument_type(&input))
+        if let Some(t) = non_self_argument_type(input) {
+            v.push(t);
+        }
     }
     v
+}
+
+pub fn return_type_of_sig(sig: &syn::Signature) -> syn::Type {
+    let ret_obj = sig.output.clone();
+    let ret = match ret_obj {
+        syn::ReturnType::Default => quote::quote_spanned!(sig.paren_token.span=> ()),
+        syn::ReturnType::Type(_, r) => quote!(#r),
+    };
+    syn::Type::Verbatim(ret)
 }

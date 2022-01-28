@@ -8,6 +8,9 @@ use syn::parse_macro_input;
 mod macro_helper;
 use macro_helper::*;
 
+mod args;
+use args::*;
+
 #[proc_macro_derive(ContractQuery)]
 pub fn derive_query(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
@@ -23,16 +26,47 @@ pub fn derive_query(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn query2(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let my_impl = parse_macro_input!(input as syn::ItemImpl);
+    let args = parse_macro_input!(attrs as Args);
+    println!("Aaargs= {}", args.name);
+    let fn_name = args.name;
 
-    let x_t = my_impl.self_ty.as_ref();
-    let x = quote!(#x_t);
-    println!("self type of this impl is: {}", x);
+    let state_t = my_impl.self_ty.as_ref();
 
-    let my_method_sig = first_method_signature(my_impl.clone()).unwrap();
-    let a = arg_types(&my_method_sig);
-    let gen = quote!(#my_impl);
+    let my_method = first_method_of_impl(my_impl.clone()).unwrap();
+    let arg_types = non_self_argument_types(&my_method.sig);
+
+    let arg_t = arg_types.get(0).unwrap();
+
+    let ret_t = return_type_of_sig(&my_method.sig);
+    let x = quote!(#ret_t);
+    println!("Fnreturn type= {}", x);
+
+    //let fn_name = ""; // this comes from <arg_t as Query>::NAME
+
+    // let name_input: TokenStream = quote! {
+    //     const NAME: &'static str = <#arg_t as Query>::NAME;
+    // }.into();
+    // let fn_name_impl = parse_macro_input!(name_input as syn::ItemConst);
+    // let fn_name = fn_name_impl.expr.as_ref();
+    // let x = quote!(#fn_name);
+    // println!("Fnname= {}", x);
+    //
+    //
+    // let ret_type_input: TokenStream = quote! {
+    //     <#arg_t as Query>::Return
+    // }.into();
+    // let ret_t_impl = parse_macro_input!(ret_type_input as syn::TypeReference);
+    // let ret_t = ret_t_impl.elem.as_ref();
+
+
+//    let wrapper_fun_name = format_ident!("_{}", "read");
+    let gen = quote! {
+
+        #my_impl
+
+    };
     gen.into()
 }
 
