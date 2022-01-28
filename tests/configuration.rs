@@ -34,7 +34,7 @@ fn execute_contract_with_schedule(schedule: &Schedule) -> u64 {
     gas.spent()
 }
 
-#[ignore]
+#[test]
 fn change_gas_cost_per_op_with_schedule() {
     let schedule = Schedule::default();
 
@@ -74,7 +74,7 @@ fn change_gas_cost_per_op_with_schedule() {
     assert!(execute_contract_with_schedule(&high_cost_schedule) > 100_000);
 }
 
-#[ignore]
+#[test]
 fn no_gas_consumption_when_metering_is_off() {
     let no_metering_schedule = Schedule {
         has_metering: false,

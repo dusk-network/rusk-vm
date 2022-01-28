@@ -13,7 +13,9 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{Query, Transaction};
+use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink_derive::query2;
+
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Counter {
@@ -33,11 +35,6 @@ impl Counter {
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct ReadValue;
 
-impl Query for ReadValue {
-    const NAME: &'static str = "read_value";
-    type Return = i32;
-}
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct XorValues {
     a: i32,
@@ -50,18 +47,8 @@ impl XorValues {
     }
 }
 
-impl Query for XorValues {
-    const NAME: &'static str = "xor_values";
-    type Return = i32;
-}
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct IsEven;
-
-impl Query for IsEven {
-    const NAME: &'static str = "is_even";
-    type Return = bool;
-}
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Increment;
@@ -112,6 +99,79 @@ impl Transaction for CompareAndSwap {
     type Return = bool;
 }
 
+impl Apply<Adjust> for Counter {
+    fn apply(
+        &mut self,
+        arg: Adjust,
+        _: StoreContext,
+    ) -> <Adjust as Transaction>::Return {
+        self.adjust(arg.by);
+    }
+}
+
+#[query2(name="read_value")]
+impl Execute<ReadValue> for Counter {
+    fn execute(
+        &self,
+        _: ReadValue,
+        _: StoreContext,
+    ) -> i32 {
+        self.value
+    }
+}
+
+#[query2(name="xor_values")]
+impl Execute<XorValues> for Counter {
+    fn execute(
+        &self,
+        arg: XorValues,
+        _: StoreContext,
+    ) -> i32 {
+        self.xor_values(arg.a, arg.b)
+    }
+}
+
+#[query2(name="is_even")]
+impl Execute<IsEven> for Counter {
+    fn execute(
+        &self,
+        _: IsEven,
+        _: StoreContext,
+    ) -> bool {
+        self.is_even()
+    }
+}
+
+impl Apply<Increment> for Counter {
+    fn apply(
+        &mut self,
+        _: Increment,
+        _: StoreContext,
+    ) -> <Increment as Transaction>::Return {
+        self.increment();
+    }
+}
+
+impl Apply<Decrement> for Counter {
+    fn apply(
+        &mut self,
+        _: Decrement,
+        _: StoreContext,
+    ) -> <Decrement as Transaction>::Return {
+        self.decrement();
+    }
+}
+
+impl Apply<CompareAndSwap> for Counter {
+    fn apply(
+        &mut self,
+        arg: CompareAndSwap,
+        _: StoreContext,
+    ) -> <CompareAndSwap as Transaction>::Return {
+        self.compare_and_swap(arg.expected, arg.new)
+    }
+}
+
 impl Counter {
     pub fn read_value(&self) -> i32 {
         self.value
@@ -154,43 +214,11 @@ const _: () = {
 
     scratch_memory!(512);
 
-    #[transaction]
-    pub fn adjust(state: &mut Counter, adjust: Adjust, _store: StoreRef<OffsetLen>) {
-        state.adjust(adjust.by);
-    }
+    t_handler!(adjust, Counter, Adjust);
 
-    #[query]
-    pub fn read_value(state: &Counter, _: ReadValue, _store: StoreRef<OffsetLen>) -> i32 {
-        state.read_value()
-    }
+    t_handler!(_increment, Counter, Increment);
 
-    #[query]
-    pub fn xor_values(state: &Counter, xv: XorValues, _store: StoreRef<OffsetLen>) -> i32 {
-        state.xor_values(xv.a, xv.b)
-    }
+    t_handler!(_decrement, Counter, Decrement);
 
-    #[query]
-    pub fn is_even(state: &Counter, _: IsEven, _store: StoreRef<OffsetLen>) -> bool {
-        state.is_even()
-    }
-
-    #[transaction]
-    pub fn increment(state: &mut Counter, _: Increment, _store: StoreRef<OffsetLen>) {
-        state.increment();
-    }
-
-    #[transaction]
-    pub fn decrement(state: &mut Counter, _: Decrement, _store: StoreRef<OffsetLen>) {
-        state.decrement();
-    }
-
-    #[transaction]
-    pub fn compare_and_swap(state: &mut Counter, compare_and_swap: CompareAndSwap, _store: StoreRef<OffsetLen>) -> bool {
-        if state.value == compare_and_swap.expected {
-            state.value = compare_and_swap.new;
-            true
-        } else {
-            false
-        }
-    }
+    t_handler!(_compare_and_swap, Counter, CompareAndSwap);
 };
