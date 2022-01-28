@@ -64,6 +64,11 @@ pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
 //    let wrapper_fun_name = format_ident!("_{}", "read");
     let gen = quote! {
 
+        impl Query for #arg_t {
+            const NAME: &'static str = #fn_name;
+            type Return = #ret_t;
+        }
+
         #my_impl
 
     };

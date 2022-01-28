@@ -30,10 +30,10 @@ impl Counter {
 #[derive(Archive, Serialize, Debug, Deserialize, Clone)]
 pub struct ReadCount;
 
-impl Query for ReadCount {
-    const NAME: &'static str = "read";
-    type Return = u32;
-}
+// impl Query for ReadCount {
+//     const NAME: &'static str = "read";
+//     type Return = u32;
+// }
 
 #[derive(Archive, Serialize, Debug, Deserialize, Clone)]
 pub struct Increment(pub u32);
