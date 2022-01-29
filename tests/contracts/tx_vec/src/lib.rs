@@ -17,6 +17,7 @@ use rusk_uplink::StoreContext;
 use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawTransaction, Transaction,
 };
+use rusk_uplink_derive::query;
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -60,17 +61,13 @@ impl TxVec {
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct TxVecReadValue;
 
-impl Query for TxVecReadValue {
-    const NAME: &'static str = "read_value";
-    type Return = u8;
-}
-
+#[query(name="read_value")]
 impl Execute<TxVecReadValue> for TxVec {
     fn execute(
         &self,
         _: TxVecReadValue,
         _: StoreContext,
-    ) -> <TxVecReadValue as Query>::Return {
+    ) -> u8 {
         self.read_value()
     }
 }
@@ -138,8 +135,6 @@ const _: () = {
     framing_imports!();
 
     scratch_memory!(8192);
-
-    q_handler!(_read_value, TxVec, TxVecReadValue);
 
     t_handler!(_sum, TxVec, TxVecSum);
 

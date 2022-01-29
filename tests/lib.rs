@@ -334,7 +334,7 @@ fn self_snapshot() {
     );
 }
 
-#[ignore]
+#[test]
 fn tx_vec() {
     let value = 15;
     let tx_vec = TxVec::new(value);
