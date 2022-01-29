@@ -14,6 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink_derive::query;
 
 extern crate alloc;
 
@@ -44,32 +45,24 @@ pub struct GasConsumedValueQuery;
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct GasConsumedQuery;
 
-impl Query for GasConsumedValueQuery {
-    const NAME: &'static str = "value";
-    type Return = i32;
-}
-
-impl Query for GasConsumedQuery {
-    const NAME: &'static str = "get_gas_consumed";
-    type Return = (u32, u32);
-}
-
+#[query(name="value")]
 impl Execute<GasConsumedValueQuery> for GasConsumed {
     fn execute(
         &self,
         _: GasConsumedValueQuery,
         _: StoreContext,
-    ) -> <GasConsumedValueQuery as Query>::Return {
+    ) -> i32 {
         self.value()
     }
 }
 
+#[query(name="get_gas_consumed")]
 impl Execute<GasConsumedQuery> for GasConsumed {
     fn execute(
         &self,
         _: GasConsumedQuery,
         _: StoreContext,
-    ) -> <GasConsumedQuery as Query>::Return {
+    ) -> (u32, u32) {
         (
             rusk_uplink::gas_consumed() as u32,
             rusk_uplink::gas_left() as u32,
@@ -118,10 +111,6 @@ const _: () = {
     framing_imports!();
 
     scratch_memory!(512);
-
-    q_handler!(_value, GasConsumed, GasConsumedValueQuery);
-
-    q_handler!(_get_gas_consumed, GasConsumed, GasConsumedQuery);
 
     t_handler!(_increment, GasConsumed, GasConsumedIncrement);
 

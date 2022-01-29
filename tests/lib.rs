@@ -431,7 +431,7 @@ fn calling() {
     )
 }
 
-#[ignore]
+#[test]
 fn gas_consumed_host_function_works() {
     let gas_contract = GasConsumed::new(99);
 
