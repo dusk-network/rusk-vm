@@ -17,7 +17,7 @@ use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::query2;
+use rusk_uplink_derive::query;
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
@@ -36,7 +36,7 @@ impl Peek {
     }
 }
 
-#[query2(name="peek")]
+#[query(name="peek")]
 impl Execute<Peek> for Stack {
     fn execute(&self, arg: Peek, _: StoreContext) -> Option<u64> {
         self.peek(arg.value)

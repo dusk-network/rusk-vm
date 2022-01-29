@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::query2;
+use rusk_uplink_derive::query;
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Counter {
@@ -43,7 +43,7 @@ impl Transaction for Increment {
     type Return = ();
 }
 
-#[query2(name="read")]
+#[query(name="read")]
 impl Execute<ReadCount> for Counter {
     fn execute(
         &self,

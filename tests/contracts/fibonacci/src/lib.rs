@@ -15,7 +15,7 @@
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query};
-use rusk_uplink_derive::query2;
+use rusk_uplink_derive::query;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct Fibonacci;
@@ -31,7 +31,7 @@ impl ComputeFrom {
     }
 }
 
-#[query2(name="compute")]
+#[query(name="compute")]
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(
         &self,

@@ -13,7 +13,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
-use rusk_uplink_derive::query2;
+use rusk_uplink_derive::query;
 
 #[derive(Clone, Debug, Archive, Deserialize, Serialize)]
 pub struct Stringer;
@@ -35,7 +35,7 @@ impl Passthrough {
     }
 }
 
-#[query2(name="pass")]
+#[query(name="pass")]
 impl Execute<Passthrough> for Stringer {
     fn execute(
         &self,

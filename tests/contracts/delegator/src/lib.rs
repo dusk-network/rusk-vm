@@ -18,7 +18,7 @@ use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
 };
-use rusk_uplink_derive::query2;
+use rusk_uplink_derive::query;
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -77,7 +77,7 @@ impl Transaction for TransactionForwardData {
     type Return = ();
 }
 
-#[query2(name="delegate_query")]
+#[query(name="delegate_query")]
 impl Execute<QueryForwardData> for Delegator {
     fn execute(
         &self,

@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
-use rusk_uplink_derive::query2;
+use rusk_uplink_derive::query;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct BlockHeight;
@@ -22,7 +22,7 @@ pub struct BlockHeight;
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct ReadBlockHeight;
 
-#[query2(name="read_block_height")]
+#[query(name="read_block_height")]
 impl Execute<ReadBlockHeight> for BlockHeight {
     fn execute(
         &self,

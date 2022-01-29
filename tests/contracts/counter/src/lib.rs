@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::query2;
+use rusk_uplink_derive::query;
 
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -109,7 +109,7 @@ impl Apply<Adjust> for Counter {
     }
 }
 
-#[query2(name="read_value")]
+#[query(name="read_value")]
 impl Execute<ReadValue> for Counter {
     fn execute(
         &self,
@@ -120,7 +120,7 @@ impl Execute<ReadValue> for Counter {
     }
 }
 
-#[query2(name="xor_values")]
+#[query(name="xor_values")]
 impl Execute<XorValues> for Counter {
     fn execute(
         &self,
@@ -131,7 +131,7 @@ impl Execute<XorValues> for Counter {
     }
 }
 
-#[query2(name="is_even")]
+#[query(name="is_even")]
 impl Execute<IsEven> for Counter {
     fn execute(
         &self,

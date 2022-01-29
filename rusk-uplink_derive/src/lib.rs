@@ -12,7 +12,7 @@ mod args;
 use args::*;
 
 #[proc_macro_attribute]
-pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
+pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let my_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
     let fn_name = args.name;
