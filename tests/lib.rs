@@ -100,7 +100,7 @@ fn string_passthrough() {
     );
 }
 
-#[ignore]
+#[test]
 fn delegated_call() {
     let counter = Counter::new(99);
     let delegator = Delegator;
