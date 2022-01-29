@@ -19,6 +19,7 @@ use rusk_uplink::{
 };
 extern crate alloc;
 use alloc::boxed::Box;
+use rusk_uplink_derive::query;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct SelfSnapshot {
@@ -158,17 +159,13 @@ impl UpdateAndPanicTransaction {
     }
 }
 
-impl Query for CrossoverQuery {
-    const NAME: &'static str = "crossover";
-    type Return = i32;
-}
-
+#[query(name="crossover")]
 impl Execute<CrossoverQuery> for SelfSnapshot {
     fn execute(
         &self,
         _: CrossoverQuery,
         _: StoreContext,
-    ) -> <CrossoverQuery as Query>::Return {
+    ) -> i32 {
         self.crossover
     }
 }
@@ -242,8 +239,6 @@ const _: () = {
     framing_imports!();
 
     scratch_memory!(512);
-
-    q_handler!(_crossover, SelfSnapshot, CrossoverQuery);
 
     t_handler!(
         _set_crossover,

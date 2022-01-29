@@ -27,14 +27,6 @@ fn fibonacci_reference(n: u64) -> u64 {
 
 #[test]
 fn minimal_counter() {
-
-    // use rusk_uplink_derive::ContractQuery;
-    // use rusk_uplink::Query;
-    //
-    // #[derive(rkyv::Archive, ContractQuery)]
-    // pub struct XiongMao3;
-    //
-    // println!("abc={}", XiongMao3::NAME);
     let counter = minimal_counter::Counter::new(99);
 
     let code = include_bytes!(
@@ -227,7 +219,7 @@ fn block_height() {
     )
 }
 
-#[ignore]
+#[test]
 fn self_snapshot() {
     let self_snapshot = SelfSnapshot::new(7);
 
