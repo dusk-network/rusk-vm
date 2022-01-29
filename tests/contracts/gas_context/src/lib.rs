@@ -17,6 +17,7 @@ use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use rusk_uplink_derive::query2;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct GasContextData {
@@ -121,17 +122,13 @@ impl Apply<SetGasLimits> for GasContextData {
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct ReadGasLimits;
 
-impl Query for ReadGasLimits {
-    const NAME: &'static str = "read_gas_limits";
-    type Return = Box<[u64]>;
-}
-
+#[query2(name="read_gas_limits")]
 impl Execute<ReadGasLimits> for GasContextData {
     fn execute(
         &self,
         _: ReadGasLimits,
         _: StoreContext,
-    ) -> <ReadGasLimits as Query>::Return {
+    ) -> Box<[u64]> {
         Box::from(&self.after_call_gas_limits[..])
     }
 }
@@ -142,12 +139,6 @@ const _: () = {
     framing_imports!();
 
     scratch_memory!(512);
-
-    q_handler_store_ser!(
-        _read_gas_limits,
-        GasContextData,
-        ReadGasLimits
-    );
 
     t_handler_store_ser!(_t_compute, GasContextData, TCompute);
 

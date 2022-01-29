@@ -31,14 +31,12 @@ pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attrs as Args);
     let fn_name = args.name;
 
-    let state_t = my_impl.self_ty.as_ref();
-
     let my_method = first_method_of_impl(my_impl.clone()).unwrap();
     let arg_types = non_self_argument_types(&my_method.sig);
 
     let arg_t = arg_types.get(0).unwrap();
-
     let ret_t = return_type_of_sig(&my_method.sig);
+    let state_t = my_impl.self_ty.as_ref();
 
     let wrapper_fun_name = format_ident!("_{}", fn_name);
     let scratch_name = format_ident!("scratch_{}", fn_name);
@@ -68,19 +66,23 @@ pub fn query2(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> u32 {
-                let (state, arg): (#state_t, #arg_t) = unsafe {
-                    get_state_arg(written_state, written_data, &#scratch_name)
-                };
-
                 let store =
                     StoreContext::new(AbiStore::new(unsafe { &mut #scratch_name }));
-                let res: <#arg_t as Query>::Return = state.execute(arg, store);
+                let (state, arg): (#state_t, #arg_t) = unsafe {
+                    get_state_arg_store(
+                        written_state,
+                        written_data,
+                        &#scratch_name,
+                        store.clone(),
+                    )
+                };
 
-                unsafe { q_return(&res, &mut #scratch_name) }
+                let res: <#arg_t as Query>::Return =
+                    state.execute(arg, store.clone());
+
+                unsafe { q_return_store_ser(&res, store) }
             }
-
         };
-
     };
     gen.into()
 }
