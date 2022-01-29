@@ -14,6 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, Execute, StoreContext};
+use rusk_uplink_derive::query;
 extern crate alloc;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -37,12 +38,13 @@ impl Callee2Query {
     }
 }
 
+#[query(name="get")]
 impl Execute<Callee2Query> for Callee2State {
     fn execute(
         &self,
         callee2: Callee2Query,
         _: StoreContext,
-    ) -> <Callee2Query as Query>::Return {
+    ) -> Callee2Return {
         assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");
 
         rusk_uplink::debug!(
@@ -57,24 +59,9 @@ impl Execute<Callee2Query> for Callee2State {
     }
 }
 
-impl Query for Callee2Query {
-    const NAME: &'static str = "get";
-    type Return = Callee2Return;
-}
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Callee2Return {
     sender_sender: ContractId,
     sender: ContractId,
     callee: ContractId,
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    q_handler!(get, Callee2State, Callee2Query);
-};

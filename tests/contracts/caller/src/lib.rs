@@ -14,6 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, Transaction, Apply, Execute, StoreContext};
+use rusk_uplink_derive::query;
 extern crate alloc;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -34,11 +35,7 @@ impl CallerState {
 #[derive(Archive, Serialize, Debug, Deserialize)]
 pub struct CallerQuery;
 
-impl Query for CallerQuery {
-    const NAME: &'static str = "call";
-    type Return = <Callee1Query as Query>::Return;
-}
-
+#[query(name="call")]
 impl Execute<CallerQuery> for CallerState {
     fn execute(
         &self,
@@ -109,8 +106,6 @@ const _: () = {
     framing_imports!();
 
     scratch_memory!(512);
-
-    q_handler!(_call, CallerState, CallerQuery);
 
     t_handler!(_set_target, CallerState, CallerTransaction);
 };

@@ -14,6 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, Transaction, Execute, Apply, StoreContext};
+use rusk_uplink_derive::query;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Callee1State {
@@ -76,17 +77,13 @@ pub struct SenderParameter {
     sender_id: ContractId,
 }
 
-impl Query for SenderParameter {
-    const NAME: &'static str = "call";
-    type Return = <Callee2Query as Query>::Return;
-}
-
+#[query(name="call")]
 impl Execute<SenderParameter> for Callee1State {
     fn execute(
         &self,
         sender: SenderParameter,
         store: StoreContext,
-    ) -> <SenderParameter as Query>::Return {
+    ) -> <Callee2Query as Query>::Return {
         assert_eq!(sender.sender_id, rusk_uplink::caller(), "Expected Caller");
         rusk_uplink::debug!("callee-1: calling state target 'get' with params: sender from param and callee");
         let call_data = Callee2Query {
@@ -110,8 +107,6 @@ const _: () = {
     framing_imports!();
 
     scratch_memory!(512);
-
-    q_handler!(_call, Callee1State, SenderParameter);
 
     t_handler!(_set_target, Callee1State, Callee1Transaction);
 };

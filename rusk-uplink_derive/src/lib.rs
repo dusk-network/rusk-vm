@@ -24,7 +24,7 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let ret_t = return_type_of_sig(&my_method.sig);
     let state_t = my_impl.self_ty.as_ref();
 
-    let wrapper_fun_name = format_ident!("_{}", fn_name);
+    let wrapper_fun_name = format_ident!("{}", fn_name);
     let scratch_name = format_ident!("scratch_{}", fn_name);
     let gen = quote! {
 
