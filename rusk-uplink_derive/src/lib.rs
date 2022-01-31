@@ -125,3 +125,28 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
     gen.into()
 }
 
+#[proc_macro_attribute]
+pub fn argument(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let arg_struct = parse_macro_input!(input as syn::ItemStruct);
+
+    let gen = quote! {
+
+        #[derive(derive_new::new, Clone, Debug, Default, Archive, Serialize, Deserialize)]
+        #arg_struct
+
+    };
+    gen.into()
+}
+
+#[proc_macro_attribute]
+pub fn state(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let arg_struct = parse_macro_input!(input as syn::ItemStruct);
+
+    let gen = quote! {
+
+        #[derive(derive_new::new, Clone, Debug, Default, Archive, Serialize, Deserialize)]
+        #arg_struct
+
+    };
+    gen.into()
+}

@@ -13,4 +13,4 @@ proc-macro = true
 syn = { version = "1.*", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
-
+derive-new = "0.5"

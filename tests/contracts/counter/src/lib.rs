@@ -14,69 +14,42 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{query, transaction};
+use rusk_uplink_derive::{query, transaction, argument, state};
 
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state]
 pub struct Counter {
-    junk: u32,
+    #[new(value = "0xffffffff")] junk: u32,
     value: i32,
 }
 
-impl Counter {
-    pub fn new(value: i32) -> Self {
-        Counter {
-            junk: 0xffffffff,
-            value,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct ReadValue;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct XorValues {
     a: i32,
     b: i32,
 }
 
-impl XorValues {
-    pub fn new(a: i32, b: i32) -> Self {
-        Self { a, b }
-    }
-}
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct IsEven;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct Increment;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct Decrement;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct Adjust {
     by: i32,
 }
 
-impl Adjust {
-    pub fn new(by: i32) -> Self {
-        Self { by }
-    }
-}
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct CompareAndSwap {
     expected: i32,
     new: i32,
-}
-
-impl CompareAndSwap {
-    pub fn new(expected: i32, new: i32) -> Self {
-        Self { expected, new }
-    }
 }
 
 #[transaction(name="adjust")]

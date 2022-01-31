@@ -14,23 +14,17 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{query, transaction};
+use rusk_uplink_derive::{query, transaction, argument, state};
 
-#[derive(Clone, Debug, Archive, Deserialize, Serialize)]
+#[state]
 pub struct Counter {
     value: u32,
 }
 
-impl Counter {
-    pub fn new(value: u32) -> Self {
-        Counter { value }
-    }
-}
-
-#[derive(Archive, Serialize, Debug, Deserialize, Clone)]
+#[argument]
 pub struct ReadCount;
 
-#[derive(Archive, Serialize, Debug, Deserialize, Clone)]
+#[argument]
 pub struct Increment(pub u32);
 
 #[query(name="read")]

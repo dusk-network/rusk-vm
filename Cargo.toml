@@ -31,6 +31,7 @@ rusk-uplink = { path = "rusk-uplink" }
 rusk-uplink_derive = { path = "./rusk-uplink_derive"}
 rkyv = { version = "0.7", default-features = false, features = ["alloc"] }
 bytecheck = { version = "0.6.7", default-features = false }
+derive-new = "0.5"
 
 [dev-dependencies]
 criterion = "0.3"
