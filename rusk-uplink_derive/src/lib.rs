@@ -128,31 +128,8 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-#[proc_macro_attribute]
-pub fn argument(attrs: TokenStream, input: TokenStream) -> TokenStream {
-    let arg_struct = parse_macro_input!(input as syn::ItemStruct);
-    let args = parse_macro_input!(attrs as DeriveArgs);
-
-    let gen = if args.derive_new {
-            quote! {
-                #[derive(derive_new::new, Clone, Debug, Default, Archive, Serialize, Deserialize)]
-                #arg_struct
-            }
-        } else {
-        quote! {
-                #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-                #arg_struct
-            }
-        };
-    gen.into()
-}
-
-#[proc_macro_attribute]
-pub fn state(attrs: TokenStream, input: TokenStream) -> TokenStream {
-    let arg_struct = parse_macro_input!(input as syn::ItemStruct);
-    let args = parse_macro_input!(attrs as DeriveArgs);
-
-    let gen = if args.derive_new {
+fn generate_struct_derivations(arg_struct: syn::ItemStruct, derive_new: bool) -> TokenStream {
+    let gen = if derive_new {
         quote! {
                 #[derive(derive_new::new, Clone, Debug, Default, Archive, Serialize, Deserialize)]
                 #arg_struct
@@ -164,4 +141,18 @@ pub fn state(attrs: TokenStream, input: TokenStream) -> TokenStream {
             }
     };
     gen.into()
+}
+
+#[proc_macro_attribute]
+pub fn argument(attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let arg_struct = parse_macro_input!(input as syn::ItemStruct);
+    let args = parse_macro_input!(attrs as DeriveArgs);
+    generate_struct_derivations(arg_struct, args.derive_new)
+}
+
+#[proc_macro_attribute]
+pub fn state(attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let arg_struct = parse_macro_input!(input as syn::ItemStruct);
+    let args = parse_macro_input!(attrs as DeriveArgs);
+    generate_struct_derivations(arg_struct, args.derive_new)
 }
