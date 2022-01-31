@@ -13,12 +13,12 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
-use rusk_uplink_derive::query;
+use rusk_uplink_derive::{query, argument, state};
 
-#[derive(Clone, Debug, Archive, Deserialize, Serialize)]
+#[state]
 pub struct Stringer;
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[argument(new=false)]
 pub struct Passthrough {
     string: String,
     repeat: u32,

@@ -19,7 +19,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use rusk_uplink_derive::{query, transaction, state, argument};
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state(new=false)]
 pub struct GasContextData {
     after_call_gas_limits: Vec<u64>,
     call_gas_limits: Vec<u64>,
@@ -66,15 +66,9 @@ impl GasContextData {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct TCompute {
     value: u64,
-}
-
-impl TCompute {
-    pub fn new(value: u64) -> Self {
-        Self { value }
-    }
 }
 
 #[transaction(name="t_compute")]
@@ -88,7 +82,7 @@ impl Apply<TCompute> for GasContextData {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument(new=false)]
 pub struct SetGasLimits {
     limits: Vec<u64>,
 }
@@ -111,7 +105,7 @@ impl Apply<SetGasLimits> for GasContextData {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct ReadGasLimits;
 
 #[query(name="read_gas_limits")]

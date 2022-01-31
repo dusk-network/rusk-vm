@@ -21,16 +21,12 @@ extern crate alloc;
 use alloc::boxed::Box;
 use rusk_uplink_derive::{query, transaction, state, argument};
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state]
 pub struct SelfSnapshot {
     crossover: i32,
 }
 
 impl SelfSnapshot {
-    pub fn new(init: i32) -> Self {
-        SelfSnapshot { crossover: init }
-    }
-
     pub fn crossover(&self) -> i32 {
         self.crossover
     }
@@ -100,7 +96,7 @@ impl SelfSnapshot {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct CrossoverQuery;
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -114,18 +110,12 @@ impl SetCrossoverTransaction {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct SelfCallTestATransaction {
     update: i32,
 }
 
-impl SelfCallTestATransaction {
-    pub fn new(update: i32) -> Self {
-        Self { update }
-    }
-}
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument(new=false)]
 pub struct SelfCallTestBTransaction {
     contract_id: ContractId,
     tx_data: Box<[u8]>,
@@ -148,15 +138,9 @@ impl SelfCallTestBTransaction {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct UpdateAndPanicTransaction {
     update: i32,
-}
-
-impl UpdateAndPanicTransaction {
-    pub fn new(update: i32) -> Self {
-        Self { update }
-    }
 }
 
 #[query(name="crossover")]

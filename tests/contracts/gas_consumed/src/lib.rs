@@ -18,16 +18,12 @@ use rusk_uplink_derive::{query, transaction, state, argument};
 
 extern crate alloc;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state]
 pub struct GasConsumed {
     value: i32,
 }
 
 impl GasConsumed {
-    pub fn new(value: i32) -> Self {
-        GasConsumed { value }
-    }
-
     pub fn value(&self) -> i32 {
         self.value
     }
@@ -40,9 +36,9 @@ impl GasConsumed {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct GasConsumedValueQuery;
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct GasConsumedQuery;
 
 #[query(name="value")]
@@ -70,9 +66,9 @@ impl Execute<GasConsumedQuery> for GasConsumed {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct GasConsumedIncrement;
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct GasConsumedDecrement;
 
 #[transaction(name="increment")]

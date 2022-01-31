@@ -17,7 +17,7 @@ use rusk_uplink::{ContractId, Query, Transaction, Apply, Execute, StoreContext};
 use rusk_uplink_derive::{query, transaction, state, argument};
 extern crate alloc;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state(new=false)]
 pub struct CallerState {
     target_address: ContractId,
 }
@@ -32,7 +32,7 @@ impl CallerState {
     }
 }
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[argument]
 pub struct CallerQuery;
 
 #[query(name="call")]
@@ -59,15 +59,9 @@ impl Execute<CallerQuery> for CallerState {
 }
 
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct CallerTransaction {
     target_id: ContractId,
-}
-
-impl CallerTransaction {
-    pub fn new(target_id: ContractId) -> Self {
-        Self { target_id }
-    }
 }
 
 #[transaction(name="set_target")]
@@ -86,7 +80,7 @@ impl Apply<CallerTransaction> for CallerState {
 }
 
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct Callee1Query {
     sender: ContractId,
 }

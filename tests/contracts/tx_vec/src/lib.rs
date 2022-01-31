@@ -22,15 +22,9 @@ use rusk_uplink_derive::{query, transaction, state, argument};
 extern crate alloc;
 use alloc::boxed::Box;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state]
 pub struct TxVec {
     value: u8,
-}
-
-impl TxVec {
-    pub fn new(value: u8) -> Self {
-        TxVec { value }
-    }
 }
 
 impl TxVec {
@@ -58,7 +52,7 @@ impl TxVec {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct TxVecReadValue;
 
 #[query(name="read_value", buf=8192)]
@@ -72,7 +66,7 @@ impl Execute<TxVecReadValue> for TxVec {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument(new=false)]
 pub struct TxVecSum {
     values: Box<[u8]>,
 }
@@ -97,7 +91,7 @@ impl Apply<TxVecSum> for TxVec {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument(new=false)]
 pub struct TxVecDelegateSum {
     contract_id: ContractId,
     data: Box<[u8]>,

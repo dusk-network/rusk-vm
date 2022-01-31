@@ -17,7 +17,7 @@ use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{query, transaction, state, argument};
+use rusk_uplink_derive::{query, transaction, argument};
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
@@ -25,15 +25,9 @@ pub struct Stack {
     inner: NStack<u64, Cardinality, OffsetLen>,
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct Peek {
     value: u64,
-}
-
-impl Peek {
-    pub fn new(value: u64) -> Self {
-        Self { value }
-    }
 }
 
 #[query(name="peek")]
@@ -43,15 +37,9 @@ impl Execute<Peek> for Stack {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct Push {
     value: u64,
-}
-
-impl Push {
-    pub fn new(value: u64) -> Self {
-        Self { value }
-    }
 }
 
 #[transaction(name="push")]
@@ -65,7 +53,7 @@ impl Apply<Push> for Stack {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[argument]
 pub struct Pop;
 
 #[transaction(name="pop")]
