@@ -77,17 +77,13 @@ impl TCompute {
     }
 }
 
-impl Transaction for TCompute {
-    const NAME: &'static str = "t_compute";
-    type Return = u64;
-}
-
+#[transaction(name="t_compute")]
 impl Apply<TCompute> for GasContextData {
     fn apply(
         &mut self,
         input: TCompute,
         store: StoreContext,
-    ) -> <TCompute as Transaction>::Return {
+    ) -> u64 {
         self.compute_with_transact(input.value, store)
     }
 }
@@ -104,17 +100,13 @@ impl SetGasLimits {
     }
 }
 
-impl Transaction for SetGasLimits {
-    const NAME: &'static str = "set_gas_limits";
-    type Return = ();
-}
-
+#[transaction(name="set_gas_limits")]
 impl Apply<SetGasLimits> for GasContextData {
     fn apply(
         &mut self,
         limits: SetGasLimits,
         _: StoreContext,
-    ) -> <SetGasLimits as Transaction>::Return {
+    ) {
         self.call_gas_limits = limits.limits.to_vec();
     }
 }
@@ -132,19 +124,3 @@ impl Execute<ReadGasLimits> for GasContextData {
         Box::from(&self.after_call_gas_limits[..])
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    t_handler_store_ser!(_t_compute, GasContextData, TCompute);
-
-    t_handler_store_ser!(
-        _set_gas_limits,
-        GasContextData,
-        SetGasLimits
-    );
-};
