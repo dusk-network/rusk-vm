@@ -18,15 +18,15 @@ use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
 };
-use rusk_uplink_derive::{query, transaction};
+use rusk_uplink_derive::{query, transaction, state, argument};
 
 extern crate alloc;
 use alloc::boxed::Box;
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[state]
 pub struct Delegator;
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[argument(new=false)]
 pub struct QueryForwardData {
     contract_id: ContractId,
     data: Box<[u8]>,
@@ -49,7 +49,7 @@ impl QueryForwardData {
     }
 }
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[argument(new=false)]
 pub struct TransactionForwardData {
     contract_id: ContractId,
     data: Box<[u8]>,

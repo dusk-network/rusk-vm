@@ -15,20 +15,14 @@
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query};
-use rusk_uplink_derive::query;
+use rusk_uplink_derive::{query, argument, state};
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[state]
 pub struct Fibonacci;
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[argument]
 pub struct ComputeFrom {
     value: u32,
-}
-
-impl ComputeFrom {
-    pub fn new(n: u32) -> Self {
-        Self { value: n }
-    }
 }
 
 #[query(name="compute", buf=128)]

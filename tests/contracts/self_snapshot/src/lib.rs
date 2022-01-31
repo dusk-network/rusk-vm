@@ -19,7 +19,7 @@ use rusk_uplink::{
 };
 extern crate alloc;
 use alloc::boxed::Box;
-use rusk_uplink_derive::{query, transaction};
+use rusk_uplink_derive::{query, transaction, state, argument};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct SelfSnapshot {

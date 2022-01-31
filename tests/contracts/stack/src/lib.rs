@@ -17,7 +17,7 @@ use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{query, transaction};
+use rusk_uplink_derive::{query, transaction, state, argument};
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]

@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Query, Transaction, Execute, Apply, StoreContext};
-use rusk_uplink_derive::{query, transaction};
+use rusk_uplink_derive::{query, transaction, state, argument};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Callee1State {
