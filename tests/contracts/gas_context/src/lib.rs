@@ -17,7 +17,7 @@ use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use rusk_uplink_derive::query;
+use rusk_uplink_derive::{query, transaction};
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct GasContextData {

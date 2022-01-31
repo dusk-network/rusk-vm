@@ -18,7 +18,7 @@ use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
 };
-use rusk_uplink_derive::query;
+use rusk_uplink_derive::{query, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -72,11 +72,6 @@ impl TransactionForwardData {
     }
 }
 
-impl Transaction for TransactionForwardData {
-    const NAME: &'static str = "delegate_transaction";
-    type Return = ();
-}
-
 #[query(name="delegate_query")]
 impl Execute<QueryForwardData> for Delegator {
     fn execute(
@@ -98,12 +93,13 @@ impl Execute<QueryForwardData> for Delegator {
     }
 }
 
+#[transaction(name="delegate_transaction")]
 impl Apply<TransactionForwardData> for Delegator {
     fn apply(
         &mut self,
         arg: TransactionForwardData,
         store: StoreContext,
-    ) -> <TransactionForwardData as Transaction>::Return {
+    ) {
         let query_name = arg.name.as_ref();
         let mut query_data = AlignedVec::new();
         query_data.extend_from_slice(arg.data.as_ref());
@@ -134,17 +130,3 @@ impl Delegator {
         rusk_uplink::transact_raw(self, target, transaction, 0, store).unwrap()
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(256);
-
-    t_handler!(
-        _delegate_transaction,
-        Delegator,
-        TransactionForwardData
-    );
-};

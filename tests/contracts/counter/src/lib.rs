@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::query;
+use rusk_uplink_derive::{query, transaction};
 
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -53,18 +53,8 @@ pub struct IsEven;
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Increment;
 
-impl Transaction for Increment {
-    const NAME: &'static str = "increment";
-    type Return = ();
-}
-
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Decrement;
-
-impl Transaction for Decrement {
-    const NAME: &'static str = "decrement";
-    type Return = ();
-}
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Adjust {
@@ -75,11 +65,6 @@ impl Adjust {
     pub fn new(by: i32) -> Self {
         Self { by }
     }
-}
-
-impl Transaction for Adjust {
-    const NAME: &'static str = "adjust";
-    type Return = ();
 }
 
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
@@ -94,17 +79,13 @@ impl CompareAndSwap {
     }
 }
 
-impl Transaction for CompareAndSwap {
-    const NAME: &'static str = "compare_and_swap";
-    type Return = bool;
-}
-
+#[transaction(name="adjust")]
 impl Apply<Adjust> for Counter {
     fn apply(
         &mut self,
         arg: Adjust,
         _: StoreContext,
-    ) -> <Adjust as Transaction>::Return {
+    ) {
         self.adjust(arg.by);
     }
 }
@@ -142,32 +123,35 @@ impl Execute<IsEven> for Counter {
     }
 }
 
+#[transaction(name="increment")]
 impl Apply<Increment> for Counter {
     fn apply(
         &mut self,
         _: Increment,
         _: StoreContext,
-    ) -> <Increment as Transaction>::Return {
+    ) {
         self.increment();
     }
 }
 
+#[transaction(name="decrement")]
 impl Apply<Decrement> for Counter {
     fn apply(
         &mut self,
         _: Decrement,
         _: StoreContext,
-    ) -> <Decrement as Transaction>::Return {
+    ) {
         self.decrement();
     }
 }
 
+#[transaction(name="compare_and_swap")]
 impl Apply<CompareAndSwap> for Counter {
     fn apply(
         &mut self,
         arg: CompareAndSwap,
         _: StoreContext,
-    ) -> <CompareAndSwap as Transaction>::Return {
+    ) -> bool {
         self.compare_and_swap(arg.expected, arg.new)
     }
 }
@@ -207,18 +191,18 @@ impl Counter {
     }
 }
 
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    t_handler!(adjust, Counter, Adjust);
-
-    t_handler!(_increment, Counter, Increment);
-
-    t_handler!(_decrement, Counter, Decrement);
-
-    t_handler!(_compare_and_swap, Counter, CompareAndSwap);
-};
+// #[cfg(target_family = "wasm")]
+// const _: () = {
+//     use rusk_uplink::framing_imports;
+//     framing_imports!();
+//
+//     scratch_memory!(512);
+//
+//     t_handler!(adjust, Counter, Adjust);
+//
+//     t_handler!(_increment, Counter, Increment);
+//
+//     t_handler!(_decrement, Counter, Decrement);
+//
+//     t_handler!(_compare_and_swap, Counter, CompareAndSwap);
+// };

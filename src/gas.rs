@@ -67,6 +67,7 @@ impl GasMeter {
 
     /// Returns how much gas was actually spent.
     pub fn spent(&self) -> Gas {
+        println!("gas limit = {} left = {}", self.limit, self.left);
         self.limit - self.left
     }
 
