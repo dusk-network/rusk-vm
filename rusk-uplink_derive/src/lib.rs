@@ -39,8 +39,7 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
         #[cfg(target_family = "wasm")]
         const _: () = {
             use rusk_uplink::{
-                get_state_arg_store, q_return_store_ser,
-                AbiStore, StoreContext
+                get_state_arg, q_return, AbiStore, StoreContext
             };
 
             #[no_mangle]
@@ -51,7 +50,7 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let store =
                     StoreContext::new(AbiStore::new(unsafe { &mut #scratch_name }));
                 let (state, arg): (#state_t, #arg_t) = unsafe {
-                    get_state_arg_store(
+                    get_state_arg(
                         written_state,
                         written_data,
                         &#scratch_name,
@@ -62,7 +61,7 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let res: <#arg_t as Query>::Return =
                     state.execute(arg, store.clone());
 
-                unsafe { q_return_store_ser(&res, store) }
+                unsafe { q_return(&res, store) }
             }
         };
     };
@@ -97,8 +96,7 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
         #[cfg(target_family = "wasm")]
         const _: () = {
             use rusk_uplink::{
-                get_state_arg_store, t_return_store_ser,
-                AbiStore, StoreContext
+                get_state_arg, t_return, AbiStore, StoreContext
             };
 
             #[no_mangle]
@@ -109,7 +107,7 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let store =
                     StoreContext::new(AbiStore::new(unsafe { &mut #scratch_name }));
                 let (mut state, arg): (#state_t, #arg_t) = unsafe {
-                    get_state_arg_store(
+                    get_state_arg(
                         written_state,
                         written_data,
                         &#scratch_name,
@@ -120,7 +118,7 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let res: <#arg_t as Transaction>::Return =
                     state.apply(arg, store.clone());
 
-                unsafe { t_return_store_ser(&state, &res, store) }
+                unsafe { t_return(&state, &res, store) }
             }
         };
     };

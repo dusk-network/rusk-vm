@@ -3,7 +3,7 @@ use microkelvin::{OffsetLen, StoreSerializer};
 use rkyv::ser::Serializer;
 use rkyv::{Archive, Deserialize, Serialize};
 
-pub fn get_state_arg_store<S, P>(
+pub fn get_state_arg<S, P>(
     written_state: u32,
     written_data: u32,
     scratch: impl AsRef<[u8]>,
@@ -31,7 +31,7 @@ where
     (state, arg)
 }
 
-pub fn q_return_store_ser<R>(ret: &R, store: StoreContext) -> u32
+pub fn q_return<R>(ret: &R, store: StoreContext) -> u32
 where
     R: Archive + Serialize<StoreSerializer<OffsetLen>>,
 {
@@ -41,7 +41,7 @@ where
     buffer_len as u32
 }
 
-pub fn t_return_store_ser<S, R>(
+pub fn t_return<S, R>(
     state: &S,
     ret: &R,
     store: StoreContext,
