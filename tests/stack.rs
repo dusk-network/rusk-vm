@@ -9,7 +9,7 @@ use rkyv::{archived_root, Deserialize};
 use rusk_vm::{Contract, ContractRef, GasMeter, NetworkState};
 use stack::Stack;
 
-#[ignore]
+#[test]
 fn stack() {
     type Leaf = u64;
     const N: Leaf = 0;

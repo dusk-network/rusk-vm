@@ -190,19 +190,3 @@ impl Counter {
         }
     }
 }
-
-// #[cfg(target_family = "wasm")]
-// const _: () = {
-//     use rusk_uplink::framing_imports;
-//     framing_imports!();
-//
-//     scratch_memory!(512);
-//
-//     t_handler!(adjust, Counter, Adjust);
-//
-//     t_handler!(_increment, Counter, Increment);
-//
-//     t_handler!(_decrement, Counter, Decrement);
-//
-//     t_handler!(_compare_and_swap, Counter, CompareAndSwap);
-// };
