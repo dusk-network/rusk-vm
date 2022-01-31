@@ -37,14 +37,10 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
         #[cfg(target_family = "wasm")]
         const _: () = {
-            use rusk_uplink::framing_imports;
             use rusk_uplink::{
-                get_state, get_state_arg, get_state_arg_store, q_return,
-                q_return_store_ser, q_handler,
-                q_handler_store_ser,
+                get_state_arg_store, q_return_store_ser,
                 AbiStore, StoreContext
             };
-            use microkelvin::{OffsetLen, StoreRef};
 
             #[no_mangle]
             static mut #scratch_name: [u8; 512] = [0u8; 512];
