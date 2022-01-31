@@ -13,27 +13,27 @@ use args::*;
 
 #[proc_macro_attribute]
 pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
-    let my_impl = parse_macro_input!(input as syn::ItemImpl);
+    let q_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
-    let fn_name = args.name;
+    let q_fn_name = args.name;
 
-    let my_method = first_method_of_impl(my_impl.clone()).unwrap();
-    let arg_types = non_self_argument_types(&my_method.sig);
+    let q_impl_method = first_method_of_impl(q_impl.clone()).unwrap();
+    let arg_types = non_self_argument_types(&q_impl_method.sig);
 
     let arg_t = arg_types.get(0).unwrap();
-    let ret_t = return_type_of_sig(&my_method.sig);
-    let state_t = my_impl.self_ty.as_ref();
+    let ret_t = return_type_of_sig(&q_impl_method.sig);
+    let state_t = q_impl.self_ty.as_ref();
 
-    let wrapper_fun_name = format_ident!("{}", fn_name);
-    let scratch_name = format_ident!("scratch_{}", fn_name);
+    let wrapper_fun_name = format_ident!("{}", q_fn_name);
+    let scratch_name = format_ident!("scratch_{}", q_fn_name);
     let gen = quote! {
 
         impl Query for #arg_t {
-            const NAME: &'static str = #fn_name;
+            const NAME: &'static str = #q_fn_name;
             type Return = #ret_t;
         }
 
-        #my_impl
+        #q_impl
 
         #[cfg(target_family = "wasm")]
         const _: () = {

@@ -1,5 +1,5 @@
-use syn::{FnArg, Type};
-use quote::{quote, ToTokens};
+use syn::FnArg;
+use quote::quote;
 
 pub fn first_method_of_impl(
     an_impl: syn::ItemImpl,
@@ -15,9 +15,7 @@ pub fn first_method_of_impl(
 
 pub fn non_self_argument_type(arg: &FnArg) -> Option<syn::Type> {
     let arg_ts_opt =  match arg {
-        syn::FnArg::Receiver(r) => {
-            let x = quote!(#r);
-            println!("Receiver {}", x);
+        syn::FnArg::Receiver(_) => {
             return None
         },
         syn::FnArg::Typed(pt) => {
@@ -26,9 +24,7 @@ pub fn non_self_argument_type(arg: &FnArg) -> Option<syn::Type> {
                 syn::Type::Reference(t) => &t.elem,
                 _ => t,
             };
-            let x = quote!(#t);
-            println!("Typed {}", x);
-            Some(x)
+            Some(quote!(#t))
         },
     };
     arg_ts_opt.map(syn::Type::Verbatim)
