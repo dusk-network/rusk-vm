@@ -31,7 +31,7 @@ impl ComputeFrom {
     }
 }
 
-#[query(name="compute")]
+#[query(name="compute", buf=128)]
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(
         &self,

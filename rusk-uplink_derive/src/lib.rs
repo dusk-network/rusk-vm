@@ -16,6 +16,7 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let q_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
     let q_fn_name = args.name;
+    let buf_size = args.buf;
 
     let q_impl_method = first_method_of_impl(q_impl.clone()).unwrap();
     let arg_types = non_self_argument_types(&q_impl_method.sig);
@@ -43,7 +44,7 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
             };
 
             #[no_mangle]
-            static mut #scratch_name: [u8; 512] = [0u8; 512];
+            static mut #scratch_name: [u8; #buf_size] = [0u8; #buf_size];
 
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> u32 {
@@ -73,6 +74,7 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let t_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
     let t_fn_name = args.name;
+    let buf_size = args.buf;
 
     let t_impl_method = first_method_of_impl(t_impl.clone()).unwrap();
     let arg_types = non_self_argument_types(&t_impl_method.sig);
@@ -100,7 +102,7 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
             };
 
             #[no_mangle]
-            static mut #scratch_name: [u8; 512] = [0u8; 512];
+            static mut #scratch_name: [u8; #buf_size] = [0u8; #buf_size];
 
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
