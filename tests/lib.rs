@@ -385,7 +385,7 @@ fn tx_vec() {
     assert_eq!(value, v);
 }
 
-#[ignore]
+#[test]
 fn calling() {
     let caller = CallerState::new();
     let callee1 = Callee1State::new();

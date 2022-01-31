@@ -70,17 +70,13 @@ impl CallerTransaction {
     }
 }
 
-impl Transaction for CallerTransaction {
-    const NAME: &'static str = "set_target";
-    type Return = ();
-}
-
+#[transaction(name="set_target")]
 impl Apply<CallerTransaction> for CallerState {
     fn apply(
         &mut self,
         target: CallerTransaction,
         _: StoreContext,
-    ) -> <CallerTransaction as Transaction>::Return {
+    ) {
         self.set_target(target.target_id);
         rusk_uplink::debug!(
             "setting state.set_target to: {:?}",
@@ -99,13 +95,3 @@ impl Query for Callee1Query {
     const NAME: &'static str = "call";
     type Return = ([u8; 32], [u8; 32], [u8; 32]);
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    t_handler!(_set_target, CallerState, CallerTransaction);
-};

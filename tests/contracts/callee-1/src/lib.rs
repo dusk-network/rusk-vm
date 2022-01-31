@@ -42,17 +42,13 @@ impl Callee1Transaction {
     }
 }
 
-impl Transaction for Callee1Transaction {
-    const NAME: &'static str = "set_target";
-    type Return = ();
-}
-
+#[transaction(name="set_target")]
 impl Apply<Callee1Transaction> for Callee1State {
     fn apply(
         &mut self,
         target: Callee1Transaction,
         _: StoreContext,
-    ) -> <Callee1Transaction as Transaction>::Return {
+    ) {
         self.set_target(target.target_id);
         rusk_uplink::debug!(
             "setting state.set_target to: {:?}",
@@ -99,14 +95,3 @@ impl Execute<SenderParameter> for Callee1State {
         .unwrap()
     }
 }
-
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    t_handler!(_set_target, Callee1State, Callee1Transaction);
-};
