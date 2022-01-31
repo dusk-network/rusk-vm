@@ -75,44 +75,24 @@ pub struct GasConsumedIncrement;
 #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
 pub struct GasConsumedDecrement;
 
-impl Transaction for GasConsumedIncrement {
-    const NAME: &'static str = "increment";
-    type Return = ();
-}
-
-impl Transaction for GasConsumedDecrement {
-    const NAME: &'static str = "decrement";
-    type Return = ();
-}
-
+#[transaction(name="increment")]
 impl Apply<GasConsumedIncrement> for GasConsumed {
     fn apply(
         &mut self,
         _: GasConsumedIncrement,
         _: StoreContext,
-    ) -> <GasConsumedIncrement as Transaction>::Return {
+    ) {
         self.increment()
     }
 }
 
+#[transaction(name="decrement")]
 impl Apply<GasConsumedDecrement> for GasConsumed {
     fn apply(
         &mut self,
         _: GasConsumedDecrement,
         _: StoreContext,
-    ) -> <GasConsumedDecrement as Transaction>::Return {
+    ) {
         self.decrement()
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    t_handler!(_increment, GasConsumed, GasConsumedIncrement);
-
-    t_handler!(_decrement, GasConsumed, GasConsumedDecrement);
-};

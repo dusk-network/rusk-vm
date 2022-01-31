@@ -431,7 +431,7 @@ fn calling() {
     )
 }
 
-#[ignore]
+#[test]
 fn gas_consumed_host_function_works() {
     let gas_contract = GasConsumed::new(99);
 
@@ -473,7 +473,7 @@ fn gas_consumed_host_function_works() {
     gas.spent());
 }
 
-#[ignore]
+#[test]
 fn gas_consumption_works() {
     let counter = Counter::new(99);
 
@@ -505,7 +505,7 @@ fn gas_consumption_works() {
     assert!(gas.left() < 1_000_000_000);
 }
 
-#[ignore]
+#[test]
 fn out_of_gas_aborts_transaction_execution() {
     let counter = Counter::new(99);
 
@@ -530,7 +530,7 @@ fn out_of_gas_aborts_transaction_execution() {
     assert_eq!(gas.left(), 0);
 }
 
-#[ignore]
+#[test]
 fn out_of_gas_aborts_query_execution() {
     let counter = Counter::new(99);
 
@@ -555,7 +555,7 @@ fn out_of_gas_aborts_query_execution() {
     assert_eq!(gas.left(), 0);
 }
 
-#[ignore]
+#[test]
 fn commit_and_reset() {
     let counter = Counter::new(99);
 
