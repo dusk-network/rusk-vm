@@ -164,7 +164,7 @@ fn delegated_call() {
     );
 }
 
-#[ignore]
+#[test]
 fn fibonacci() {
     use fibonacci::Fibonacci;
     let fib = Fibonacci;
@@ -194,7 +194,7 @@ fn fibonacci() {
     }
 }
 
-#[ignore]
+#[test]
 fn block_height() {
     let bh = BlockHeight {};
 
@@ -219,7 +219,7 @@ fn block_height() {
     )
 }
 
-#[ignore]
+#[test]
 fn self_snapshot() {
     let self_snapshot = SelfSnapshot::new(7);
 

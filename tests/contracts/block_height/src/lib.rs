@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
-use rusk_uplink_derive::{query, transaction};
+use rusk_uplink_derive::query;
 
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct BlockHeight;

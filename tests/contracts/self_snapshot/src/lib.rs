@@ -170,47 +170,35 @@ impl Execute<CrossoverQuery> for SelfSnapshot {
     }
 }
 
-impl Transaction for SetCrossoverTransaction {
-    const NAME: &'static str = "set_crossover";
-    type Return = i32;
-}
-
+#[transaction(name="set_crossover")]
 impl Apply<SetCrossoverTransaction> for SelfSnapshot {
     fn apply(
         &mut self,
         to: SetCrossoverTransaction,
         _: StoreContext,
-    ) -> <SetCrossoverTransaction as Transaction>::Return {
+    ) -> i32 {
         self.set_crossover(to.crossover)
     }
 }
 
-impl Transaction for SelfCallTestATransaction {
-    const NAME: &'static str = "self_call_test_a";
-    type Return = i32;
-}
-
+#[transaction(name="self_call_test_a")]
 impl Apply<SelfCallTestATransaction> for SelfSnapshot {
     fn apply(
         &mut self,
         update: SelfCallTestATransaction,
         store: StoreContext,
-    ) -> <SelfCallTestATransaction as Transaction>::Return {
+    ) -> i32 {
         self.self_call_test_a(update.update, store)
     }
 }
 
-impl Transaction for SelfCallTestBTransaction {
-    const NAME: &'static str = "self_call_test_b";
-    type Return = i32;
-}
-
+#[transaction(name="self_call_test_b")]
 impl Apply<SelfCallTestBTransaction> for SelfSnapshot {
     fn apply(
         &mut self,
         arg: SelfCallTestBTransaction,
         store: StoreContext,
-    ) -> <SelfCallTestBTransaction as Transaction>::Return {
+    ) -> i32 {
         let mut tx_data = AlignedVec::new();
         tx_data.extend_from_slice(arg.tx_data.as_ref());
         let raw_transaction = RawTransaction::from(tx_data, &arg.tx_name);
@@ -218,49 +206,13 @@ impl Apply<SelfCallTestBTransaction> for SelfSnapshot {
     }
 }
 
-impl Transaction for UpdateAndPanicTransaction {
-    const NAME: &'static str = "update_and_panic";
-    type Return = ();
-}
-
+#[transaction(name="update_and_panic")]
 impl Apply<UpdateAndPanicTransaction> for SelfSnapshot {
     fn apply(
         &mut self,
         update_and_panic: UpdateAndPanicTransaction,
         store: StoreContext,
-    ) -> <UpdateAndPanicTransaction as Transaction>::Return {
+    ) {
         self.update_and_panic(update_and_panic.update, store);
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    t_handler!(
-        _set_crossover,
-        SelfSnapshot,
-        SetCrossoverTransaction
-    );
-
-    t_handler!(
-        _self_call_test_a,
-        SelfSnapshot,
-        SelfCallTestATransaction
-    );
-
-    t_handler!(
-        _self_call_test_b,
-        SelfSnapshot,
-        SelfCallTestBTransaction
-    );
-
-    t_handler!(
-        _update_and_panic,
-        SelfSnapshot,
-        UpdateAndPanicTransaction
-    );
-};
