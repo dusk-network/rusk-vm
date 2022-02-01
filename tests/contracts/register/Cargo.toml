@@ -13,3 +13,5 @@ rusk-uplink = { path = "../../../rusk-uplink", default-features = false }
 rkyv = { version = "0.7", default-features = false }
 dusk-hamt = "0.7"
 bytecheck = { version = "0.6.7", default-features = false }
+rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }
+derive-new = "0.5"

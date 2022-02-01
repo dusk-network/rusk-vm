@@ -16,6 +16,7 @@ use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
+use register::{Register, NumSecrets, Gossip, SecretHash};
 
 mod dual_test;
 
@@ -577,5 +578,52 @@ fn commit_and_reset() {
             .query(contract_id, 0, counter::ReadValue, &mut gas)
             .unwrap(),
         99
+    );
+}
+
+#[test]
+fn register() {
+    let register = Register::new();
+
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/register.wasm"
+    );
+
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&register, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let secret_data: [u8; 32] = [5u8; 32];
+    let secret_hash = SecretHash::new(secret_data);
+
+    const N: u32 = 5;
+
+    network
+        .transact(contract_id, 0, Gossip::new(secret_hash), &mut gas)
+        .expect("Transaction error");
+
+    assert_eq!(
+        network
+            .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
+            .expect("Query error"),
+        1
+    );
+
+    for _ in 1..N {
+        network
+            .transact(contract_id, 0, Gossip::new(secret_hash), &mut gas)
+            .expect("Transaction error");
+    }
+
+    assert_eq!(
+        network
+            .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
+            .expect("Query error"),
+        N
     );
 }

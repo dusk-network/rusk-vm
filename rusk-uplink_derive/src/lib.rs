@@ -136,7 +136,7 @@ fn generate_struct_derivations(arg_struct: syn::ItemStruct, derive_new: bool) ->
             }
     } else {
         quote! {
-                #[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+                #[derive(Clone, Default, Archive, Serialize, Deserialize)]
                 #arg_struct
             }
     };
