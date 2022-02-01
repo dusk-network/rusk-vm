@@ -30,7 +30,7 @@ pub struct Peek {
     value: u64,
 }
 
-#[query(name="peek")]
+#[query(name="peek", buf=65536)]
 impl Execute<Peek> for Stack {
     fn execute(&self, arg: Peek, _: StoreContext) -> Option<u64> {
         self.peek(arg.value)
@@ -42,7 +42,7 @@ pub struct Push {
     value: u64,
 }
 
-#[transaction(name="push")]
+#[transaction(name="push", buf=65536)]
 impl Apply<Push> for Stack {
     fn apply(
         &mut self,
@@ -56,7 +56,7 @@ impl Apply<Push> for Stack {
 #[argument]
 pub struct Pop;
 
-#[transaction(name="pop")]
+#[transaction(name="pop", buf=65536)]
 impl Apply<Pop> for Stack {
     fn apply(
         &mut self,

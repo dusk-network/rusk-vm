@@ -9,8 +9,7 @@ use stack::*;
 mod dual_test;
 use dual_test::DualTest;
 
-// todo - fails when N greater than 4
-#[ignore]
+#[test]
 fn stack() {
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
