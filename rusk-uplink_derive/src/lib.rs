@@ -50,13 +50,14 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> u32 {
+                let (state_arg, mut rest) = unsafe { #scratch_name.split_at_mut(written_data as usize) };
                 let store =
-                    StoreContext::new(AbiStore::new(unsafe { &mut #scratch_name }));
+                    StoreContext::new(AbiStore::new(unsafe { &mut rest }));
                 let (state, arg): (#state_t, #arg_t) = unsafe {
                     get_state_arg(
                         written_state,
                         written_data,
-                        &#scratch_name,
+                        &state_arg,
                         store.clone(),
                     )
                 };
@@ -64,6 +65,8 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let res: <#arg_t as Query>::Return =
                     state.execute(arg, store.clone());
 
+                let scratch = unsafe { &mut #scratch_name[..] };
+                let store = StoreContext::new(AbiStore::new(scratch));
                 unsafe { q_return(&res, store) }
             }
         };
@@ -107,13 +110,14 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
+                let (state_arg, mut rest) = unsafe { #scratch_name.split_at_mut(written_data as usize) };
                 let store =
-                    StoreContext::new(AbiStore::new(unsafe { &mut #scratch_name }));
+                    StoreContext::new(AbiStore::new(unsafe { &mut rest }));
                 let (mut state, arg): (#state_t, #arg_t) = unsafe {
                     get_state_arg(
                         written_state,
                         written_data,
-                        &#scratch_name,
+                        &state_arg,
                         store.clone(),
                     )
                 };
@@ -121,6 +125,8 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let res: <#arg_t as Transaction>::Return =
                     state.apply(arg, store.clone());
 
+                let scratch = unsafe { &mut #scratch_name[..] };
+                let store = StoreContext::new(AbiStore::new(scratch));
                 unsafe { t_return(&state, &res, store) }
             }
         };
