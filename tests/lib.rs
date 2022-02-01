@@ -17,6 +17,10 @@ use rusk_vm::{Contract, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
 
+mod dual_test;
+
+use dual_test::DualTest;
+
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
         n
@@ -27,42 +31,18 @@ fn fibonacci_reference(n: u64) -> u64 {
 
 #[test]
 fn minimal_counter() {
-    let counter = minimal_counter::Counter::new(99);
+    use minimal_counter::*;
 
-    let code = include_bytes!(
-        "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+    let mut test = DualTest::new(
+        Counter::new(99),
+        include_bytes!(
+            "../target/wasm32-unknown-unknown/release/deps/minimal_counter.wasm"
+        ),
     );
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&counter, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store);
-
-    let contract_id = network.deploy(contract).unwrap();
-
-    let mut gas = GasMeter::with_limit(1_000_000_000);
-
-    assert_eq!(
-        network
-            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
-            .unwrap(),
-        99
-    );
-
-    println!("ok!");
-
-    network
-        .transact(contract_id, 0, minimal_counter::Increment(1), &mut gas)
-        .unwrap();
-
-    println!("ek!");
-
-    assert_eq!(
-        network
-            .query(contract_id, 0, minimal_counter::ReadCount, &mut gas)
-            .unwrap(),
-        100
-    );
+    assert_eq!(test.execute(ReadCount), 99);
+    test.apply(Increment(1));
+    assert_eq!(test.execute(ReadCount), 100);
 }
 
 #[test]
@@ -120,7 +100,7 @@ fn delegated_call() {
     use rkyv::ser::Serializer;
     use rkyv::Archive;
 
-    let mut buf = [0u8; 512];
+    let mut buf = [0u8; 128];
     let mut ser = BufferSerializer::new(&mut buf);
     let buffer_len = ser.serialize_value(&incr_value).unwrap()
         + core::mem::size_of::<<counter::Increment as Archive>::Archived>();
