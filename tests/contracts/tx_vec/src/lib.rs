@@ -103,7 +103,7 @@ mod hosted {
 
                 let mut sink = Sink::new(&mut bytes[..]);
                 // return new state
-                &ContractState::from_canon(&slf).encode(&mut sink);
+                let _ = &ContractState::from_canon(&slf).encode(&mut sink);
 
                 // return value
                 ReturnValue::from_canon(&()).encode(&mut sink);

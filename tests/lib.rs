@@ -605,7 +605,7 @@ fn deploy_with_id() -> Result<(), VMError> {
 fn persistence() {
     use microkelvin::{BackendCtor, DiskBackend};
     fn testbackend() -> BackendCtor<DiskBackend> {
-        BackendCtor::new(|| DiskBackend::ephemeral())
+        BackendCtor::new(DiskBackend::ephemeral)
     }
 
     let counter = Counter::new(99);
@@ -713,7 +713,7 @@ fn commit_and_reset() {
 fn persist_commit_and_reset() {
     use microkelvin::{BackendCtor, DiskBackend};
     fn testbackend() -> BackendCtor<DiskBackend> {
-        BackendCtor::new(|| DiskBackend::ephemeral())
+        BackendCtor::new(DiskBackend::ephemeral)
     }
 
     let counter = Counter::new(99);
