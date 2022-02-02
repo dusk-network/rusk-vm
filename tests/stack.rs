@@ -86,7 +86,7 @@ fn stack() {
 fn stack_persist() {
     use microkelvin::{BackendCtor, DiskBackend};
     fn testbackend() -> BackendCtor<DiskBackend> {
-        BackendCtor::new(|| DiskBackend::ephemeral())
+        BackendCtor::new(DiskBackend::ephemeral)
     }
 
     type Leaf = u64;
