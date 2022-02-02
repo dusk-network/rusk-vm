@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2022-02-02
+
+### Added
+
+- Add `NetworkStateId` structure to handle both origin/head `PersistedId`
+- Add utility methods to `NetworkStateId` to save / load from file
+- Add `persist` module under `state`
+
+### Changed
+
+- Update rust toolchain
+- Change `NetworkState::persist` to store both origin/head
+- Change `NetworkState::persist()` to accept the same type of `Persistence::persist()`
+- Change `NetworkState::restore` to restore both origin/head
+- Update integration tests
+- Change the rust toolchain
+
+### Removed
+
+- Remove host modules from Rusk-VM's instances
+
+### Fixed
+
+- Fix minor nits on tests
+
 ## [0.7.0] - 2022-01-19
 
 ### Added

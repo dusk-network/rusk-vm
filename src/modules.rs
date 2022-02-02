@@ -4,9 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use crate::compiler::WasmerCompiler;
 use crate::{Schedule, VMError};
@@ -21,7 +19,7 @@ use wasmer::Module;
 
 pub use dusk_abi::{ContractId, ContractState};
 
-type BoxedHostModule = Box<dyn HostModule>;
+type BoxedHostModule = Box<dyn HostModule + Send + Sync>;
 
 /// Compiles a module with the specified bytecode or retrieves it from
 pub fn compile_module(
@@ -54,41 +52,24 @@ cached_key_result! {
 }
 
 /// A cheaply cloneable store for host modules.
-#[derive(Clone, Default)]
-pub struct HostModules(Rc<RefCell<HashMap<ContractId, BoxedHostModule>>>);
-
-/// A `Ref` to a particular host module.
-pub struct HostModuleRef<'a> {
-    map_ref: Ref<'a, HashMap<ContractId, BoxedHostModule>>,
-    id: &'a ContractId,
-}
-
-impl<'a> HostModuleRef<'a> {
-    pub fn get(&self) -> Option<&BoxedHostModule> {
-        self.map_ref.get(self.id)
-    }
-}
+#[derive(Default)]
+pub struct HostModules(HashMap<ContractId, BoxedHostModule>);
 
 impl HostModules {
     /// Insert a new module into the store.
     pub fn insert<M>(&mut self, module: M)
     where
-        M: 'static + HostModule,
+        M: 'static + HostModule + Sync + Send,
     {
-        self.0
-            .borrow_mut()
-            .insert(module.module_id(), Box::new(module));
+        self.0.insert(module.module_id(), Box::new(module));
     }
 
-    /// Get a reference to a particular module from the store.
-    pub fn get_module_ref<'a>(
+    // Get a reference to a particular module from the store.
+    pub fn get_module<'a>(
         &'a self,
         id: &'a ContractId,
-    ) -> HostModuleRef<'a> {
-        HostModuleRef {
-            map_ref: self.0.borrow(),
-            id,
-        }
+    ) -> Option<&'a BoxedHostModule> {
+        self.0.get(id)
     }
 }
 

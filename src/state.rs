@@ -26,6 +26,15 @@ pub mod persist;
 #[derive(Clone, Default, Canon)]
 pub struct Contracts(Map<ContractId, Contract>);
 
+use once_cell::sync::Lazy;
+use parking_lot::RwLock;
+use std::sync::Arc;
+
+/// A thread-safe singleton used to register host modules shared across all
+/// network states and call contexts.
+pub(crate) static HOST_MODULES: Lazy<Arc<RwLock<HostModules>>> =
+    Lazy::new(|| Arc::new(RwLock::new(HostModules::default())));
+
 impl Contracts {
     /// Returns a reference to the specified contracts state.
     pub fn get_contract<'a>(
@@ -100,7 +109,6 @@ impl Contracts {
 pub struct NetworkState {
     origin: Contracts,
     head: Contracts,
-    modules: HostModules,
     module_config: ModuleConfig,
 }
 
@@ -119,7 +127,6 @@ impl Canon for NetworkState {
         Ok(Self {
             origin,
             head,
-            modules: HostModules::default(),
             module_config: ModuleConfig::new(),
         })
     }
@@ -165,11 +172,6 @@ impl NetworkState {
         contract_id: &ContractId,
     ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
         self.head.get_contract_mut(contract_id)
-    }
-
-    /// Returns a reference to the map of registered host modules
-    pub fn modules(&self) -> &HostModules {
-        &self.modules
     }
 
     /// Deploys a contract to the `head` state, returning the address of the
@@ -302,9 +304,9 @@ impl NetworkState {
     /// Register a host function handler.
     pub fn register_host_module<M>(&mut self, module: M)
     where
-        M: HostModule + 'static,
+        M: HostModule + 'static + Sync + Send,
     {
-        self.modules.insert(module);
+        HOST_MODULES.write().insert(module);
     }
 
     /// Gets the state of the given contract in the `head` state.

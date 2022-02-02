@@ -62,8 +62,8 @@ impl NetworkState {
     where
         B: 'static + Backend,
     {
-        let head = Persistence::persist(&ctor, &self.head.0)?;
-        let origin = Persistence::persist(&ctor, &self.origin.0)?;
+        let head = Persistence::persist(ctor, &self.head.0)?;
+        let origin = Persistence::persist(ctor, &self.origin.0)?;
 
         Ok(NetworkStateId { head, origin })
     }
