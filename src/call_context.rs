@@ -18,7 +18,7 @@ use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
 use crate::modules::compile_module;
 use crate::resolver::HostImportsResolver;
-use crate::state::{Contracts, NetworkState};
+use crate::state::{Contracts, NetworkState, HOST_MODULES};
 use crate::VMError;
 
 pub struct StackFrame {
@@ -118,8 +118,7 @@ impl<'a> CallContext<'a> {
 
         let instance: Instance;
 
-        if let Some(module) = self.state.modules().get_module_ref(&target).get()
-        {
+        if let Some(module) = HOST_MODULES.read().get_module(&target) {
             // is this a reserved module call?
             return module.execute(query).map_err(VMError::from_store_error);
         } else {
