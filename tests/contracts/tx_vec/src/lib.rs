@@ -17,7 +17,7 @@ use rusk_uplink::StoreContext;
 use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawTransaction, Transaction,
 };
-use rusk_uplink_derive::{query, transaction, state, argument};
+use rusk_uplink_derive::{argument, query, state, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -55,18 +55,14 @@ impl TxVec {
 #[argument]
 pub struct TxVecReadValue;
 
-#[query(name="read_value", buf=8192)]
+#[query(name = "read_value", buf = 8192)]
 impl Execute<TxVecReadValue> for TxVec {
-    fn execute(
-        &self,
-        _: TxVecReadValue,
-        _: StoreContext,
-    ) -> u8 {
+    fn execute(&self, _: TxVecReadValue, _: StoreContext) -> u8 {
         self.read_value()
     }
 }
 
-#[argument(new=false)]
+#[argument(new = false)]
 pub struct TxVecSum {
     values: Box<[u8]>,
 }
@@ -79,19 +75,15 @@ impl TxVecSum {
     }
 }
 
-#[transaction(name="sum", buf=8192)]
+#[transaction(name = "sum", buf = 8192)]
 impl Apply<TxVecSum> for TxVec {
-    fn apply(
-        &mut self,
-        s: TxVecSum,
-        _: StoreContext,
-    ) -> u8 {
+    fn apply(&mut self, s: TxVecSum, _: StoreContext) -> u8 {
         self.sum(&s.values);
         self.value
     }
 }
 
-#[argument(new=false)]
+#[argument(new = false)]
 pub struct TxVecDelegateSum {
     contract_id: ContractId,
     data: Box<[u8]>,
@@ -104,13 +96,9 @@ impl TxVecDelegateSum {
     }
 }
 
-#[transaction(name="delegate_sum", buf=8192)]
+#[transaction(name = "delegate_sum", buf = 8192)]
 impl Apply<TxVecDelegateSum> for TxVec {
-    fn apply(
-        &mut self,
-        s: TxVecDelegateSum,
-        store: StoreContext,
-    ) {
+    fn apply(&mut self, s: TxVecDelegateSum, store: StoreContext) {
         self.delegate_sum(&s.contract_id, &s.data, store)
     }
 }

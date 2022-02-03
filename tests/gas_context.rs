@@ -8,9 +8,7 @@ use gas_context::{GasContextData, SetGasLimits};
 use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, Gas, GasMeter, NetworkState};
 
-
-
-fn make_gas_bounds(top: u64, vec: &mut Vec<(u64, u64)>, count: usize){
+fn make_gas_bounds(top: u64, vec: &mut Vec<(u64, u64)>, count: usize) {
     let bounds = (top * GasMeter::RESERVE_PERCENTAGE / 100, top);
     vec.push(bounds);
     if count > 1 {

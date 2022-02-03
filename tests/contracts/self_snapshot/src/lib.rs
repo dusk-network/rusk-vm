@@ -19,7 +19,7 @@ use rusk_uplink::{
 };
 extern crate alloc;
 use alloc::boxed::Box;
-use rusk_uplink_derive::{query, transaction, state, argument};
+use rusk_uplink_derive::{argument, query, state, transaction};
 
 #[state]
 pub struct SelfSnapshot {
@@ -115,7 +115,7 @@ pub struct SelfCallTestATransaction {
     update: i32,
 }
 
-#[argument(new=false)]
+#[argument(new = false)]
 pub struct SelfCallTestBTransaction {
     contract_id: ContractId,
     tx_data: Box<[u8]>,
@@ -143,29 +143,21 @@ pub struct UpdateAndPanicTransaction {
     update: i32,
 }
 
-#[query(name="crossover")]
+#[query(name = "crossover")]
 impl Execute<CrossoverQuery> for SelfSnapshot {
-    fn execute(
-        &self,
-        _: CrossoverQuery,
-        _: StoreContext,
-    ) -> i32 {
+    fn execute(&self, _: CrossoverQuery, _: StoreContext) -> i32 {
         self.crossover
     }
 }
 
-#[transaction(name="set_crossover")]
+#[transaction(name = "set_crossover")]
 impl Apply<SetCrossoverTransaction> for SelfSnapshot {
-    fn apply(
-        &mut self,
-        to: SetCrossoverTransaction,
-        _: StoreContext,
-    ) -> i32 {
+    fn apply(&mut self, to: SetCrossoverTransaction, _: StoreContext) -> i32 {
         self.set_crossover(to.crossover)
     }
 }
 
-#[transaction(name="self_call_test_a")]
+#[transaction(name = "self_call_test_a")]
 impl Apply<SelfCallTestATransaction> for SelfSnapshot {
     fn apply(
         &mut self,
@@ -176,7 +168,7 @@ impl Apply<SelfCallTestATransaction> for SelfSnapshot {
     }
 }
 
-#[transaction(name="self_call_test_b")]
+#[transaction(name = "self_call_test_b")]
 impl Apply<SelfCallTestBTransaction> for SelfSnapshot {
     fn apply(
         &mut self,
@@ -190,7 +182,7 @@ impl Apply<SelfCallTestBTransaction> for SelfSnapshot {
     }
 }
 
-#[transaction(name="update_and_panic")]
+#[transaction(name = "update_and_panic")]
 impl Apply<UpdateAndPanicTransaction> for SelfSnapshot {
     fn apply(
         &mut self,

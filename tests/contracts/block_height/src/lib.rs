@@ -22,13 +22,9 @@ pub struct BlockHeight;
 #[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub struct ReadBlockHeight;
 
-#[query(name="read_block_height")]
+#[query(name = "read_block_height")]
 impl Execute<ReadBlockHeight> for BlockHeight {
-    fn execute(
-        &self,
-        _: ReadBlockHeight,
-        _: StoreContext,
-    ) -> u64 {
+    fn execute(&self, _: ReadBlockHeight, _: StoreContext) -> u64 {
         rusk_uplink::block_height()
     }
 }

@@ -14,12 +14,12 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{query, transaction, argument, state};
-
+use rusk_uplink_derive::{argument, query, state, transaction};
 
 #[state]
 pub struct Counter {
-    #[new(value = "0xffffffff")] junk: u32,
+    #[new(value = "0xffffffff")]
+    junk: u32,
     value: i32,
 }
 
@@ -52,79 +52,51 @@ pub struct CompareAndSwap {
     new: i32,
 }
 
-#[transaction(name="adjust")]
+#[transaction(name = "adjust")]
 impl Apply<Adjust> for Counter {
-    fn apply(
-        &mut self,
-        arg: Adjust,
-        _: StoreContext,
-    ) {
+    fn apply(&mut self, arg: Adjust, _: StoreContext) {
         self.adjust(arg.by);
     }
 }
 
-#[query(name="read_value")]
+#[query(name = "read_value")]
 impl Execute<ReadValue> for Counter {
-    fn execute(
-        &self,
-        _: ReadValue,
-        _: StoreContext,
-    ) -> i32 {
+    fn execute(&self, _: ReadValue, _: StoreContext) -> i32 {
         self.value
     }
 }
 
-#[query(name="xor_values")]
+#[query(name = "xor_values")]
 impl Execute<XorValues> for Counter {
-    fn execute(
-        &self,
-        arg: XorValues,
-        _: StoreContext,
-    ) -> i32 {
+    fn execute(&self, arg: XorValues, _: StoreContext) -> i32 {
         self.xor_values(arg.a, arg.b)
     }
 }
 
-#[query(name="is_even")]
+#[query(name = "is_even")]
 impl Execute<IsEven> for Counter {
-    fn execute(
-        &self,
-        _: IsEven,
-        _: StoreContext,
-    ) -> bool {
+    fn execute(&self, _: IsEven, _: StoreContext) -> bool {
         self.is_even()
     }
 }
 
-#[transaction(name="increment")]
+#[transaction(name = "increment")]
 impl Apply<Increment> for Counter {
-    fn apply(
-        &mut self,
-        _: Increment,
-        _: StoreContext,
-    ) {
+    fn apply(&mut self, _: Increment, _: StoreContext) {
         self.increment();
     }
 }
 
-#[transaction(name="decrement")]
+#[transaction(name = "decrement")]
 impl Apply<Decrement> for Counter {
-    fn apply(
-        &mut self,
-        _: Decrement,
-        _: StoreContext,
-    ) {
+    fn apply(&mut self, _: Decrement, _: StoreContext) {
         self.decrement();
     }
 }
 
-#[transaction(name="compare_and_swap")]
+#[transaction(name = "compare_and_swap")]
 impl Apply<CompareAndSwap> for Counter {
-    fn apply(
-        &mut self,
-        arg: CompareAndSwap,
-        _: StoreContext,
-    ) -> bool {
+    fn apply(&mut self, arg: CompareAndSwap, _: StoreContext) -> bool {
         self.compare_and_swap(arg.expected, arg.new)
     }
 }

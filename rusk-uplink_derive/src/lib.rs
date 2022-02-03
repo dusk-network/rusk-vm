@@ -4,7 +4,6 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::parse_macro_input;
 
-
 mod macro_helper;
 use macro_helper::*;
 
@@ -134,17 +133,20 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn generate_struct_derivations(arg_struct: syn::ItemStruct, derive_new: bool) -> TokenStream {
+fn generate_struct_derivations(
+    arg_struct: syn::ItemStruct,
+    derive_new: bool,
+) -> TokenStream {
     let gen = if derive_new {
         quote! {
-                #[derive(derive_new::new, Clone, Debug, Default, Archive, Serialize, Deserialize)]
-                #arg_struct
-            }
+            #[derive(derive_new::new, Clone, Debug, Default, Archive, Serialize, Deserialize)]
+            #arg_struct
+        }
     } else {
         quote! {
-                #[derive(Clone, Default, Archive, Serialize, Deserialize)]
-                #arg_struct
-            }
+            #[derive(Clone, Default, Archive, Serialize, Deserialize)]
+            #arg_struct
+        }
     };
     gen.into()
 }

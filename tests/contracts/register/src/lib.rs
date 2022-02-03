@@ -12,12 +12,22 @@ use bytecheck::CheckBytes;
 use microkelvin::{MaybeArchived, OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{query, transaction, state, argument};
+use rusk_uplink_derive::{argument, query, state, transaction};
 
 use dusk_hamt::{Hamt, Lookup};
 
 #[derive(
-    Copy, Clone, Archive, Default, Debug, Deserialize, Serialize, Hash, PartialEq, Eq, CheckBytes,
+    Copy,
+    Clone,
+    Archive,
+    Default,
+    Debug,
+    Deserialize,
+    Serialize,
+    Hash,
+    PartialEq,
+    Eq,
+    CheckBytes,
 )]
 #[archive(as = "Self")]
 pub struct SecretHash([u8; 32]);
@@ -28,7 +38,7 @@ impl SecretHash {
     }
 }
 
-#[state(new=false)]
+#[state(new = false)]
 pub struct Register {
     pub open_secrets: Hamt<SecretHash, u32, (), OffsetLen>,
 }
@@ -44,13 +54,9 @@ impl Register {
 #[argument]
 pub struct NumSecrets(SecretHash);
 
-#[query(name="nums")]
+#[query(name = "nums")]
 impl Execute<NumSecrets> for Register {
-    fn execute(
-        &self,
-        q: NumSecrets,
-        _: StoreRef<OffsetLen>,
-    ) -> u32 {
+    fn execute(&self, q: NumSecrets, _: StoreRef<OffsetLen>) -> u32 {
         self.open_secrets
             .get(&q.0)
             .as_ref()
@@ -65,13 +71,9 @@ impl Execute<NumSecrets> for Register {
 #[argument]
 pub struct Gossip(SecretHash);
 
-#[transaction(name="goss")]
+#[transaction(name = "goss")]
 impl Apply<Gossip> for Register {
-    fn apply(
-        &mut self,
-        t: Gossip,
-        _: StoreContext,
-    ){
+    fn apply(&mut self, t: Gossip, _: StoreContext) {
         if let Some(mut branch) = self.open_secrets.get_mut(&t.0) {
             *branch.leaf_mut() += 1;
         } else {

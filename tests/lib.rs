@@ -13,10 +13,10 @@ use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
 use microkelvin::{HostStore, StoreRef};
+use register::{Gossip, NumSecrets, Register, SecretHash};
 use rusk_vm::{Contract, GasMeter, NetworkState};
 use self_snapshot::SelfSnapshot;
 use tx_vec::{TxVec, TxVecDelegateSum, TxVecReadValue, TxVecSum};
-use register::{Register, NumSecrets, Gossip, SecretHash};
 
 mod dual_test;
 

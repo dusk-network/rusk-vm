@@ -1,9 +1,17 @@
 use proc_macro2::Span;
 use syn::parse::{Error, Parse, ParseStream, Result};
-use syn::{LitInt, LitStr, Ident, Token};
+use syn::{Ident, LitInt, LitStr, Token};
 
 const BUF_DEFAULT: usize = 512;
 
+/// NOTE: `buf` is optional while `name` is not
+///
+/// Example usages:
+///
+/// `#[query(name="peek", buf=65536)]`
+/// `#[query(name="read")]`
+/// `#[transaction(name="pop", buf=65536)]`
+/// `#[transaction(name="incr")]`
 #[derive(Clone)]
 pub struct Args {
     pub name: String,
@@ -24,9 +32,10 @@ impl Parse for Args {
                     name_opt = Some(input.parse::<LitStr>()?.value());
                 }
                 "buf" => {
-                    buf = input.parse::<LitInt>()?.base10_parse::<u32>()? as usize;
+                    buf = input.parse::<LitInt>()?.base10_parse::<u32>()?
+                        as usize;
                 }
-                _ => ()
+                _ => (),
             }
             match input.parse::<Token![,]>() {
                 Ok(_) => continue,
@@ -34,17 +43,13 @@ impl Parse for Args {
             }
         }
         match name_opt {
-            Some(name) => {
-                Ok(Args { name, buf })
-            }
-            None => {
-                Err(error())
-            }
+            Some(name) => Ok(Args { name, buf }),
+            None => Err(error()),
         }
     }
 }
 
 fn error() -> Error {
-    let msg = "expected #[quote|transaction(name='<name>')]";
+    let msg = r#"expected #[quote|transaction(name="<name>",buf=<size>)]"#;
     Error::new(Span::call_site(), msg)
 }

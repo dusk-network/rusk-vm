@@ -13,10 +13,12 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, Transaction, Execute, Apply, StoreContext};
-use rusk_uplink_derive::{query, transaction, state, argument};
+use rusk_uplink::{
+    Apply, ContractId, Execute, Query, StoreContext, Transaction,
+};
+use rusk_uplink_derive::{argument, query, state, transaction};
 
-#[state(new=false)]
+#[state(new = false)]
 pub struct Callee1State {
     target_address: ContractId,
 }
@@ -36,13 +38,9 @@ pub struct Callee1Transaction {
     target_id: ContractId,
 }
 
-#[transaction(name="set_target")]
+#[transaction(name = "set_target")]
 impl Apply<Callee1Transaction> for Callee1State {
-    fn apply(
-        &mut self,
-        target: Callee1Transaction,
-        _: StoreContext,
-    ) {
+    fn apply(&mut self, target: Callee1Transaction, _: StoreContext) {
         self.set_target(target.target_id);
         rusk_uplink::debug!(
             "setting state.set_target to: {:?}",
@@ -67,7 +65,7 @@ pub struct SenderParameter {
     sender_id: ContractId,
 }
 
-#[query(name="call")]
+#[query(name = "call")]
 impl Execute<SenderParameter> for Callee1State {
     fn execute(
         &self,

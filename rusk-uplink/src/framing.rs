@@ -41,11 +41,7 @@ where
     buffer_len as u32
 }
 
-pub fn t_return<S, R>(
-    state: &S,
-    ret: &R,
-    store: StoreContext,
-) -> [u32; 2]
+pub fn t_return<S, R>(state: &S, ret: &R, store: StoreContext) -> [u32; 2]
 where
     S: Serialize<StoreSerializer<OffsetLen>>,
     R: Archive + Serialize<StoreSerializer<OffsetLen>>,

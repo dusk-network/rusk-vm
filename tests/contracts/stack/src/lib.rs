@@ -17,7 +17,7 @@ use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{query, transaction, argument};
+use rusk_uplink_derive::{argument, query, transaction};
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
@@ -30,7 +30,7 @@ pub struct Peek {
     value: u64,
 }
 
-#[query(name="peek", buf=65536)]
+#[query(name = "peek", buf = 65536)]
 impl Execute<Peek> for Stack {
     fn execute(&self, arg: Peek, _: StoreContext) -> Option<u64> {
         self.peek(arg.value)
@@ -42,13 +42,9 @@ pub struct Push {
     value: u64,
 }
 
-#[transaction(name="push", buf=65536)]
+#[transaction(name = "push", buf = 65536)]
 impl Apply<Push> for Stack {
-    fn apply(
-        &mut self,
-        arg: Push,
-        _: StoreContext,
-    ) {
+    fn apply(&mut self, arg: Push, _: StoreContext) {
         self.push(arg.value);
     }
 }
@@ -56,13 +52,9 @@ impl Apply<Push> for Stack {
 #[argument]
 pub struct Pop;
 
-#[transaction(name="pop", buf=65536)]
+#[transaction(name = "pop", buf = 65536)]
 impl Apply<Pop> for Stack {
-    fn apply(
-        &mut self,
-        _: Pop,
-        _: StoreContext,
-    ) -> Option<u64> {
+    fn apply(&mut self, _: Pop, _: StoreContext) -> Option<u64> {
         self.pop()
     }
 }
