@@ -13,12 +13,12 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
-use rusk_uplink_derive::{argument, query, state};
+use rusk_uplink_derive::{execute, query, state};
 
 #[state]
 pub struct Stringer;
 
-#[argument(new = false)]
+#[query(new = false)]
 pub struct Passthrough {
     string: String,
     repeat: u32,
@@ -35,7 +35,7 @@ impl Passthrough {
     }
 }
 
-#[query(name = "pass")]
+#[execute(name = "pass")]
 impl Execute<Passthrough> for Stringer {
     fn execute(&self, p: Passthrough, _: StoreContext) -> String {
         p.string.repeat(p.repeat as usize)

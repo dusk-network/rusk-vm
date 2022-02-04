@@ -8,10 +8,10 @@ const BUF_DEFAULT: usize = 512;
 ///
 /// Example usages:
 ///
-/// `#[query(name="peek", buf=65536)]`
-/// `#[query(name="read")]`
-/// `#[transaction(name="pop", buf=65536)]`
-/// `#[transaction(name="incr")]`
+/// `#[execute(name="peek", buf=65536)]`
+/// `#[execute(name="read")]`
+/// `#[apply(name="pop", buf=65536)]`
+/// `#[apply(name="incr")]`
 #[derive(Clone)]
 pub struct Args {
     pub name: String,

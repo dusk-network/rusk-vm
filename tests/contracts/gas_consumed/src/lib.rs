@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{argument, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
 extern crate alloc;
 
@@ -36,19 +36,19 @@ impl GasConsumed {
     }
 }
 
-#[argument]
+#[query]
 pub struct GasConsumedValueQuery;
-#[argument]
+#[query]
 pub struct GasConsumedQuery;
 
-#[query(name = "value")]
+#[execute(name = "value")]
 impl Execute<GasConsumedValueQuery> for GasConsumed {
     fn execute(&self, _: GasConsumedValueQuery, _: StoreContext) -> i32 {
         self.value()
     }
 }
 
-#[query(name = "get_gas_consumed")]
+#[execute(name = "get_gas_consumed")]
 impl Execute<GasConsumedQuery> for GasConsumed {
     fn execute(&self, _: GasConsumedQuery, _: StoreContext) -> (u32, u32) {
         (
@@ -58,19 +58,19 @@ impl Execute<GasConsumedQuery> for GasConsumed {
     }
 }
 
-#[argument]
+#[transaction]
 pub struct GasConsumedIncrement;
-#[argument]
+#[transaction]
 pub struct GasConsumedDecrement;
 
-#[transaction(name = "increment")]
+#[apply(name = "increment")]
 impl Apply<GasConsumedIncrement> for GasConsumed {
     fn apply(&mut self, _: GasConsumedIncrement, _: StoreContext) {
         self.increment()
     }
 }
 
-#[transaction(name = "decrement")]
+#[apply(name = "decrement")]
 impl Apply<GasConsumedDecrement> for GasConsumed {
     fn apply(&mut self, _: GasConsumedDecrement, _: StoreContext) {
         self.decrement()

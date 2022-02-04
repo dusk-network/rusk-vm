@@ -12,7 +12,7 @@ use bytecheck::CheckBytes;
 use microkelvin::{MaybeArchived, OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{argument, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
 use dusk_hamt::{Hamt, Lookup};
 
@@ -51,10 +51,10 @@ impl Register {
     }
 }
 
-#[argument]
+#[query]
 pub struct NumSecrets(SecretHash);
 
-#[query(name = "nums")]
+#[execute(name = "nums")]
 impl Execute<NumSecrets> for Register {
     fn execute(&self, q: NumSecrets, _: StoreRef<OffsetLen>) -> u32 {
         self.open_secrets
@@ -68,10 +68,10 @@ impl Execute<NumSecrets> for Register {
     }
 }
 
-#[argument]
+#[transaction]
 pub struct Gossip(SecretHash);
 
-#[transaction(name = "goss")]
+#[apply(name = "goss")]
 impl Apply<Gossip> for Register {
     fn apply(&mut self, t: Gossip, _: StoreContext) {
         if let Some(mut branch) = self.open_secrets.get_mut(&t.0) {

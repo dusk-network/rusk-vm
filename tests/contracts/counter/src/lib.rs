@@ -14,7 +14,7 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{argument, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
 #[state]
 pub struct Counter {
@@ -23,78 +23,78 @@ pub struct Counter {
     value: i32,
 }
 
-#[argument]
+#[query]
 pub struct ReadValue;
 
-#[argument]
+#[query]
 pub struct XorValues {
     a: i32,
     b: i32,
 }
 
-#[argument]
+#[query]
 pub struct IsEven;
 
-#[argument]
+#[transaction]
 pub struct Increment;
 
-#[argument]
+#[transaction]
 pub struct Decrement;
 
-#[argument]
+#[transaction]
 pub struct Adjust {
     by: i32,
 }
 
-#[argument]
+#[transaction]
 pub struct CompareAndSwap {
     expected: i32,
     new: i32,
 }
 
-#[transaction(name = "adjust")]
+#[apply(name = "adjust")]
 impl Apply<Adjust> for Counter {
     fn apply(&mut self, arg: Adjust, _: StoreContext) {
         self.adjust(arg.by);
     }
 }
 
-#[query(name = "read_value")]
+#[execute(name = "read_value")]
 impl Execute<ReadValue> for Counter {
     fn execute(&self, _: ReadValue, _: StoreContext) -> i32 {
         self.value
     }
 }
 
-#[query(name = "xor_values")]
+#[execute(name = "xor_values")]
 impl Execute<XorValues> for Counter {
     fn execute(&self, arg: XorValues, _: StoreContext) -> i32 {
         self.xor_values(arg.a, arg.b)
     }
 }
 
-#[query(name = "is_even")]
+#[execute(name = "is_even")]
 impl Execute<IsEven> for Counter {
     fn execute(&self, _: IsEven, _: StoreContext) -> bool {
         self.is_even()
     }
 }
 
-#[transaction(name = "increment")]
+#[apply(name = "increment")]
 impl Apply<Increment> for Counter {
     fn apply(&mut self, _: Increment, _: StoreContext) {
         self.increment();
     }
 }
 
-#[transaction(name = "decrement")]
+#[apply(name = "decrement")]
 impl Apply<Decrement> for Counter {
     fn apply(&mut self, _: Decrement, _: StoreContext) {
         self.decrement();
     }
 }
 
-#[transaction(name = "compare_and_swap")]
+#[apply(name = "compare_and_swap")]
 impl Apply<CompareAndSwap> for Counter {
     fn apply(&mut self, arg: CompareAndSwap, _: StoreContext) -> bool {
         self.compare_and_swap(arg.expected, arg.new)

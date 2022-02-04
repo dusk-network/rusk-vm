@@ -17,7 +17,7 @@ use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use rusk_uplink_derive::{argument, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
 #[state(new = false)]
 pub struct GasContextData {
@@ -66,19 +66,19 @@ impl GasContextData {
     }
 }
 
-#[argument]
+#[transaction]
 pub struct TCompute {
     value: u64,
 }
 
-#[transaction(name = "t_compute")]
+#[apply(name = "t_compute")]
 impl Apply<TCompute> for GasContextData {
     fn apply(&mut self, input: TCompute, store: StoreContext) -> u64 {
         self.compute_with_transact(input.value, store)
     }
 }
 
-#[argument(new = false)]
+#[transaction(new = false)]
 pub struct SetGasLimits {
     limits: Vec<u64>,
 }
@@ -90,17 +90,17 @@ impl SetGasLimits {
     }
 }
 
-#[transaction(name = "set_gas_limits")]
+#[apply(name = "set_gas_limits")]
 impl Apply<SetGasLimits> for GasContextData {
     fn apply(&mut self, limits: SetGasLimits, _: StoreContext) {
         self.call_gas_limits = limits.limits.to_vec();
     }
 }
 
-#[argument]
+#[query]
 pub struct ReadGasLimits;
 
-#[query(name = "read_gas_limits")]
+#[execute(name = "read_gas_limits")]
 impl Execute<ReadGasLimits> for GasContextData {
     fn execute(&self, _: ReadGasLimits, _: StoreContext) -> Box<[u64]> {
         Box::from(&self.after_call_gas_limits[..])

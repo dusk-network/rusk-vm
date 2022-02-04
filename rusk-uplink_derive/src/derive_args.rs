@@ -11,7 +11,7 @@ const DERIVE_NEW_DEFAULT: bool = true;
 /// Example usages:
 ///
 /// `#[state]`
-/// `#[argument]`
+/// `#[query]`
 /// `#[state(new=false)]`
 /// `#[argument(new=false)]`
 #[derive(Clone)]

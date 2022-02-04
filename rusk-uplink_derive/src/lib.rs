@@ -14,7 +14,7 @@ mod derive_args;
 use derive_args::*;
 
 #[proc_macro_attribute]
-pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
+pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let q_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
     let q_fn_name = args.name;
@@ -74,7 +74,7 @@ pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
+pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let t_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
     let t_fn_name = args.name;
@@ -152,7 +152,14 @@ fn generate_struct_derivations(
 }
 
 #[proc_macro_attribute]
-pub fn argument(attrs: TokenStream, input: TokenStream) -> TokenStream {
+pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let arg_struct = parse_macro_input!(input as syn::ItemStruct);
+    let args = parse_macro_input!(attrs as DeriveArgs);
+    generate_struct_derivations(arg_struct, args.derive_new)
+}
+
+#[proc_macro_attribute]
+pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let arg_struct = parse_macro_input!(input as syn::ItemStruct);
     let args = parse_macro_input!(attrs as DeriveArgs);
     generate_struct_derivations(arg_struct, args.derive_new)

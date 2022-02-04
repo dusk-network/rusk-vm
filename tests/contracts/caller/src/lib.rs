@@ -16,7 +16,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{
     Apply, ContractId, Execute, Query, StoreContext, Transaction,
 };
-use rusk_uplink_derive::{argument, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 extern crate alloc;
 
 #[state(new = false)]
@@ -34,10 +34,10 @@ impl CallerState {
     }
 }
 
-#[argument]
+#[query]
 pub struct CallerQuery;
 
-#[query(name = "call")]
+#[execute(name = "call")]
 impl Execute<CallerQuery> for CallerState {
     fn execute(
         &self,
@@ -60,12 +60,12 @@ impl Execute<CallerQuery> for CallerState {
     }
 }
 
-#[argument]
+#[transaction]
 pub struct CallerTransaction {
     target_id: ContractId,
 }
 
-#[transaction(name = "set_target")]
+#[apply(name = "set_target")]
 impl Apply<CallerTransaction> for CallerState {
     fn apply(&mut self, target: CallerTransaction, _: StoreContext) {
         self.set_target(target.target_id);
@@ -76,7 +76,7 @@ impl Apply<CallerTransaction> for CallerState {
     }
 }
 
-#[argument]
+#[query]
 pub struct Callee1Query {
     sender: ContractId,
 }

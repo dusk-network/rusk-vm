@@ -14,13 +14,13 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Execute, Query, StoreContext};
-use rusk_uplink_derive::{argument, query, state};
+use rusk_uplink_derive::{execute, query, state};
 extern crate alloc;
 
 #[state]
 pub struct Callee2State;
 
-#[argument(new = false)]
+#[query(new = false)]
 pub struct Callee2Query {
     sender_sender: ContractId,
     sender: ContractId,
@@ -32,7 +32,7 @@ impl Callee2Query {
     }
 }
 
-#[query(name = "get")]
+#[execute(name = "get")]
 impl Execute<Callee2Query> for Callee2State {
     fn execute(&self, callee2: Callee2Query, _: StoreContext) -> Callee2Return {
         assert_eq!(callee2.sender, rusk_uplink::caller(), "Expected Caller");
@@ -49,7 +49,7 @@ impl Execute<Callee2Query> for Callee2State {
     }
 }
 
-#[argument]
+#[query]
 pub struct Callee2Return {
     sender_sender: ContractId,
     sender: ContractId,

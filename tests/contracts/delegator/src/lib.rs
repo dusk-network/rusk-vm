@@ -18,7 +18,7 @@ use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
 };
-use rusk_uplink_derive::{argument, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -26,7 +26,7 @@ use alloc::boxed::Box;
 #[state]
 pub struct Delegator;
 
-#[argument(new = false)]
+#[query(new = false)]
 pub struct QueryForwardData {
     contract_id: ContractId,
     data: Box<[u8]>,
@@ -49,7 +49,7 @@ impl QueryForwardData {
     }
 }
 
-#[argument(new = false)]
+#[transaction(new = false)]
 pub struct TransactionForwardData {
     contract_id: ContractId,
     data: Box<[u8]>,
@@ -72,7 +72,7 @@ impl TransactionForwardData {
     }
 }
 
-#[query(name = "delegate_query")]
+#[execute(name = "delegate_query")]
 impl Execute<QueryForwardData> for Delegator {
     fn execute(&self, arg: QueryForwardData, store: StoreContext) -> u32 {
         let query_name = arg.name.as_ref();
@@ -89,7 +89,7 @@ impl Execute<QueryForwardData> for Delegator {
     }
 }
 
-#[transaction(name = "delegate_transaction")]
+#[apply(name = "delegate_transaction")]
 impl Apply<TransactionForwardData> for Delegator {
     fn apply(&mut self, arg: TransactionForwardData, store: StoreContext) {
         let query_name = arg.name.as_ref();
