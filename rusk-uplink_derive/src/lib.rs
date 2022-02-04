@@ -24,7 +24,7 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let arg_types = non_self_argument_types(&q_impl_method.sig);
 
     let arg_t = arg_types.get(0).unwrap();
-    let ret_t = return_type_of_sig(&q_impl_method.sig);
+    let _ret_t = return_type_of_sig(&q_impl_method.sig);
     let state_t = q_impl.self_ty.as_ref();
 
     let wrapper_fun_name = format_ident!("{}", q_fn_name);
@@ -79,7 +79,7 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let arg_types = non_self_argument_types(&t_impl_method.sig);
 
     let arg_t = arg_types.get(0).unwrap();
-    let ret_t = return_type_of_sig(&t_impl_method.sig);
+    let _ret_t = return_type_of_sig(&t_impl_method.sig);
     let state_t = t_impl.self_ty.as_ref();
 
     let wrapper_fun_name = format_ident!("{}", t_fn_name);
