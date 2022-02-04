@@ -25,6 +25,11 @@ pub struct ComputeFrom {
     value: u32,
 }
 
+impl Query for ComputeFrom {
+    const NAME: &'static str = "compute";
+    type Return = u32;
+}
+
 #[execute(name = "compute", buf = 128)]
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(

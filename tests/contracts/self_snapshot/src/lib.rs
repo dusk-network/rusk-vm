@@ -99,14 +99,29 @@ impl SelfSnapshot {
 #[query]
 pub struct CrossoverQuery;
 
+impl Query for CrossoverQuery {
+    const NAME: &'static str = "crossover";
+    type Return = i32;
+}
+
 #[transaction]
 pub struct SetCrossoverTransaction {
     crossover: i32,
 }
 
+impl Transaction for SetCrossoverTransaction {
+    const NAME: &'static str = "set_crossover";
+    type Return = i32;
+}
+
 #[transaction]
 pub struct SelfCallTestATransaction {
     update: i32,
+}
+
+impl Transaction for SelfCallTestATransaction {
+    const NAME: &'static str = "self_call_test_a";
+    type Return = i32;
 }
 
 #[transaction(new = false)]
@@ -132,9 +147,19 @@ impl SelfCallTestBTransaction {
     }
 }
 
+impl Transaction for SelfCallTestBTransaction {
+    const NAME: &'static str = "self_call_test_b";
+    type Return = i32;
+}
+
 #[transaction]
 pub struct UpdateAndPanicTransaction {
     update: i32,
+}
+
+impl Transaction for UpdateAndPanicTransaction {
+    const NAME: &'static str = "update_and_panic";
+    type Return = ();
 }
 
 #[execute(name = "crossover")]

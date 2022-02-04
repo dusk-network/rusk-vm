@@ -35,6 +35,11 @@ impl Passthrough {
     }
 }
 
+impl Query for Passthrough {
+    const NAME: &'static str = "pass";
+    type Return = String;
+}
+
 #[execute(name = "pass")]
 impl Execute<Passthrough> for Stringer {
     fn execute(&self, p: Passthrough, _: StoreContext) -> String {

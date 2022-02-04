@@ -54,6 +54,11 @@ impl Register {
 #[query]
 pub struct NumSecrets(SecretHash);
 
+impl Query for NumSecrets {
+    const NAME: &'static str = "nums";
+    type Return = u32;
+}
+
 #[execute(name = "nums")]
 impl Execute<NumSecrets> for Register {
     fn execute(&self, q: NumSecrets, _: StoreRef<OffsetLen>) -> u32 {
@@ -70,6 +75,11 @@ impl Execute<NumSecrets> for Register {
 
 #[transaction]
 pub struct Gossip(SecretHash);
+
+impl Transaction for Gossip {
+    const NAME: &'static str = "goss";
+    type Return = ();
+}
 
 #[apply(name = "goss")]
 impl Apply<Gossip> for Register {

@@ -24,8 +24,18 @@ pub struct Counter {
 #[query]
 pub struct ReadCount;
 
+impl Query for ReadCount {
+    const NAME: &'static str = "read";
+    type Return = u32;
+}
+
 #[transaction]
 pub struct Increment(pub u32);
+
+impl Transaction for Increment {
+    const NAME: &'static str = "incr";
+    type Return = ();
+}
 
 #[execute(name = "read")]
 impl Execute<ReadCount> for Counter {

@@ -71,6 +71,11 @@ pub struct TCompute {
     value: u64,
 }
 
+impl Transaction for TCompute {
+    const NAME: &'static str = "t_compute";
+    type Return = u64;
+}
+
 #[apply(name = "t_compute")]
 impl Apply<TCompute> for GasContextData {
     fn apply(&mut self, input: TCompute, store: StoreContext) -> u64 {
@@ -90,6 +95,11 @@ impl SetGasLimits {
     }
 }
 
+impl Transaction for SetGasLimits {
+    const NAME: &'static str = "set_gas_limits";
+    type Return = ();
+}
+
 #[apply(name = "set_gas_limits")]
 impl Apply<SetGasLimits> for GasContextData {
     fn apply(&mut self, limits: SetGasLimits, _: StoreContext) {
@@ -99,6 +109,11 @@ impl Apply<SetGasLimits> for GasContextData {
 
 #[query]
 pub struct ReadGasLimits;
+
+impl Query for ReadGasLimits {
+    const NAME: &'static str = "read_gas_limits";
+    type Return = Box<[u64]>;
+}
 
 #[execute(name = "read_gas_limits")]
 impl Execute<ReadGasLimits> for GasContextData {

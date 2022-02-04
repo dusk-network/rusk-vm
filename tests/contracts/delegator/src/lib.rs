@@ -49,6 +49,11 @@ impl QueryForwardData {
     }
 }
 
+impl Query for QueryForwardData {
+    const NAME: &'static str = "delegate_query";
+    type Return = u32;
+}
+
 #[transaction(new = false)]
 pub struct TransactionForwardData {
     contract_id: ContractId,
@@ -70,6 +75,11 @@ impl TransactionForwardData {
             name,
         }
     }
+}
+
+impl Transaction for TransactionForwardData {
+    const NAME: &'static str = "delegate_transaction";
+    type Return = ();
 }
 
 #[execute(name = "delegate_query")]

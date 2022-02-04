@@ -22,6 +22,11 @@ pub struct BlockHeight;
 #[query]
 pub struct ReadBlockHeight;
 
+impl Query for ReadBlockHeight {
+    const NAME: &'static str = "read_block_height";
+    type Return = u64;
+}
+
 #[execute(name = "read_block_height")]
 impl Execute<ReadBlockHeight> for BlockHeight {
     fn execute(&self, _: ReadBlockHeight, _: StoreContext) -> u64 {

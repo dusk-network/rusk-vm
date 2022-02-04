@@ -55,6 +55,11 @@ impl TxVec {
 #[query]
 pub struct TxVecReadValue;
 
+impl Query for TxVecReadValue {
+    const NAME: &'static str = "read_value";
+    type Return = u8;
+}
+
 #[execute(name = "read_value", buf = 8192)]
 impl Execute<TxVecReadValue> for TxVec {
     fn execute(&self, _: TxVecReadValue, _: StoreContext) -> u8 {
@@ -73,6 +78,11 @@ impl TxVecSum {
             values: Box::from(v.as_ref()),
         }
     }
+}
+
+impl Transaction for TxVecSum {
+    const NAME: &'static str = "sum";
+    type Return = u8;
 }
 
 #[apply(name = "sum", buf = 8192)]
@@ -94,6 +104,11 @@ impl TxVecDelegateSum {
         let data = Box::from(data.as_ref());
         Self { contract_id, data }
     }
+}
+
+impl Transaction for TxVecDelegateSum {
+    const NAME: &'static str = "delegate_sum";
+    type Return = ();
 }
 
 #[apply(name = "delegate_sum", buf = 8192)]

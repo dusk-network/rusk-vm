@@ -32,6 +32,11 @@ impl Callee2Query {
     }
 }
 
+impl Query for Callee2Query {
+    const NAME: &'static str = "get";
+    type Return = Callee2Return;
+}
+
 #[execute(name = "get")]
 impl Execute<Callee2Query> for Callee2State {
     fn execute(&self, callee2: Callee2Query, _: StoreContext) -> Callee2Return {

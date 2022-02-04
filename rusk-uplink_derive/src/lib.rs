@@ -31,11 +31,6 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let scratch_name = format_ident!("scratch_{}", q_fn_name);
     let gen = quote! {
 
-        impl Query for #arg_t {
-            const NAME: &'static str = #q_fn_name;
-            type Return = #ret_t;
-        }
-
         #q_impl
 
         #[cfg(target_family = "wasm")]
@@ -90,11 +85,6 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let wrapper_fun_name = format_ident!("{}", t_fn_name);
     let scratch_name = format_ident!("scratch_{}", t_fn_name);
     let gen = quote! {
-
-        impl Transaction for #arg_t {
-            const NAME: &'static str = #t_fn_name;
-            type Return = #ret_t;
-        }
 
         #t_impl
 

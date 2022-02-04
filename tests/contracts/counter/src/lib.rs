@@ -26,30 +26,65 @@ pub struct Counter {
 #[query]
 pub struct ReadValue;
 
+impl Query for ReadValue {
+    const NAME: &'static str = "read_value";
+    type Return = i32;
+}
+
 #[query]
 pub struct XorValues {
     a: i32,
     b: i32,
 }
 
+impl Query for XorValues {
+    const NAME: &'static str = "xor_values";
+    type Return = i32;
+}
+
 #[query]
 pub struct IsEven;
+
+impl Query for IsEven {
+    const NAME: &'static str = "is_even";
+    type Return = bool;
+}
 
 #[transaction]
 pub struct Increment;
 
+impl Transaction for Increment {
+    const NAME: &'static str = "increment";
+    type Return = ();
+}
+
 #[transaction]
 pub struct Decrement;
+
+impl Transaction for Decrement {
+    const NAME: &'static str = "decrement";
+    type Return = ();
+}
 
 #[transaction]
 pub struct Adjust {
     by: i32,
 }
 
+impl Transaction for Adjust {
+    const NAME: &'static str = "adjust";
+    type Return = ();
+}
+
 #[transaction]
 pub struct CompareAndSwap {
     expected: i32,
     new: i32,
+}
+
+impl Transaction for CompareAndSwap {
+    const NAME: &'static str = "compare_and_swap";
+    type Return = bool;
 }
 
 #[apply(name = "adjust")]

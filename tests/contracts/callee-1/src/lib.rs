@@ -38,6 +38,11 @@ pub struct Callee1Transaction {
     target_id: ContractId,
 }
 
+impl Transaction for Callee1Transaction {
+    const NAME: &'static str = "set_target";
+    type Return = ();
+}
+
 #[apply(name = "set_target")]
 impl Apply<Callee1Transaction> for Callee1State {
     fn apply(&mut self, target: Callee1Transaction, _: StoreContext) {
@@ -63,6 +68,11 @@ impl Query for Callee2Query {
 #[query]
 pub struct SenderParameter {
     sender_id: ContractId,
+}
+
+impl Query for SenderParameter {
+    const NAME: &'static str = "call";
+    type Return = <Callee2Query as Query>::Return;
 }
 
 #[execute(name = "call")]

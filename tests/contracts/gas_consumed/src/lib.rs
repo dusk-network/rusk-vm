@@ -38,8 +38,19 @@ impl GasConsumed {
 
 #[query]
 pub struct GasConsumedValueQuery;
+
+impl Query for GasConsumedValueQuery {
+    const NAME: &'static str = "value";
+    type Return = i32;
+}
+
 #[query]
 pub struct GasConsumedQuery;
+
+impl Query for GasConsumedQuery {
+    const NAME: &'static str = "get_gas_consumed";
+    type Return = (u32, u32);
+}
 
 #[execute(name = "value")]
 impl Execute<GasConsumedValueQuery> for GasConsumed {
@@ -60,8 +71,19 @@ impl Execute<GasConsumedQuery> for GasConsumed {
 
 #[transaction]
 pub struct GasConsumedIncrement;
+
+impl Transaction for GasConsumedIncrement {
+    const NAME: &'static str = "increment";
+    type Return = ();
+}
+
 #[transaction]
 pub struct GasConsumedDecrement;
+
+impl Transaction for GasConsumedDecrement {
+    const NAME: &'static str = "decrement";
+    type Return = ();
+}
 
 #[apply(name = "increment")]
 impl Apply<GasConsumedIncrement> for GasConsumed {

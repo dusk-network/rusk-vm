@@ -37,6 +37,11 @@ impl CallerState {
 #[query]
 pub struct CallerQuery;
 
+impl Query for CallerQuery {
+    const NAME: &'static str = "call";
+    type Return = <Callee1Query as Query>::Return;
+}
+
 #[execute(name = "call")]
 impl Execute<CallerQuery> for CallerState {
     fn execute(
@@ -63,6 +68,11 @@ impl Execute<CallerQuery> for CallerState {
 #[transaction]
 pub struct CallerTransaction {
     target_id: ContractId,
+}
+
+impl Transaction for CallerTransaction {
+    const NAME: &'static str = "set_target";
+    type Return = ();
 }
 
 #[apply(name = "set_target")]
