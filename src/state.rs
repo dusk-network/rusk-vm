@@ -96,19 +96,27 @@ impl Contracts {
     }
 }
 
-/// The main network state.
+/// The main network state consists of three different states: `staged`, `head`
+/// and `origin`.
 ///
-/// It keeps two different states, the `origin` and the `head`. The `origin` is
-/// the starting state, and `head` is origin with all the received transactions
-/// applied.
+/// Any changes is applied to the `staged` state, and it's only committed to
+/// the `head` state when the [commit](`Self::commit`) method is called.
 ///
-/// It is possible to either [commit](`Self::commit`) to the `head` state,
-/// turning it into the new `origin`, or [reset](`Self::reset`) it back to
-/// `origin`.
+/// Calling the [push](`Self::push`) method will turn the `head` state into the
+/// new `origin`. At this point, any (`staged`) changes that are not committed
+/// will be discarded.
+///
+/// It's possible to manually discard the `staged` state by calling the
+/// [unstage](`Self::unstage`) method, as well as to reset all the three state
+/// to the `origin` by calling the [reset](`Self::reset`) method.
+///
+/// Due to the ephemeral nature of `staged` state, only `head` and `origin`
+/// are persisted on disk.
 #[derive(Clone, Default)]
 pub struct NetworkState {
-    origin: Contracts,
+    pub(crate) staged: Contracts,
     head: Contracts,
+    origin: Contracts,
     module_config: ModuleConfig,
 }
 
@@ -123,10 +131,12 @@ impl Canon for NetworkState {
     fn decode(source: &mut Source) -> Result<Self, CanonError> {
         let origin = Contracts::decode(source)?;
         let head = origin.clone();
+        let staged = origin.clone();
 
         Ok(Self {
             origin,
             head,
+            staged,
             module_config: ModuleConfig::new(),
         })
     }
@@ -151,48 +161,42 @@ impl NetworkState {
         }
     }
 
-    /// Returns the state of contracts in the `head`.
-    pub(crate) fn head_mut(&mut self) -> &mut Contracts {
-        &mut self.head
-    }
-
-    /// Returns a reference to the specified contracts state in the `head`
-    /// state.
+    /// Returns a reference to the specified contracts state
     pub fn get_contract<'a>(
         &'a self,
         contract_id: &ContractId,
     ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
-        self.head.get_contract(contract_id)
+        self.staged.get_contract(contract_id)
     }
 
-    /// Returns a mutable reference to the specified contracts state in the
-    /// `origin` state.
+    /// Returns a mutable reference to the specified contracts state
     pub fn get_contract_mut<'a>(
         &'a mut self,
         contract_id: &ContractId,
     ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
-        self.head.get_contract_mut(contract_id)
+        self.staged.get_contract_mut(contract_id)
     }
 
-    /// Deploys a contract to the `head` state, returning the address of the
-    /// created contract or an error.
+    /// Deploys a contract, returning the address of the created contract or
+    /// an error.
     pub fn deploy(
         &mut self,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy(contract, &self.module_config)
+        self.staged.deploy(contract, &self.module_config)
     }
 
-    /// Deploys a contract to the `head` state with the given id / address.
+    /// Deploys a contract with the given id / address.
     pub fn deploy_with_id(
         &mut self,
         id: ContractId,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy_with_id(id, contract, &self.module_config)
+        self.staged
+            .deploy_with_id(id, contract, &self.module_config)
     }
 
-    /// Query the contract at `target` address in the `head` state.
+    /// Query the contract at `target` address
     pub fn query<A, R>(
         &mut self,
         target: ContractId,
@@ -231,10 +235,8 @@ impl NetworkState {
         })
     }
 
-    /// Transact with the contract at `target` address in the `head` state,
-    /// returning the result of the transaction.
-    ///
-    /// This will advance the `head` to the resultant state.
+    /// Transact with the contract at `target` address returning the result of
+    /// the transaction.
     pub fn transact<A, R>(
         &mut self,
         target: ContractId,
@@ -286,23 +288,37 @@ impl NetworkState {
         Ok(ret)
     }
 
-    /// Returns the root of the tree in the `head` state.
+    /// Returns the root of the tree
     pub fn root(&self) -> [u8; 32] {
-        self.head.root()
+        self.staged.root()
     }
 
-    /// Resets the `head` state to `origin`.
+    /// Resets the state to `origin`
     pub fn reset(&mut self) {
+        self.staged = self.origin.clone();
         self.head = self.origin.clone();
     }
 
-    /// Commits to the `head` state, making it the new `origin`.
+    /// Unstage the state
+    pub fn unstage(&mut self) {
+        self.staged = self.head.clone();
+    }
+
+    /// Commits the `staged` state, making it the new `head`.
     pub fn commit(&mut self) {
+        self.head = self.staged.clone();
+    }
+
+    /// Pushes the `head` state, making it the new `origin`.
+    /// Anything in the `staged` that wasn't [commit](Self::commit)ed is
+    /// lost.
+    pub fn push(&mut self) {
         self.origin = self.head.clone();
+        self.staged = self.head.clone();
     }
 
     /// Register a host function handler.
-    pub fn register_host_module<M>(&mut self, module: M)
+    pub fn register_host_module<M>(module: M)
     where
         M: HostModule + 'static + Sync + Send,
     {
@@ -317,7 +333,7 @@ impl NetworkState {
     where
         C: Canon,
     {
-        self.head.get_contract(contract_id).map_or(
+        self.staged.get_contract(contract_id).map_or(
             Err(VMError::UnknownContract),
             |contract| {
                 let mut source = Source::new((*contract).state().as_bytes());

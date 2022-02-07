@@ -335,7 +335,7 @@ impl<'a> CallContext<'a> {
     }
 
     pub fn state_mut(&mut self) -> &mut Contracts {
-        self.state.head_mut()
+        &mut self.state.staged
     }
 
     /// Reconcile the gas usage across the stack.
