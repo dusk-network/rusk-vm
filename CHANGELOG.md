@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `staged` state in addition to the existing `head` and `origin` [#302]
+- Add `unstage` method to remove changes from `staged` [#302]
+- Add `push` method to push the commited changes to `origin` [#302]
+
+### Changed
+
+- Change `commit` method to commit the changes from `staged` to `head` [#302]
+- Change `register_host_module` to be an associated function
+
 ## [0.9.0] - 2022-02-02
 
 ### Added
@@ -254,6 +265,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial
 
+[#302]: https://github.com/dusk-network/rusk-vm/issues/302
 [#283]: https://github.com/dusk-network/rusk-vm/issues/283
 [#270]: https://github.com/dusk-network/rusk-vm/issues/270
 [#269]: https://github.com/dusk-network/rusk-vm/issues/269

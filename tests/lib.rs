@@ -640,6 +640,10 @@ fn persistence() {
             100
         );
 
+        // Before we persist we want to commit the `staged` changes, otherwise
+        // they'll be lost.
+        network.commit();
+
         (
             network
                 .persist(&testbackend())
@@ -661,105 +665,5 @@ fn persistence() {
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
             .unwrap(),
         100
-    );
-}
-
-#[test]
-fn commit_and_reset() {
-    let counter = Counter::new(99);
-
-    let code =
-        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
-
-    let contract = Contract::new(counter, code.to_vec());
-
-    let mut network = NetworkState::new();
-
-    let contract_id = network.deploy(contract).unwrap();
-    network.commit();
-
-    let mut network_clone = network.clone();
-
-    let mut gas = GasMeter::with_limit(1_000_000_000);
-
-    network
-        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
-        .unwrap();
-    network_clone
-        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
-        .unwrap();
-
-    network.commit();
-
-    network.reset();
-    network_clone.reset();
-
-    assert_eq!(
-        network
-            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
-            .unwrap(),
-        100
-    );
-    assert_eq!(
-        network_clone
-            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
-            .unwrap(),
-        99
-    );
-}
-
-#[cfg(feature = "persistence")]
-#[test]
-fn persist_commit_and_reset() {
-    use microkelvin::{BackendCtor, DiskBackend};
-    fn testbackend() -> BackendCtor<DiskBackend> {
-        BackendCtor::new(DiskBackend::ephemeral)
-    }
-
-    let counter = Counter::new(99);
-
-    let code =
-        include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
-
-    let contract = Contract::new(counter, code.to_vec());
-
-    let mut network = NetworkState::new();
-
-    let contract_id = network.deploy(contract).unwrap();
-    network.commit();
-
-    let mut gas = GasMeter::with_limit(1_000_000_000);
-
-    network
-        .transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas)
-        .unwrap();
-
-    assert_eq!(
-        network
-            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
-            .unwrap(),
-        100
-    );
-
-    let id = network
-        .persist(&testbackend())
-        .expect("Error in persistence");
-
-    let mut new_network = NetworkState::new()
-        .restore(id)
-        .expect("Error reconstructing the NetworkState");
-
-    assert_eq!(
-        new_network
-            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
-            .unwrap(),
-        100
-    );
-    new_network.reset();
-    assert_eq!(
-        new_network
-            .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
-            .unwrap(),
-        99
     );
 }

@@ -77,6 +77,8 @@ impl NetworkState {
         let map = Map::from_generic(&id.head.restore()?)?;
         self.head = Contracts(map);
 
+        self.staged = self.head.clone();
+
         Ok(self)
     }
 }

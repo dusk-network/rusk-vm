@@ -118,6 +118,10 @@ fn stack_persist() {
                 .unwrap();
         }
 
+        // Before we persist we want to commit the `staged` changes, otherwise
+        // they'll be lost.
+        network.commit();
+
         (
             network
                 .persist(&testbackend())
