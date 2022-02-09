@@ -17,8 +17,9 @@ use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state(new = false)]
 pub struct GasContextData {
     after_call_gas_limits: Vec<u64>,
     call_gas_limits: Vec<u64>,
@@ -65,15 +66,9 @@ impl GasContextData {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct TCompute {
     value: u64,
-}
-
-impl TCompute {
-    pub fn new(value: u64) -> Self {
-        Self { value }
-    }
 }
 
 impl Transaction for TCompute {
@@ -81,17 +76,14 @@ impl Transaction for TCompute {
     type Return = u64;
 }
 
+#[apply(name = "t_compute")]
 impl Apply<TCompute> for GasContextData {
-    fn apply(
-        &mut self,
-        input: TCompute,
-        store: StoreContext,
-    ) -> <TCompute as Transaction>::Return {
+    fn apply(&mut self, input: TCompute, store: StoreContext) -> u64 {
         self.compute_with_transact(input.value, store)
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction(new = false)]
 pub struct SetGasLimits {
     limits: Vec<u64>,
 }
@@ -108,17 +100,14 @@ impl Transaction for SetGasLimits {
     type Return = ();
 }
 
+#[apply(name = "set_gas_limits")]
 impl Apply<SetGasLimits> for GasContextData {
-    fn apply(
-        &mut self,
-        limits: SetGasLimits,
-        _: StoreContext,
-    ) -> <SetGasLimits as Transaction>::Return {
+    fn apply(&mut self, limits: SetGasLimits, _: StoreContext) {
         self.call_gas_limits = limits.limits.to_vec();
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[query]
 pub struct ReadGasLimits;
 
 impl Query for ReadGasLimits {
@@ -126,34 +115,9 @@ impl Query for ReadGasLimits {
     type Return = Box<[u64]>;
 }
 
+#[execute(name = "read_gas_limits")]
 impl Execute<ReadGasLimits> for GasContextData {
-    fn execute(
-        &self,
-        _: ReadGasLimits,
-        _: StoreContext,
-    ) -> <ReadGasLimits as Query>::Return {
+    fn execute(&self, _: ReadGasLimits, _: StoreContext) -> Box<[u64]> {
         Box::from(&self.after_call_gas_limits[..])
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    q_handler_store_ser!(
-        read_gas_limits,
-        GasContextData,
-        ReadGasLimits
-    );
-
-    t_handler_store_ser!(t_compute, GasContextData, TCompute);
-
-    t_handler_store_ser!(
-        set_gas_limits,
-        GasContextData,
-        SetGasLimits
-    );
-};

@@ -14,11 +14,12 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
+use rusk_uplink_derive::{execute, query, state};
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[state]
 pub struct BlockHeight;
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[query]
 pub struct ReadBlockHeight;
 
 impl Query for ReadBlockHeight {
@@ -26,23 +27,9 @@ impl Query for ReadBlockHeight {
     type Return = u64;
 }
 
+#[execute(name = "read_block_height")]
 impl Execute<ReadBlockHeight> for BlockHeight {
-    fn execute(
-        &self,
-        _: ReadBlockHeight,
-        _: StoreContext,
-    ) -> <ReadBlockHeight as Query>::Return {
+    fn execute(&self, _: ReadBlockHeight, _: StoreContext) -> u64 {
         rusk_uplink::block_height()
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    #[no_mangle]
-    static mut SCRATCH: [u8; 128] = [0u8; 128];
-
-    q_handler!(read_block_height, BlockHeight, ReadBlockHeight);
-};

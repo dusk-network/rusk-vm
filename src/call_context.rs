@@ -1,5 +1,5 @@
-// This Source Codeb Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distlributed with this
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distibuted with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
@@ -170,9 +170,11 @@ impl<'a> CallContext<'a> {
             let run_func: NativeFunc<(u32, u32), u32> =
                 instance.exports.get_native_function(query.name())?;
 
+            let global_scratch = format!("scratch_{}", query.name());
+
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
-                .get_global("SCRATCH")
+                .get_global(global_scratch.as_str())
                 .map_err(|_| VMError::InvalidWASMModule)?
                 .get()
             {
@@ -278,9 +280,11 @@ impl<'a> CallContext<'a> {
             let run_func: NativeFunc<(u32, u32), u64> =
                 instance.exports.get_native_function(transaction.name())?;
 
+            let global_scratch = format!("scratch_{}", transaction.name());
+
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
-                .get_global("SCRATCH")
+                .get_global(global_scratch.as_str())
                 .map_err(|_| VMError::InvalidWASMModule)?
                 .get()
             {

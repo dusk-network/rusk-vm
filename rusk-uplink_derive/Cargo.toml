@@ -1,0 +1,16 @@
+[package]
+name = "rusk-uplink_derive"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "1.*", features = ["full"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+derive-new = "0.5"

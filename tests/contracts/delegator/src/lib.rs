@@ -18,14 +18,15 @@ use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
 };
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[state]
 pub struct Delegator;
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[query(new = false)]
 pub struct QueryForwardData {
     contract_id: ContractId,
     data: Box<[u8]>,
@@ -48,7 +49,12 @@ impl QueryForwardData {
     }
 }
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+impl Query for QueryForwardData {
+    const NAME: &'static str = "delegate_query";
+    type Return = u32;
+}
+
+#[transaction(new = false)]
 pub struct TransactionForwardData {
     contract_id: ContractId,
     data: Box<[u8]>,
@@ -71,22 +77,14 @@ impl TransactionForwardData {
     }
 }
 
-impl Query for QueryForwardData {
-    const NAME: &'static str = "delegate_query";
-    type Return = u32;
-}
-
 impl Transaction for TransactionForwardData {
     const NAME: &'static str = "delegate_transaction";
     type Return = ();
 }
 
+#[execute(name = "delegate_query")]
 impl Execute<QueryForwardData> for Delegator {
-    fn execute(
-        &self,
-        arg: QueryForwardData,
-        store: StoreContext,
-    ) -> <QueryForwardData as Query>::Return {
+    fn execute(&self, arg: QueryForwardData, store: StoreContext) -> u32 {
         let query_name = arg.name.as_ref();
         let mut query_data = AlignedVec::new();
         query_data.extend_from_slice(arg.data.as_ref());
@@ -101,12 +99,9 @@ impl Execute<QueryForwardData> for Delegator {
     }
 }
 
+#[apply(name = "delegate_transaction")]
 impl Apply<TransactionForwardData> for Delegator {
-    fn apply(
-        &mut self,
-        arg: TransactionForwardData,
-        store: StoreContext,
-    ) -> <TransactionForwardData as Transaction>::Return {
+    fn apply(&mut self, arg: TransactionForwardData, store: StoreContext) {
         let query_name = arg.name.as_ref();
         let mut query_data = AlignedVec::new();
         query_data.extend_from_slice(arg.data.as_ref());
@@ -137,19 +132,3 @@ impl Delegator {
         rusk_uplink::transact_raw(self, target, transaction, 0, store).unwrap()
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(256);
-
-    q_handler!(delegate_query, Delegator, QueryForwardData);
-
-    t_handler!(
-        delegate_transaction,
-        Delegator,
-        TransactionForwardData
-    );
-};

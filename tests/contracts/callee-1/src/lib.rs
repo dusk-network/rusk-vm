@@ -13,9 +13,12 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, Transaction, Execute, Apply, StoreContext};
+use rusk_uplink::{
+    Apply, ContractId, Execute, Query, StoreContext, Transaction,
+};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state(new = false)]
 pub struct Callee1State {
     target_address: ContractId,
 }
@@ -30,15 +33,9 @@ impl Callee1State {
     }
 }
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct Callee1Transaction {
     target_id: ContractId,
-}
-
-impl Callee1Transaction {
-    pub fn new(target_id: ContractId) -> Self {
-        Self { target_id }
-    }
 }
 
 impl Transaction for Callee1Transaction {
@@ -46,12 +43,9 @@ impl Transaction for Callee1Transaction {
     type Return = ();
 }
 
+#[apply(name = "set_target")]
 impl Apply<Callee1Transaction> for Callee1State {
-    fn apply(
-        &mut self,
-        target: Callee1Transaction,
-        _: StoreContext,
-    ) -> <Callee1Transaction as Transaction>::Return {
+    fn apply(&mut self, target: Callee1Transaction, _: StoreContext) {
         self.set_target(target.target_id);
         rusk_uplink::debug!(
             "setting state.set_target to: {:?}",
@@ -60,7 +54,7 @@ impl Apply<Callee1Transaction> for Callee1State {
     }
 }
 
-#[derive(Archive, Serialize, Deserialize)]
+#[query]
 pub struct Callee2Query {
     sender: ContractId,
     callee: ContractId,
@@ -71,7 +65,7 @@ impl Query for Callee2Query {
     type Return = ([u8; 32], [u8; 32], [u8; 32]);
 }
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[query]
 pub struct SenderParameter {
     sender_id: ContractId,
 }
@@ -81,12 +75,13 @@ impl Query for SenderParameter {
     type Return = <Callee2Query as Query>::Return;
 }
 
+#[execute(name = "call")]
 impl Execute<SenderParameter> for Callee1State {
     fn execute(
         &self,
         sender: SenderParameter,
         store: StoreContext,
-    ) -> <SenderParameter as Query>::Return {
+    ) -> <Callee2Query as Query>::Return {
         assert_eq!(sender.sender_id, rusk_uplink::caller(), "Expected Caller");
         rusk_uplink::debug!("callee-1: calling state target 'get' with params: sender from param and callee");
         let call_data = Callee2Query {
@@ -102,16 +97,3 @@ impl Execute<SenderParameter> for Callee1State {
         .unwrap()
     }
 }
-
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    q_handler!(call, Callee1State, SenderParameter);
-
-    t_handler!(set_target, Callee1State, Callee1Transaction);
-};

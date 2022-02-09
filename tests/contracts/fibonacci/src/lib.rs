@@ -15,19 +15,14 @@
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query};
+use rusk_uplink_derive::{execute, query, state};
 
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[state]
 pub struct Fibonacci;
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[query]
 pub struct ComputeFrom {
     value: u32,
-}
-
-impl ComputeFrom {
-    pub fn new(n: u32) -> Self {
-        Self { value: n }
-    }
 }
 
 impl Query for ComputeFrom {
@@ -35,12 +30,13 @@ impl Query for ComputeFrom {
     type Return = u32;
 }
 
+#[execute(name = "compute", buf = 128)]
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(
         &self,
         compute_from: ComputeFrom,
         store: StoreRef<OffsetLen>,
-    ) -> <ComputeFrom as Query>::Return {
+    ) -> u32 {
         let n = compute_from.value;
         if n < 2 {
             n
@@ -66,13 +62,3 @@ impl Execute<ComputeFrom> for Fibonacci {
         }
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::{framing_imports, StoreContext};
-    framing_imports!();
-
-    scratch_memory!(128);
-
-    q_handler!(compute, Fibonacci, ComputeFrom);
-};

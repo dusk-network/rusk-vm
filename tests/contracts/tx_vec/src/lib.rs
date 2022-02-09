@@ -17,19 +17,14 @@ use rusk_uplink::StoreContext;
 use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawTransaction, Transaction,
 };
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state]
 pub struct TxVec {
     value: u8,
-}
-
-impl TxVec {
-    pub fn new(value: u8) -> Self {
-        TxVec { value }
-    }
 }
 
 impl TxVec {
@@ -57,7 +52,7 @@ impl TxVec {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[query]
 pub struct TxVecReadValue;
 
 impl Query for TxVecReadValue {
@@ -65,17 +60,14 @@ impl Query for TxVecReadValue {
     type Return = u8;
 }
 
+#[execute(name = "read_value", buf = 8192)]
 impl Execute<TxVecReadValue> for TxVec {
-    fn execute(
-        &self,
-        _: TxVecReadValue,
-        _: StoreContext,
-    ) -> <TxVecReadValue as Query>::Return {
+    fn execute(&self, _: TxVecReadValue, _: StoreContext) -> u8 {
         self.read_value()
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction(new = false)]
 pub struct TxVecSum {
     values: Box<[u8]>,
 }
@@ -93,18 +85,15 @@ impl Transaction for TxVecSum {
     type Return = u8;
 }
 
+#[apply(name = "sum", buf = 8192)]
 impl Apply<TxVecSum> for TxVec {
-    fn apply(
-        &mut self,
-        s: TxVecSum,
-        _: StoreContext,
-    ) -> <TxVecSum as Transaction>::Return {
+    fn apply(&mut self, s: TxVecSum, _: StoreContext) -> u8 {
         self.sum(&s.values);
         self.value
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction(new = false)]
 pub struct TxVecDelegateSum {
     contract_id: ContractId,
     data: Box<[u8]>,
@@ -122,26 +111,9 @@ impl Transaction for TxVecDelegateSum {
     type Return = ();
 }
 
+#[apply(name = "delegate_sum", buf = 8192)]
 impl Apply<TxVecDelegateSum> for TxVec {
-    fn apply(
-        &mut self,
-        s: TxVecDelegateSum,
-        store: StoreContext,
-    ) -> <TxVecDelegateSum as Transaction>::Return {
+    fn apply(&mut self, s: TxVecDelegateSum, store: StoreContext) {
         self.delegate_sum(&s.contract_id, &s.data, store)
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(8192);
-
-    q_handler!(read_value, TxVec, TxVecReadValue);
-
-    t_handler!(sum, TxVec, TxVecSum);
-
-    t_handler!(delegate_sum, TxVec, TxVecDelegateSum);
-};

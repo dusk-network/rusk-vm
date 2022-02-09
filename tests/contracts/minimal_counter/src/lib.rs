@@ -14,19 +14,14 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
-#[derive(Clone, Debug, Archive, Deserialize, Serialize)]
+#[state]
 pub struct Counter {
     value: u32,
 }
 
-impl Counter {
-    pub fn new(value: u32) -> Self {
-        Counter { value }
-    }
-}
-
-#[derive(Archive, Serialize, Debug, Deserialize, Clone)]
+#[query]
 pub struct ReadCount;
 
 impl Query for ReadCount {
@@ -34,7 +29,7 @@ impl Query for ReadCount {
     type Return = u32;
 }
 
-#[derive(Archive, Serialize, Debug, Deserialize, Clone)]
+#[transaction]
 pub struct Increment(pub u32);
 
 impl Transaction for Increment {
@@ -42,34 +37,16 @@ impl Transaction for Increment {
     type Return = ();
 }
 
+#[execute(name = "read")]
 impl Execute<ReadCount> for Counter {
-    fn execute(
-        &self,
-        _: ReadCount,
-        _: StoreContext,
-    ) -> <ReadCount as Query>::Return {
+    fn execute(&self, _: ReadCount, _: StoreContext) -> u32 {
         self.value
     }
 }
 
+#[apply(name = "incr")]
 impl Apply<Increment> for Counter {
-    fn apply(
-        &mut self,
-        t: Increment,
-        _: StoreContext,
-    ) -> <Increment as Transaction>::Return {
+    fn apply(&mut self, t: Increment, _: StoreContext) {
         self.value += t.0;
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    q_handler!(read, Counter, ReadCount);
-
-    t_handler!(incr, Counter, Increment);
-};

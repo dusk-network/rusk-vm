@@ -14,23 +14,16 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state]
 pub struct Counter {
+    #[new(value = "0xffffffff")]
     junk: u32,
     value: i32,
 }
 
-impl Counter {
-    pub fn new(value: i32) -> Self {
-        Counter {
-            junk: 0xffffffff,
-            value,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[query]
 pub struct ReadValue;
 
 impl Query for ReadValue {
@@ -38,16 +31,10 @@ impl Query for ReadValue {
     type Return = i32;
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[query]
 pub struct XorValues {
     a: i32,
     b: i32,
-}
-
-impl XorValues {
-    pub fn new(a: i32, b: i32) -> Self {
-        Self { a, b }
-    }
 }
 
 impl Query for XorValues {
@@ -55,7 +42,7 @@ impl Query for XorValues {
     type Return = i32;
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[query]
 pub struct IsEven;
 
 impl Query for IsEven {
@@ -63,7 +50,7 @@ impl Query for IsEven {
     type Return = bool;
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct Increment;
 
 impl Transaction for Increment {
@@ -71,7 +58,7 @@ impl Transaction for Increment {
     type Return = ();
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct Decrement;
 
 impl Transaction for Decrement {
@@ -79,15 +66,9 @@ impl Transaction for Decrement {
     type Return = ();
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct Adjust {
     by: i32,
-}
-
-impl Adjust {
-    pub fn new(by: i32) -> Self {
-        Self { by }
-    }
 }
 
 impl Transaction for Adjust {
@@ -95,16 +76,10 @@ impl Transaction for Adjust {
     type Return = ();
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct CompareAndSwap {
     expected: i32,
     new: i32,
-}
-
-impl CompareAndSwap {
-    pub fn new(expected: i32, new: i32) -> Self {
-        Self { expected, new }
-    }
 }
 
 impl Transaction for CompareAndSwap {
@@ -112,72 +87,51 @@ impl Transaction for CompareAndSwap {
     type Return = bool;
 }
 
+#[apply(name = "adjust")]
 impl Apply<Adjust> for Counter {
-    fn apply(
-        &mut self,
-        arg: Adjust,
-        _: StoreContext,
-    ) -> <Adjust as Transaction>::Return {
+    fn apply(&mut self, arg: Adjust, _: StoreContext) {
         self.adjust(arg.by);
     }
 }
 
+#[execute(name = "read_value")]
 impl Execute<ReadValue> for Counter {
-    fn execute(
-        &self,
-        _: ReadValue,
-        _: StoreContext,
-    ) -> <ReadValue as Query>::Return {
+    fn execute(&self, _: ReadValue, _: StoreContext) -> i32 {
         self.value
     }
 }
 
+#[execute(name = "xor_values")]
 impl Execute<XorValues> for Counter {
-    fn execute(
-        &self,
-        arg: XorValues,
-        _: StoreContext,
-    ) -> <XorValues as Query>::Return {
+    fn execute(&self, arg: XorValues, _: StoreContext) -> i32 {
         self.xor_values(arg.a, arg.b)
     }
 }
 
+#[execute(name = "is_even")]
 impl Execute<IsEven> for Counter {
-    fn execute(
-        &self,
-        _: IsEven,
-        _: StoreContext,
-    ) -> <IsEven as Query>::Return {
+    fn execute(&self, _: IsEven, _: StoreContext) -> bool {
         self.is_even()
     }
 }
 
+#[apply(name = "increment")]
 impl Apply<Increment> for Counter {
-    fn apply(
-        &mut self,
-        _: Increment,
-        _: StoreContext,
-    ) -> <Increment as Transaction>::Return {
+    fn apply(&mut self, _: Increment, _: StoreContext) {
         self.increment();
     }
 }
 
+#[apply(name = "decrement")]
 impl Apply<Decrement> for Counter {
-    fn apply(
-        &mut self,
-        _: Decrement,
-        _: StoreContext,
-    ) -> <Decrement as Transaction>::Return {
+    fn apply(&mut self, _: Decrement, _: StoreContext) {
         self.decrement();
     }
 }
 
+#[apply(name = "compare_and_swap")]
 impl Apply<CompareAndSwap> for Counter {
-    fn apply(
-        &mut self,
-        arg: CompareAndSwap,
-        _: StoreContext,
-    ) -> <CompareAndSwap as Transaction>::Return {
+    fn apply(&mut self, arg: CompareAndSwap, _: StoreContext) -> bool {
         self.compare_and_swap(arg.expected, arg.new)
     }
 }
@@ -216,41 +170,3 @@ impl Counter {
         }
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    t_handler!(adjust, Counter, Adjust);
-
-    #[no_mangle]
-    fn read_value(written_state: u32, _written_data: u32) -> u32 {
-        let state: Counter = unsafe { get_state(written_state, &SCRATCH) };
-
-        let ret = state.read_value();
-
-        unsafe { q_return(&ret, &mut SCRATCH) }
-    }
-    // q_handler!(read_value, Counter, ReadValue);
-
-    q_handler!(xor_values, Counter, XorValues);
-
-    q_handler!(is_even, Counter, IsEven);
-
-    #[no_mangle]
-    fn increment(written_state: u32, _written_data: u32) -> [u32; 2] {
-        let mut state: Counter = unsafe { get_state(written_state, &SCRATCH) };
-
-        state.increment();
-
-        unsafe { t_return(&state, &(), &mut SCRATCH) }
-    }
-    // t_handler!(increment, Counter, Increment);
-
-    t_handler!(decrement, Counter, Decrement);
-
-    t_handler!(compare_and_swap, Counter, CompareAndSwap);
-};
