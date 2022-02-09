@@ -13,10 +13,13 @@
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};
-use rusk_uplink::{ContractId, Query, Transaction, Apply, Execute, StoreContext};
+use rusk_uplink::{
+    Apply, ContractId, Execute, Query, StoreContext, Transaction,
+};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 extern crate alloc;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state(new = false)]
 pub struct CallerState {
     target_address: ContractId,
 }
@@ -31,7 +34,7 @@ impl CallerState {
     }
 }
 
-#[derive(Archive, Serialize, Debug, Deserialize)]
+#[query]
 pub struct CallerQuery;
 
 impl Query for CallerQuery {
@@ -39,6 +42,7 @@ impl Query for CallerQuery {
     type Return = <Callee1Query as Query>::Return;
 }
 
+#[execute(name = "call")]
 impl Execute<CallerQuery> for CallerState {
     fn execute(
         &self,
@@ -61,16 +65,9 @@ impl Execute<CallerQuery> for CallerState {
     }
 }
 
-
-#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct CallerTransaction {
     target_id: ContractId,
-}
-
-impl CallerTransaction {
-    pub fn new(target_id: ContractId) -> Self {
-        Self { target_id }
-    }
 }
 
 impl Transaction for CallerTransaction {
@@ -78,12 +75,9 @@ impl Transaction for CallerTransaction {
     type Return = ();
 }
 
+#[apply(name = "set_target")]
 impl Apply<CallerTransaction> for CallerState {
-    fn apply(
-        &mut self,
-        target: CallerTransaction,
-        _: StoreContext,
-    ) -> <CallerTransaction as Transaction>::Return {
+    fn apply(&mut self, target: CallerTransaction, _: StoreContext) {
         self.set_target(target.target_id);
         rusk_uplink::debug!(
             "setting state.set_target to: {:?}",
@@ -92,8 +86,7 @@ impl Apply<CallerTransaction> for CallerState {
     }
 }
 
-
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[query]
 pub struct Callee1Query {
     sender: ContractId,
 }
@@ -102,15 +95,3 @@ impl Query for Callee1Query {
     const NAME: &'static str = "call";
     type Return = ([u8; 32], [u8; 32], [u8; 32]);
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    q_handler!(call, CallerState, CallerQuery);
-
-    t_handler!(set_target, CallerState, CallerTransaction);
-};

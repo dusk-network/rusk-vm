@@ -19,17 +19,14 @@ use rusk_uplink::{
 };
 extern crate alloc;
 use alloc::boxed::Box;
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state]
 pub struct SelfSnapshot {
     crossover: i32,
 }
 
 impl SelfSnapshot {
-    pub fn new(init: i32) -> Self {
-        SelfSnapshot { crossover: init }
-    }
-
     pub fn crossover(&self) -> i32 {
         self.crossover
     }
@@ -99,32 +96,35 @@ impl SelfSnapshot {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[query]
 pub struct CrossoverQuery;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+impl Query for CrossoverQuery {
+    const NAME: &'static str = "crossover";
+    type Return = i32;
+}
+
+#[transaction]
 pub struct SetCrossoverTransaction {
     crossover: i32,
 }
 
-impl SetCrossoverTransaction {
-    pub fn new(crossover: i32) -> Self {
-        Self { crossover }
-    }
+impl Transaction for SetCrossoverTransaction {
+    const NAME: &'static str = "set_crossover";
+    type Return = i32;
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct SelfCallTestATransaction {
     update: i32,
 }
 
-impl SelfCallTestATransaction {
-    pub fn new(update: i32) -> Self {
-        Self { update }
-    }
+impl Transaction for SelfCallTestATransaction {
+    const NAME: &'static str = "self_call_test_a";
+    type Return = i32;
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction(new = false)]
 pub struct SelfCallTestBTransaction {
     contract_id: ContractId,
     tx_data: Box<[u8]>,
@@ -147,78 +147,14 @@ impl SelfCallTestBTransaction {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct UpdateAndPanicTransaction {
-    update: i32,
-}
-
-impl UpdateAndPanicTransaction {
-    pub fn new(update: i32) -> Self {
-        Self { update }
-    }
-}
-
-impl Query for CrossoverQuery {
-    const NAME: &'static str = "crossover";
-    type Return = i32;
-}
-
-impl Execute<CrossoverQuery> for SelfSnapshot {
-    fn execute(
-        &self,
-        _: CrossoverQuery,
-        _: StoreContext,
-    ) -> <CrossoverQuery as Query>::Return {
-        self.crossover
-    }
-}
-
-impl Transaction for SetCrossoverTransaction {
-    const NAME: &'static str = "set_crossover";
-    type Return = i32;
-}
-
-impl Apply<SetCrossoverTransaction> for SelfSnapshot {
-    fn apply(
-        &mut self,
-        to: SetCrossoverTransaction,
-        _: StoreContext,
-    ) -> <SetCrossoverTransaction as Transaction>::Return {
-        self.set_crossover(to.crossover)
-    }
-}
-
-impl Transaction for SelfCallTestATransaction {
-    const NAME: &'static str = "self_call_test_a";
-    type Return = i32;
-}
-
-impl Apply<SelfCallTestATransaction> for SelfSnapshot {
-    fn apply(
-        &mut self,
-        update: SelfCallTestATransaction,
-        store: StoreContext,
-    ) -> <SelfCallTestATransaction as Transaction>::Return {
-        self.self_call_test_a(update.update, store)
-    }
-}
-
 impl Transaction for SelfCallTestBTransaction {
     const NAME: &'static str = "self_call_test_b";
     type Return = i32;
 }
 
-impl Apply<SelfCallTestBTransaction> for SelfSnapshot {
-    fn apply(
-        &mut self,
-        arg: SelfCallTestBTransaction,
-        store: StoreContext,
-    ) -> <SelfCallTestBTransaction as Transaction>::Return {
-        let mut tx_data = AlignedVec::new();
-        tx_data.extend_from_slice(arg.tx_data.as_ref());
-        let raw_transaction = RawTransaction::from(tx_data, &arg.tx_name);
-        self.self_call_test_b(arg.contract_id, &raw_transaction, store)
-    }
+#[transaction]
+pub struct UpdateAndPanicTransaction {
+    update: i32,
 }
 
 impl Transaction for UpdateAndPanicTransaction {
@@ -226,30 +162,52 @@ impl Transaction for UpdateAndPanicTransaction {
     type Return = ();
 }
 
+#[execute(name = "crossover")]
+impl Execute<CrossoverQuery> for SelfSnapshot {
+    fn execute(&self, _: CrossoverQuery, _: StoreContext) -> i32 {
+        self.crossover
+    }
+}
+
+#[apply(name = "set_crossover")]
+impl Apply<SetCrossoverTransaction> for SelfSnapshot {
+    fn apply(&mut self, to: SetCrossoverTransaction, _: StoreContext) -> i32 {
+        self.set_crossover(to.crossover)
+    }
+}
+
+#[apply(name = "self_call_test_a")]
+impl Apply<SelfCallTestATransaction> for SelfSnapshot {
+    fn apply(
+        &mut self,
+        update: SelfCallTestATransaction,
+        store: StoreContext,
+    ) -> i32 {
+        self.self_call_test_a(update.update, store)
+    }
+}
+
+#[apply(name = "self_call_test_b")]
+impl Apply<SelfCallTestBTransaction> for SelfSnapshot {
+    fn apply(
+        &mut self,
+        arg: SelfCallTestBTransaction,
+        store: StoreContext,
+    ) -> i32 {
+        let mut tx_data = AlignedVec::new();
+        tx_data.extend_from_slice(arg.tx_data.as_ref());
+        let raw_transaction = RawTransaction::from(tx_data, &arg.tx_name);
+        self.self_call_test_b(arg.contract_id, &raw_transaction, store)
+    }
+}
+
+#[apply(name = "update_and_panic")]
 impl Apply<UpdateAndPanicTransaction> for SelfSnapshot {
     fn apply(
         &mut self,
         update_and_panic: UpdateAndPanicTransaction,
         store: StoreContext,
-    ) -> <UpdateAndPanicTransaction as Transaction>::Return {
+    ) {
         self.update_and_panic(update_and_panic.update, store);
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    q_handler!(crossover, SelfSnapshot, CrossoverQuery);
-
-    t_handler!(set_crossover, SelfSnapshot, SetCrossoverTransaction);
-
-    t_handler!(self_call_test_a, SelfSnapshot, SelfCallTestATransaction);
-
-    t_handler!(self_call_test_b, SelfSnapshot, SelfCallTestBTransaction);
-
-    t_handler!(update_and_panic, SelfSnapshot, UpdateAndPanicTransaction);
-};

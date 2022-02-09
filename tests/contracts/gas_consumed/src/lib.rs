@@ -14,19 +14,16 @@
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
+use rusk_uplink_derive::{apply, execute, query, state, transaction};
 
 extern crate alloc;
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[state]
 pub struct GasConsumed {
     value: i32,
 }
 
 impl GasConsumed {
-    pub fn new(value: i32) -> Self {
-        GasConsumed { value }
-    }
-
     pub fn value(&self) -> i32 {
         self.value
     }
@@ -39,37 +36,32 @@ impl GasConsumed {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[query]
 pub struct GasConsumedValueQuery;
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct GasConsumedQuery;
 
 impl Query for GasConsumedValueQuery {
     const NAME: &'static str = "value";
     type Return = i32;
 }
 
+#[query]
+pub struct GasConsumedQuery;
+
 impl Query for GasConsumedQuery {
     const NAME: &'static str = "get_gas_consumed";
     type Return = (u32, u32);
 }
 
+#[execute(name = "value")]
 impl Execute<GasConsumedValueQuery> for GasConsumed {
-    fn execute(
-        &self,
-        _: GasConsumedValueQuery,
-        _: StoreContext,
-    ) -> <GasConsumedValueQuery as Query>::Return {
+    fn execute(&self, _: GasConsumedValueQuery, _: StoreContext) -> i32 {
         self.value()
     }
 }
 
+#[execute(name = "get_gas_consumed")]
 impl Execute<GasConsumedQuery> for GasConsumed {
-    fn execute(
-        &self,
-        _: GasConsumedQuery,
-        _: StoreContext,
-    ) -> <GasConsumedQuery as Query>::Return {
+    fn execute(&self, _: GasConsumedQuery, _: StoreContext) -> (u32, u32) {
         (
             rusk_uplink::gas_consumed() as u32,
             rusk_uplink::gas_left() as u32,
@@ -77,53 +69,32 @@ impl Execute<GasConsumedQuery> for GasConsumed {
     }
 }
 
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[transaction]
 pub struct GasConsumedIncrement;
-#[derive(Clone, Debug, Default, Archive, Serialize, Deserialize)]
-pub struct GasConsumedDecrement;
 
 impl Transaction for GasConsumedIncrement {
     const NAME: &'static str = "increment";
     type Return = ();
 }
 
+#[transaction]
+pub struct GasConsumedDecrement;
+
 impl Transaction for GasConsumedDecrement {
     const NAME: &'static str = "decrement";
     type Return = ();
 }
 
+#[apply(name = "increment")]
 impl Apply<GasConsumedIncrement> for GasConsumed {
-    fn apply(
-        &mut self,
-        _: GasConsumedIncrement,
-        _: StoreContext,
-    ) -> <GasConsumedIncrement as Transaction>::Return {
+    fn apply(&mut self, _: GasConsumedIncrement, _: StoreContext) {
         self.increment()
     }
 }
 
+#[apply(name = "decrement")]
 impl Apply<GasConsumedDecrement> for GasConsumed {
-    fn apply(
-        &mut self,
-        _: GasConsumedDecrement,
-        _: StoreContext,
-    ) -> <GasConsumedDecrement as Transaction>::Return {
+    fn apply(&mut self, _: GasConsumedDecrement, _: StoreContext) {
         self.decrement()
     }
 }
-
-#[cfg(target_family = "wasm")]
-const _: () = {
-    use rusk_uplink::framing_imports;
-    framing_imports!();
-
-    scratch_memory!(512);
-
-    q_handler!(value, GasConsumed, GasConsumedValueQuery);
-
-    q_handler!(get_gas_consumed, GasConsumed, GasConsumedQuery);
-
-    t_handler!(increment, GasConsumed, GasConsumedIncrement);
-
-    t_handler!(decrement, GasConsumed, GasConsumedDecrement);
-};
