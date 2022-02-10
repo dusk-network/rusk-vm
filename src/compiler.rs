@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::compiler_config::CompilerConfigProvider;
 use crate::modules::ModuleConfig;
 use crate::VMError;
 use loupe::MemoryUsage;
@@ -16,7 +15,7 @@ use wasmer::{
         self, MemoryError, MemoryStyle, TableStyle, VMMemoryDefinition,
         VMTableDefinition,
     },
-    BaseTunables, MemoryType, Pages, TableType, Target, Tunables,
+    MemoryType, Pages, TableType, Tunables,
 };
 use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_universal::Universal;

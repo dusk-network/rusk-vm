@@ -14,9 +14,7 @@ use delegator::Delegator;
 use dusk_abi::Transaction;
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
-use rusk_vm::{
-    Contract, ContractId, GasMeter, NetworkState, Schedule, VMError,
-};
+use rusk_vm::{Contract, ContractId, GasMeter, NetworkState, VMError};
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
