@@ -538,12 +538,7 @@ fn deploy_fails_with_floats() {
 
     let contract = Contract::new(counter, code.to_vec());
 
-    let forbidden_floats_schedule = Schedule {
-        has_forbidden_floats: false,
-        ..Default::default()
-    };
-
-    let mut network = NetworkState::with_schedule(&forbidden_floats_schedule);
+    let mut network = NetworkState::new();
 
     assert!(matches!(
         network.deploy(contract),

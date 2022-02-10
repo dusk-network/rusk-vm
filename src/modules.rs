@@ -13,9 +13,13 @@ use cached::cached_key_result;
 use cached::TimedSizedCache;
 use canonical::Store;
 use dusk_abi::HostModule;
+use parity_wasm::elements;
+use pwasm_utils::rules::{InstructionType, Metering};
 use std::collections::BTreeMap as Map;
+use std::str::FromStr;
 use tracing::trace;
 use wasmer::Module;
+use wasmparser::Validator;
 
 pub use dusk_abi::{ContractId, ContractState};
 
@@ -139,5 +143,83 @@ impl ModuleConfig {
             .map(|(s, c)| (s.to_string(), *c))
             .collect();
         config
+    }
+
+    pub(crate) fn validate_wasm(
+        wasm_code: impl AsRef<[u8]>,
+    ) -> Result<(), VMError> {
+        let mut validator = Validator::new();
+        validator
+            .validate_all(wasm_code.as_ref())
+            .map_err(|e| VMError::WASMError(failure::Error::from(e)))
+    }
+
+    pub(crate) fn apply(
+        &self,
+        code: &[u8],
+    ) -> Result<Vec<u8>, InstrumentationError> {
+        let mut module: parity_wasm::elements::Module =
+            elements::deserialize_buffer(code)
+                .or(Err(InstrumentationError::InvalidByteCode))?;
+
+        let mut instr_type_map: Map<InstructionType, Metering> = Map::new();
+        for (instr_type, value) in self.per_type_op_cost.iter() {
+            instr_type_map.insert(
+                InstructionType::from_str(instr_type)
+                    .or(Err(InstrumentationError::InvalidInstructionType))?,
+                Metering::Fixed(*value),
+            );
+        }
+
+        let mut ruleset =
+            pwasm_utils::rules::Set::new(self.regular_op_cost, instr_type_map);
+
+        if self.has_grow_cost {
+            ruleset = ruleset.with_grow_cost(self.grow_mem_cost as u32);
+        }
+
+        if self.has_forbidden_floats {
+            ruleset = ruleset.with_forbidden_floats();
+        }
+
+        if self.has_metering {
+            module = pwasm_utils::inject_gas_counter(module, &ruleset, "env")
+                .or(Err(InstrumentationError::GasMeteringInjection))?;
+
+            module = pwasm_utils::stack_height::inject_limiter(
+                module,
+                self.max_stack_height,
+            )
+            .or(Err(InstrumentationError::StackHeightInjection))?;
+        }
+
+        if self.has_table_size_limit {
+            if let Some(table_section) = module.table_section() {
+                // In Wasm MVP spec, there may be at most one table declared.
+                // Double check this explicitly just in case the
+                // Wasm version changes.
+                if table_section.entries().len() > 1 {
+                    return Err(InstrumentationError::MultipleTables);
+                }
+
+                if let Some(table_type) = table_section.entries().first() {
+                    // Check the table's initial size as there is no instruction
+                    // or environment function capable of
+                    // growing the table.
+                    if table_type.limits().initial() > self.max_table_size {
+                        return Err(InstrumentationError::MaxTableSize);
+                    }
+                }
+            }
+        }
+
+        let code_bytes = module
+            .to_bytes()
+            .or(Err(InstrumentationError::InvalidByteCode))?;
+
+        ModuleConfig::validate_wasm(&code_bytes)
+            .or(Err(InstrumentationError::InvalidByteCode))?;
+
+        Ok(code_bytes)
     }
 }

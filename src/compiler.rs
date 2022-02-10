@@ -19,6 +19,7 @@ use wasmer::{
     BaseTunables, MemoryType, Pages, TableType, Target, Tunables,
 };
 use wasmer_engine_universal::Universal;
+use wasmer_compiler_cranelift::Cranelift;
 
 /// A custom tunables that allows you to set a memory and table size limits.
 #[derive(MemoryUsage)]
@@ -112,20 +113,10 @@ impl WasmerCompiler {
     /// Creates module out of bytecode
     pub fn create_module(
         bytecode: impl AsRef<[u8]>,
-        module_config: &ModuleConfig,
+        _module_config: &ModuleConfig,
     ) -> Result<Module, VMError> {
-        let compiler_config =
-            CompilerConfigProvider::from_config(module_config)?;
-        let base = BaseTunables::for_target(&Target::default());
-        let tunables = LimitingTunables::new(
-            base,
-            Pages(module_config.max_memory_pages),
-            module_config.max_table_size,
-        );
-        let store = wasmer::Store::new_with_tunables(
-            &Universal::new(compiler_config).engine(),
-            tunables,
-        );
-        Module::new(&store, bytecode).map_err(VMError::WasmerCompileError)
+        let store =
+            wasmer::Store::new(&Universal::new(Cranelift::default()).engine());
+        Module::new(&store, bytecode).map_err(|e|e.into())
     }
 }

@@ -86,7 +86,7 @@ impl Contracts {
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
         self.0
-            .insert(id, contract)
+            .insert(id, contract.instrument(module_config)?)
             .map_err(VMError::from_store_error)?;
 
         let inserted_contract = self.get_contract(&id)?;

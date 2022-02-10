@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::modules::ModuleConfig;
+use crate::VMError;
 use canonical::Canon;
 use canonical_derive::Canon;
 
@@ -42,5 +44,13 @@ impl Contract {
     /// Returns a mutable reference to the contract state
     pub fn state_mut(&mut self) -> &mut ContractState {
         &mut self.state
+    }
+
+    pub(crate) fn instrument(
+        mut self,
+        module_config: &ModuleConfig,
+    ) -> Result<Self, VMError> {
+        self.code = module_config.apply(&self.code[..])?;
+        Ok(self)
     }
 }

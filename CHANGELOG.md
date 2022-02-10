@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Removed wasmer compile time instrumentation and brought back pwasm-utils based instrumentation
+
 ### Added
 
 - Add `staged` state in addition to the existing `head` and `origin` [#302]
