@@ -12,11 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `staged` state in addition to the existing `head` and `origin` [#302]
 - Add `unstage` method to remove changes from `staged` [#302]
 - Add `push` method to push the commited changes to `origin` [#302]
+- Add `exhaust` method to `GasMeter` [#308]
+- Add a private `update` method to `GasMeter` [#308]
+- Add `VMError::EmptyStack` [#308]
+- Add `Instance` field to `StackFrame` [#308]
+- Add `CallContext::top_mut()` [#308]
+- Add new `CallContext::gas_meter` method in `ops` module
 
 ### Changed
 
 - Change `commit` method to commit the changes from `staged` to `head` [#302]
 - Change `register_host_module` to be an associated function
+- Replace `GasMeter::set_left(0)` with `GasMeter::exhaust()` [#308]
+- Change `CallContext::top()` to return a `Result` [#308]
+- Change `CallContext::gas_meter()` to update the gas meter before return it [#308]
+
+### Removed
+
+- Remove `set_left` method from `GasMeter` [#308]
+- Remove legacy `gas` host function
+- Remove `CallContext::gas_meter_mut()` [#308]
+- Remove `Gas` host function implementation from `ops` module
 
 ## [0.9.0] - 2022-02-02
 
@@ -265,6 +281,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial
 
+[#308]: https://github.com/dusk-network/rusk-vm/issues/308
 [#302]: https://github.com/dusk-network/rusk-vm/issues/302
 [#283]: https://github.com/dusk-network/rusk-vm/issues/283
 [#270]: https://github.com/dusk-network/rusk-vm/issues/270
