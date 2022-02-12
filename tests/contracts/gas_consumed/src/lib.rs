@@ -46,7 +46,7 @@ pub struct GasConsumedQuery;
 
 impl Query for GasConsumedQuery {
     const NAME: &'static str = "get_gas_consumed";
-    type Return = (u32, u32);
+    type Return = (u32, u32, u32, u32, u32, u32);
 }
 
 #[execute(name = "value")]
@@ -58,11 +58,35 @@ impl Execute<GasConsumedValueQuery> for GasConsumed {
 
 #[execute(name = "get_gas_consumed")]
 impl Execute<GasConsumedQuery> for GasConsumed {
-    fn execute(&self, _: GasConsumedQuery, _: StoreContext) -> (u32, u32) {
-        (
+    fn execute(
+        &self,
+        _: GasConsumedQuery,
+        _: StoreContext,
+    ) -> (u32, u32, u32, u32, u32, u32) {
+        let mut ret = (
             rusk_uplink::gas_consumed() as u32,
             rusk_uplink::gas_left() as u32,
-        )
+            0,
+            0,
+            0,
+            0,
+        );
+
+        let gas_consumed_before = rusk_uplink::gas_consumed();
+        let gas_left_before = rusk_uplink::gas_left();
+
+        let x = 5i32;
+        let _y = x.pow(5);
+
+        let gas_consumed_after = rusk_uplink::gas_consumed();
+        let gas_left_after = rusk_uplink::gas_left();
+
+        ret.2 = gas_consumed_before as u32;
+        ret.3 = gas_consumed_after as u32;
+        ret.4 = gas_left_before as u32;
+        ret.5 = gas_left_after as u32;
+
+        ret
     }
 }
 
