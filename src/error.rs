@@ -15,9 +15,6 @@ use wasmer_vm::TrapCode;
 #[derive(Error, Debug)]
 /// The errors that can happen while executing the VM
 pub enum VMError {
-    /// The Stack is empty
-    #[error("The Stack is empty")]
-    EmptyStack,
     /// The Contract Panicked
     #[error("The contract {0} panicked with message: {1}")]
     ContractPanic(ContractId, String),
