@@ -8,9 +8,7 @@ use canonical::{Canon, Source};
 use dusk_abi::{ContractState, Query, ReturnValue, Transaction};
 use tracing::{trace, trace_span};
 use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
-use wasmer_middlewares::metering::{
-    get_remaining_points, set_remaining_points, MeteringPoints,
-};
+use wasmer_middlewares::metering::set_remaining_points;
 
 use crate::contract::ContractId;
 use crate::env::Env;
@@ -26,6 +24,7 @@ pub struct StackFrame {
     ret: ReturnValue,
     memory: WasmerMemory,
     gas_meter: GasMeter,
+    instance: Instance,
 }
 
 impl std::fmt::Debug for StackFrame {
@@ -39,12 +38,14 @@ impl StackFrame {
         callee: ContractId,
         memory: WasmerMemory,
         gas_meter: GasMeter,
+        instance: Instance,
     ) -> StackFrame {
         StackFrame {
             callee,
             memory,
             ret: Default::default(),
             gas_meter,
+            instance,
         }
     }
 
@@ -155,18 +156,23 @@ impl<'a> CallContext<'a> {
                 query.as_bytes(),
             )?;
 
-            self.stack
-                .push(StackFrame::new(target, memory, gas_meter.clone()));
+            self.stack.push(StackFrame::new(
+                target,
+                memory,
+                gas_meter.clone(),
+                instance.clone(),
+            ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("q")?;
 
         let r = run_func.call(0);
-        match self.gas_reconciliation(&instance) {
+
+        match self.gas_reconciliation() {
             Ok(gas) => *gas_meter = gas,
             Err(e) => {
-                gas_meter.set_left(0);
+                gas_meter.exhaust();
                 return Err(e);
             }
         }
@@ -236,17 +242,23 @@ impl<'a> CallContext<'a> {
                 contract.state().as_bytes().len() as u64,
                 transaction.as_bytes(),
             )?;
-            self.stack
-                .push(StackFrame::new(target, memory, gas_meter.clone()));
+            self.stack.push(StackFrame::new(
+                target,
+                memory,
+                gas_meter.clone(),
+                instance.clone(),
+            ));
         }
 
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
+
         let r = run_func.call(0);
-        match self.gas_reconciliation(&instance) {
+
+        match self.gas_reconciliation() {
             Ok(gas) => *gas_meter = gas,
             Err(e) => {
-                gas_meter.set_left(0);
+                gas_meter.exhaust();
                 return Err(e);
             }
         }
@@ -272,9 +284,10 @@ impl<'a> CallContext<'a> {
 
         let state = if self.stack.len() > 1 {
             self.stack.pop();
-            self.state.get_contract(self.callee())?.state().clone()
+            self.state.get_contract(self.callee()?)?.state().clone()
         } else {
-            let state = self.state.get_contract(self.callee())?.state().clone();
+            let state =
+                self.state.get_contract(self.callee()?)?.state().clone();
             self.stack.pop();
             state
         };
@@ -286,32 +299,38 @@ impl<'a> CallContext<'a> {
         self.block_height
     }
 
-    pub fn gas_meter(&self) -> &GasMeter {
-        &self.top().gas_meter
+    pub fn gas_meter(&mut self) -> Result<&GasMeter, VMError> {
+        let stack = &mut self.top_mut()?;
+        let instance = &stack.instance;
+        let gas_meter = &mut stack.gas_meter;
+
+        gas_meter.update(instance, 0)?;
+
+        Ok(&self.top()?.gas_meter)
     }
 
-    pub fn gas_meter_mut(&mut self) -> &mut GasMeter {
-        &mut self.stack.last_mut().expect("Invalid Stack").gas_meter
+    pub fn top(&self) -> Result<&StackFrame, VMError> {
+        self.stack.last().ok_or(VMError::EmptyStack)
     }
 
-    pub fn top(&self) -> &StackFrame {
-        self.stack.last().expect("Invalid stack")
+    pub fn top_mut(&mut self) -> Result<&mut StackFrame, VMError> {
+        self.stack.last_mut().ok_or(VMError::EmptyStack)
     }
 
-    pub fn callee(&self) -> &ContractId {
-        &self.top().callee
+    pub fn callee(&self) -> Result<&ContractId, VMError> {
+        Ok(&self.top()?.callee)
     }
 
-    pub fn caller(&self) -> &ContractId {
+    pub fn caller(&self) -> Result<&ContractId, VMError> {
         if self.stack.len() > 1 {
-            &self.stack[self.stack.len() - 2].callee
+            Ok(&self.stack[self.stack.len() - 2].callee)
         } else {
             self.callee()
         }
     }
 
     pub fn read_memory_from(&self, offset: u64) -> Result<&[u8], VMError> {
-        self.top().read_memory_from(offset)
+        self.top()?.read_memory_from(offset)
     }
 
     pub fn read_memory(
@@ -319,7 +338,7 @@ impl<'a> CallContext<'a> {
         offset: u64,
         length: usize,
     ) -> Result<&[u8], VMError> {
-        self.top().read_memory(offset, length)
+        self.top()?.read_memory(offset, length)
     }
 
     pub fn write_memory(
@@ -327,10 +346,7 @@ impl<'a> CallContext<'a> {
         source_slice: &[u8],
         offset: u64,
     ) -> Result<(), VMError> {
-        self.stack
-            .last_mut()
-            .expect("Invalid stack")
-            .write_memory(source_slice, offset)?;
+        self.top_mut()?.write_memory(source_slice, offset)?;
         Ok(())
     }
 
@@ -339,30 +355,25 @@ impl<'a> CallContext<'a> {
     }
 
     /// Reconcile the gas usage across the stack.
-    fn gas_reconciliation(
-        &mut self,
-        instance: &Instance,
-    ) -> Result<GasMeter, VMError> {
-        let remaining = get_remaining_points(instance);
-        match remaining {
-            MeteringPoints::Remaining(r) => {
-                self.gas_meter_mut().set_left(r as u64)
-            }
-            MeteringPoints::Exhausted => {
-                self.gas_meter_mut().set_left(0);
-                return Err(VMError::OutOfGas);
-            }
-        }
-
+    fn gas_reconciliation(&mut self) -> Result<GasMeter, VMError> {
         // If there is more than one [`StackFrame`] on the stack, then the
         // gas needs to be reconciled.
         if self.stack.len() > 1 {
             let len = self.stack.len() - 2;
-            let spent = self.gas_meter().spent();
-            let parent_meter = &mut self.stack[len].gas_meter;
+            let spent = self.gas_meter()?.spent();
+            let parent = &mut self.stack[len];
+            let parent_meter = &mut parent.gas_meter;
+            let parent_instance = &parent.instance;
 
-            parent_meter.charge(spent)?
+            // FIXME: This is a hack to make sure that the gas meter's parent
+            // consumes the gas spent from its own inter-contract calls.
+            // It doesn't take in account arbitrary `charge` calls to `GasMeter`
+            // happened inside a contract execution, such as `host functions`,
+            // that currently we don't have.
+            // The API will change once we're going to work on VM2 and deciding
+            // how to handle the gas consumption inside native calls.
+            parent_meter.update(parent_instance, spent)?;
         }
-        Ok(self.gas_meter().clone())
+        Ok(self.gas_meter()?.clone())
     }
 }
