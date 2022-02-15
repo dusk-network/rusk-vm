@@ -58,6 +58,9 @@ jobs:
           command: test
           args: --all-features --no-run
 
+      - name: Test persistance over sessions
+        run: make test-session
+
       - name: Test with kcov
         # Find every executable resulting from building the tests and run each
         # one of them with kcov. This ensures all the code we cover is measured.

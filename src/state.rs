@@ -67,7 +67,10 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        let id: ContractId = Store::hash(contract.bytecode()).into();
+        let id: ContractId = Store::hash(
+            &**contract.bytecode().map_err(VMError::from_store_error)?,
+        )
+        .into();
         self.deploy_with_id(id, contract, module_config)
     }
 
@@ -90,7 +93,12 @@ impl Contracts {
             .map_err(VMError::from_store_error)?;
 
         let inserted_contract = self.get_contract(&id)?;
-        compile_module(inserted_contract.bytecode(), module_config)?;
+        compile_module(
+            &**inserted_contract
+                .bytecode()
+                .map_err(VMError::from_store_error)?,
+            module_config,
+        )?;
 
         Ok(id)
     }

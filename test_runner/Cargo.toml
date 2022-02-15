@@ -1,0 +1,9 @@
+[package]
+name = "setup"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rusk-vm = { path = "..", features = ["persistence"] }
+counter = { path = "../tests/contracts/counter" }
+microkelvin = { version = "0.10", features = ["persistence"] }

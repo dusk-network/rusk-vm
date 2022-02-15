@@ -2,8 +2,6 @@ use std::env;
 use std::error::Error;
 use std::fmt::Display;
 use std::fs;
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 
 use counter::*;
@@ -38,7 +36,7 @@ fn initialize(
     let counter = Counter::new(99);
 
     let code = include_bytes!(
-        "../../../target/wasm32-unknown-unknown/release/counter.wasm"
+        "../../target/wasm32-unknown-unknown/release/counter.wasm"
     );
 
     let contract = Contract::new(counter, code.to_vec());
@@ -110,14 +108,12 @@ fn confirm(_backend: &BackendCtor<DiskBackend>) -> Result<(), Box<dyn Error>> {
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
-    println!("path {:?}", args[1]);
-
     let backend = unsafe {
         PATH = args[1].clone();
         BackendCtor::new(|| DiskBackend::new(&PATH))
     };
 
-    Persistence::with_backend(&backend, |_| Ok(()));
+    Persistence::with_backend(&backend, |_| Ok(())).unwrap();
 
     match &*args[2] {
         "initialize" => initialize(&backend),
