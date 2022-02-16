@@ -67,10 +67,10 @@ name = "stack"
 harness = false
 
 [workspace]
-
 members = [
     "tests/contracts/*",
 ]
+exclude = ["test_runner"]
 
 [features]
 persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]
