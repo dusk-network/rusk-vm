@@ -7,6 +7,11 @@
 // Gas units are chosen to be represented by u64 so that gas metering
 // instructions can operate on them efficiently.
 
+use wasmer::Instance;
+use wasmer_middlewares::metering::{
+    get_remaining_points, set_remaining_points, MeteringPoints,
+};
+
 /// Type alias for gas
 pub type Gas = u64;
 
@@ -50,9 +55,9 @@ impl GasMeter {
         }
     }
 
-    /// Mutates the left gas amount
-    pub fn set_left(&mut self, new_left: Gas) {
-        self.left = new_left;
+    /// Exhausts the gas meter
+    pub fn exhaust(&mut self) {
+        self.left = 0;
     }
 
     /// Returns how much gas left from the initial budget.
@@ -68,6 +73,33 @@ impl GasMeter {
     /// Returns how much gas was actually spent.
     pub fn spent(&self) -> Gas {
         self.limit - self.left
+    }
+
+    /// Updates both gas meter and instance gas points, taking into account the
+    /// `charge` amount.
+    pub(crate) fn update(
+        &mut self,
+        instance: &Instance,
+        charge: Gas,
+    ) -> Result<(), GasError> {
+        let remaining = get_remaining_points(instance);
+        match remaining {
+            MeteringPoints::Remaining(r) => {
+                self.left = r as u64;
+
+                if charge > 0 {
+                    let result = self.charge(charge);
+                    set_remaining_points(instance, self.left);
+                    return result;
+                }
+            }
+            MeteringPoints::Exhausted => {
+                self.left = 0;
+                return Err(GasError::GasLimitExceeded);
+            }
+        }
+
+        Ok(())
     }
 
     /// Create a new limited [`GasMeter`].

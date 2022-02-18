@@ -44,6 +44,8 @@ use wasmer_vm::TrapCode;
 pub enum VMError {
     /// Invalid arguments in host call
     InvalidArguments,
+    /// The Stack is empty
+    EmptyStack,
     /// The contract panicked with message in `String`
     ContractPanic(String),
     /// Could not find WASM memory
@@ -150,6 +152,7 @@ impl fmt::Display for VMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             VMError::InvalidArguments => write!(f, "Invalid arguments")?,
+            VMError::EmptyStack => write!(f, "The stack is empty")?,
             VMError::ContractPanic(string) => {
                 write!(f, "Contract panic \"{}\"", string)?
             }

@@ -38,10 +38,10 @@ impl ApplyTransaction {
         let transaction = Transaction::decode(&mut source)
             .map_err(VMError::from_store_error)?;
 
-        let callee = *context.callee();
+        let callee = *context.callee()?;
         *context.state_mut().get_contract_mut(&callee)?.state_mut() = state;
 
-        let mut gas_meter = context.gas_meter().limited(gas_limit);
+        let mut gas_meter = context.gas_meter()?.limited(gas_limit);
         let (state, result) =
             context.transact(contract_id, transaction, &mut gas_meter)?;
 
