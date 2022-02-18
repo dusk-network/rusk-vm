@@ -65,9 +65,27 @@ mod hosted {
                 Ok(())
             }
             GAS_CONSUMED => {
-                let ret = (dusk_abi::gas_consumed(), dusk_abi::gas_left());
+                let mut ret = (
+                    dusk_abi::gas_consumed(),
+                    dusk_abi::gas_left(),
+                    0,
+                    0,
+                    0,
+                    0,
+                );
 
                 let mut sink = Sink::new(&mut bytes[..]);
+
+                let gas_consumed_before = dusk_abi::gas_consumed();
+                let gas_left_before = dusk_abi::gas_left();
+                let x = 5i32;
+                let _y = x.pow(5);
+                let gas_consumed_after = dusk_abi::gas_consumed();
+                let gas_left_after = dusk_abi::gas_left();
+                ret.2 = gas_consumed_before as u64;
+                ret.3 = gas_consumed_after as u64;
+                ret.4 = gas_left_before as u64;
+                ret.5 = gas_left_after as u64;
 
                 ReturnValue::from_canon(&ret).encode(&mut sink);
                 Ok(())
