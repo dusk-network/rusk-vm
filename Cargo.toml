@@ -18,8 +18,8 @@ failure = "0.1"
 dusk-abi = "0.10"
 canonical = "0.6"
 canonical_derive = "0.6"
-dusk-hamt = "0.5.0-rc"
-microkelvin = "0.10"
+dusk-hamt = "0.8.0"
+microkelvin = "0.14"
 wasmer = "2.1"
 wasmer-vm = "2.1"
 wasmer-engine-universal = "2.1"
@@ -67,10 +67,10 @@ name = "stack"
 harness = false
 
 [workspace]
-
 members = [
     "tests/contracts/*",
 ]
+exclude = ["test_runner"]
 
 [features]
 persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]

@@ -126,7 +126,7 @@ impl<'a> CallContext<'a> {
             let contract = self.state.get_contract(&target)?;
 
             let module = compile_module(
-                contract.bytecode(),
+                &**contract.bytecode().map_err(VMError::from_store_error)?,
                 self.state.get_module_config(),
             )?;
 
@@ -214,7 +214,7 @@ impl<'a> CallContext<'a> {
             let contract = self.state.get_contract(&target)?;
 
             let module = compile_module(
-                contract.bytecode(),
+                &**contract.bytecode().map_err(VMError::from_store_error)?,
                 self.state.get_module_config(),
             )?;
 
