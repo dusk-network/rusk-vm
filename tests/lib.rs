@@ -692,19 +692,41 @@ fn map() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
-        .transact::<_, Option<u32>>(
-            contract_id,
-            0,
-            (map::SET, 1, 13u32),
-            &mut gas,
-        )
-        .unwrap();
+    const N: u8 = 16;
 
-    assert_eq!(
+    for i in 1..N {
         network
-            .query::<_, Option<u32>>(contract_id, 0, (map::GET, 1), &mut gas)
-            .unwrap(),
-        Some(13)
-    );
+            .transact::<_, Option<u32>>(
+                contract_id,
+                0,
+                (map::SET, i, i as u32),
+                &mut gas,
+            )
+            .unwrap();
+
+        assert_eq!(
+            network
+                .query::<_, Option<u32>>(contract_id, 0, (map::GET, i), &mut gas)
+                .unwrap(),
+            Some(i as u32)
+        );
+
+        network
+            .transact::<_, Option<u32>>(
+                contract_id,
+                0,
+                (map::REMOVE, i, i as u32),
+                &mut gas,
+            )
+            .unwrap();
+    }
+
+    for i in 1..N {
+        assert_eq!(
+            network
+                .query::<_, Option<u32>>(contract_id, 0, (map::GET, i), &mut gas)
+                .unwrap(),
+            None
+        );
+    }
 }
