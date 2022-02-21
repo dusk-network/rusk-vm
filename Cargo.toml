@@ -57,6 +57,7 @@ callee_2 = { path = "tests/contracts/callee-2" }
 gas_consumed = { path = "tests/contracts/gas_consumed" }
 counter_float = { path = "tests/contracts/counter_float" }
 gas_context = { path = "tests/contracts/gas_context" }
+map = { path = "tests/contracts/map" }
 
 [[bench]]
 name = "fibonacci"
