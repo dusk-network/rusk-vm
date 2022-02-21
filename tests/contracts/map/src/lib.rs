@@ -34,7 +34,7 @@ impl Map {
     }
 
     pub fn get(&self, key: &u8) -> Option<u32> {
-        self.inner.get(key).ok()?.map(|x|*x)
+        self.inner.get(key).ok()?.map(|x| *x)
     }
 
     pub fn remove(&mut self, key: &u8) -> Result<Option<u32>, CanonError> {
