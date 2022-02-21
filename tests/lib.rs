@@ -12,6 +12,7 @@ use counter::Counter;
 use delegator::{Delegator, QueryForwardData, TransactionForwardData};
 use fibonacci::ComputeFrom;
 use gas_consumed::{GasConsumed, GasConsumedIncrement, GasConsumedValueQuery};
+use map::{Get, Map, Remove, Set};
 use microkelvin::{HostStore, StoreRef};
 use register::{Gossip, NumSecrets, Register, SecretHash};
 use rusk_vm::{Contract, GasMeter, NetworkState};
@@ -657,5 +658,50 @@ fn register() {
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
             .expect("Query error"),
         N
+    );
+}
+
+#[test]
+fn map() {
+    let map = Map::new();
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/map.wasm");
+
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&map, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    assert_eq!(
+        None,
+        *network
+            .transact(contract_id, 0, Set::new(0, 13), &mut gas)
+            .expect("Transaction should not error")
+    );
+
+    assert_eq!(
+        Some(13),
+        *network
+            .query(contract_id, 0, Get::new(0), &mut gas)
+            .expect("Query should not error")
+    );
+
+    assert_eq!(
+        Some(13),
+        *network
+            .transact(contract_id, 0, Remove::new(0), &mut gas)
+            .expect("Transaction should not error")
+    );
+
+    assert_eq!(
+        None,
+        *network
+            .query(contract_id, 0, Get::new(0), &mut gas)
+            .expect("Query should not error")
     );
 }
