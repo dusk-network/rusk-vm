@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 rusk-vm = { path = "..", features = ["persistence"] }
 counter = { path = "../tests/contracts/counter" }
+map = { path = "../tests/contracts/map" }
 microkelvin = { version = "0.14", features = ["persistence"] }
