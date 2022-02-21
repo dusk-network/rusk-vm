@@ -781,7 +781,12 @@ fn map() {
 
         assert_eq!(
             network
-                .query::<_, Option<u32>>(contract_id, 0, (map::GET, i), &mut gas)
+                .query::<_, Option<u32>>(
+                    contract_id,
+                    0,
+                    (map::GET, i),
+                    &mut gas
+                )
                 .unwrap(),
             Some(i as u32)
         );
@@ -799,7 +804,12 @@ fn map() {
     for i in 1..N {
         assert_eq!(
             network
-                .query::<_, Option<u32>>(contract_id, 0, (map::GET, i), &mut gas)
+                .query::<_, Option<u32>>(
+                    contract_id,
+                    0,
+                    (map::GET, i),
+                    &mut gas
+                )
                 .unwrap(),
             None
         );
