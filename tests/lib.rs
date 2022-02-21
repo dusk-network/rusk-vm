@@ -14,6 +14,7 @@ use delegator::Delegator;
 use dusk_abi::Transaction;
 use fibonacci::Fibonacci;
 use gas_consumed::GasConsumed;
+use map::Map;
 use rusk_vm::{
     Contract, ContractId, GasMeter, NetworkState, Schedule, VMError,
 };
@@ -673,5 +674,37 @@ fn persistence() {
             .query::<_, i32>(contract_id, 0, counter::READ_VALUE, &mut gas)
             .unwrap(),
         100
+    );
+}
+
+#[test]
+fn map() {
+    let map = Map::new();
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/map.wasm");
+
+    let contract = Contract::new(map, code.to_vec());
+
+    let mut network = NetworkState::new();
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact::<_, Option<u32>>(
+            contract_id,
+            0,
+            (map::SET, 1, 13u32),
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(
+        network
+            .query::<_, Option<u32>>(contract_id, 0, (map::GET, 1), &mut gas)
+            .unwrap(),
+        Some(13)
     );
 }
