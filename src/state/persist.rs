@@ -6,9 +6,8 @@
 
 use canonical::{Canon, Sink, Source};
 use canonical_derive::Canon;
-use dusk_hamt::Map;
 use microkelvin::{
-    Backend, BackendCtor, Compound, PersistError, PersistedId, Persistence,
+    Backend, BackendCtor, PersistError, PersistedId, Persistence,
 };
 use std::fs;
 use std::path::Path;
@@ -70,10 +69,10 @@ impl NetworkState {
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which stores the
     /// contracts of the entire blockchain state.
     pub fn restore(mut self, id: NetworkStateId) -> Result<Self, PersistError> {
-        let map = Map::from_generic(&id.origin.restore()?)?;
+        let map = id.origin.restore()?;
         self.origin = Contracts(map);
 
-        let map = Map::from_generic(&id.head.restore()?)?;
+        let map = id.head.restore()?;
         self.head = Contracts(map);
 
         self.staged = self.head.clone();

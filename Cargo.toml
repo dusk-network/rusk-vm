@@ -19,7 +19,7 @@ dusk-abi = "0.10"
 canonical = "0.6"
 canonical_derive = "0.6"
 dusk-hamt = "0.9"
-microkelvin = "0.14"
+microkelvin = { version = "0.14", features = ["persistence"] }
 wasmer = "2.1"
 wasmer-vm = "2.1"
 wasmer-engine-universal = "2.1"
@@ -73,5 +73,6 @@ members = [
 ]
 exclude = ["test_runner"]
 
-[features]
-persistence = ["dusk-hamt/persistence", "microkelvin/persistence"]
+[patch.crates-io]
+microkelvin = { path = "../microkelvin" }
+canonical = { path = "../canonical/canon" }

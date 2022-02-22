@@ -37,7 +37,7 @@ impl Display for PersistE {
     }
 }
 
-const MAP_SIZE: u8 = 6;
+const MAP_SIZE: u8 = 64;
 
 fn initialize_counter(
     backend: &BackendCtor<DiskBackend>,
@@ -82,7 +82,8 @@ fn initialize_counter(
 
     persist_id.write(file_path)?;
 
-    let contract_id_path = PathBuf::from(unsafe { &PATH }).join("counter_contract_id");
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("counter_contract_id");
 
     fs::write(&contract_id_path, contract_id.as_bytes())?;
 
@@ -94,9 +95,8 @@ fn initialize_map(
 ) -> Result<(), Box<dyn Error>> {
     let counter = Map::new();
 
-    let code = include_bytes!(
-        "../../target/wasm32-unknown-unknown/release/map.wasm"
-    );
+    let code =
+        include_bytes!("../../target/wasm32-unknown-unknown/release/map.wasm");
 
     let contract = Contract::new(counter, code.to_vec());
 
@@ -125,7 +125,8 @@ fn initialize_map(
 
     persist_id.write(file_path)?;
 
-    let contract_id_path = PathBuf::from(unsafe { &PATH }).join("map_contract_id");
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("map_contract_id");
 
     fs::write(&contract_id_path, contract_id.as_bytes())?;
 
@@ -140,7 +141,9 @@ fn initialize(
     Ok(())
 }
 
-fn confirm_counter(_backend: &BackendCtor<DiskBackend>) -> Result<(), Box<dyn Error>> {
+fn confirm_counter(
+    _backend: &BackendCtor<DiskBackend>,
+) -> Result<(), Box<dyn Error>> {
     let file_path = PathBuf::from(unsafe { &PATH }).join("counter_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
@@ -148,7 +151,8 @@ fn confirm_counter(_backend: &BackendCtor<DiskBackend>) -> Result<(), Box<dyn Er
         .restore(state_id)
         .map_err(|_| PersistE)?;
 
-    let contract_id_path = PathBuf::from(unsafe { &PATH }).join("counter_contract_id");
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("counter_contract_id");
     let buf = fs::read(&contract_id_path)?;
 
     let contract_id = ContractId::from(buf);
@@ -165,7 +169,9 @@ fn confirm_counter(_backend: &BackendCtor<DiskBackend>) -> Result<(), Box<dyn Er
     Ok(())
 }
 
-fn confirm_map(_backend: &BackendCtor<DiskBackend>) -> Result<(), Box<dyn Error>> {
+fn confirm_map(
+    _backend: &BackendCtor<DiskBackend>,
+) -> Result<(), Box<dyn Error>> {
     let file_path = PathBuf::from(unsafe { &PATH }).join("map_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
@@ -173,7 +179,8 @@ fn confirm_map(_backend: &BackendCtor<DiskBackend>) -> Result<(), Box<dyn Error>
         .restore(state_id)
         .map_err(|_| PersistE)?;
 
-    let contract_id_path = PathBuf::from(unsafe { &PATH }).join("map_contract_id");
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("map_contract_id");
     let buf = fs::read(&contract_id_path)?;
 
     let contract_id = ContractId::from(buf);
