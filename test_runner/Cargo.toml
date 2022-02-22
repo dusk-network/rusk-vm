@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rusk-vm = { path = "..", features = ["persistence"] }
+rusk-vm = { path = ".." }
 counter = { path = "../tests/contracts/counter" }
 map = { path = "../tests/contracts/map" }
 microkelvin = { version = "0.14", features = ["persistence"] }
+
+[patch.crates-io]
+microkelvin = { path = "../../microkelvin" }
+canonical = { path = "../../canonical/canon" }

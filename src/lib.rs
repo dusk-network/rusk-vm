@@ -33,7 +33,6 @@ pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
-#[cfg(feature = "persistence")]
 pub use state::persist::NetworkStateId;
 
 use thiserror::Error;
