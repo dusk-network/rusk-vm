@@ -19,7 +19,6 @@ use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
 
-#[cfg(feature = "persistence")]
 pub mod persist;
 
 /// State of the contracts on the network.

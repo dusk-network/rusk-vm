@@ -14,3 +14,6 @@ canonical_derive = "0.6"
 nstack = "0.13.0"
 microkelvin = "0.14"
 dusk-abi = "0.10"
+
+[patch.crates-io]
+microkelvin = { path = "../../../microkelvin" }

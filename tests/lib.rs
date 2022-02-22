@@ -684,7 +684,6 @@ fn deploy_with_id() -> Result<(), VMError> {
     Ok(())
 }
 
-#[cfg(feature = "persistence")]
 #[test]
 fn persistence() {
     use microkelvin::{BackendCtor, DiskBackend};

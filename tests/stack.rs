@@ -5,13 +5,20 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use canonical::CanonError;
+use microkelvin::{BackendCtor, DiskBackend, Persistence};
 
 use rusk_vm::{Contract, GasMeter, NetworkState};
 
 use stack::Stack;
 
+fn testbackend() -> BackendCtor<DiskBackend> {
+    BackendCtor::new(DiskBackend::ephemeral)
+}
+
 #[test]
 fn stack() {
+    Persistence::with_backend(&testbackend(), |_| Ok(())).unwrap();
+
     type Leaf = u64;
     const N: Leaf = 64;
 
@@ -81,13 +88,9 @@ fn stack() {
     );
 }
 
-#[cfg(feature = "persistence")]
 #[test]
 fn stack_persist() {
-    use microkelvin::{BackendCtor, DiskBackend};
-    fn testbackend() -> BackendCtor<DiskBackend> {
-        BackendCtor::new(DiskBackend::ephemeral)
-    }
+    Persistence::with_backend(&testbackend(), |_| Ok(())).unwrap();
 
     type Leaf = u64;
     const N: Leaf = 64;

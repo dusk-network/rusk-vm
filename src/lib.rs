@@ -33,7 +33,6 @@ pub use contract::{Contract, ContractId};
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
 
-#[cfg(feature = "persistence")]
 pub use state::persist::NetworkStateId;
 
 /// Definition of the cost schedule and other parameterizations for wasm vm.
