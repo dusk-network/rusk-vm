@@ -21,6 +21,11 @@ use rusk_vm::{
 use self_snapshot::SelfSnapshot;
 use tx_vec::TxVec;
 
+use microkelvin::{BackendCtor, DiskBackend, Persistence};
+fn testbackend() -> BackendCtor<DiskBackend> {
+    BackendCtor::new(DiskBackend::ephemeral)
+}
+
 fn fibonacci_reference(n: u64) -> u64 {
     if n < 2 {
         n
@@ -686,11 +691,6 @@ fn deploy_with_id() -> Result<(), VMError> {
 
 #[test]
 fn persistence() {
-    use microkelvin::{BackendCtor, DiskBackend};
-    fn testbackend() -> BackendCtor<DiskBackend> {
-        BackendCtor::new(DiskBackend::ephemeral)
-    }
-
     let counter = Counter::new(99);
 
     let code =
@@ -753,6 +753,9 @@ fn persistence() {
 
 #[test]
 fn map() {
+    Persistence::with_backend(&testbackend(), |_| Ok(()))
+        .expect("Backend should be registered");
+
     let map = Map::new();
 
     let code =

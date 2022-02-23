@@ -30,17 +30,7 @@ impl Get {
         let mem =
             context.read_memory(hash_ofs, core::mem::size_of::<IdHash>())?;
         let mut source = Source::new(mem);
-<<<<<<< HEAD
         let hash = IdHash::decode(&mut source)?;
-        // we don't allow get requests to fail in the bridge
-        // communication since that is the
-        // responsibility of the host.
-        let mut dest = vec![0; write_len];
-        Store::get(&hash, &mut dest)?;
-        context.write_memory(&dest, write_buf)?;
-=======
-        let hash =
-            IdHash::decode(&mut source).map_err(VMError::from_store_error)?;
         let id = canonical::Id::raw(hash, write_len as u32);
 
         // we don't allow get requests to fail in the bridge
@@ -52,7 +42,6 @@ impl Get {
 
         context.write_memory(&bytes, write_buf)?;
 
->>>>>>> c3aaad5 (Change store ops to always use microkelvin)
         Ok(())
     }
 }
