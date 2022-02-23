@@ -15,11 +15,11 @@ license = "MPL-2.0"
 [dependencies]
 wasmparser = "0.81"
 failure = "0.1"
-dusk-abi = "0.10"
-canonical = "0.6"
-canonical_derive = "0.6"
-dusk-hamt = "0.9"
-microkelvin = { version = "0.14", features = ["persistence"] }
+dusk-abi = "0.11"
+canonical = "0.7"
+canonical_derive = "0.7"
+dusk-hamt = "0.10.0-rc"
+microkelvin = { version = "0.15.0-rc", features = ["persistence"] }
 wasmer = "2.1"
 wasmer-vm = "2.1"
 wasmer-engine-universal = "2.1"
@@ -72,7 +72,3 @@ members = [
     "tests/contracts/*",
 ]
 exclude = ["test_runner"]
-
-[patch.crates-io]
-microkelvin = { path = "../microkelvin" }
-canonical = { path = "../canonical/canon" }

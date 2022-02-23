@@ -7,8 +7,6 @@ edition = "2021"
 rusk-vm = { path = ".." }
 counter = { path = "../tests/contracts/counter" }
 map = { path = "../tests/contracts/map" }
-microkelvin = { version = "0.14", features = ["persistence"] }
+microkelvin = { version = "0.15.0-rc", features = ["persistence"] }
 
-[patch.crates-io]
-microkelvin = { path = "../../microkelvin" }
-canonical = { path = "../../canonical/canon" }
+
