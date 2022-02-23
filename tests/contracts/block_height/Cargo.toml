@@ -8,6 +8,6 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = "0.6"
-canonical_derive = "0.6"
-dusk-abi = "0.10"
+canonical = "0.7"
+canonical_derive = "0.7"
+dusk-abi = "0.11"

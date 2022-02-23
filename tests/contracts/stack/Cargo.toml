@@ -8,12 +8,9 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = "0.6"
-canonical_derive = "0.6"
+canonical = "0.7"
+canonical_derive = "0.7"
 
-nstack = "0.13.0"
-microkelvin = "0.14"
-dusk-abi = "0.10"
-
-[patch.crates-io]
-microkelvin = { path = "../../../microkelvin" }
+nstack = "0.14.0-rc"
+microkelvin = "0.15.0-rc"
+dusk-abi = "0.11"
