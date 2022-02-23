@@ -51,12 +51,13 @@ mod hosted {
         let qid = u8::decode(&mut source)?;
         match qid {
             CALL => {
-                let mut sink = Sink::new(&mut bytes[..]);
+                let should_panic = bool::decode(&mut source)?;
 
+                let mut sink = Sink::new(&mut bytes[..]);
                 let ret =
                     dusk_abi::query::<_, (ContractId, ContractId, ContractId)>(
                         &slf.target_address,
-                        &(CALLEE_1_CALL, dusk_abi::callee()),
+                        &(CALLEE_1_CALL, dusk_abi::callee(), should_panic),
                         0,
                     )
                     .expect("Query Succeeded");

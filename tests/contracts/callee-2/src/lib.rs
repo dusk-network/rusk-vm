@@ -47,8 +47,10 @@ mod hosted {
 
         assert_eq!(sender, dusk_abi::caller(), "Expected Caller");
 
+        let should_panic = bool::decode(&mut source)?;
+
         match qid {
-            GET => {
+            GET if !should_panic => {
                 let mut sink = Sink::new(&mut bytes[..]);
 
                 // return value
@@ -61,7 +63,7 @@ mod hosted {
 
                 Ok(())
             }
-            _ => panic!(""),
+            _ => panic!("Panic with flag set to: {}", should_panic),
         }
     }
 

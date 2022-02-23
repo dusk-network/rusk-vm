@@ -57,15 +57,18 @@ mod hosted {
 
         match qid {
             CALL => {
+                let should_panic = bool::decode(&mut source)?;
                 let mut sink = Sink::new(&mut bytes[..]);
 
-                let ret =
-                    dusk_abi::query::<_, (ContractId, ContractId, ContractId)>(
-                        &slf.target_address,
-                        &(CALLEE_2_GET, sender, dusk_abi::callee()),
-                        0,
-                    )
-                    .expect("Query Succeeded");
+                let ret = dusk_abi::query::<
+                    _,
+                    (ContractId, ContractId, ContractId),
+                >(
+                    &slf.target_address,
+                    &(CALLEE_2_GET, sender, dusk_abi::callee(), should_panic),
+                    0,
+                )
+                .expect("Query Succeeded");
 
                 // return value
                 ReturnValue::from_canon(&ret).encode(&mut sink);
