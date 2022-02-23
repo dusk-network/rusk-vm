@@ -40,6 +40,9 @@ pub enum VMError {
     /// Error propagated from underlying store
     #[error("Error propagated from underlying store")]
     StoreError(CanonError),
+    /// Error during persistence
+    #[error("Persistence Error: {0}")]
+    PersistenceError(String),
     /// WASMER export error
     #[error(transparent)]
     WasmerExportError(#[from] wasmer::ExportError),
