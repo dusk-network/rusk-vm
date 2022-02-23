@@ -30,6 +30,19 @@ fn fibonacci_reference(n: u64) -> u64 {
 }
 
 #[test]
+fn unknown_contract() {
+    let mut network = NetworkState::new();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+    let contract_id = ContractId::reserved(0xff);
+
+    let result = network.query::<_, i32>(contract_id, 0, 1, &mut gas);
+
+    let err = result.expect_err("Should have failed");
+    assert!(matches!(err, VMError::UnknownContract(id) if id == contract_id));
+}
+
+#[test]
 fn counter() {
     let counter = Counter::new(99);
 
@@ -274,7 +287,8 @@ fn self_snapshot() {
         &mut gas,
     );
 
-    assert!(result.is_err());
+    let err = result.expect_err("Should have panicked");
+    assert!(matches!(err, VMError::ContractPanic(id, _) if id == contract_id));
 
     assert_eq!(
         10,
@@ -372,6 +386,7 @@ fn tx_vec() {
 
 #[test]
 fn calling() {
+    let should_panic = false;
     let caller = Caller::new();
     let callee1 = Callee1::new();
     let callee2 = Callee2::new();
@@ -422,13 +437,72 @@ fn calling() {
             .query::<_, (ContractId, ContractId, ContractId)>(
                 caller_id,
                 0,
-                caller::CALL,
+                (caller::CALL, should_panic),
                 &mut gas
             )
             .unwrap(),
         (caller_id, callee1_id, callee2_id),
         "Expected Callers and Callees"
     )
+}
+
+#[test]
+fn panicking_nested() {
+    let should_panic = true;
+    let caller = Caller::new();
+    let callee1 = Callee1::new();
+    let callee2 = Callee2::new();
+
+    let code_caller =
+        include_bytes!("../target/wasm32-unknown-unknown/release/caller.wasm");
+    let code_callee1 = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/callee_1.wasm"
+    );
+    let code_callee2 = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/callee_2.wasm"
+    );
+
+    let mut network = NetworkState::new();
+
+    let caller_id = network
+        .deploy(Contract::new(caller, code_caller.to_vec()))
+        .unwrap();
+    let callee1_id = network
+        .deploy(Contract::new(callee1, code_callee1.to_vec()))
+        .unwrap();
+    let callee2_id = network
+        .deploy(Contract::new(callee2, code_callee2.to_vec()))
+        .unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    network
+        .transact::<_, ()>(
+            caller_id,
+            0,
+            (caller::SET_TARGET, callee1_id),
+            &mut gas,
+        )
+        .unwrap();
+
+    network
+        .transact::<_, ()>(
+            callee1_id,
+            0,
+            (caller::SET_TARGET, callee2_id),
+            &mut gas,
+        )
+        .unwrap();
+
+    let result = network.query::<_, ()>(
+        caller_id,
+        0,
+        (caller::CALL, should_panic),
+        &mut gas,
+    );
+
+    let err = result.expect_err("Should have panicked");
+    assert!(matches!(err, VMError::ContractPanic(id, _) if id == callee2_id));
 }
 
 #[test]
@@ -531,7 +605,8 @@ fn out_of_gas_aborts_execution() {
 
     let should_be_err =
         network.transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas);
-    assert!(format!("{:?}", should_be_err).contains("Out of Gas error"));
+
+    assert!(matches!(should_be_err, Err(VMError::OutOfGas)));
 
     // Ensure all gas is consumed even the tx did not succeed.
     assert_eq!(gas.left(), 0);

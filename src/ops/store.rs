@@ -28,13 +28,12 @@ impl Get {
         let mem =
             context.read_memory(hash_ofs, core::mem::size_of::<IdHash>())?;
         let mut source = Source::new(mem);
-        let hash =
-            IdHash::decode(&mut source).map_err(VMError::from_store_error)?;
+        let hash = IdHash::decode(&mut source)?;
         // we don't allow get requests to fail in the bridge
         // communication since that is the
         // responsibility of the host.
         let mut dest = vec![0; write_len];
-        Store::get(&hash, &mut dest).map_err(VMError::from_store_error)?;
+        Store::get(&hash, &mut dest)?;
         context.write_memory(&dest, write_buf)?;
         Ok(())
     }

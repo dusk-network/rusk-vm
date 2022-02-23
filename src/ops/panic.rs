@@ -24,8 +24,9 @@ impl Panic {
         let slice = context.read_memory(panic_ofs, panic_len)?;
         Err(match String::from_utf8(slice.to_vec()) {
             Ok(panic_msg) => {
-                debug!("Contract panic: {:?}", panic_msg);
-                VMError::ContractPanic(panic_msg)
+                let contract_id = context.callee()?;
+                debug!("Contract {} panic: {:?}", contract_id, panic_msg);
+                VMError::ContractPanic(*contract_id, panic_msg)
             }
             Err(_) => {
                 debug!("Invalid UTF-8 in panic");

@@ -83,6 +83,33 @@ pub enum InstrumentationError {
     InvalidInstructionType,
 }
 
+impl std::error::Error for InstrumentationError {}
+
+impl core::fmt::Display for InstrumentationError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            InstrumentationError::GasMeteringInjection => {
+                write!(f, "Gas metering injection error")
+            }
+            InstrumentationError::StackHeightInjection => {
+                write!(f, "Stack height injection error")
+            }
+            InstrumentationError::MultipleTables => {
+                write!(f, "Multiple tables error")
+            }
+            InstrumentationError::MaxTableSize => {
+                write!(f, "Max table size error")
+            }
+            InstrumentationError::InvalidByteCode => {
+                write!(f, "Invalid bytecode")
+            }
+            InstrumentationError::InvalidInstructionType => {
+                write!(f, "Invalid instruction type")
+            }
+        }
+    }
+}
+
 #[derive(Clone, Hash, PartialEq, Eq)]
 pub struct ModuleConfig {
     pub version: u32,

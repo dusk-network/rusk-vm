@@ -41,11 +41,9 @@ impl Contracts {
         &'a self,
         contract_id: &ContractId,
     ) -> Result<impl Deref<Target = Contract> + 'a, VMError> {
-        self.0
-            .get(contract_id)
-            .map_err(VMError::from_store_error)
+        Ok(self.0.get(contract_id)?)
             .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+            .unwrap_or(Err(VMError::UnknownContract(*contract_id)))
     }
 
     /// Returns a mutable reference to the specified contracts state.
@@ -53,11 +51,9 @@ impl Contracts {
         &'a mut self,
         contract_id: &ContractId,
     ) -> Result<impl DerefMut<Target = Contract> + 'a, VMError> {
-        self.0
-            .get_mut(contract_id)
-            .map_err(VMError::from_store_error)
+        Ok(self.0.get_mut(contract_id)?)
             .transpose()
-            .unwrap_or(Err(VMError::UnknownContract))
+            .unwrap_or(Err(VMError::UnknownContract(*contract_id)))
     }
 
     /// Deploys a contract to the state, returning the address of the created
@@ -67,10 +63,7 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        let id: ContractId = Store::hash(
-            &**contract.bytecode().map_err(VMError::from_store_error)?,
-        )
-        .into();
+        let id: ContractId = Store::hash(&**contract.bytecode()?).into();
         self.deploy_with_id(id, contract, module_config)
     }
 
@@ -88,17 +81,10 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        self.0
-            .insert(id, contract)
-            .map_err(VMError::from_store_error)?;
+        self.0.insert(id, contract)?;
 
         let inserted_contract = self.get_contract(&id)?;
-        compile_module(
-            &**inserted_contract
-                .bytecode()
-                .map_err(VMError::from_store_error)?,
-            module_config,
-        )?;
+        compile_module(&**inserted_contract.bytecode()?, module_config)?;
 
         Ok(id)
     }
@@ -237,10 +223,10 @@ impl NetworkState {
                 }
             }?;
 
-        result.cast().map_err(|e| {
+        Ok(result.cast().map_err(|e| {
             trace!("failed casting to result type: {:?}", e);
-            VMError::from_store_error(e)
-        })
+            e
+        })?)
     }
 
     /// Transact with the contract at `target` address returning the result of
@@ -286,7 +272,7 @@ impl NetworkState {
 
         let ret = result.cast().map_err(|e| {
             trace!("failed casting to result type: {:?}", e);
-            VMError::from_store_error(e)
+            e
         })?;
 
         // If we reach this point, everything went well and we can use the
@@ -342,10 +328,10 @@ impl NetworkState {
         C: Canon,
     {
         self.staged.get_contract(contract_id).map_or(
-            Err(VMError::UnknownContract),
+            Err(VMError::UnknownContract(*contract_id)),
             |contract| {
                 let mut source = Source::new((*contract).state().as_bytes());
-                C::decode(&mut source).map_err(VMError::from_store_error)
+                Ok(C::decode(&mut source)?)
             },
         )
     }

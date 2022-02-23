@@ -31,8 +31,7 @@ impl ExecuteQuery {
         let contract_id = ContractId::from(&contract_id_memory);
         let query_memory = context.read_memory_from(query_ofs)?;
         let mut source = Source::new(query_memory);
-        let query =
-            Query::decode(&mut source).map_err(VMError::from_store_error)?;
+        let query = Query::decode(&mut source)?;
 
         let mut gas_meter = context.gas_meter()?.limited(gas_limit);
         let result = context.query(contract_id, query, &mut gas_meter)?;
