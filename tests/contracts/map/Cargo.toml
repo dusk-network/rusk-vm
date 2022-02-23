@@ -7,8 +7,8 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = "0.6"
-canonical_derive = "0.6"
+canonical = "0.7"
+canonical_derive = "0.7"
 
-dusk-hamt = "0.9"
-dusk-abi = "0.10"
+dusk-hamt = "0.10.0-rc"
+dusk-abi = "0.11"
