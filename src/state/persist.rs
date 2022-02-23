@@ -31,8 +31,7 @@ impl NetworkStateId {
     pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, VMError> {
         let buf = fs::read(&path)?;
         let mut source = Source::new(&buf[..]);
-        let id = NetworkStateId::decode(&mut source)
-            .map_err(VMError::from_store_error)?;
+        let id = NetworkStateId::decode(&mut source)?;
 
         Ok(id)
     }

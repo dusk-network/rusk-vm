@@ -121,12 +121,12 @@ impl<'a> CallContext<'a> {
 
         if let Some(module) = HOST_MODULES.read().get_module(&target) {
             // is this a reserved module call?
-            return module.execute(query).map_err(VMError::from_store_error);
+            return Ok(module.execute(query)?);
         } else {
             let contract = self.state.get_contract(&target)?;
 
             let module = compile_module(
-                &**contract.bytecode().map_err(VMError::from_store_error)?,
+                &**contract.bytecode()?,
                 self.state.get_module_config(),
             )?;
 
@@ -187,8 +187,7 @@ impl<'a> CallContext<'a> {
         memory.init(&instance.exports)?;
         let read_buffer = memory.read_from(0)?;
         let mut source = Source::new(read_buffer);
-        let result = ReturnValue::decode(&mut source)
-            .map_err(VMError::from_store_error)?;
+        let result = ReturnValue::decode(&mut source)?;
         self.stack.pop();
         Ok(result)
     }
@@ -214,7 +213,7 @@ impl<'a> CallContext<'a> {
             let contract = self.state.get_contract(&target)?;
 
             let module = compile_module(
-                &**contract.bytecode().map_err(VMError::from_store_error)?,
+                &**contract.bytecode()?,
                 self.state.get_module_config(),
             )?;
 
@@ -275,11 +274,9 @@ impl<'a> CallContext<'a> {
             memory.init(&instance.exports)?;
             let read_buffer = memory.read_from(0)?;
             let mut source = Source::new(read_buffer);
-            let state = ContractState::decode(&mut source)
-                .map_err(VMError::from_store_error)?;
+            let state = ContractState::decode(&mut source)?;
             *(*contract).state_mut() = state;
-            ReturnValue::decode(&mut source)
-                .map_err(VMError::from_store_error)?
+            ReturnValue::decode(&mut source)?
         };
 
         let state = if self.stack.len() > 1 {
