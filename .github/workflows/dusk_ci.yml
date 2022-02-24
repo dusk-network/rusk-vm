@@ -1,11 +1,11 @@
-on: [ pull_request ]
+on: [pull_request]
 
 name: Continuous integration
 
 jobs:
   analyze:
     name: Dusk Analyzer
-    runs-on: ubuntu-latest
+    runs-on: core
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -52,8 +52,8 @@ jobs:
       - name: Build test executables
         uses: actions-rs/cargo@v1
         env:
-          RUSTFLAGS: '-Cinline-threshold=0 -Clink-dead-code'
-          RUSTDOCFLAGS: '-Cinline-threshold=0 -Clink-dead-code'
+          RUSTFLAGS: "-Cinline-threshold=0 -Clink-dead-code"
+          RUSTDOCFLAGS: "-Cinline-threshold=0 -Clink-dead-code"
         with:
           command: test
           args: --all-features --no-run
@@ -75,7 +75,7 @@ jobs:
 
   fmt:
     name: Rustfmt
-    runs-on: ubuntu-latest
+    runs-on: core
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
