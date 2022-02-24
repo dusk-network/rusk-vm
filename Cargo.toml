@@ -70,5 +70,6 @@ harness = false
 [workspace]
 members = [
     "tests/contracts/*",
+    "test_runner"
 ]
 exclude = ["test_runner"]
