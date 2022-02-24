@@ -37,8 +37,7 @@ impl Get {
         // communication since that is the
         // responsibility of the host.
 
-        let bytes = Persistence::get_raw(&id)
-            .map_err(|e| VMError::PersistenceError(format!("{:?}", e)))?;
+        let bytes = Persistence::get_raw(&id)?;
 
         context.write_memory(&bytes, write_buf)?;
 
@@ -59,8 +58,7 @@ impl Put {
 
         let mem = context.read_memory(ofs, len)?;
 
-        let id = microkelvin::Persistence::put(mem)
-            .map_err(|e| VMError::PersistenceError(format!("{:?}", e)))?;
+        let id = microkelvin::Persistence::put(mem)?;
 
         let hash = id.hash();
 

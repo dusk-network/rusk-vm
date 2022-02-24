@@ -9,6 +9,7 @@ use crate::modules;
 
 use canonical::CanonError;
 use dusk_abi::ContractId;
+use microkelvin::PersistError;
 use std::io;
 use thiserror::Error;
 use wasmer_vm::TrapCode;
@@ -40,9 +41,9 @@ pub enum VMError {
     /// Error propagated from underlying store
     #[error("Error propagated from underlying store")]
     StoreError(CanonError),
-    /// Error during persistence
-    #[error("Persistence Error: {0}")]
-    PersistenceError(String),
+    /// Persistence error
+    #[error(transparent)]
+    PersistenceError(#[from] PersistError),
     /// WASMER export error
     #[error(transparent)]
     WasmerExportError(#[from] wasmer::ExportError),
