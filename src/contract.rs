@@ -8,7 +8,7 @@ use std::ops::Deref;
 
 use canonical::{Canon, CanonError};
 use canonical_derive::Canon;
-use microkelvin::{Child, ChildMut, Compound, GenericTree, Link, LinkCompound};
+use microkelvin::{Child, ChildMut, Compound, Link, LinkCompound};
 
 pub use dusk_abi::{ContractId, ContractState};
 
@@ -50,10 +50,6 @@ impl Compound<()> for ContractCode {
         } else {
             ChildMut::EndOfNode
         }
-    }
-
-    fn from_generic(_tree: &GenericTree) -> Result<Self, CanonError> {
-        todo!("deprecated");
     }
 }
 
