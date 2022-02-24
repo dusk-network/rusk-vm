@@ -38,7 +38,7 @@ wasmer-compiler-singlepass = "2.1"
 wasmer-compiler-cranelift = "2.1"
 
 [dev-dependencies]
-dusk-bls12_381 = "0.8"
+dusk-bls12_381 = "0.9"
 dusk-bytes = "0.1"
 criterion = "0.3"
 
