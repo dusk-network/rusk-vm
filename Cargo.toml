@@ -67,3 +67,6 @@ members = [
     "rusk-uplink",
     "rusk-uplink_derive",
 ]
+
+[patch.crates-io]
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "main"}
