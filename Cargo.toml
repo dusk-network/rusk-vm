@@ -69,4 +69,4 @@ members = [
 ]
 
 [patch.crates-io]
-microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "main"}
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "rkyv_abistore_alloc"}

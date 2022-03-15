@@ -5,25 +5,23 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-    option_result_unwrap_unchecked
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use bytecheck::CheckBytes;
 use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{apply, execute, query, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, transaction};
 
 #[derive(Default, Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
 pub struct Stack {
     inner: NStack<u64, Cardinality, OffsetLen>,
 }
+
+#[init]
+fn init() {}
 
 #[query]
 pub struct Peek {
@@ -35,7 +33,7 @@ impl Query for Peek {
     type Return = Option<u64>;
 }
 
-#[execute(name = "peek", buf = 65536)]
+#[execute(name = "peek")]
 impl Execute<Peek> for Stack {
     fn execute(&self, arg: Peek, _: StoreContext) -> Option<u64> {
         self.peek(arg.value)
@@ -52,7 +50,7 @@ impl Transaction for Push {
     type Return = ();
 }
 
-#[apply(name = "push", buf = 65536)]
+#[apply(name = "push")]
 impl Apply<Push> for Stack {
     fn apply(&mut self, arg: Push, _: StoreContext) {
         self.push(arg.value);
@@ -67,7 +65,7 @@ impl Transaction for Pop {
     type Return = Option<u64>;
 }
 
-#[apply(name = "pop", buf = 65536)]
+#[apply(name = "pop")]
 impl Apply<Pop> for Stack {
     fn apply(&mut self, _: Pop, _: StoreContext) -> Option<u64> {
         self.pop()
@@ -91,7 +89,7 @@ impl Stack {
     }
 
     pub fn push(&mut self, value: u64) {
-        self.inner.push(value)
+        self.inner.push(value);
     }
 
     pub fn pop(&mut self) -> Option<u64> {

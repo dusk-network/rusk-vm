@@ -18,8 +18,3 @@ rkyv = { version = "0.7.20", default-features = false, features = ["archive_le",
 nstack = { version = "0.12.0-rc" }
 bytecheck = { version = "0.6.7", default-features = false }
 derive-new = "0.5"
-
-
-#[patch.crates-io]
-#nstack = { path = "../../../../nstack" }
-#microkelvin = { path = "../../../../microkelvin" }

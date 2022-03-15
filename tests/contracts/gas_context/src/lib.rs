@@ -5,25 +5,23 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-    option_result_unwrap_unchecked
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use rusk_uplink_derive::{apply, execute, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 #[state(new = false)]
 pub struct GasContextData {
     after_call_gas_limits: Vec<u64>,
     call_gas_limits: Vec<u64>,
 }
+
+#[init]
+fn init() {}
 
 impl GasContextData {
     pub fn new() -> GasContextData {
