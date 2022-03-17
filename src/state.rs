@@ -26,6 +26,8 @@ use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
 use rkyv::{Archive, Deserialize, Serialize};
 
+pub mod persist;
+
 /// State of the contracts on the network.
 #[derive(Archive, Default, Clone)]
 pub struct Contracts(Hamt<ContractId, Contract, (), OffsetLen>);
