@@ -72,13 +72,17 @@ impl NetworkState {
         let head_ident = Ident::<Hamt<ContractId, Contract, (), OffsetLen>, OffsetLen>::new(id.head);
         let origin_ident = Ident::<Hamt<ContractId, Contract, (), OffsetLen>, OffsetLen>::new(id.origin);
 
+        println!("about to get from: {:?}", head_ident);
         let restored_head: &<Hamt<ContractId, Contract, (), OffsetLen> as Archive>::Archived =
             store.get::<Hamt<ContractId, Contract, (), OffsetLen>>(&head_ident);
-        let restored_head: Hamt<ContractId, Contract, (), OffsetLen> =
-            restored_head.deserialize(&mut store.clone()).unwrap();
-
+        println!("after getting from: {:?}", head_ident);
+        println!("about to get from: {:?}", origin_ident);
         let restored_origin: &<Hamt<ContractId, Contract, (), OffsetLen> as Archive>::Archived =
             store.get::<Hamt<ContractId, Contract, (), OffsetLen>>(&origin_ident);
+        println!("after getting from: {:?}", origin_ident);
+
+        let restored_head: Hamt<ContractId, Contract, (), OffsetLen> =
+            restored_head.deserialize(&mut store.clone()).unwrap();
         let restored_origin: Hamt<ContractId, Contract, (), OffsetLen> =
             restored_origin.deserialize(&mut store.clone()).unwrap();
 
