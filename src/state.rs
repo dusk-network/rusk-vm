@@ -87,6 +87,7 @@ impl Contracts {
 /// `origin`.
 #[derive(Clone)]
 pub struct NetworkState {
+    pub(crate) staged: Contracts,
     origin: Contracts,
     head: Contracts,
     modules: HostModules,
@@ -99,6 +100,7 @@ impl NetworkState {
     pub fn new(store: StoreContext) -> Self {
         NetworkState {
             store,
+            staged: Default::default(),
             origin: Default::default(),
             head: Default::default(),
             modules: Default::default(),
@@ -112,6 +114,7 @@ impl NetworkState {
         Self {
             store,
             module_config,
+            staged: Default::default(),
             origin: Default::default(),
             head: Default::default(),
             modules: Default::default(),

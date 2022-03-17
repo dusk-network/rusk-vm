@@ -61,11 +61,11 @@ name = "stack"
 harness = false
 
 [workspace]
-
 members = [
     "tests/contracts/*",
     "rusk-uplink",
     "rusk-uplink_derive",
+    "test_runner",
 ]
 
 [patch.crates-io]

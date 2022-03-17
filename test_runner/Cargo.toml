@@ -1,0 +1,11 @@
+[package]
+name = "setup"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rusk-vm = { path = ".." }
+counter = { path = "../tests/contracts/counter" }
+#map = { path = "../tests/contracts/map" }
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "rkyv_abistore_alloc"}
+
