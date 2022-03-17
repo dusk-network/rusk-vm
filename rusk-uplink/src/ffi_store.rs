@@ -140,7 +140,6 @@ impl Store for AbiStore {
         &self,
         buffer: &mut TokenBuffer,
         size_needed: usize,
-        _size_present: usize,
     ) -> Result<(), ()> {
         let inner = unsafe { &mut *self.inner.get() };
         let slice = unsafe { &mut *inner.data };
