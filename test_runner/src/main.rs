@@ -38,8 +38,6 @@ impl Display for PersistE {
     }
 }
 
-const MAP_SIZE: u8 = 64;
-
 fn initialize_counter(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
@@ -82,7 +80,6 @@ fn initialize_counter(
     let file_path = PathBuf::from(unsafe { &PATH }).join("counter_persist_id");
 
     persist_id.write(file_path)?;
-    println!("written persist id= {:?}", persist_id);
 
     let contract_id_path =
         PathBuf::from(unsafe { &PATH }).join("counter_contract_id");
@@ -148,13 +145,10 @@ fn confirm_counter(
 ) -> Result<(), Box<dyn Error>> {
     let file_path = PathBuf::from(unsafe { &PATH }).join("counter_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
-    println!("read state id= {:?}", state_id);
 
-    println!("about to restore network state");
     let mut network = NetworkState::new(store.clone())
         .restore(store, state_id)
         .map_err(|_| PersistE)?;
-    println!("network state restored");
 
     let contract_id_path =
         PathBuf::from(unsafe { &PATH }).join("counter_contract_id");
