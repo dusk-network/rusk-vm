@@ -11,12 +11,15 @@ use std::fs;
 use std::path::PathBuf;
 
 use counter::*;
+use stack::*;
 // use map::*;
 use microkelvin::*;
 use rusk_vm::*;
 use crate::rusk_uplink::StoreContext;
 
 static mut PATH: String = String::new();
+
+const STACK_TEST_SIZE: u64 = 50000;
 
 #[derive(Debug)]
 struct IllegalArg;
@@ -89,6 +92,52 @@ fn initialize_counter(
     Ok(())
 }
 
+fn initialize_stack(
+    store: StoreContext,
+) -> Result<(), Box<dyn Error>> {
+    let counter = Counter::new(99);
+
+    let code = include_bytes!(
+        "../../target/wasm32-unknown-unknown/release/stack.wasm"
+    );
+
+    let contract = Contract::new(&counter, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store.clone());
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+
+    const N: u64 = STACK_TEST_SIZE;
+
+    for i in 0..N {
+        if i % 100 == 0 {
+            println!("push ===> {}", i);
+        }
+        network
+            .transact(contract_id, 0, Push::new(i), &mut gas)
+            .unwrap();
+    }
+
+    network.commit();
+
+    println!("before stack persist");
+    let persist_id = network.persist(store).expect("Error in persistence");
+    println!("after stack persist");
+
+    let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
+
+    persist_id.write(file_path)?;
+
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
+
+    fs::write(&contract_id_path, contract_id.as_bytes())?;
+
+    Ok(())
+}
+
 // fn initialize_map(
 //     backend: &BackendCtor<DiskBackend>,
 // ) -> Result<(), Box<dyn Error>> {
@@ -132,17 +181,10 @@ fn initialize_counter(
 //     Ok(())
 // }
 
-fn initialize(
-    store: StoreContext,
-) -> Result<(), Box<dyn Error>> {
-    initialize_counter(store)?;
-    // initialize_map(backend)?;
-    Ok(())
-}
-
 fn confirm_counter(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
+    println!("confirm");
     let file_path = PathBuf::from(unsafe { &PATH }).join("counter_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
@@ -203,9 +245,51 @@ fn confirm_counter(
 //     Ok(())
 // }
 
+fn confirm_stack(
+    store: StoreContext,
+) -> Result<(), Box<dyn Error>> {
+    println!("confirm");
+    let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
+    let state_id = NetworkStateId::read(file_path)?;
+
+    let mut network = NetworkState::new(store.clone())
+        .restore(store, state_id)
+        .map_err(|_| PersistE)?;
+
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
+    let buf = fs::read(&contract_id_path)?;
+
+    let contract_id = ContractId::from(buf);
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    //
+    const N: u64 = STACK_TEST_SIZE;
+
+    for i in 0..N {
+        if i % 100 == 0 {
+            println!("pop ===> {}", i);
+        }
+        let ii = network
+            .transact(contract_id, 0, Pop::new(), &mut gas)
+            .unwrap();
+        assert_eq!(Some(N-1-i), ii);
+    }
+
+    Ok(())
+}
+
+fn initialize(
+    store: StoreContext,
+) -> Result<(), Box<dyn Error>> {
+    // initialize_counter(store.clone())?;
+    initialize_stack(store)?;
+    Ok(())
+}
+
 fn confirm(store: StoreContext) -> Result<(), Box<dyn Error>> {
-    confirm_counter(store)?;
-    // confirm_map(_backend)?;
+    // confirm_counter(store.clone())?;
+    confirm_stack(store)?;
     Ok(())
 }
 

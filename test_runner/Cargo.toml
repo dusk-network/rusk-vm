@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 rusk-vm = { path = ".." }
 counter = { path = "../tests/contracts/counter" }
+stack = { path = "../tests/contracts/stack" }
 #map = { path = "../tests/contracts/map" }
-microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "rkyv_abistore_alloc"}
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-persistence"}
 

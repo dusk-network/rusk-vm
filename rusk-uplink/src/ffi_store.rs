@@ -10,20 +10,20 @@ use microkelvin::{OffsetLen, Store, Token, TokenBuffer};
 use rkyv::Fallible;
 
 extern "C" {
-    fn _put(slice: &u8, len: u16) -> u64;
-    fn _get(offset: u64, len: u16, buf: &mut u8);
+    fn _put(slice: &u8, len: u32) -> u64;
+    fn _get(offset: u64, len: u32, buf: &mut u8);
 }
 
 fn abi_put(slice: &[u8]) -> OffsetLen {
-    assert!(slice.len() <= u16::MAX as usize);
-    let len = slice.len() as u16;
+    assert!(slice.len() <= u32::MAX as usize);
+    let len = slice.len() as u32;
     let ofs = unsafe { _put(&slice[0], len) };
 
     OffsetLen::new(ofs, len)
 }
 
 fn abi_get(offset: u64, buf: &mut [u8]) {
-    let len = buf.len() as u16;
+    let len = buf.len() as u32;
     unsafe { _get(offset, len, &mut buf[0]) }
 }
 
