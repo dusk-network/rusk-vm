@@ -19,7 +19,7 @@ use crate::rusk_uplink::StoreContext;
 
 static mut PATH: String = String::new();
 
-const STACK_TEST_SIZE: u64 = 50000;
+const STACK_TEST_SIZE: u64 = 5000;
 
 #[derive(Debug)]
 struct IllegalArg;
@@ -268,7 +268,7 @@ fn confirm_stack(
 
     for i in 0..N {
         if i % 100 == 0 {
-            println!("pop ===> {}", i);
+            println!("pop ===> {}", N-1-i);
         }
         let ii = network
             .transact(contract_id, 0, Pop::new(), &mut gas)
