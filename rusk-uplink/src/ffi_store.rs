@@ -100,7 +100,7 @@ impl AbiStoreInner {
         let slice = buffer.written_bytes();
         let len = slice.len() as usize;
         let abi_put_ofslen = abi_put(slice);
-        assert!(len <= u16::MAX as usize);
+        assert!(len <= u32::MAX as usize);
         self.written += len;
         abi_put_ofslen
     }

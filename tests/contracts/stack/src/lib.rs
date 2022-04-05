@@ -58,6 +58,23 @@ impl Apply<Push> for Stack {
 }
 
 #[transaction]
+pub struct PushMulti {
+    value: u64,
+}
+
+impl Transaction for PushMulti {
+    const NAME: &'static str = "pushmulti";
+    type Return = ();
+}
+
+#[apply(name = "pushmulti")]
+impl Apply<PushMulti> for Stack {
+    fn apply(&mut self, arg: PushMulti, _: StoreContext) {
+        self.pushmulti(arg.value);
+    }
+}
+
+#[transaction]
 pub struct Pop;
 
 impl Transaction for Pop {
@@ -69,6 +86,23 @@ impl Transaction for Pop {
 impl Apply<Pop> for Stack {
     fn apply(&mut self, _: Pop, _: StoreContext) -> Option<u64> {
         self.pop()
+    }
+}
+
+#[transaction]
+pub struct PopMulti {
+    value: u64
+}
+
+impl Transaction for PopMulti {
+    const NAME: &'static str = "popmulti";
+    type Return = u64;
+}
+
+#[apply(name = "popmulti")]
+impl Apply<PopMulti> for Stack {
+    fn apply(&mut self, arg: PopMulti, _: StoreContext) -> u64 {
+        self.popmulti(arg.value)
     }
 }
 
@@ -92,7 +126,22 @@ impl Stack {
         self.inner.push(value);
     }
 
+    pub fn pushmulti(&mut self, value: u64) {
+        for i in 0..value {
+            rusk_uplink::debug!("push ==> {}", i);
+            self.inner.push(i);
+        }
+    }
+
     pub fn pop(&mut self) -> Option<u64> {
         self.inner.pop()
+    }
+
+    pub fn popmulti(&mut self, value: u64) -> u64 {
+        let mut sum = 0u64;
+        for _ in 0..value {
+            sum += self.inner.pop().unwrap_or(0);
+        }
+        sum
     }
 }

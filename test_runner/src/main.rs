@@ -138,6 +138,50 @@ fn initialize_stack(
     Ok(())
 }
 
+fn initialize_stack_multi(
+    store: StoreContext,
+) -> Result<(), Box<dyn Error>> {
+    let counter = Counter::new(99);
+
+    let code = include_bytes!(
+        "../../target/wasm32-unknown-unknown/release/stack.wasm"
+    );
+
+    let contract = Contract::new(&counter, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store.clone());
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+
+    const N: u64 = STACK_TEST_SIZE;
+
+    println!("pushmulti ===> {}", N);
+    network
+        .transact(contract_id, 0, PushMulti::new(N), &mut gas)
+        .unwrap();
+
+    println!("before network commit");
+    network.commit();
+    println!("after network commit");
+
+    println!("before stack persist");
+    let persist_id = network.persist(store).expect("Error in persistence");
+    println!("after stack persist");
+
+    let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
+
+    persist_id.write(file_path)?;
+
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
+
+    fs::write(&contract_id_path, contract_id.as_bytes())?;
+
+    Ok(())
+}
+
 // fn initialize_map(
 //     backend: &BackendCtor<DiskBackend>,
 // ) -> Result<(), Box<dyn Error>> {
@@ -279,17 +323,54 @@ fn confirm_stack(
     Ok(())
 }
 
+fn confirm_stack_multi(
+    store: StoreContext,
+) -> Result<(), Box<dyn Error>> {
+    println!("confirm");
+    let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
+    let state_id = NetworkStateId::read(file_path)?;
+
+    let mut network = NetworkState::new(store.clone())
+        .restore(store, state_id)
+        .map_err(|_| PersistE)?;
+
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
+    let buf = fs::read(&contract_id_path)?;
+
+    let contract_id = ContractId::from(buf);
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    //
+    const N: u64 = STACK_TEST_SIZE;
+
+    let mut expected_sum = 0u64;
+    for i in 0..N {
+        expected_sum += i;
+    }
+
+    println!("popmulti ===> {}", N);
+    let sum = network
+        .transact(contract_id, 0, PopMulti::new(N), &mut gas)
+        .unwrap();
+    assert_eq!(sum, expected_sum);
+
+    Ok(())
+}
+
 fn initialize(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
     // initialize_counter(store.clone())?;
-    initialize_stack(store)?;
+    // initialize_stack(store)?;
+    initialize_stack_multi(store)?;
     Ok(())
 }
 
 fn confirm(store: StoreContext) -> Result<(), Box<dyn Error>> {
     // confirm_counter(store.clone())?;
-    confirm_stack(store)?;
+    // confirm_stack(store)?;
+    confirm_stack_multi(store)?;
     Ok(())
 }
 
