@@ -131,6 +131,7 @@ impl Stack {
             rusk_uplink::debug!("push ==> {}", i);
             self.inner.push(i);
         }
+        rusk_uplink::debug!("finished pushing");
     }
 
     pub fn pop(&mut self) -> Option<u64> {
@@ -139,8 +140,13 @@ impl Stack {
 
     pub fn popmulti(&mut self, value: u64) -> u64 {
         let mut sum = 0u64;
-        for _ in 0..value {
-            sum += self.inner.pop().unwrap_or(0);
+        for i in 0..value {
+            let j = value - i - 1;
+            let peeked = self.peek(j).unwrap_or(0);
+            let popped = self.pop().unwrap();
+            rusk_uplink::debug!("peek ==> {} actual peeked={} actual popped={}", j, peeked, popped);
+            sum += popped;
+            assert_eq!(peeked, popped)
         }
         sum
     }

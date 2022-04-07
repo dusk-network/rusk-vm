@@ -361,15 +361,15 @@ fn confirm_stack_multi(
 fn initialize(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
-    // initialize_counter(store.clone())?;
-    // initialize_stack(store)?;
+    initialize_counter(store.clone())?;
+    initialize_stack(store.clone())?;
     initialize_stack_multi(store)?;
     Ok(())
 }
 
 fn confirm(store: StoreContext) -> Result<(), Box<dyn Error>> {
-    // confirm_counter(store.clone())?;
-    // confirm_stack(store)?;
+    confirm_counter(store.clone())?;
+    confirm_stack(store.clone())?;
     confirm_stack_multi(store)?;
     Ok(())
 }

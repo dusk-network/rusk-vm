@@ -100,8 +100,9 @@ impl AbiStoreInner {
         let slice = buffer.written_bytes();
         let len = slice.len() as usize;
         let abi_put_ofslen = abi_put(slice);
+        buffer.rewind();
         assert!(len <= u32::MAX as usize);
-        self.written += len;
+        self.written -= core::cmp::min(len, self.written);
         abi_put_ofslen
     }
 }
