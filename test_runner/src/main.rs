@@ -95,13 +95,13 @@ fn initialize_counter(
 fn initialize_stack(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
-    let counter = Counter::new(99);
+    let stack = Stack::new();
 
     let code = include_bytes!(
         "../../target/wasm32-unknown-unknown/release/stack.wasm"
     );
 
-    let contract = Contract::new(&counter, code.to_vec(), &store);
+    let contract = Contract::new(&stack, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store.clone());
 
@@ -141,13 +141,13 @@ fn initialize_stack(
 fn initialize_stack_multi(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
-    let counter = Counter::new(99);
+    let stack = Stack::new();
 
     let code = include_bytes!(
         "../../target/wasm32-unknown-unknown/release/stack.wasm"
     );
 
-    let contract = Contract::new(&counter, code.to_vec(), &store);
+    let contract = Contract::new(&stack, code.to_vec(), &store);
 
     let mut network = NetworkState::new(store.clone());
 
@@ -379,8 +379,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let store = unsafe {
         PATH = args[1].clone();
+        // PATH = String::from("/tmp/rusk-vm-test-runner-temp-dir");
         StoreRef::new(HostStore::with_file(&PATH)?)
     };
+
+    // initialize(store.clone())?;
+    // confirm(store.clone())
 
     match &*args[2] {
         "initialize" => initialize(store.clone()),

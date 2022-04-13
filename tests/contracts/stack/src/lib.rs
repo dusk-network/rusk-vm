@@ -7,15 +7,13 @@
 #![no_std]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use bytecheck::CheckBytes;
 use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{apply, execute, init, query, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
-#[derive(Default, Clone, Archive, Serialize, Deserialize)]
-#[archive_attr(derive(CheckBytes))]
+#[state(new = false)]
 pub struct Stack {
     inner: NStack<u64, Cardinality, OffsetLen>,
 }
