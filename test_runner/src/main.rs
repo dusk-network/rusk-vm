@@ -297,7 +297,7 @@ fn confirm_stack(
     let state_id = NetworkStateId::read(file_path)?;
 
     let mut network = NetworkState::new(store.clone())
-        .restore(store, state_id)
+        .restore(store.clone(), state_id)
         .map_err(|_| PersistE)?;
 
     let contract_id_path =
@@ -310,15 +310,102 @@ fn confirm_stack(
     //
     const N: u64 = STACK_TEST_SIZE;
 
+    // for i in 0..N {
+    //     if i % 100 == 0 {
+    //         println!("pop ===> {}", N-1-i);
+    //     }
+    //     let ii = network
+    //         .transact(contract_id, 0, Pop::new(), &mut gas)
+    //         .unwrap();
+    //     assert_eq!(Some(N-1-i), ii);
+    // }
+
+    /*
+    here we need to deserialize contract state so that it is fully in memory for store
+    then we need to serialize it so that it is in store2
+    looks like deserialization alone does not give us memory only version
+     */
+    let mut stack_state = network.deserialize_contract_state::<Stack>(store, contract_id);
     for i in 0..N {
-        if i % 100 == 0 {
-            println!("pop ===> {}", N-1-i);
-        }
+        let ii = stack_state.peek(i);
+        println!("peek of {} = {:?}", i, ii);
+    }
+
+    use std::process::Command;
+    let _output = Command::new("rm")
+        .arg("/tmp/rusk-vm-test-runner-temp-dir/storage")
+        .output()
+        .expect("failed to execute process");
+    let _output = Command::new("mkdir")
+        .arg("/tmp/rusk-vm-test-runner-temp-dir")
+        .output()
+        .expect("failed to execute process");
+
+    let store2 = unsafe {
+        let path = String::from("/tmp/rusk-vm-test-runner-temp-dir");
+        StoreRef::new(HostStore::with_file(&path)?)
+    };
+
+    /*
+    enforce moving of the entire state to memory
+    there should be an easier and more performant way to do it
+     */
+    for i in 0..N {
+        let ii = stack_state.peek(i);
+        println!("peek after store disk removed - of {} = {:?}", i, ii);
+    }
+    let mut temp_store: Vec<u64> = Vec::new();
+    for i in 0..N {
+        temp_store.push(stack_state.pop().unwrap());
+    }
+    temp_store.reverse();
+    for i in temp_store {
+        stack_state.push(i);
+    }
+
+    /*
+    now we should have all data in stack_state in memory
+     */
+
+    println!("beg store of state ======= ");
+    store2.store(&stack_state);
+    println!("end store of state ======= ");
+    /*
+    serialize the state and put it into the contract
+     */
+    network.serialize_contract_state(store2.clone(), contract_id, &stack_state);
+    println!("beg persist ======= ");
+    network.commit();
+    /*
+    now we can persist everything
+     */
+    store2.persist().expect("Error in persistence");
+    let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
+    println!("end persist ======= ");
+
+    /*
+    we can now restore and make sure that the state has been preserved
+     */
+    println!("beg restore ======= ");
+    let mut network = NetworkState::new(store2.clone())
+        .restore(store2.clone(), persist_id2)
+        .map_err(|_| PersistE)?;
+    println!("end restore ======= ");
+
+    println!("beg checking ======= ");
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    //
+    for i in 0..N {
         let ii = network
             .transact(contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
+        println!("checking pop ===> {} {:?}", N-1-i, ii);
         assert_eq!(Some(N-1-i), ii);
     }
+    println!("end checking ======= ");
+    /*
+    ok - state has been preserved using much less storage as the entire history is now gone
+     */
 
     Ok(())
 }
@@ -361,16 +448,16 @@ fn confirm_stack_multi(
 fn initialize(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
-    initialize_counter(store.clone())?;
+    // initialize_counter(store.clone())?;
     initialize_stack(store.clone())?;
-    initialize_stack_multi(store)?;
+    // initialize_stack_multi(store)?;
     Ok(())
 }
 
 fn confirm(store: StoreContext) -> Result<(), Box<dyn Error>> {
-    confirm_counter(store.clone())?;
+    // confirm_counter(store.clone())?;
     confirm_stack(store.clone())?;
-    confirm_stack_multi(store)?;
+    // confirm_stack_multi(store)?;
     Ok(())
 }
 
