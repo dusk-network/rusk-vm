@@ -331,7 +331,7 @@ fn confirm_stack(
         println!("peek of {} = {:?}", i, ii);
     }
 
-    // return Ok(()); return here for big storage footprint
+    // return Ok(()); // return here for big storage footprint
 
     use std::process::Command;
     let _output = Command::new("rm")
@@ -356,14 +356,30 @@ fn confirm_stack(
         let ii = stack_state.peek(i);
         println!("peek after store disk removed - of {} = {:?}", i, ii);
     }
-    let mut temp_store: Vec<u64> = Vec::new();
-    for i in 0..N {
-        temp_store.push(stack_state.pop().unwrap());
+    println!("beg enforce memory ======= ");
+    /*
+    note - brute force method to bring all leaves to memory
+     */
+    // let mut temp_store: Vec<u64> = Vec::new();
+    // for i in 0..N {
+    //     temp_store.push(stack_state.pop().unwrap());
+    // }
+    // temp_store.reverse();
+    // for i in temp_store {
+    //     stack_state.push(i);
+    // }
+
+    /*
+    note - simpler method to bring all leaves to memory
+     */
+    let branch_mut = stack_state.inner.walk_mut(All).expect("Some(Branch)");
+    for leaf in branch_mut {
+        if (N > 1000) && (*leaf % 100 == 0) {
+            println!("bringing to memory: {}", *leaf)
+        }
+        *leaf += 0;
     }
-    temp_store.reverse();
-    for i in temp_store {
-        stack_state.push(i);
-    }
+    println!("end enforce memory ======= ");
 
     /*
     now we should have all data in stack_state in memory
@@ -401,7 +417,9 @@ fn confirm_stack(
         let ii = network
             .transact(contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
-        println!("checking pop ===> {} {:?}", N-1-i, ii);
+        if (N > 1000) && (i % 100 == 0) {
+            println!("checking pop ===> {} {:?}", N - 1 - i, ii);
+        }
         assert_eq!(Some(N-1-i), ii);
     }
     println!("end checking ======= ");
