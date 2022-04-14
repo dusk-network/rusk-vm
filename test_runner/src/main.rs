@@ -331,6 +331,8 @@ fn confirm_stack(
         println!("peek of {} = {:?}", i, ii);
     }
 
+    // return Ok(()); return here for big storage footprint
+
     use std::process::Command;
     let _output = Command::new("rm")
         .arg("/tmp/rusk-vm-test-runner-temp-dir/storage")
