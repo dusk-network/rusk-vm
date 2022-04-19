@@ -11,6 +11,9 @@ use microkelvin::{
     BranchRef, BranchRefMut, OffsetLen, StoreRef, StoreSerializer,
 };
 use rkyv::validation::validators::DefaultValidator;
+use rkyv::ser::Serializer;
+use rkyv::{archived_root, Archive, Deserialize, Serialize};
+
 use rusk_uplink::{
     hash_mocker, ContractId, HostModule, Query, RawQuery, RawTransaction,
     StoreContext, Transaction,
@@ -24,7 +27,6 @@ use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
-use rkyv::{Archive, Deserialize, Serialize};
 
 pub mod persist;
 
@@ -340,39 +342,33 @@ impl NetworkState {
         &self.module_config
     }
 
-    /// Deserialize contract state
-    pub fn deserialize_contract_state<S>(&self, store: StoreContext, contract_id: ContractId) -> S // todo result
+    /// Deserialize from contract state
+    pub fn deserialize_from_contract_state<S>(&self, store: StoreContext, contract_id: ContractId) -> Result<S, VMError>
         where S: Archive,
               <S as Archive>::Archived: Deserialize<S, StoreContext>
     {
-        println!("begin deserialize state");
-        use rkyv::archived_root;
-        let contract = self.get_contract(&contract_id).expect("contract found");
+        let contract = self.get_contract(&contract_id)?;
         let contract = contract.leaf();
         let state_slice = contract.state();
         let state = unsafe {
             archived_root::<S>(state_slice)
         };
         let state: S = state.deserialize(&mut store.clone()).unwrap();
-        println!("end deserialize state");
-        state
+        Ok(state)
     }
 
-    /// Serialize contract state
-    pub fn serialize_contract_state<S>(&mut self, store: StoreRef<OffsetLen>, contract_id: ContractId, state: &S) -> usize
+    /// Serialize into contract state
+    pub fn serialize_into_contract_state<S>(&mut self, store: StoreRef<OffsetLen>, contract_id: ContractId, state: &S) -> Result<usize, VMError>
         where S: Serialize<StoreSerializer<OffsetLen>>,
-    { // todo result
-        println!("begin serialize state");
-        let mut contract = self.get_contract_mut(&contract_id).expect("contract found");
-        let mut contract = contract.leaf_mut();
+    {
+        let mut contract = self.get_contract_mut(&contract_id)?;
+        let contract = contract.leaf_mut();
         let mut ser = store.serializer();
-        use rkyv::ser::Serializer;
         let sz = ser.serialize_value(state).unwrap()
             + core::mem::size_of::<<S as Archive>::Archived>();
         let off_len = ser.commit();
         contract.set_state(store.get_raw(&off_len));
-        println!("end serialize state");
-        sz
+        Ok(sz)
     }
 
 }

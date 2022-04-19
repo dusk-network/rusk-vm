@@ -127,7 +127,9 @@ impl Stack {
 
     pub fn pushmulti(&mut self, value: u64) {
         for i in 0..value {
-            rusk_uplink::debug!("push ==> {}", i);
+            if (value > 1000) && (i % 100 == 0) {
+                rusk_uplink::debug!("push ==> {}", i);
+            }
             self.inner.push(i);
         }
         rusk_uplink::debug!("finished pushing");
@@ -143,7 +145,9 @@ impl Stack {
             let j = value - i - 1;
             let peeked = self.peek(j).unwrap_or(0);
             let popped = self.pop().unwrap();
-            rusk_uplink::debug!("peek ==> {} actual peeked={} actual popped={}", j, peeked, popped);
+            if (value > 1000) && (i % 100 == 0) {
+                rusk_uplink::debug!("peek ==> {} peeked={} popped={}", j, peeked, popped);
+            }
             sum += popped;
             assert_eq!(peeked, popped)
         }
