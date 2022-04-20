@@ -9,6 +9,10 @@ use microkelvin::{OffsetLen, StoreSerializer};
 use rkyv::ser::Serializer;
 use rkyv::{Archive, Deserialize, Serialize};
 
+pub trait Unarchive {
+    fn unarchive(&mut self) {}
+}
+
 pub fn get_state_arg<S, P>(
     written_state: u32,
     written_data: u32,
@@ -47,11 +51,15 @@ where
     buffer_len as u32
 }
 
-pub fn t_return<S, R>(state: &S, ret: &R, store: StoreContext) -> [u32; 2]
+pub fn t_return<S, R>(state: &mut S, ret: &R, store: StoreContext, do_unarchive: bool) -> [u32; 2]
 where
     S: Serialize<StoreSerializer<OffsetLen>>,
     R: Archive + Serialize<StoreSerializer<OffsetLen>>,
+    S: Unarchive,
 {
+    if do_unarchive {
+        <S as Unarchive>::unarchive(state);
+    }
     let mut ser = store.serializer();
     let state_len = ser.serialize_value(state).unwrap()
         + core::mem::size_of::<<S as Archive>::Archived>();

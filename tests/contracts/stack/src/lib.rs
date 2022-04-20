@@ -7,16 +7,26 @@
 #![no_std]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
+use microkelvin::{Cardinality, Compound, All, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
-#[state(new = false)]
+// #[state(new = false)]
+#[derive(Clone, Default, Archive, Serialize, Deserialize)]
 pub struct Stack {
     /// temp
     pub inner: NStack<u64, Cardinality, OffsetLen>,
+}
+use rusk_uplink::Unarchive;
+impl Unarchive for Stack {
+    fn unarchive(&mut self){
+        let branch_mut = self.inner.walk_mut(All).expect("Some(Branch)");
+        for leaf in branch_mut {
+            *leaf += 0;
+        }
+    }
 }
 
 #[init]
@@ -102,6 +112,20 @@ impl Transaction for PopMulti {
 impl Apply<PopMulti> for Stack {
     fn apply(&mut self, arg: PopMulti, _: StoreContext) -> u64 {
         self.popmulti(arg.value)
+    }
+}
+
+#[transaction]
+pub struct StatePersistence;
+
+impl Transaction for StatePersistence {
+    const NAME: &'static str = "statepersistence";
+    type Return = ();
+}
+
+#[apply(name = "statepersistence", statepersistence = "true")]
+impl Apply<StatePersistence> for Stack {
+    fn apply(&mut self, _: StatePersistence, _: StoreContext) {
     }
 }
 

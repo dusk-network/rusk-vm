@@ -75,6 +75,7 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let t_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
     let t_fn_name = args.name;
+    let state_persistence = args.state_persistence;
 
     let t_impl_method = first_method_of_impl(t_impl.clone()).unwrap();
     let arg_types = non_self_argument_types(&t_impl_method.sig);
@@ -114,7 +115,7 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
                 let scratch_mem = unsafe { crate::scratch_mod::#scratch_name.as_mut_slice() };
                 let store = StoreContext::new(AbiStore::new(scratch_mem, unsafe { &mut crate::scratch_mod::#scratch_name }, 0));
-                unsafe { t_return(&state, &res, store) }
+                unsafe { t_return(&mut state, &res, store, #state_persistence) }
             }
         };
     };
@@ -139,6 +140,33 @@ fn generate_struct_derivations(
     gen.into()
 }
 
+fn generate_struct_derivations2(
+    arg_struct: syn::ItemStruct,
+    derive_new: bool,
+) -> TokenStream {
+    let ident = &arg_struct.ident;
+    let gen = if derive_new {
+        quote! {
+            #[derive(derive_new::new, Clone, Debug, Default, Archive, Serialize, Deserialize)]
+            #arg_struct
+            use rusk_uplink::Unarchive;
+            impl Unarchive for #ident {
+                fn unarchive(&mut self){}
+            }
+        }
+    } else {
+        quote! {
+            #[derive(Clone, Default, Archive, Serialize, Deserialize)]
+            #arg_struct
+            use rusk_uplink::Unarchive;
+            impl Unarchive for #ident {
+                fn unarchive(&mut self){}
+            }
+        }
+    };
+    gen.into()
+}
+
 #[proc_macro_attribute]
 pub fn query(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let arg_struct = parse_macro_input!(input as syn::ItemStruct);
@@ -157,7 +185,7 @@ pub fn transaction(attrs: TokenStream, input: TokenStream) -> TokenStream {
 pub fn state(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let arg_struct = parse_macro_input!(input as syn::ItemStruct);
     let args = parse_macro_input!(attrs as DeriveArgs);
-    generate_struct_derivations(arg_struct, args.derive_new)
+    generate_struct_derivations2(arg_struct, args.derive_new)
 }
 
 #[proc_macro_attribute]
