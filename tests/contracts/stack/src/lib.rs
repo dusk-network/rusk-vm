@@ -22,10 +22,11 @@ pub struct Stack {
 use rusk_uplink::Unarchive;
 impl Unarchive for Stack {
     fn unarchive(&mut self){
-        let branch_mut = self.inner.walk_mut(All).expect("Some(Branch)");
-        for leaf in branch_mut {
-            *leaf += 0;
-        }
+        // let branch_mut = self.inner.walk_mut(All).expect("Some(Branch)");
+        // for leaf in branch_mut {
+        //     *leaf += 0;
+            // rusk_uplink::debug!("unarchiving {}", *leaf);
+        // }
     }
 }
 
@@ -126,6 +127,11 @@ impl Transaction for StatePersistence {
 #[apply(name = "statepersistence", statepersistence = "true")]
 impl Apply<StatePersistence> for Stack {
     fn apply(&mut self, _: StatePersistence, _: StoreContext) {
+        let branch_mut = self.inner.walk_mut(All).expect("Some(Branch)");
+        for leaf in branch_mut {
+            *leaf += 0;
+            // rusk_uplink::debug!("statepersistence {}", *leaf);
+        }
     }
 }
 

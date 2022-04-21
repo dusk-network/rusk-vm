@@ -21,6 +21,7 @@ use crate::rusk_uplink::StoreContext;
 static mut PATH: String = String::new();
 
 const STACK_TEST_SIZE: u64 = 5000;
+const NEW_WAY: u32 = 1;
 
 #[derive(Debug)]
 struct IllegalArg;
@@ -333,6 +334,7 @@ fn move_stack_elements_to_memory(stack: &mut Stack) {
 fn confirm_stack(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
+    println!("confirm");
     let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
@@ -377,17 +379,22 @@ fn confirm_stack(
      */
     move_stack_elements_to_memory(&mut stack_state);
 
-    store2.store(&stack_state);
+    println!("xx0");
+    // store2.store(&stack_state);
+    println!("xx1");
     /*
     serialize the state and put it into the contract
      */
     network.serialize_into_contract_state(store2.clone(), contract_id, &stack_state)?;
+    println!("xx2");
     network.commit();
     /*
     now we can persist everything
      */
     store2.persist().expect("Error in persistence");
+    println!("xx3");
     let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
+    println!("xx4");
 
     /*
     we can now restore and make sure that the state has been preserved
@@ -395,6 +402,75 @@ fn confirm_stack(
     let mut network = NetworkState::new(store2.clone())
         .restore(store2.clone(), persist_id2)
         .map_err(|_| PersistE)?;
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    for i in 0..N {
+        let ii = network
+            .transact(contract_id, 0, Pop::new(), &mut gas)
+            .unwrap();
+        if (N > 1000) && (i % 100 == 0) {
+            println!("checking pop ===> {} {:?}", N - 1 - i, ii);
+        }
+        assert_eq!(Some(N-1-i), ii);
+    }
+    /*
+    ok - state has been preserved using much less storage as the entire history is now gone
+     */
+
+    Ok(())
+}
+
+fn confirm_stack2(
+    store_path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
+    println!("confirm");
+    let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
+    let store2 = StoreRef::new(HostStore::with_file("/tmp/rusk-vm-test-runner-temp-dir2")?);
+    let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
+    let state_id = NetworkStateId::read(file_path)?;
+
+    let mut network = NetworkState::with_target_store(store1.clone(), store2.clone())
+        .restore(store1.clone(), state_id)
+        .map_err(|_| PersistE)?;
+
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
+    let buf = fs::read(&contract_id_path)?;
+
+    let contract_id = ContractId::from(buf);
+
+    const N: u64 = STACK_TEST_SIZE;
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    println!("xxy0");
+    network
+        .transact(contract_id, 0, StatePersistence::new(), &mut gas)
+        .unwrap();
+    println!("xxy1");
+
+    /*
+    now we can persist everything
+     */
+    network.commit();
+    println!("xxy2");
+    println!("xxy3");
+    store2.persist().expect("Error in persistence");
+    println!("xxy4");
+    let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
+    println!("xxy5");
+
+    /*
+    we can now restore and make sure that the state has been preserved
+     */
+    remove_disk_store(store_path.as_ref())?; // to make sure we don't access old 'big' store
+
+    let mut network = NetworkState::new(store2.clone())
+        .restore(store2.clone(), persist_id2)
+        .map_err(|_| PersistE)?;
+    // let stack_state = network.deserialize_from_contract_state::<Stack>(store2.clone(), contract_id)?;
+    // for i in 0..N {
+    //     assert_eq!(Some(i), stack_state.peek(i));
+    // }
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..N {
@@ -459,7 +535,11 @@ fn initialize(
 
 fn confirm(store: StoreContext, path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     // confirm_counter(store.clone())?;
-    confirm_stack(path)?;
+    if NEW_WAY == 1 {
+        confirm_stack2(path)?;
+    } else {
+        confirm_stack(path)?;
+    }
     // confirm_stack_multi(store)?;
     Ok(())
 }

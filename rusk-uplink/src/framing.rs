@@ -58,7 +58,7 @@ where
     S: Unarchive,
 {
     if do_unarchive {
-        <S as Unarchive>::unarchive(state);
+        state.unarchive();
     }
     let mut ser = store.serializer();
     let state_len = ser.serialize_value(state).unwrap()
