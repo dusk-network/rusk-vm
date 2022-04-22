@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use microkelvin::{BranchRef, BranchRefMut};
-use rkyv::ser::Serializer;
 use rusk_uplink::{
     ContractId, RawQuery, RawTransaction, ReturnValue, StoreContext,
 };

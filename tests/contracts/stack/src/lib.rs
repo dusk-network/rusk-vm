@@ -13,10 +13,9 @@ use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
-// #[state(new = false)]
-#[derive(Clone, Default, Archive, Serialize, Deserialize)]
+#[state(new = false)]
 pub struct Stack {
-    /// temp
+    /// temporary
     pub inner: NStack<u64, Cardinality, OffsetLen>,
 }
 #[init]
@@ -106,20 +105,22 @@ impl Apply<PopMulti> for Stack {
 }
 
 #[transaction]
-pub struct StatePersistence;
+pub struct StoreState;
 
-impl Transaction for StatePersistence {
-    const NAME: &'static str = "statepersistence";
+impl Transaction for StoreState {
+    const NAME: &'static str = "storestate";
     type Return = ();
 }
 
-#[apply(name = "statepersistence")]
-impl Apply<StatePersistence> for Stack {
-    fn apply(&mut self, _: StatePersistence, _: StoreContext) {
+#[apply(name = "storestate")]
+impl Apply<StoreState> for Stack {
+    fn apply(&mut self, _: StoreState, _: StoreContext) {
+        /*
+        Unarchive all data in state
+         */
         let branch_mut = self.inner.walk_mut(All).expect("Some(Branch)");
         for leaf in branch_mut {
             *leaf += 0;
-            // rusk_uplink::debug!("statepersistence {}", *leaf);
         }
     }
 }

@@ -21,7 +21,7 @@ use crate::rusk_uplink::StoreContext;
 static mut PATH: String = String::new();
 
 const STACK_TEST_SIZE: u64 = 5000;
-const NEW_WAY: u32 = 1;
+const CONFIRM_STACK_METHOD: u32 = 2;
 
 #[derive(Debug)]
 struct IllegalArg;
@@ -437,7 +437,7 @@ fn confirm_stack2(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     network
-        .transact(contract_id, 0, StatePersistence::new(), &mut gas)
+        .transact(contract_id, 0, StoreState::new(), &mut gas)
         .unwrap();
 
     /*
@@ -518,7 +518,7 @@ fn initialize(
 
 fn confirm(store: StoreContext, path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     // confirm_counter(store.clone())?;
-    if NEW_WAY == 1 {
+    if CONFIRM_STACK_METHOD == 2 {
         confirm_stack2(path)?;
     } else {
         confirm_stack1(path)?;
