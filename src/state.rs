@@ -315,6 +315,53 @@ impl NetworkState {
         Ok(deserialized)
     }
 
+    /// Transact with the contract at `target` address in the `head` state,
+    /// returning the result of the transaction.
+    ///
+    /// This will advance the `head` to the resultant state.
+    pub fn transact_store_state(
+        &mut self,
+        target: ContractId,
+        block_height: u64,
+        gas_meter: &mut GasMeter,
+    ) -> Result<(), VMError>
+    {
+        let _span = trace_span!(
+            "outer transact",
+            block_height = ?block_height,
+            target = ?target,
+            gas_limit = ?gas_meter.limit(),
+        );
+
+        // Fork the current network's state
+        let mut fork = self.clone();
+
+        // Use the forked state to execute the transaction
+        let mut context =
+            CallContext::new(&mut fork, block_height, self.store.clone(), self.target_store.clone());
+
+        let result = match context.transact(
+            target,
+            RawTransaction::from([], "storestate"),
+            gas_meter,
+        ) {
+            Ok(result) => {
+                trace!("store state was successful");
+                Ok(result)
+            }
+            Err(e) => {
+                trace!("store state returned an error: {}", e);
+                Err(e)
+            }
+        }?;
+
+        // Commit to the changes
+
+        *self = fork;
+
+        Ok(())
+    }
+
     /// Returns the root of the tree in the `head` state.
     pub fn root(&self) -> [u8; 32] {
         todo!()

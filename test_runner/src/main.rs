@@ -335,6 +335,13 @@ fn move_stack_elements_to_memory(stack: &mut Stack) {
     }
 }
 
+fn create_target_path(source_path: impl AsRef<str>) -> String {
+    const TARGET_POSTFIX: &str = "-2";
+    let mut target_path = source_path.as_ref().to_owned();
+    target_path.push_str(TARGET_POSTFIX);
+    target_path
+}
+
 fn confirm_stack1(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
@@ -422,10 +429,8 @@ fn confirm_stack2(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     println!("confirm");
-    const TARGET_POSTFIX: &str = "-2";
     let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
-    let mut target_path = store_path.as_ref().to_owned();
-    target_path.push_str(TARGET_POSTFIX);
+    let target_path = create_target_path(store_path);
     remove_disk_store(target_path.clone())?;
     create_directory(target_path.clone())?;
     let store2 = StoreRef::new(HostStore::with_file(target_path)?);
@@ -437,21 +442,14 @@ fn confirm_stack2(
         .restore(store1.clone(), state_id)
         .map_err(|_| PersistE)?;
 
-    let contract_id_path =
-        PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
-    let buf = fs::read(&contract_id_path)?;
-
-    let contract_id = ContractId::from(buf);
-
-    const N: u64 = STACK_TEST_SIZE;
-
+    /*
+    store states of all contracts, this will consolidate the states
+     */
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    network
-        .transact(contract_id, 0, StoreState::new(), &mut gas)
-        .unwrap();
+    network.store_contract_states(&mut gas).map_err(|_| PersistE)?;
 
     /*
-    now we can persist everything
+    now we can persist everything into a target consolidated storage
      */
     network.commit();
     let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
@@ -459,9 +457,17 @@ fn confirm_stack2(
     /*
     we can now restore and make sure that the state has been preserved
      */
+    const N: u64 = STACK_TEST_SIZE;
+
     let mut network = NetworkState::new(store2.clone())
         .restore(store2.clone(), persist_id2)
         .map_err(|_| PersistE)?;
+
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
+    let buf = fs::read(&contract_id_path)?;
+
+    let contract_id = ContractId::from(buf);
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..N {

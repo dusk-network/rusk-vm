@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::{StoreRef, OffsetLen, Ident};
+use microkelvin::{All, Compound, Keyed, StoreRef, OffsetLen, Ident};
 use rkyv::{Archive, Deserialize, Serialize, archived_root, Infallible};
 use rkyv::ser::{Serializer, serializers::AllocSerializer};
 use std::fs;
@@ -15,7 +15,7 @@ use dusk_hamt::Hamt;
 use rusk_uplink::{ContractId};
 
 use crate::state::{Contracts, NetworkState};
-use crate::VMError;
+use crate::{GasMeter, VMError};
 use crate::contract::Contract;
 
 
@@ -83,5 +83,25 @@ impl NetworkState {
         self.staged = self.head.clone();
 
         Ok(self)
+    }
+
+    /// Store contracts' states
+    pub fn store_contract_states (
+        &mut self,
+        gas_meter: &mut GasMeter
+    ) -> Result<(), ()> {
+        let mut contract_ids: Vec<ContractId> = vec![];
+
+        let branch = self.head.0.walk(All).expect("Some(_)");
+        for leaf in branch {
+            let val = leaf.key();
+            contract_ids.push(*val);
+        }
+
+        for contract_id in contract_ids {
+            self.transact_store_state(contract_id, 0, gas_meter).unwrap_or(());
+        }
+
+        Ok(())
     }
 }
