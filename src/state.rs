@@ -340,7 +340,7 @@ impl NetworkState {
         let mut context =
             CallContext::new(&mut fork, block_height, self.store.clone(), self.target_store.clone());
 
-        let result = match context.transact(
+        let _result = match context.transact(
             target,
             RawTransaction::from([], "storestate"),
             gas_meter,
