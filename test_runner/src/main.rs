@@ -331,7 +331,7 @@ fn move_stack_elements_to_memory(stack: &mut Stack) {
     }
 }
 
-fn confirm_stack(
+fn confirm_stack1(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     println!("confirm");
@@ -379,22 +379,16 @@ fn confirm_stack(
      */
     move_stack_elements_to_memory(&mut stack_state);
 
-    println!("xx0");
-    // store2.store(&stack_state);
-    println!("xx1");
     /*
     serialize the state and put it into the contract
      */
     network.serialize_into_contract_state(store2.clone(), contract_id, &stack_state)?;
-    println!("xx2");
     network.commit();
     /*
     now we can persist everything
      */
     store2.persist().expect("Error in persistence");
-    println!("xx3");
     let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
-    println!("xx4");
 
     /*
     we can now restore and make sure that the state has been preserved
@@ -442,22 +436,15 @@ fn confirm_stack2(
     const N: u64 = STACK_TEST_SIZE;
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    println!("xxy0");
     network
         .transact(contract_id, 0, StatePersistence::new(), &mut gas)
         .unwrap();
-    println!("xxy1");
 
     /*
     now we can persist everything
      */
     network.commit();
-    println!("xxy2");
-    println!("xxy3");
-    store2.persist().expect("Error in persistence");
-    println!("xxy4");
     let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
-    println!("xxy5");
 
     /*
     we can now restore and make sure that the state has been preserved
@@ -467,10 +454,6 @@ fn confirm_stack2(
     let mut network = NetworkState::new(store2.clone())
         .restore(store2.clone(), persist_id2)
         .map_err(|_| PersistE)?;
-    // let stack_state = network.deserialize_from_contract_state::<Stack>(store2.clone(), contract_id)?;
-    // for i in 0..N {
-    //     assert_eq!(Some(i), stack_state.peek(i));
-    // }
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..N {
@@ -538,7 +521,7 @@ fn confirm(store: StoreContext, path: impl AsRef<str>) -> Result<(), Box<dyn Err
     if NEW_WAY == 1 {
         confirm_stack2(path)?;
     } else {
-        confirm_stack(path)?;
+        confirm_stack1(path)?;
     }
     // confirm_stack_multi(store)?;
     Ok(())

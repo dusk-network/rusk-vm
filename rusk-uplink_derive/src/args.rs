@@ -16,13 +16,11 @@ use syn::{Ident, LitStr, Token};
 #[derive(Clone)]
 pub struct Args {
     pub name: String,
-    pub state_persistence: bool,
 }
 
 impl Parse for Args {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut name_opt: Option<String> = None;
-        let mut state_persistence = false;
         loop {
             let ident = input.parse::<Ident>()?;
             let _ = input.parse::<Token![=]>()?;
@@ -30,8 +28,6 @@ impl Parse for Args {
 
             if ident_str.as_str() == "name" {
                 name_opt = Some(input.parse::<LitStr>()?.value());
-            } else if ident_str.as_str() == "statepersistence" {
-                state_persistence = input.parse::<LitStr>()?.value() == String::from("true");
             }
             match input.parse::<Token![,]>() {
                 Ok(_) => continue,
@@ -39,7 +35,7 @@ impl Parse for Args {
             }
         }
         match name_opt {
-            Some(name) => Ok(Args { name, state_persistence }),
+            Some(name) => Ok(Args { name }),
             None => Err(error()),
         }
     }
