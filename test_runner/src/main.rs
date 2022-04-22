@@ -298,12 +298,16 @@ fn remove_disk_store(path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn create_disk_store(path: impl AsRef<str>) -> Result<StoreContext, Box<dyn Error>> {
+fn create_directory(path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     let _output = Command::new("mkdir")
         .arg(path.as_ref())
         .output()
         .expect("failed to execute process");
+    Ok(())
+}
 
+fn create_disk_store(path: impl AsRef<str>) -> Result<StoreContext, Box<dyn Error>> {
+    create_directory(path.as_ref())?;
     let store =
         StoreRef::new(HostStore::with_file(path.as_ref())?);
     Ok(store)
@@ -418,8 +422,14 @@ fn confirm_stack2(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     println!("confirm");
+    const TARGET_POSTFIX: &str = "-2";
     let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
-    let store2 = StoreRef::new(HostStore::with_file("/tmp/rusk-vm-test-runner-temp-dir2")?);
+    let mut target_path = store_path.as_ref().to_owned();
+    target_path.push_str(TARGET_POSTFIX);
+    remove_disk_store(target_path.clone())?;
+    create_directory(target_path.clone())?;
+    let store2 = StoreRef::new(HostStore::with_file(target_path)?);
+
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
@@ -449,8 +459,6 @@ fn confirm_stack2(
     /*
     we can now restore and make sure that the state has been preserved
      */
-    remove_disk_store(store_path.as_ref())?; // to make sure we don't access old 'big' store
-
     let mut network = NetworkState::new(store2.clone())
         .restore(store2.clone(), persist_id2)
         .map_err(|_| PersistE)?;
@@ -466,7 +474,7 @@ fn confirm_stack2(
         assert_eq!(Some(N-1-i), ii);
     }
     /*
-    ok - state has been preserved using much less storage as the entire history is now gone
+    ok - state has been preserved using much less storage
      */
 
     Ok(())
