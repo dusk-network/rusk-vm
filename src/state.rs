@@ -315,8 +315,8 @@ impl NetworkState {
         Ok(deserialized)
     }
 
-    /// Transact with the contract at `target` address in the `head` state,
-    /// returning the result of the transaction.
+    /// Perform the unarchive transaction with the contract at `target` address in the `head` state,
+    /// no result is expected but the state will be 'unarchived'.
     ///
     /// This will advance the `head` to the resultant state.
     pub fn transact_store_state(
@@ -327,7 +327,7 @@ impl NetworkState {
     ) -> Result<(), VMError>
     {
         let _span = trace_span!(
-            "outer transact",
+            "outer unarchive transact",
             block_height = ?block_height,
             target = ?target,
             gas_limit = ?gas_meter.limit(),
@@ -342,15 +342,15 @@ impl NetworkState {
 
         let _result = match context.transact(
             target,
-            RawTransaction::from([], "storestate"),
+            RawTransaction::from([], "unarchive"),
             gas_meter,
         ) {
             Ok(result) => {
-                trace!("store state was successful");
+                trace!("unarchive store state was successful");
                 Ok(result)
             }
             Err(e) => {
-                trace!("store state returned an error: {}", e);
+                trace!("unarchive store state returned an error: {}", e);
                 Err(e)
             }
         }?;

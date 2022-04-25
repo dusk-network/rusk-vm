@@ -105,18 +105,18 @@ impl Apply<PopMulti> for Stack {
 }
 
 #[transaction]
-pub struct StoreState;
+pub struct Unarchive;
 
-impl Transaction for StoreState {
-    const NAME: &'static str = "storestate";
+impl Transaction for Unarchive {
+    const NAME: &'static str = "unarchive";
     type Return = ();
 }
 
-#[apply(name = "storestate")]
-impl Apply<StoreState> for Stack {
-    fn apply(&mut self, _: StoreState, _: StoreContext) {
+#[apply(name = "unarchive")]
+impl Apply<Unarchive> for Stack {
+    fn apply(&mut self, _: Unarchive, _: StoreContext) {
         /*
-        Unarchive all data in state
+        Unarchive all data in the state
          */
         let branch_mut = self.inner.walk_mut(All).expect("Some(Branch)");
         for leaf in branch_mut {
