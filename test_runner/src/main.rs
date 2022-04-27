@@ -13,6 +13,7 @@ use std::process::Command;
 
 use counter::*;
 use stack::*;
+use register::*;
 // use map::*;
 use microkelvin::*;
 use rusk_vm::*;
@@ -22,6 +23,7 @@ static mut PATH: String = String::new();
 
 const STACK_TEST_SIZE: u64 = 5000;
 const CONFIRM_STACK_METHOD: u32 = 2;
+const REGISTER_TEST_SIZE: u64 = 5000;
 
 #[derive(Debug)]
 struct IllegalArg;
@@ -114,7 +116,7 @@ fn initialize_stack(
     const N: u64 = STACK_TEST_SIZE;
 
     for i in 0..N {
-        if i % 100 == 0 {
+        if (N > 1000) && (i % 100 == 0) {
             println!("push ===> {}", i);
         }
         network
@@ -124,9 +126,7 @@ fn initialize_stack(
 
     network.commit();
 
-    println!("before stack persist");
     let persist_id = network.persist(store).expect("Error in persistence");
-    println!("after stack persist");
 
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
 
@@ -136,6 +136,65 @@ fn initialize_stack(
         PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
 
     fs::write(&contract_id_path, contract_id.as_bytes())?;
+
+    Ok(())
+}
+
+fn initialize_register(
+    store: StoreContext,
+) -> Result<(), Box<dyn Error>> {
+    let stack = Stack::new();
+
+    let code = include_bytes!(
+        "../../target/wasm32-unknown-unknown/release/register.wasm"
+    );
+
+    let contract = Contract::new(&stack, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store.clone());
+
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+
+    const N: u64 = REGISTER_TEST_SIZE;
+
+    for i in 0..N {
+        if (N > 1000) && (i % 100 == 0) {
+            println!("gossip ===> {}", i);
+        }
+        let secret_data: [u8; 32] = [(i % 256) as u8; 32];
+        let secret_hash = SecretHash::new(secret_data);
+
+        network
+            .transact(contract_id, 0, Gossip::new(secret_hash), &mut gas)
+            .unwrap();
+    }
+
+    network.commit();
+
+    let persist_id = network.persist(store).expect("Error in persistence");
+
+    let file_path = PathBuf::from(unsafe { &PATH }).join("register_persist_id");
+
+    persist_id.write(file_path)?;
+
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("register_contract_id");
+
+    fs::write(&contract_id_path, contract_id.as_bytes())?;
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    for i in 0..N {
+        let secret_data: [u8; 32] = [(i % 256) as u8; 32];
+        let secret_hash = SecretHash::new(secret_data);
+        let ii = network
+            .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
+            .unwrap();
+        if (N > 1000) && (i % 100 == 0) {
+            println!("confirming num secrets for {} ===> {} ", i, ii);
+        }
+    }
 
     Ok(())
 }
@@ -159,18 +218,13 @@ fn initialize_stack_multi(
 
     const N: u64 = STACK_TEST_SIZE;
 
-    println!("pushmulti ===> {}", N);
     network
         .transact(contract_id, 0, PushMulti::new(N), &mut gas)
         .unwrap();
 
-    println!("before network commit");
     network.commit();
-    println!("after network commit");
 
-    println!("before stack persist");
     let persist_id = network.persist(store).expect("Error in persistence");
-    println!("after stack persist");
 
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
 
@@ -230,7 +284,6 @@ fn initialize_stack_multi(
 fn confirm_counter(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
-    println!("confirm");
     let file_path = PathBuf::from(unsafe { &PATH }).join("counter_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
@@ -345,7 +398,6 @@ fn create_target_path(source_path: impl AsRef<str>) -> String {
 fn confirm_stack1(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    println!("confirm");
     let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
@@ -378,15 +430,6 @@ fn confirm_stack1(
 
     /*
     enforce moving of the entire state to memory
-    there should be an easier and more performant way to do it
-     */
-    for i in 0..N {
-        let ii = stack_state.peek(i);
-        println!("peek after store disk removed - of {} = {:?}", i, ii);
-    }
-
-    /*
-    now we should have all data in stack_state in memory
      */
     move_stack_elements_to_memory(&mut stack_state);
 
@@ -428,7 +471,6 @@ fn confirm_stack1(
 fn confirm_stack2(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    println!("confirm");
     let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
     let target_path = create_target_path(store_path);
     remove_disk_store(target_path.clone())?;
@@ -486,10 +528,71 @@ fn confirm_stack2(
     Ok(())
 }
 
+fn confirm_register(
+    store_path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
+    println!("confirm register");
+    let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
+    let target_path = create_target_path(store_path);
+    remove_disk_store(target_path.clone())?;
+    create_directory(target_path.clone())?;
+    let store2 = StoreRef::new(HostStore::with_file(target_path)?);
+
+    let file_path = PathBuf::from(unsafe { &PATH }).join("register_persist_id");
+    let state_id = NetworkStateId::read(file_path)?;
+
+    let mut network = NetworkState::with_target_store(store1.clone(), store2.clone())
+        .restore(store1.clone(), state_id)
+        .map_err(|_| PersistE)?;
+
+    /*
+    store states of all contracts, this will consolidate the states
+     */
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    network.store_contract_states(&mut gas).map_err(|_| PersistE)?;
+
+    /*
+    now we can persist everything into a target consolidated storage
+     */
+    network.commit();
+    let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
+
+    /*
+    we can now restore and make sure that the state has been preserved
+     */
+    const N: u64 = REGISTER_TEST_SIZE;
+
+    let mut network = NetworkState::new(store2.clone())
+        .restore(store2.clone(), persist_id2)
+        .map_err(|_| PersistE)?;
+
+    let contract_id_path =
+        PathBuf::from(unsafe { &PATH }).join("register_contract_id");
+    let buf = fs::read(&contract_id_path)?;
+
+    let contract_id = ContractId::from(buf);
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    for i in 0..N {
+        let secret_data: [u8; 32] = [(i % 256) as u8; 32];
+        let secret_hash = SecretHash::new(secret_data);
+        let ii = network
+            .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
+            .unwrap();
+        if (N > 1000) && (i % 100 == 0) {
+            println!("num secrets for {} ===> {} ", i, ii);
+        }
+    }
+    /*
+    ok - state has been preserved using much less storage
+     */
+
+    Ok(())
+}
+
 fn confirm_stack_multi(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
-    println!("confirm");
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
@@ -512,7 +615,6 @@ fn confirm_stack_multi(
         expected_sum += i;
     }
 
-    println!("popmulti ===> {}", N);
     let sum = network
         .transact(contract_id, 0, PopMulti::new(N), &mut gas)
         .unwrap();
@@ -525,18 +627,20 @@ fn initialize(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
     // initialize_counter(store.clone())?;
-    initialize_stack(store.clone())?;
+    // initialize_stack(store.clone())?;
+    initialize_register(store.clone())?;
     // initialize_stack_multi(store)?;
     Ok(())
 }
 
 fn confirm(store: StoreContext, path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     // confirm_counter(store.clone())?;
-    if CONFIRM_STACK_METHOD == 2 {
-        confirm_stack2(path)?;
-    } else {
-        confirm_stack1(path)?;
-    }
+    // if CONFIRM_STACK_METHOD == 2 {
+    //     confirm_stack2(path)?;
+    // } else {
+    //     confirm_stack1(path)?;
+    // }
+    confirm_register(path)?;
     // confirm_stack_multi(store)?;
     Ok(())
 }
