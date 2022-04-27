@@ -18,6 +18,7 @@ use register::*;
 use microkelvin::*;
 use rusk_vm::*;
 use crate::rusk_uplink::StoreContext;
+use byteorder::{LittleEndian, WriteBytesExt};
 
 static mut PATH: String = String::new();
 
@@ -140,6 +141,10 @@ fn initialize_stack(
     Ok(())
 }
 
+fn secret_data_from_int(secret_data: &mut [u8;32], i: u64) {
+    secret_data.as_mut_slice().write_u64::<LittleEndian>(i).expect("Unable to write");
+}
+
 fn initialize_register(
     store: StoreContext,
 ) -> Result<(), Box<dyn Error>> {
@@ -163,7 +168,8 @@ fn initialize_register(
         if (N > 1000) && (i % 100 == 0) {
             println!("gossip ===> {}", i);
         }
-        let secret_data: [u8; 32] = [(i % 256) as u8; 32];
+        let mut secret_data: [u8; 32] = [0u8; 32];
+        secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
 
         network
@@ -186,7 +192,8 @@ fn initialize_register(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..N {
-        let secret_data: [u8; 32] = [(i % 256) as u8; 32];
+        let mut secret_data: [u8; 32] = [0u8; 32];
+        secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
         let ii = network
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
@@ -574,7 +581,8 @@ fn confirm_register(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..N {
-        let secret_data: [u8; 32] = [(i % 256) as u8; 32];
+        let mut secret_data: [u8; 32] = [0u8; 32];
+        secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
         let ii = network
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
