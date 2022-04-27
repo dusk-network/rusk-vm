@@ -233,7 +233,7 @@ fn initialize_stack_and_register(
 
     for i in 0..N {
         if (N > 1000) && (i % 100 == 0) {
-            println!("push ===> {}", i);
+            println!("push to NStack and insert into Hamt ===> {}", i);
         }
         network
             .transact(contract_id_stack, 0, Push::new(i), &mut gas)
@@ -664,7 +664,7 @@ fn confirm_register(
 fn confirm_stack_and_register(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    println!("confirm register");
+    println!("confirm stack and register");
     let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
     let target_path = create_target_path(store_path);
     remove_disk_store(target_path.clone())?;
@@ -712,8 +712,8 @@ fn confirm_stack_and_register(
         let ii = network
             .transact(stack_contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
-        if (STACK_REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
-            println!("checking pop ===> {} {:?}", STACK_REGISTER_TEST_SIZE - 1 - i, ii);
+        if (STACK_REGISTER_TEST_SIZE > 1000) && (ii.unwrap() % 100 == 0) {
+            println!("checking pop (NStack) ===> {} {:?}", STACK_REGISTER_TEST_SIZE - 1 - i, ii);
         }
         assert_eq!(Some(STACK_REGISTER_TEST_SIZE-1-i), ii);
     }
@@ -736,7 +736,7 @@ fn confirm_stack_and_register(
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
             .unwrap();
         if (STACK_REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
-            println!("num secrets for {} ===> {} ", i, ii);
+            println!("checking num secrets (Hamt) ===> {} {} ", i, ii);
         }
     }
 
