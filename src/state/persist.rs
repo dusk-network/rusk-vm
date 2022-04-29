@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use microkelvin::{All, Compound, Keyed, StoreRef, OffsetLen, Ident};
+use microkelvin::{All, Compound, Keyed, StoreRef, OffsetLen, Ident, HostStore};
 use rkyv::{Archive, Deserialize, Serialize, archived_root, Infallible};
 use rkyv::ser::{Serializer, serializers::AllocSerializer};
 use std::fs;
@@ -17,6 +17,7 @@ use rusk_uplink::{ContractId};
 use crate::state::{Contracts, NetworkState};
 use crate::{GasMeter, VMError};
 use crate::contract::Contract;
+use crate::VMError::PersistenceError;
 
 
 /// The [`NetworkStateId`] is the persisted id of the [`NetworkState`]
@@ -59,6 +60,28 @@ impl NetworkState {
         Ok(NetworkStateId { head: *head_stored.ident().erase(), origin: *origin_stored.ident().erase() })
     }
 
+    /// Consolidate the state to disc,
+    /// given the source disc path.
+    pub fn consolidate_to_disk<P: AsRef<Path>>(source_store_path: P, target_store_path: P) -> Result<NetworkStateId, VMError> {
+        let source_store = StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
+        let target_store = StoreRef::new(HostStore::with_file(target_store_path.as_ref())?);
+
+        let source_persistence_id_file_path = source_store_path.as_ref().join("persist_id");
+        let source_persistence_id = NetworkStateId::read(source_persistence_id_file_path)?;
+
+        let mut network = NetworkState::with_target_store(source_store.clone(), target_store.clone())
+            .restore(source_store.clone(), source_persistence_id)?;
+
+        let mut gas = GasMeter::with_limit(100_000_000_000);
+        network.store_contract_states(&mut gas)?;
+        let target_persistence_id = network.persist(target_store.clone())?;
+
+        let target_persistence_id_file_path = target_store_path.as_ref().join("persist_id");
+        target_persistence_id.write(target_persistence_id_file_path)?;
+
+        Ok(target_persistence_id)
+    }
+
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
     /// contracts of the entire blockchain state.
     pub fn restore(mut self, store: StoreRef<OffsetLen>, id: NetworkStateId) -> Result<Self, io::Error> {
@@ -89,7 +112,7 @@ impl NetworkState {
     pub fn store_contract_states (
         &mut self,
         gas_meter: &mut GasMeter
-    ) -> Result<(), ()> {
+    ) -> Result<(), VMError> {
         let mut contract_ids: Vec<ContractId> = vec![];
 
         let branch = self.head.0.walk(All).expect("Some(_)");

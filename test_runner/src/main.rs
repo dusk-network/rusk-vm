@@ -8,6 +8,8 @@ use std::env;
 use std::error::Error;
 use std::fmt::Display;
 use std::fs;
+use std::fs::{OpenOptions};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -436,6 +438,28 @@ fn create_disk_store(path: impl AsRef<str>) -> Result<StoreContext, Box<dyn Erro
     Ok(store)
 }
 
+fn get_disk_store_size(path: impl AsRef<str>) -> Result<u64, Box<dyn Error>> {
+    let path = PathBuf::from(path.as_ref()).join("storage");
+    Ok(fs::metadata(path)?.len())
+}
+
+fn cut_disk_store_prefix(path: impl AsRef<str>, sz: u64) -> Result<(), Box<dyn Error>>{
+    let path = PathBuf::from(path.as_ref()).join("storage");
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(false)
+        .open(&path)?;
+    file.seek(SeekFrom::Start(sz))?;
+    let mut buf: Vec<u8> = vec![];
+    file.read_to_end(&mut buf)?;
+    file.rewind()?;
+    file.write_all(&buf)?;
+    file.set_len(buf.len() as u64)?;
+    file.flush()?;
+    Ok(())
+}
+
 fn move_stack_elements_to_memory(stack: &mut Stack) {
     /*
     note - brute force method to bring all leaves to memory
@@ -665,46 +689,28 @@ fn confirm_stack_and_register(
     store_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     println!("confirm stack and register");
-    let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
-    let target_path = create_target_path(store_path);
+    let target_path = create_target_path(store_path.as_ref());
     remove_disk_store(target_path.clone())?;
     create_directory(target_path.clone())?;
-    let store2 = StoreRef::new(HostStore::with_file(target_path)?);
 
-    let file_path = PathBuf::from(unsafe { &PATH }).join("persist_id");
-    let state_id = NetworkStateId::read(file_path)?;
+    let persistence_id = NetworkState::consolidate_to_disk(PathBuf::from(store_path.as_ref()), PathBuf::from(target_path.clone()))?;
 
-    let mut network = NetworkState::with_target_store(store1.clone(), store2.clone())
-        .restore(store1.clone(), state_id)
+    /*
+    we can now restore and make sure that the state has been preserved
+     */
+
+    let target_store = StoreRef::new(HostStore::with_file(PathBuf::from(target_path))?);
+    let mut network = NetworkState::new(target_store.clone())
+        .restore(target_store.clone(), persistence_id)
         .map_err(|_| PersistE)?;
 
     /*
-    store states of all contracts, this will consolidate the states
-     */
-    let mut gas = GasMeter::with_limit(100_000_000_000);
-    network.store_contract_states(&mut gas).map_err(|_| PersistE)?;
-
-    /*
-    now we can persist everything into a target consolidated storage
-     */
-    network.commit();
-    let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
-
-    /*
-        we can now restore and make sure that the state has been preserved
-    */
-    let mut network = NetworkState::new(store2.clone())
-        .restore(store2.clone(), persist_id2)
-        .map_err(|_| PersistE)?;
-
-    /*
-        stack
+        confirm stack
      */
 
     let contract_id_stack_path =
         PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
     let buf = fs::read(&contract_id_stack_path)?;
-
     let stack_contract_id = ContractId::from(buf);
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
@@ -719,13 +725,12 @@ fn confirm_stack_and_register(
     }
 
     /*
-        register
+        confirm register
      */
     let contract_id_register_path =
         PathBuf::from(unsafe { &PATH }).join("register_contract_id");
     let buf = fs::read(&contract_id_register_path)?;
-
-    let contract_id = ContractId::from(buf);
+    let register_contract_id = ContractId::from(buf);
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..STACK_REGISTER_TEST_SIZE {
@@ -733,7 +738,7 @@ fn confirm_stack_and_register(
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
         let ii = network
-            .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
+            .query(register_contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
             .unwrap();
         if (STACK_REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
             println!("checking num secrets (Hamt) ===> {} {} ", i, ii);
