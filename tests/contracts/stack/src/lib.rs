@@ -7,7 +7,7 @@
 #![no_std]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use microkelvin::{Cardinality, Compound, All, Nth, OffsetLen};
+use microkelvin::{All, Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
@@ -89,7 +89,7 @@ impl Apply<Pop> for Stack {
 
 #[transaction]
 pub struct PopMulti {
-    value: u64
+    value: u64,
 }
 
 impl Transaction for PopMulti {
@@ -166,7 +166,12 @@ impl Stack {
             let peeked = self.peek(j).unwrap_or(0);
             let popped = self.pop().unwrap();
             if (value > 1000) && (i % 100 == 0) {
-                rusk_uplink::debug!("peek ==> {} peeked={} popped={}", j, peeked, popped);
+                rusk_uplink::debug!(
+                    "peek ==> {} peeked={} popped={}",
+                    j,
+                    peeked,
+                    popped
+                );
             }
             sum += popped;
             assert_eq!(peeked, popped)

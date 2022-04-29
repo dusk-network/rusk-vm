@@ -65,7 +65,8 @@ impl Query for NumSecrets {
 impl Execute<NumSecrets> for Register {
     fn execute(&self, q: NumSecrets, _: StoreRef<OffsetLen>) -> u32 {
         self.open_secrets
-            .get(&q.0).as_ref()
+            .get(&q.0)
+            .as_ref()
             .map(|branch| match branch.leaf() {
                 MaybeArchived::Memory(m) => *m,
                 MaybeArchived::Archived(a) => (*a).into(),

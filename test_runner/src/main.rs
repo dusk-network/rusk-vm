@@ -8,19 +8,19 @@ use std::env;
 use std::error::Error;
 use std::fmt::Display;
 use std::fs;
-use std::fs::{OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::process::Command;
 
 use counter::*;
-use stack::*;
 use register::*;
+use stack::*;
 // use map::*;
-use microkelvin::*;
-use rusk_vm::*;
 use crate::rusk_uplink::StoreContext;
 use byteorder::{LittleEndian, WriteBytesExt};
+use microkelvin::*;
+use rusk_vm::*;
 
 static mut PATH: String = String::new();
 
@@ -49,9 +49,7 @@ impl Display for PersistE {
     }
 }
 
-fn initialize_counter(
-    store: StoreContext,
-) -> Result<(), Box<dyn Error>> {
+fn initialize_counter(store: StoreContext) -> Result<(), Box<dyn Error>> {
     let counter = Counter::new(99);
 
     let code = include_bytes!(
@@ -100,9 +98,7 @@ fn initialize_counter(
     Ok(())
 }
 
-fn initialize_stack(
-    store: StoreContext,
-) -> Result<(), Box<dyn Error>> {
+fn initialize_stack(store: StoreContext) -> Result<(), Box<dyn Error>> {
     let stack = Stack::new();
 
     let code = include_bytes!(
@@ -144,13 +140,14 @@ fn initialize_stack(
     Ok(())
 }
 
-fn secret_data_from_int(secret_data: &mut [u8;32], i: u64) {
-    secret_data.as_mut_slice().write_u64::<LittleEndian>(i).expect("Unable to write");
+fn secret_data_from_int(secret_data: &mut [u8; 32], i: u64) {
+    secret_data
+        .as_mut_slice()
+        .write_u64::<LittleEndian>(i)
+        .expect("Unable to write");
 }
 
-fn initialize_register(
-    store: StoreContext,
-) -> Result<(), Box<dyn Error>> {
+fn initialize_register(store: StoreContext) -> Result<(), Box<dyn Error>> {
     let stack = Stack::new();
 
     let code = include_bytes!(
@@ -182,11 +179,7 @@ fn initialize_register(
 
     network.commit();
 
-    let persist_id = network.persist(store).expect("Error in persistence");
-
-    let file_path = PathBuf::from(unsafe { &PATH }).join("register_persist_id");
-
-    persist_id.write(file_path)?;
+    network.persist_to_disk(store, PathBuf::from(unsafe { &PATH }))?;
 
     let contract_id_path =
         PathBuf::from(unsafe { &PATH }).join("register_contract_id");
@@ -222,7 +215,8 @@ fn initialize_stack_and_register(
     );
 
     let contract_stack = Contract::new(&stack, code_stack.to_vec(), &store);
-    let contract_register = Contract::new(&stack, code_register.to_vec(), &store);
+    let contract_register =
+        Contract::new(&stack, code_register.to_vec(), &store);
 
     let mut network = NetworkState::new(store.clone());
 
@@ -244,17 +238,18 @@ fn initialize_stack_and_register(
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
         network
-            .transact(contract_id_register, 0, Gossip::new(secret_hash), &mut gas)
+            .transact(
+                contract_id_register,
+                0,
+                Gossip::new(secret_hash),
+                &mut gas,
+            )
             .unwrap();
     }
 
     network.commit();
 
-    let persist_id = network.persist(store).expect("Error in persistence");
-
-    let file_path = PathBuf::from(unsafe { &PATH }).join("persist_id");
-
-    persist_id.write(file_path)?;
+    network.persist_to_disk(store, unsafe { &PATH })?;
 
     let contract_id_stack_path =
         PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
@@ -269,11 +264,7 @@ fn initialize_stack_and_register(
     Ok(())
 }
 
-
-
-fn initialize_stack_multi(
-    store: StoreContext,
-) -> Result<(), Box<dyn Error>> {
+fn initialize_stack_multi(store: StoreContext) -> Result<(), Box<dyn Error>> {
     let stack = Stack::new();
 
     let code = include_bytes!(
@@ -316,7 +307,8 @@ fn initialize_stack_multi(
 //     let counter = Map::new();
 //
 //     let code =
-//         include_bytes!("../../target/wasm32-unknown-unknown/release/map.wasm");
+//         include_bytes!("../../target/wasm32-unknown-unknown/release/map.wasm"
+// );
 //
 //     let contract = Contract::new(counter, code.to_vec());
 //
@@ -353,9 +345,7 @@ fn initialize_stack_multi(
 //     Ok(())
 // }
 
-fn confirm_counter(
-    store: StoreContext,
-) -> Result<(), Box<dyn Error>> {
+fn confirm_counter(store: StoreContext) -> Result<(), Box<dyn Error>> {
     let file_path = PathBuf::from(unsafe { &PATH }).join("counter_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
@@ -418,7 +408,12 @@ fn confirm_counter(
 
 fn remove_disk_store(path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     let _ = Command::new("rm")
-        .arg(PathBuf::from(path.as_ref()).join("storage").to_str().expect("Path join works"))
+        .arg(
+            PathBuf::from(path.as_ref())
+                .join("storage")
+                .to_str()
+                .expect("Path join works"),
+        )
         .output()?;
     Ok(())
 }
@@ -431,10 +426,11 @@ fn create_directory(path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn create_disk_store(path: impl AsRef<str>) -> Result<StoreContext, Box<dyn Error>> {
+fn create_disk_store(
+    path: impl AsRef<str>,
+) -> Result<StoreContext, Box<dyn Error>> {
     create_directory(path.as_ref())?;
-    let store =
-        StoreRef::new(HostStore::with_file(path.as_ref())?);
+    let store = StoreRef::new(HostStore::with_file(path.as_ref())?);
     Ok(store)
 }
 
@@ -443,7 +439,10 @@ fn get_disk_store_size(path: impl AsRef<str>) -> Result<u64, Box<dyn Error>> {
     Ok(fs::metadata(path)?.len())
 }
 
-fn cut_disk_store_prefix(path: impl AsRef<str>, sz: u64) -> Result<(), Box<dyn Error>>{
+fn cut_disk_store_prefix(
+    path: impl AsRef<str>,
+    sz: u64,
+) -> Result<(), Box<dyn Error>> {
     let path = PathBuf::from(path.as_ref()).join("storage");
     let mut file = OpenOptions::new()
         .read(true)
@@ -489,9 +488,7 @@ fn create_target_path(source_path: impl AsRef<str>) -> String {
     target_path
 }
 
-fn confirm_stack1(
-    store_path: impl AsRef<str>,
-) -> Result<(), Box<dyn Error>> {
+fn confirm_stack1(store_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
@@ -512,7 +509,8 @@ fn confirm_stack1(
     we need to deserialize contract state so that it is fully in memory for store1
     then we need to serialize it to store2
      */
-    let mut stack_state = network.deserialize_from_contract_state::<Stack>(store1, contract_id)?;
+    let mut stack_state = network
+        .deserialize_from_contract_state::<Stack>(store1, contract_id)?;
     for i in 0..N {
         assert_eq!(Some(i), stack_state.peek(i));
     }
@@ -530,13 +528,19 @@ fn confirm_stack1(
     /*
     serialize the state and put it into the contract
      */
-    network.serialize_into_contract_state(store2.clone(), contract_id, &stack_state)?;
+    network.serialize_into_contract_state(
+        store2.clone(),
+        contract_id,
+        &stack_state,
+    )?;
     network.commit();
     /*
     now we can persist everything
      */
     store2.persist().expect("Error in persistence");
-    let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
+    let persist_id2 = network
+        .persist(store2.clone())
+        .expect("Error in persistence");
 
     /*
     we can now restore and make sure that the state has been preserved
@@ -553,7 +557,7 @@ fn confirm_stack1(
         if (N > 1000) && (i % 100 == 0) {
             println!("checking pop ===> {} {:?}", N - 1 - i, ii);
         }
-        assert_eq!(Some(N-1-i), ii);
+        assert_eq!(Some(N - 1 - i), ii);
     }
     /*
     ok - state has been preserved using much less storage as the entire history is now gone
@@ -562,9 +566,7 @@ fn confirm_stack1(
     Ok(())
 }
 
-fn confirm_stack2(
-    store_path: impl AsRef<str>,
-) -> Result<(), Box<dyn Error>> {
+fn confirm_stack2(store_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
     let target_path = create_target_path(store_path);
     remove_disk_store(target_path.clone())?;
@@ -574,21 +576,26 @@ fn confirm_stack2(
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
-    let mut network = NetworkState::with_target_store(store1.clone(), store2.clone())
-        .restore(store1.clone(), state_id)
-        .map_err(|_| PersistE)?;
+    let mut network =
+        NetworkState::with_target_store(store1.clone(), store2.clone())
+            .restore(store1.clone(), state_id)
+            .map_err(|_| PersistE)?;
 
     /*
     store states of all contracts, this will consolidate the states
      */
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    network.store_contract_states(&mut gas).map_err(|_| PersistE)?;
+    network
+        .store_contract_states(&mut gas)
+        .map_err(|_| PersistE)?;
 
     /*
     now we can persist everything into a target consolidated storage
      */
     network.commit();
-    let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
+    let persist_id2 = network
+        .persist(store2.clone())
+        .expect("Error in persistence");
 
     /*
     we can now restore and make sure that the state has been preserved
@@ -613,7 +620,7 @@ fn confirm_stack2(
         if (N > 1000) && (i % 100 == 0) {
             println!("checking pop ===> {} {:?}", N - 1 - i, ii);
         }
-        assert_eq!(Some(N-1-i), ii);
+        assert_eq!(Some(N - 1 - i), ii);
     }
     /*
     ok - state has been preserved using much less storage
@@ -622,60 +629,46 @@ fn confirm_stack2(
     Ok(())
 }
 
-fn confirm_register(
-    store_path: impl AsRef<str>,
-) -> Result<(), Box<dyn Error>> {
+fn confirm_register(store_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     println!("confirm register");
-    let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
-    let target_path = create_target_path(store_path);
+    let target_path = create_target_path(store_path.as_ref());
     remove_disk_store(target_path.clone())?;
     create_directory(target_path.clone())?;
-    let store2 = StoreRef::new(HostStore::with_file(target_path)?);
 
-    let file_path = PathBuf::from(unsafe { &PATH }).join("register_persist_id");
-    let state_id = NetworkStateId::read(file_path)?;
-
-    let mut network = NetworkState::with_target_store(store1.clone(), store2.clone())
-        .restore(store1.clone(), state_id)
-        .map_err(|_| PersistE)?;
-
-    /*
-    store states of all contracts, this will consolidate the states
-     */
-    let mut gas = GasMeter::with_limit(100_000_000_000);
-    network.store_contract_states(&mut gas).map_err(|_| PersistE)?;
-
-    /*
-    now we can persist everything into a target consolidated storage
-     */
-    network.commit();
-    let persist_id2 = network.persist(store2.clone()).expect("Error in persistence");
+    let persistence_id = NetworkState::consolidate_to_disk(
+        PathBuf::from(store_path.as_ref()),
+        PathBuf::from(target_path.clone()),
+    )?;
 
     /*
     we can now restore and make sure that the state has been preserved
      */
-    const N: u64 = REGISTER_TEST_SIZE;
-
-    let mut network = NetworkState::new(store2.clone())
-        .restore(store2.clone(), persist_id2)
+    let target_store =
+        StoreRef::new(HostStore::with_file(PathBuf::from(target_path))?);
+    let mut network = NetworkState::new(target_store.clone())
+        .restore(target_store.clone(), persistence_id)
         .map_err(|_| PersistE)?;
 
-    let contract_id_path =
+    let contract_id_register_path =
         PathBuf::from(unsafe { &PATH }).join("register_contract_id");
-    let buf = fs::read(&contract_id_path)?;
-
-    let contract_id = ContractId::from(buf);
+    let buf = fs::read(&contract_id_register_path)?;
+    let register_contract_id = ContractId::from(buf);
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    for i in 0..N {
+    for i in 0..REGISTER_TEST_SIZE {
         let mut secret_data: [u8; 32] = [0u8; 32];
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
         let ii = network
-            .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
+            .query(
+                register_contract_id,
+                0,
+                NumSecrets::new(secret_hash),
+                &mut gas,
+            )
             .unwrap();
-        if (N > 1000) && (i % 100 == 0) {
-            println!("num secrets for {} ===> {} ", i, ii);
+        if (REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
+            println!("checking num secrets (Hamt) ===> {} {} ", i, ii);
         }
     }
     /*
@@ -693,20 +686,24 @@ fn confirm_stack_and_register(
     remove_disk_store(target_path.clone())?;
     create_directory(target_path.clone())?;
 
-    let persistence_id = NetworkState::consolidate_to_disk(PathBuf::from(store_path.as_ref()), PathBuf::from(target_path.clone()))?;
+    let persistence_id = NetworkState::consolidate_to_disk(
+        PathBuf::from(store_path.as_ref()),
+        PathBuf::from(target_path.clone()),
+    )?;
 
     /*
     we can now restore and make sure that the state has been preserved
      */
 
-    let target_store = StoreRef::new(HostStore::with_file(PathBuf::from(target_path))?);
+    let target_store =
+        StoreRef::new(HostStore::with_file(PathBuf::from(target_path))?);
     let mut network = NetworkState::new(target_store.clone())
         .restore(target_store.clone(), persistence_id)
         .map_err(|_| PersistE)?;
 
     /*
-        confirm stack
-     */
+       confirm stack
+    */
 
     let contract_id_stack_path =
         PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
@@ -719,14 +716,18 @@ fn confirm_stack_and_register(
             .transact(stack_contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
         if (STACK_REGISTER_TEST_SIZE > 1000) && (ii.unwrap() % 100 == 0) {
-            println!("checking pop (NStack) ===> {} {:?}", STACK_REGISTER_TEST_SIZE - 1 - i, ii);
+            println!(
+                "checking pop (NStack) ===> {} {:?}",
+                STACK_REGISTER_TEST_SIZE - 1 - i,
+                ii
+            );
         }
-        assert_eq!(Some(STACK_REGISTER_TEST_SIZE-1-i), ii);
+        assert_eq!(Some(STACK_REGISTER_TEST_SIZE - 1 - i), ii);
     }
 
     /*
-        confirm register
-     */
+       confirm register
+    */
     let contract_id_register_path =
         PathBuf::from(unsafe { &PATH }).join("register_contract_id");
     let buf = fs::read(&contract_id_register_path)?;
@@ -738,7 +739,12 @@ fn confirm_stack_and_register(
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
         let ii = network
-            .query(register_contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
+            .query(
+                register_contract_id,
+                0,
+                NumSecrets::new(secret_hash),
+                &mut gas,
+            )
             .unwrap();
         if (STACK_REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
             println!("checking num secrets (Hamt) ===> {} {} ", i, ii);
@@ -748,9 +754,7 @@ fn confirm_stack_and_register(
     Ok(())
 }
 
-fn confirm_stack_multi(
-    store: StoreContext,
-) -> Result<(), Box<dyn Error>> {
+fn confirm_stack_multi(store: StoreContext) -> Result<(), Box<dyn Error>> {
     let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
@@ -781,9 +785,7 @@ fn confirm_stack_multi(
     Ok(())
 }
 
-fn initialize(
-    store: StoreContext,
-) -> Result<(), Box<dyn Error>> {
+fn initialize(store: StoreContext) -> Result<(), Box<dyn Error>> {
     // initialize_counter(store.clone())?;
     // initialize_stack(store.clone())?;
     // initialize_register(store.clone())?;
@@ -792,7 +794,10 @@ fn initialize(
     Ok(())
 }
 
-fn confirm(store: StoreContext, path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
+fn confirm(
+    store: StoreContext,
+    path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
     // confirm_counter(store.clone())?;
     // if CONFIRM_STACK_METHOD == 2 {
     //     confirm_stack2(path)?;
@@ -819,7 +824,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match &*args[2] {
         "initialize" => initialize(store),
-        "confirm" => confirm(store, unsafe { &PATH } ),
+        "confirm" => confirm(store, unsafe { &PATH }),
         "test_both" => {
             initialize(store.clone())?;
             confirm(store, unsafe { &PATH })

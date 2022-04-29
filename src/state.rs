@@ -10,8 +10,8 @@ use bytecheck::CheckBytes;
 use microkelvin::{
     BranchRef, BranchRefMut, OffsetLen, StoreRef, StoreSerializer,
 };
-use rkyv::validation::validators::DefaultValidator;
 use rkyv::ser::Serializer;
+use rkyv::validation::validators::DefaultValidator;
 use rkyv::{archived_root, Archive, Deserialize, Serialize};
 
 use rusk_uplink::{
@@ -113,7 +113,10 @@ impl NetworkState {
     }
 
     /// Returns a new empty [`NetworkState`] with a separate target store.
-    pub fn with_target_store(store: StoreContext, target_store: StoreContext) -> Self {
+    pub fn with_target_store(
+        store: StoreContext,
+        target_store: StoreContext,
+    ) -> Self {
         NetworkState {
             store,
             target_store,
@@ -225,8 +228,12 @@ impl NetworkState {
 
         let store = self.store.clone();
 
-        let mut context =
-            CallContext::new(self, block_height, self.store.clone(), self.target_store.clone());
+        let mut context = CallContext::new(
+            self,
+            block_height,
+            self.store.clone(),
+            self.target_store.clone(),
+        );
 
         let result = match context.query(
             target,
@@ -282,8 +289,12 @@ impl NetworkState {
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context =
-            CallContext::new(&mut fork, block_height, self.store.clone(), self.target_store.clone());
+        let mut context = CallContext::new(
+            &mut fork,
+            block_height,
+            self.store.clone(),
+            self.target_store.clone(),
+        );
 
         let result = match context.transact(
             target,
@@ -315,8 +326,9 @@ impl NetworkState {
         Ok(deserialized)
     }
 
-    /// Perform the unarchive transaction with the contract at `target` address in the `head` state,
-    /// no result is expected but the state will be 'unarchived'.
+    /// Perform the unarchive transaction with the contract at `target` address
+    /// in the `head` state, no result is expected but the state will be
+    /// 'unarchived'.
     ///
     /// This will advance the `head` to the resultant state.
     pub fn transact_store_state(
@@ -324,8 +336,7 @@ impl NetworkState {
         target: ContractId,
         block_height: u64,
         gas_meter: &mut GasMeter,
-    ) -> Result<(), VMError>
-    {
+    ) -> Result<(), VMError> {
         let _span = trace_span!(
             "outer unarchive transact",
             block_height = ?block_height,
@@ -337,8 +348,12 @@ impl NetworkState {
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context =
-            CallContext::new(&mut fork, block_height, self.store.clone(), self.target_store.clone());
+        let mut context = CallContext::new(
+            &mut fork,
+            block_height,
+            self.store.clone(),
+            self.target_store.clone(),
+        );
 
         let _result = match context.transact(
             target,
@@ -406,23 +421,32 @@ impl NetworkState {
     }
 
     /// Deserialize from contract state
-    pub fn deserialize_from_contract_state<S>(&self, store: StoreContext, contract_id: ContractId) -> Result<S, VMError>
-        where S: Archive,
-              <S as Archive>::Archived: Deserialize<S, StoreContext>
+    pub fn deserialize_from_contract_state<S>(
+        &self,
+        store: StoreContext,
+        contract_id: ContractId,
+    ) -> Result<S, VMError>
+    where
+        S: Archive,
+        <S as Archive>::Archived: Deserialize<S, StoreContext>,
     {
         let contract = self.get_contract(&contract_id)?;
         let contract = contract.leaf();
         let state_slice = contract.state();
-        let state = unsafe {
-            archived_root::<S>(state_slice)
-        };
+        let state = unsafe { archived_root::<S>(state_slice) };
         let state: S = state.deserialize(&mut store.clone()).unwrap();
         Ok(state)
     }
 
     /// Serialize into contract state
-    pub fn serialize_into_contract_state<S>(&mut self, store: StoreRef<OffsetLen>, contract_id: ContractId, state: &S) -> Result<usize, VMError>
-        where S: Serialize<StoreSerializer<OffsetLen>>,
+    pub fn serialize_into_contract_state<S>(
+        &mut self,
+        store: StoreRef<OffsetLen>,
+        contract_id: ContractId,
+        state: &S,
+    ) -> Result<usize, VMError>
+    where
+        S: Serialize<StoreSerializer<OffsetLen>>,
     {
         let mut contract = self.get_contract_mut(&contract_id)?;
         let contract = contract.leaf_mut();
@@ -433,5 +457,4 @@ impl NetworkState {
         contract.set_state(store.get_raw(&off_len));
         Ok(sz)
     }
-
 }
