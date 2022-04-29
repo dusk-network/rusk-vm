@@ -18,7 +18,6 @@ use std::path::Path;
 
 use crate::contract::Contract;
 use crate::state::{Contracts, NetworkState};
-use crate::VMError::PersistenceError;
 use crate::{GasMeter, VMError};
 
 /// The [`NetworkStateId`] is the persisted id of the [`NetworkState`]
@@ -79,26 +78,29 @@ impl NetworkState {
     ) -> Result<NetworkStateId, VMError> {
         let persistence_id = self.persist(store).expect("Error in persistence");
 
-        let file_path = store_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
+        let file_path =
+            store_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
 
         persistence_id.write(file_path)?;
 
         Ok(persistence_id)
     }
 
-    /// Consolidate the state to disc,
+    /// Consolidates the state to disc,
     /// given the source disc path.
     pub fn consolidate_to_disk<P: AsRef<Path>>(
         source_store_path: P,
         target_store_path: P,
+        gas_meter: &mut GasMeter,
     ) -> Result<NetworkStateId, VMError> {
         let source_store =
             StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
         let target_store =
             StoreRef::new(HostStore::with_file(target_store_path.as_ref())?);
 
-        let source_persistence_id_file_path =
-            source_store_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
+        let source_persistence_id_file_path = source_store_path
+            .as_ref()
+            .join(Self::PERSISTENCE_ID_FILE_NAME);
         let source_persistence_id =
             NetworkStateId::read(source_persistence_id_file_path)?;
 
@@ -108,12 +110,12 @@ impl NetworkState {
         )
         .restore(source_store.clone(), source_persistence_id)?;
 
-        let mut gas = GasMeter::with_limit(100_000_000_000);
-        network.store_contract_states(&mut gas)?;
+        network.store_contract_states(gas_meter)?;
         let target_persistence_id = network.persist(target_store.clone())?;
 
-        let target_persistence_id_file_path =
-            target_store_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
+        let target_persistence_id_file_path = target_store_path
+            .as_ref()
+            .join(Self::PERSISTENCE_ID_FILE_NAME);
         target_persistence_id.write(target_persistence_id_file_path)?;
 
         Ok(target_persistence_id)
@@ -152,6 +154,24 @@ impl NetworkState {
         self.staged = self.head.clone();
 
         Ok(self)
+    }
+
+    /// Restores network state
+    /// given source disk path.
+    pub fn restore_from_disk<P: AsRef<Path>>(
+        source_store_path: P,
+    ) -> Result<Self, io::Error> {
+        let store = StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
+        let file_path = source_store_path
+            .as_ref()
+            .join(Self::PERSISTENCE_ID_FILE_NAME);
+        let persistence_id = NetworkStateId::read(file_path).map_err(|_| {
+            io::Error::new(
+                ErrorKind::Other,
+                VMError::PersistenceError(String::from("network state")),
+            )
+        })?;
+        NetworkState::new(store.clone()).restore(store, persistence_id)
     }
 
     /// Store contracts' states

@@ -635,18 +635,17 @@ fn confirm_register(store_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     remove_disk_store(target_path.clone())?;
     create_directory(target_path.clone())?;
 
-    let persistence_id = NetworkState::consolidate_to_disk(
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    NetworkState::consolidate_to_disk(
         PathBuf::from(store_path.as_ref()),
         PathBuf::from(target_path.clone()),
+        &mut gas,
     )?;
 
     /*
     we can now restore and make sure that the state has been preserved
      */
-    let target_store =
-        StoreRef::new(HostStore::with_file(PathBuf::from(target_path))?);
-    let mut network = NetworkState::new(target_store.clone())
-        .restore(target_store.clone(), persistence_id)
+    let mut network = NetworkState::restore_from_disk(target_path)
         .map_err(|_| PersistE)?;
 
     let contract_id_register_path =
@@ -686,19 +685,17 @@ fn confirm_stack_and_register(
     remove_disk_store(target_path.clone())?;
     create_directory(target_path.clone())?;
 
-    let persistence_id = NetworkState::consolidate_to_disk(
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    NetworkState::consolidate_to_disk(
         PathBuf::from(store_path.as_ref()),
         PathBuf::from(target_path.clone()),
+        &mut gas,
     )?;
 
     /*
     we can now restore and make sure that the state has been preserved
      */
-
-    let target_store =
-        StoreRef::new(HostStore::with_file(PathBuf::from(target_path))?);
-    let mut network = NetworkState::new(target_store.clone())
-        .restore(target_store.clone(), persistence_id)
+    let mut network = NetworkState::restore_from_disk(target_path.clone())
         .map_err(|_| PersistE)?;
 
     /*
