@@ -161,7 +161,8 @@ impl NetworkState {
     pub fn restore_from_disk<P: AsRef<Path>>(
         source_store_path: P,
     ) -> Result<Self, io::Error> {
-        let store = StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
+        let store =
+            StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
         let file_path = source_store_path
             .as_ref()
             .join(Self::PERSISTENCE_ID_FILE_NAME);

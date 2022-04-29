@@ -126,11 +126,7 @@ fn initialize_stack(store: StoreContext) -> Result<(), Box<dyn Error>> {
 
     network.commit();
 
-    let persist_id = network.persist(store).expect("Error in persistence");
-
-    let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
-
-    persist_id.write(file_path)?;
+    network.persist_to_disk(store, PathBuf::from(unsafe { &PATH }))?;
 
     let contract_id_path =
         PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
@@ -567,44 +563,23 @@ fn confirm_stack1(store_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
 }
 
 fn confirm_stack2(store_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    let store1 = StoreRef::new(HostStore::with_file(store_path.as_ref())?);
-    let target_path = create_target_path(store_path);
+    println!("confirm stack");
+    let target_path = create_target_path(store_path.as_ref());
     remove_disk_store(target_path.clone())?;
     create_directory(target_path.clone())?;
-    let store2 = StoreRef::new(HostStore::with_file(target_path)?);
 
-    let file_path = PathBuf::from(unsafe { &PATH }).join("stack_persist_id");
-    let state_id = NetworkStateId::read(file_path)?;
-
-    let mut network =
-        NetworkState::with_target_store(store1.clone(), store2.clone())
-            .restore(store1.clone(), state_id)
-            .map_err(|_| PersistE)?;
-
-    /*
-    store states of all contracts, this will consolidate the states
-     */
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    network
-        .store_contract_states(&mut gas)
-        .map_err(|_| PersistE)?;
-
-    /*
-    now we can persist everything into a target consolidated storage
-     */
-    network.commit();
-    let persist_id2 = network
-        .persist(store2.clone())
-        .expect("Error in persistence");
+    NetworkState::consolidate_to_disk(
+        PathBuf::from(store_path.as_ref()),
+        PathBuf::from(target_path.clone()),
+        &mut gas,
+    )?;
 
     /*
     we can now restore and make sure that the state has been preserved
      */
-    const N: u64 = STACK_TEST_SIZE;
-
-    let mut network = NetworkState::new(store2.clone())
-        .restore(store2.clone(), persist_id2)
-        .map_err(|_| PersistE)?;
+    let mut network =
+        NetworkState::restore_from_disk(target_path).map_err(|_| PersistE)?;
 
     let contract_id_path =
         PathBuf::from(unsafe { &PATH }).join("stack_contract_id");
@@ -613,14 +588,14 @@ fn confirm_stack2(store_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     let contract_id = ContractId::from(buf);
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    for i in 0..N {
+    for i in 0..STACK_TEST_SIZE {
         let ii = network
             .transact(contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
-        if (N > 1000) && (i % 100 == 0) {
-            println!("checking pop ===> {} {:?}", N - 1 - i, ii);
+        if (STACK_TEST_SIZE > 1000) && (i % 100 == 0) {
+            println!("checking pop ===> {} {:?}", STACK_TEST_SIZE - 1 - i, ii);
         }
-        assert_eq!(Some(N - 1 - i), ii);
+        assert_eq!(Some(STACK_TEST_SIZE - 1 - i), ii);
     }
     /*
     ok - state has been preserved using much less storage
@@ -645,8 +620,8 @@ fn confirm_register(store_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     /*
     we can now restore and make sure that the state has been preserved
      */
-    let mut network = NetworkState::restore_from_disk(target_path)
-        .map_err(|_| PersistE)?;
+    let mut network =
+        NetworkState::restore_from_disk(target_path).map_err(|_| PersistE)?;
 
     let contract_id_register_path =
         PathBuf::from(unsafe { &PATH }).join("register_contract_id");
@@ -784,9 +759,9 @@ fn confirm_stack_multi(store: StoreContext) -> Result<(), Box<dyn Error>> {
 
 fn initialize(store: StoreContext) -> Result<(), Box<dyn Error>> {
     // initialize_counter(store.clone())?;
-    // initialize_stack(store.clone())?;
+    initialize_stack(store.clone())?;
     // initialize_register(store.clone())?;
-    initialize_stack_and_register(store.clone())?;
+    // initialize_stack_and_register(store.clone())?;
     // initialize_stack_multi(store)?;
     Ok(())
 }
@@ -796,13 +771,13 @@ fn confirm(
     path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     // confirm_counter(store.clone())?;
-    // if CONFIRM_STACK_METHOD == 2 {
-    //     confirm_stack2(path)?;
-    // } else {
-    //     confirm_stack1(path)?;
-    // }
+    if CONFIRM_STACK_METHOD == 2 {
+        confirm_stack2(path)?;
+    } else {
+        confirm_stack1(path)?;
+    }
     // confirm_register(path)?;
-    confirm_stack_and_register(path)?;
+    // confirm_stack_and_register(path)?;
     // confirm_stack_multi(store)?;
     Ok(())
 }
