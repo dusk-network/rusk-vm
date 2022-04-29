@@ -759,9 +759,9 @@ fn confirm_stack_multi(store: StoreContext) -> Result<(), Box<dyn Error>> {
 
 fn initialize(store: StoreContext) -> Result<(), Box<dyn Error>> {
     // initialize_counter(store.clone())?;
-    initialize_stack(store.clone())?;
+    // initialize_stack(store.clone())?;
     // initialize_register(store.clone())?;
-    // initialize_stack_and_register(store.clone())?;
+    initialize_stack_and_register(store.clone())?;
     // initialize_stack_multi(store)?;
     Ok(())
 }
@@ -771,13 +771,13 @@ fn confirm(
     path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     // confirm_counter(store.clone())?;
-    if CONFIRM_STACK_METHOD == 2 {
-        confirm_stack2(path)?;
-    } else {
-        confirm_stack1(path)?;
-    }
+    // if CONFIRM_STACK_METHOD == 2 {
+    //     confirm_stack2(path)?;
+    // } else {
+    //     confirm_stack1(path)?;
+    // }
     // confirm_register(path)?;
-    // confirm_stack_and_register(path)?;
+    confirm_stack_and_register(path)?;
     // confirm_stack_multi(store)?;
     Ok(())
 }
