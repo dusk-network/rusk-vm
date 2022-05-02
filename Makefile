@@ -11,10 +11,10 @@ test-contracts: ## Build the test contracts
 
 test-session: ## test over sessions
 	rm -Rf /tmp/rusk-vm-test-runner-temp-dir
-	mkdir /tmp/rusk-vm-test-runner-temp-dir
 	rm -Rf /tmp/rusk-vm-test-runner-temp-dir-2
-	cargo run --manifest-path test_runner/Cargo.toml /tmp/rusk-vm-test-runner-temp-dir initialize
-	cargo run --manifest-path test_runner/Cargo.toml /tmp/rusk-vm-test-runner-temp-dir confirm
-# 	rm -R /tmp/rusk-vm-test-runner-temp-dir
+	mkdir /tmp/rusk-vm-test-runner-temp-dir
+	mkdir /tmp/rusk-vm-test-runner-temp-dir-2
+	cargo run --manifest-path test_runner/Cargo.toml initialize /tmp/rusk-vm-test-runner-temp-dir
+	cargo run --manifest-path test_runner/Cargo.toml confirm /tmp/rusk-vm-test-runner-temp-dir /tmp/rusk-vm-test-runner-temp-dir-2
 
 .PHONY: help all test test-contracts
