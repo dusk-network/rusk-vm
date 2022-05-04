@@ -147,12 +147,8 @@ impl Stack {
 
     pub fn pushmulti(&mut self, value: u64) {
         for i in 0..value {
-            if (value > 1000) && (i % 100 == 0) {
-                rusk_uplink::debug!("push ==> {}", i);
-            }
             self.inner.push(i);
         }
-        rusk_uplink::debug!("finished pushing");
     }
 
     pub fn pop(&mut self) -> Option<u64> {
@@ -165,14 +161,6 @@ impl Stack {
             let j = value - i - 1;
             let peeked = self.peek(j).unwrap_or(0);
             let popped = self.pop().unwrap();
-            if (value > 1000) && (i % 100 == 0) {
-                rusk_uplink::debug!(
-                    "peek ==> {} peeked={} popped={}",
-                    j,
-                    peeked,
-                    popped
-                );
-            }
             sum += popped;
             assert_eq!(peeked, popped)
         }
