@@ -64,7 +64,7 @@ fn execute_stack_single_push_pop_contract() -> u64 {
     gas.spent()
 }
 
-fn execute_stack_multi_push_pop_contract() -> u64 {
+fn execute_stack_multi_push_pop_contract(count: u64) -> u64 {
     let schedule = Schedule::default();
 
     let code =
@@ -80,11 +80,11 @@ fn execute_stack_multi_push_pop_contract() -> u64 {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     network
-        .transact(contract_id, 0, stack::PushMulti::new(1000), &mut gas)
+        .transact(contract_id, 0, stack::PushMulti::new(count), &mut gas)
         .expect("Transaction error");
 
     network
-        .transact(contract_id, 0, stack::PopMulti::new(1000), &mut gas)
+        .transact(contract_id, 0, stack::PopMulti::new(count), &mut gas)
         .expect("Query error");
 
     gas.spent()
@@ -159,7 +159,7 @@ fn measure_gas_usage() {
     println!("gas usage:");
     println!("counter                            {}", execute_counter_contract());
     println!("stack single push/pop              {}", execute_stack_single_push_pop_contract());
-    println!("stack multiple push/pop            {}", execute_stack_multi_push_pop_contract());
+    println!("stack multiple push/pop            {}", execute_stack_multi_push_pop_contract(16384));
     println!("stack multiple transactions push   {}", execute_multiple_transactions_stack_contract(4096));
     println!("hamt single insert/get             {}", execute_multiple_register_contract(1));
     println!("hamt multiple insert/get           {}", execute_multiple_register_contract(4096));

@@ -174,10 +174,11 @@ pub fn init(_attrs: TokenStream, input: TokenStream) -> TokenStream {
 
             #[no_mangle]
             pub fn grow_scratch(sz: u32) -> u32 {
-                const MIN_GROW_BY: usize = 128;
+                const MIN_GROW_BY: usize = 0;
                 unsafe {
                     if (sz as usize > scratch.len()) || (scratch.len() == 0) {
                         let len = core::cmp::max(sz as usize, scratch.len()) + MIN_GROW_BY;
+                        // rusk_uplink::debug!("resizeto {}", len);
                         scratch.resize(len, 0u8);
                     }
                     scratch.as_mut_ptr() as *mut _ as u32

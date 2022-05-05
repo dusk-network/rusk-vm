@@ -43,7 +43,7 @@ impl Fallible for AbiStore {
     type Error = core::convert::Infallible;
 }
 
-const MIN_RESIZE: usize = 128;
+const MIN_RESIZE: usize = 8192;
 
 impl AbiStoreInner {
     fn new(buf: &mut [u8], buf_vec: &mut Vec<u8>, data_ofs: usize) -> Self {
@@ -57,6 +57,10 @@ impl AbiStoreInner {
     }
 
     fn resize_by(&mut self, by: usize) {
+        // let cur_len = unsafe { (*self.data_vec).len() };
+        // if cur_len > 60000 {
+        //     crate::debug!("resize to {} {}", cur_len + by, by);
+        // }
         unsafe {
             (*self.data_vec).resize((*self.data_vec).len() + by, 0u8);
             self.data = &mut (*self.data_vec).as_mut_slice()[self.data_ofs..];
