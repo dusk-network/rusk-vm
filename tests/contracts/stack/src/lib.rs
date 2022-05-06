@@ -159,10 +159,10 @@ impl Stack {
         let mut sum = 0u64;
         for i in 0..value {
             let j = value - i - 1;
-            let peeked = self.peek(j).unwrap_or(0);
+            // let peeked = self.peek(j).unwrap_or(0);
             let popped = self.pop().unwrap();
             sum += popped;
-            assert_eq!(peeked, popped)
+            // assert_eq!(peeked, popped)
         }
         sum
     }
