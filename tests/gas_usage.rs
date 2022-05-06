@@ -157,10 +157,10 @@ fn execute_multiple_register_contract(count: u64) -> u64 {
 #[test]
 fn measure_gas_usage() {
     println!("gas usage:");
-    println!("counter                            {}", execute_counter_contract());
-    println!("stack single push/pop              {}", execute_stack_single_push_pop_contract());
-    println!("stack multiple push/pop            {}", execute_stack_multi_push_pop_contract(16384));
-    println!("stack multiple transactions push   {}", execute_multiple_transactions_stack_contract(4096));
-    println!("hamt single insert/get             {}", execute_multiple_register_contract(1));
-    println!("hamt multiple insert/get           {}", execute_multiple_register_contract(4096));
+    println!("counter                                 {}", execute_counter_contract());
+    println!("stack single push/pop                   {}", execute_stack_single_push_pop_contract());
+    println!("stack multiple push/pop ({})         {}", 65536, execute_stack_multi_push_pop_contract(65536));
+    println!("stack multiple transactions push ({}) {}", 8192, execute_multiple_transactions_stack_contract(8192));
+    println!("hamt single insert/get                  {}", execute_multiple_register_contract(1));
+    println!("hamt multiple insert/get ({})         {}", 8192, execute_multiple_register_contract(8192));
 }
