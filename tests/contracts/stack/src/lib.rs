@@ -16,6 +16,8 @@ use nstack::NStack;
 // transaction ids
 pub const PUSH: u8 = 0;
 pub const POP: u8 = 1;
+pub const PUSHMULTI: u8 = 2;
+pub const POPMULTI: u8 = 3;
 
 // query ids
 pub const PEEK: u8 = 0;
@@ -48,6 +50,24 @@ where
 
     pub fn pop(&mut self) -> Result<Option<T>, CanonError> {
         self.inner.pop()
+    }
+
+}
+
+impl Stack<u64> {
+    pub fn pushmulti(&mut self, value: u64) -> Result<(), CanonError> {
+        for i in 0..value as u64 {
+            self.inner.push(i).unwrap();
+        }
+        Ok(())
+    }
+
+    pub fn popmulti(&mut self, value: u64) -> Result<Option<u64>, CanonError> {
+        let mut sum = 0u64;
+        for _ in 0..value {
+            sum += self.inner.pop().unwrap().unwrap();
+        }
+        Ok(Some(sum))
     }
 }
 
@@ -111,6 +131,27 @@ mod hosted {
             }
             POP => {
                 let result = slf.pop();
+
+                let mut sink = Sink::new(&mut bytes[..]);
+
+                ContractState::from_canon(&slf).encode(&mut sink);
+                ReturnValue::from_canon(&result).encode(&mut sink);
+                Ok(())
+            }
+            PUSHMULTI => {
+                let leaf = Leaf::decode(&mut source)?;
+                let result = slf.pushmulti(leaf);
+
+                let mut sink = Sink::new(&mut bytes[..]);
+
+                ContractState::from_canon(&slf).encode(&mut sink);
+                ReturnValue::from_canon(&result).encode(&mut sink);
+
+                Ok(())
+            }
+            POPMULTI => {
+                let leaf = Leaf::decode(&mut source)?;
+                let result = slf.popmulti(leaf);
 
                 let mut sink = Sink::new(&mut bytes[..]);
 
