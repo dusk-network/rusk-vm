@@ -66,7 +66,7 @@ fn string_passthrough() {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     assert_eq!(
-        network
+        *network
             .query(contract_id, 0, Passthrough::new("Hello world", 3), &mut gas)
             .unwrap(),
         String::from("Hello worldHello worldHello world"),
@@ -109,7 +109,7 @@ fn delegated_call() {
     // delegate query
 
     assert_eq!(
-        network
+        *network
             .query(
                 delegator_id,
                 0,
@@ -138,11 +138,35 @@ fn delegated_call() {
     // changed the value of counter
 
     assert_eq!(
-        network
+        *network
             .query(counter_contract_id, 0, counter::ReadValue, &mut gas)
             .unwrap(),
         100
     );
+}
+
+#[test]
+fn events() {
+    use events::*;
+    let events = Events;
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/events.wasm");
+
+    let store = StoreRef::new(HostStore::new());
+    let contract = Contract::new(&events, code.to_vec(), &store);
+
+    let mut network = NetworkState::new(store);
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let receipt = network
+        .query(contract_id, 0, EventNum(10), &mut gas)
+        .unwrap();
+    for (i, event) in receipt.events().into_iter().enumerate() {
+        assert_eq!(&(i as i32).to_le_bytes()[..], event.data());
+    }
 }
 
 #[test]
@@ -167,7 +191,7 @@ fn fibonacci() {
 
     for i in 0..n {
         assert_eq!(
-            network
+            *network
                 .query(contract_id, 0, ComputeFrom::new(i), &mut gas)
                 .unwrap() as u64,
             fibonacci_reference(i as u64)
@@ -194,7 +218,7 @@ fn block_height() {
 
     assert_eq!(
         99,
-        network
+        *network
             .query(contract_id, 99, ReadBlockHeight, &mut gas)
             .unwrap()
     )
@@ -219,14 +243,14 @@ fn self_snapshot() {
 
     assert_eq!(
         7,
-        network
+        *network
             .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
             .unwrap()
     );
 
     // returns old value
     assert_eq!(
-        network
+        *network
             .transact(
                 contract_id,
                 0,
@@ -239,7 +263,7 @@ fn self_snapshot() {
 
     assert_eq!(
         9,
-        network
+        *network
             .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
             .unwrap()
     );
@@ -255,7 +279,7 @@ fn self_snapshot() {
 
     assert_eq!(
         10,
-        network
+        *network
             .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
             .unwrap()
     );
@@ -271,7 +295,7 @@ fn self_snapshot() {
 
     assert_eq!(
         10,
-        network
+        *network
             .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
             .unwrap()
     );
@@ -301,7 +325,7 @@ fn self_snapshot() {
 
     assert_eq!(
         12,
-        network
+        *network
             .query(contract_id, 0, self_snapshot::CrossoverQuery, &mut gas)
             .unwrap()
     );
@@ -322,7 +346,7 @@ fn tx_vec() {
     let contract_id = network.deploy(contract).unwrap();
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    let v = network
+    let v = *network
         .query(contract_id, 0, TxVecReadValue, &mut gas)
         .unwrap();
     assert_eq!(value, v);
@@ -334,7 +358,7 @@ fn tx_vec() {
         .transact(contract_id, 0, TxVecSum::new(values), &mut gas)
         .unwrap();
 
-    let v = network
+    let v = *network
         .query(contract_id, 0, TxVecReadValue, &mut gas)
         .unwrap();
     assert_eq!(value, v);
@@ -347,7 +371,7 @@ fn tx_vec() {
         .transact(contract_id, 0, delegate_sum, &mut gas)
         .unwrap();
 
-    let v = network
+    let v = *network
         .query(contract_id, 0, TxVecReadValue, &mut gas)
         .unwrap();
     assert_eq!(value, v);
@@ -361,7 +385,7 @@ fn tx_vec() {
         .transact(contract_id, 0, delegate_sum, &mut gas)
         .unwrap();
 
-    let v = network
+    let v = *network
         .query(contract_id, 0, TxVecReadValue, &mut gas)
         .unwrap();
     assert_eq!(value, v);
@@ -403,7 +427,7 @@ fn calling() {
         .unwrap();
 
     assert_eq!(
-        network.query(caller_id, 0, CallerQuery, &mut gas).unwrap(),
+        *network.query(caller_id, 0, CallerQuery, &mut gas).unwrap(),
         (
             caller_id.as_array(),
             callee1_id.as_array(),
@@ -438,7 +462,7 @@ fn gas_consumed_host_function_works() {
         .expect("Transaction error");
 
     assert_eq!(
-        network
+        *network
             .query(contract_id, 0, GasConsumedValueQuery, &mut gas)
             .expect("Query error"),
         100
@@ -477,7 +501,7 @@ fn gas_consumption_works() {
         .expect("Transaction error");
 
     assert_eq!(
-        network
+        *network
             .query(contract_id, 0, counter::ReadValue, &mut gas)
             .expect("Query error"),
         100
@@ -579,13 +603,13 @@ fn commit_and_reset() {
     network_clone.reset();
 
     assert_eq!(
-        network
+        *network
             .query(contract_id, 0, counter::ReadValue, &mut gas)
             .unwrap(),
         100
     );
     assert_eq!(
-        network_clone
+        *network_clone
             .query(contract_id, 0, counter::ReadValue, &mut gas)
             .unwrap(),
         99
@@ -619,7 +643,7 @@ fn register() {
         .expect("Transaction error");
 
     assert_eq!(
-        network
+        *network
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
             .expect("Query error"),
         1
@@ -632,7 +656,7 @@ fn register() {
     }
 
     assert_eq!(
-        network
+        *network
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
             .expect("Query error"),
         N

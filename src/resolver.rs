@@ -60,6 +60,14 @@ impl HostImportsResolver {
                         query::ExecuteQuery::query,
                     ),
                 ),
+                "emit" => namespace.insert(
+                    "emit",
+                    Function::new_native_with_env(
+                        store,
+                        env.clone(),
+                        emit::Emit::emit,
+                    ),
+                ),
                 "callee" => namespace.insert(
                     "callee",
                     Function::new_native_with_env(
