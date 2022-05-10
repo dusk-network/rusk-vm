@@ -274,6 +274,46 @@ impl<'a> RawTransaction<'a> {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct RawEvent {
+    data: Vec<u8>,
+    name: String,
+}
+
+impl RawEvent {
+    pub fn new<S, D>(name: S, data: D, store: &StoreRef<OffsetLen>) -> Self
+    where
+        S: Into<String>,
+        D: Archive + Serialize<StoreSerializer<OffsetLen>>,
+    {
+        let mut ser = store.serializer();
+        ser.serialize_value(&data).unwrap();
+        RawEvent {
+            data: ser.spill_bytes(|bytes| Vec::from(bytes)),
+            name: name.into(),
+        }
+    }
+
+    pub fn from<S, D: Into<Vec<u8>>>(name: S, data: D) -> Self
+    where
+        S: Into<String>,
+        D: Into<Vec<u8>>,
+    {
+        Self {
+            data: data.into(),
+            name: name.into(),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data[..]
+    }
+}
+
 // todo! find better way
 #[derive(Debug)]
 pub enum ArchiveError {
