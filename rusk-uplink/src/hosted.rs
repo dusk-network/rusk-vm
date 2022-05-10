@@ -4,11 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::RawTransaction;
 pub use crate::{
-    ArchiveError, ContractId, ContractState, Query, RawQuery, ReturnValue,
-    Transaction,
+    ArchiveError, ContractId, ContractState, Query, RawEvent, RawQuery,
+    RawTransaction, ReturnValue, Transaction,
 };
+
 use bytecheck::CheckBytes;
 use microkelvin::{OffsetLen, StoreRef, StoreSerializer};
 use rkyv::validation::validators::DefaultValidator;
@@ -38,6 +38,8 @@ pub mod external {
             name_len: u32,
             gas_limit: u64,
         ) -> u64;
+
+        pub fn emit(buf: &u8, buf_len: u32, name: &u8, name_len: u32);
 
         pub fn callee(buffer: &mut u8);
 
@@ -186,6 +188,31 @@ where
         cast.deserialize(&mut store).expect("Infallible");
 
     Ok(deserialized_result)
+}
+
+pub fn emit_raw(raw_event: &RawEvent) {
+    let mut buf = [0u8; BUFFER_SIZE_LIMIT];
+    let data_len = raw_event.data().len();
+    buf[..data_len].copy_from_slice(raw_event.data());
+    let name = raw_event.name();
+
+    unsafe {
+        external::emit(
+            &buf[0],
+            data_len as u32,
+            &name.as_bytes()[0],
+            name.len() as u32,
+        )
+    }
+}
+
+pub fn emit<S, E>(name: S, event: E, store: StoreRef<OffsetLen>)
+where
+    S: Into<String>,
+    E: Archive + Serialize<StoreSerializer<OffsetLen>>,
+{
+    let raw_event = RawEvent::new(name, event, &store);
+    emit_raw(&raw_event);
 }
 
 ///Returns the hash of the currently executing contract
