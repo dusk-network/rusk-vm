@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use std::mem;
+
 use microkelvin::{BranchRef, BranchRefMut};
 use rusk_uplink::{
     ContractId, RawQuery, RawTransaction, ReturnValue, StoreContext,
@@ -22,7 +24,7 @@ use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
 use crate::modules::compile_module;
 use crate::resolver::HostImportsResolver;
-use crate::state::NetworkState;
+use crate::state::{Event, NetworkState};
 use crate::VMError;
 
 const SCRATCH_NAME: &str = "scratch";
@@ -73,6 +75,7 @@ impl StackFrame {
 pub struct CallContext<'a> {
     state: &'a mut NetworkState,
     stack: Vec<StackFrame>,
+    events: Vec<Event>,
     block_height: u64,
     store: StoreContext,
 }
@@ -86,6 +89,7 @@ impl<'a> CallContext<'a> {
         CallContext {
             state,
             stack: vec![],
+            events: vec![],
             block_height,
             store,
         }
@@ -357,6 +361,19 @@ impl<'a> CallContext<'a> {
         let result = r.map_err(|a| VMError::ContractPanic(a.message()))?;
         self.stack.pop();
         Ok(result)
+    }
+
+    pub fn push_event(
+        &mut self,
+        origin: ContractId,
+        name: String,
+        data: Vec<u8>,
+    ) {
+        self.events.push(Event::new(origin, name, data));
+    }
+
+    pub fn take_events(&mut self) -> Vec<Event> {
+        mem::take(&mut self.events)
     }
 
     pub fn block_height(&self) -> u64 {
