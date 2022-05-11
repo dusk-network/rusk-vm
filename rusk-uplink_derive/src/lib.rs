@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) DUSK NETWORK. All rights reserved.
+
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
@@ -161,5 +167,3 @@ pub fn state(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attrs as DeriveArgs);
     generate_struct_derivations(arg_struct, args.derive_new)
 }
-
-// triggering the CI build

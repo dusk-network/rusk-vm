@@ -52,7 +52,7 @@ jobs:
       - name: Build test executables
         uses: actions-rs/cargo@v1
         env:
-          RUSTFLAGS: '-Cinline-threshold=0 -Clink-dead-code'
+          RUSTFLAGS: '-Cinline-threshold=0'
           RUSTDOCFLAGS: '-Cinline-threshold=0 -Clink-dead-code'
         with:
           command: test
