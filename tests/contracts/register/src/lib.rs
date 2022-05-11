@@ -4,12 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![feature(option_result_unwrap_unchecked)]
 #![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use bytecheck::CheckBytes;
-use microkelvin::{MaybeArchived, OffsetLen, StoreRef};
+use microkelvin::{All, Compound, MaybeArchived, OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
 use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
@@ -91,6 +90,27 @@ impl Apply<Gossip> for Register {
             *branch.leaf_mut() += 1;
         } else {
             self.open_secrets.insert(t.0.clone(), 1);
+        }
+    }
+}
+
+#[transaction]
+pub struct Unarchive;
+
+impl Transaction for Unarchive {
+    const NAME: &'static str = "unarchive";
+    type Return = ();
+}
+
+#[apply(name = "unarchive")]
+impl Apply<Unarchive> for Register {
+    fn apply(&mut self, _: Unarchive, _: StoreContext) {
+        /*
+        Unarchive all data in the state
+         */
+        let branch_mut = self.open_secrets.walk_mut(All).expect("Some(Branch)");
+        for leaf in branch_mut {
+            *leaf.value_mut() += 0;
         }
     }
 }

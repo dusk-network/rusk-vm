@@ -1,0 +1,13 @@
+[package]
+name = "setup"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rusk-vm = { path = ".." }
+counter = { path = "../tests/contracts/counter" }
+stack = { path = "../tests/contracts/stack" }
+register = { path = "../tests/contracts/register" }
+#map = { path = "../tests/contracts/map" }
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-persistence"}
+byteorder = "1.4"

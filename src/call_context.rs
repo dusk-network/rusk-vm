@@ -14,7 +14,6 @@ use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
-use wasmer_types::Value;
 
 use crate::contract::ContractRef;
 use crate::env::Env;
@@ -74,6 +73,7 @@ pub struct CallContext<'a> {
     stack: Vec<StackFrame>,
     block_height: u64,
     store: StoreContext,
+    target_store: StoreContext,
 }
 
 impl<'a> CallContext<'a> {
@@ -81,17 +81,23 @@ impl<'a> CallContext<'a> {
         state: &'a mut NetworkState,
         block_height: u64,
         store: StoreContext,
+        target_store: StoreContext,
     ) -> Self {
         CallContext {
             state,
             stack: vec![],
             block_height,
             store,
+            target_store,
         }
     }
 
     pub fn store(&self) -> &StoreContext {
         &self.store
+    }
+
+    pub fn target_store(&self) -> &StoreContext {
+        &self.target_store
     }
 
     fn register_namespace(

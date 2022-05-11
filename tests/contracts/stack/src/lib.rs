@@ -7,8 +7,7 @@
 #![no_std]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
-use bytecheck::CheckBytes;
-use microkelvin::{Cardinality, Compound, Nth, OffsetLen};
+use microkelvin::{All, Cardinality, Compound, Nth, OffsetLen};
 use nstack::NStack;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
@@ -16,7 +15,8 @@ use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 #[state(new = false)]
 pub struct Stack {
-    inner: NStack<u64, Cardinality, OffsetLen>,
+    /// temporary
+    pub inner: NStack<u64, Cardinality, OffsetLen>,
 }
 #[init]
 fn init() {}
@@ -56,6 +56,23 @@ impl Apply<Push> for Stack {
 }
 
 #[transaction]
+pub struct PushMulti {
+    value: u64,
+}
+
+impl Transaction for PushMulti {
+    const NAME: &'static str = "pushmulti";
+    type Return = ();
+}
+
+#[apply(name = "pushmulti")]
+impl Apply<PushMulti> for Stack {
+    fn apply(&mut self, arg: PushMulti, _: StoreContext) {
+        self.pushmulti(arg.value);
+    }
+}
+
+#[transaction]
 pub struct Pop;
 
 impl Transaction for Pop {
@@ -67,6 +84,44 @@ impl Transaction for Pop {
 impl Apply<Pop> for Stack {
     fn apply(&mut self, _: Pop, _: StoreContext) -> Option<u64> {
         self.pop()
+    }
+}
+
+#[transaction]
+pub struct PopMulti {
+    value: u64,
+}
+
+impl Transaction for PopMulti {
+    const NAME: &'static str = "popmulti";
+    type Return = u64;
+}
+
+#[apply(name = "popmulti")]
+impl Apply<PopMulti> for Stack {
+    fn apply(&mut self, arg: PopMulti, _: StoreContext) -> u64 {
+        self.popmulti(arg.value)
+    }
+}
+
+#[transaction]
+pub struct Unarchive;
+
+impl Transaction for Unarchive {
+    const NAME: &'static str = "unarchive";
+    type Return = ();
+}
+
+#[apply(name = "unarchive")]
+impl Apply<Unarchive> for Stack {
+    fn apply(&mut self, _: Unarchive, _: StoreContext) {
+        /*
+        Unarchive all data in the state
+         */
+        let branch_mut = self.inner.walk_mut(All).expect("Some(Branch)");
+        for leaf in branch_mut {
+            *leaf += 0;
+        }
     }
 }
 
@@ -87,10 +142,28 @@ impl Stack {
     }
 
     pub fn push(&mut self, value: u64) {
-        self.inner.push(value)
+        self.inner.push(value);
+    }
+
+    pub fn pushmulti(&mut self, value: u64) {
+        for i in 0..value {
+            self.inner.push(i);
+        }
     }
 
     pub fn pop(&mut self) -> Option<u64> {
         self.inner.pop()
+    }
+
+    pub fn popmulti(&mut self, value: u64) -> u64 {
+        let mut sum = 0u64;
+        for i in 0..value {
+            let j = value - i - 1;
+            // let peeked = self.peek(j).unwrap_or(0);
+            let popped = self.pop().unwrap();
+            sum += popped;
+            // assert_eq!(peeked, popped)
+        }
+        sum
     }
 }
