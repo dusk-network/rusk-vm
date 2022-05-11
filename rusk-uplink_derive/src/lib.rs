@@ -161,3 +161,5 @@ pub fn state(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attrs as DeriveArgs);
     generate_struct_derivations(arg_struct, args.derive_new)
 }
+
+// triggering the CI build
