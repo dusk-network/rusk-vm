@@ -24,7 +24,6 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let q_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
     let q_fn_name = args.name;
-    let buf_size = args.buf;
 
     let q_impl_method = first_method_of_impl(q_impl.clone()).unwrap();
     let arg_types = non_self_argument_types(&q_impl_method.sig);
@@ -34,7 +33,7 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let state_t = q_impl.self_ty.as_ref();
 
     let wrapper_fun_name = format_ident!("{}", q_fn_name);
-    let scratch_name = format_ident!("scratch_{}", q_fn_name);
+    let scratch_name = format_ident!("scratch");
     let gen = quote! {
 
         #q_impl
@@ -46,13 +45,10 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
             };
 
             #[no_mangle]
-            static mut #scratch_name: [u8; #buf_size] = [0u8; #buf_size];
-
-            #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> u32 {
-                let (state_arg, mut rest) = unsafe { #scratch_name.split_at_mut(written_data as usize) };
+                let (state_arg, mut rest) = unsafe { crate::scratch_mod::#scratch_name.split_at_mut(written_data as usize) };
                 let store =
-                    StoreContext::new(AbiStore::new(unsafe { &mut rest }));
+                    StoreContext::new(AbiStore::new(unsafe { &mut rest }, unsafe { &mut crate::scratch_mod::#scratch_name }, written_data as usize));
                 let (state, arg): (#state_t, #arg_t) = unsafe {
                     get_state_arg(
                         written_state,
@@ -65,8 +61,8 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let res: <#arg_t as Query>::Return =
                     state.execute(arg, store.clone());
 
-                let scratch = unsafe { &mut #scratch_name[..] };
-                let store = StoreContext::new(AbiStore::new(scratch));
+                let scratch_mem = unsafe { crate::scratch_mod::#scratch_name.as_mut_slice() };
+                let store = StoreContext::new(AbiStore::new(scratch_mem, unsafe { &mut crate::scratch_mod::#scratch_name }, 0));
                 unsafe { q_return(&res, store) }
             }
         };
@@ -79,7 +75,6 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let t_impl = parse_macro_input!(input as syn::ItemImpl);
     let args = parse_macro_input!(attrs as Args);
     let t_fn_name = args.name;
-    let buf_size = args.buf;
 
     let t_impl_method = first_method_of_impl(t_impl.clone()).unwrap();
     let arg_types = non_self_argument_types(&t_impl_method.sig);
@@ -89,7 +84,7 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let state_t = t_impl.self_ty.as_ref();
 
     let wrapper_fun_name = format_ident!("{}", t_fn_name);
-    let scratch_name = format_ident!("scratch_{}", t_fn_name);
+    let scratch_name = format_ident!("scratch");
     let gen = quote! {
 
         #t_impl
@@ -101,13 +96,10 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
             };
 
             #[no_mangle]
-            static mut #scratch_name: [u8; #buf_size] = [0u8; #buf_size];
-
-            #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
-                let (state_arg, mut rest) = unsafe { #scratch_name.split_at_mut(written_data as usize) };
+                let (state_arg, mut rest) = unsafe { crate::scratch_mod::#scratch_name.split_at_mut(written_data as usize) };
                 let store =
-                    StoreContext::new(AbiStore::new(unsafe { &mut rest }));
+                    StoreContext::new(AbiStore::new(unsafe { &mut rest }, unsafe { &mut crate::scratch_mod::#scratch_name }, written_data as usize));
                 let (mut state, arg): (#state_t, #arg_t) = unsafe {
                     get_state_arg(
                         written_state,
@@ -120,8 +112,8 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let res: <#arg_t as Transaction>::Return =
                     state.apply(arg, store.clone());
 
-                let scratch = unsafe { &mut #scratch_name[..] };
-                let store = StoreContext::new(AbiStore::new(scratch));
+                let scratch_mem = unsafe { crate::scratch_mod::#scratch_name.as_mut_slice() };
+                let store = StoreContext::new(AbiStore::new(scratch_mem, unsafe { &mut crate::scratch_mod::#scratch_name }, 0));
                 unsafe { t_return(&state, &res, store) }
             }
         };
@@ -167,3 +159,37 @@ pub fn state(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attrs as DeriveArgs);
     generate_struct_derivations(arg_struct, args.derive_new)
 }
+
+#[proc_macro_attribute]
+pub fn init(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let init_impl = parse_macro_input!(input as syn::ItemFn);
+
+    let gen = quote! {
+        #[cfg(target_family = "wasm")]
+        mod scratch_mod {
+            extern crate alloc;
+            use alloc::vec::Vec;
+            #[no_mangle]
+            pub static mut scratch: Vec<u8> = Vec::<u8>::new();
+
+            #[no_mangle]
+            pub fn grow_scratch(sz: u32) -> u32 {
+                const MIN_GROW_BY: usize = 0;
+                unsafe {
+                    if (sz as usize > scratch.len()) || (scratch.len() == 0) {
+                        let len = core::cmp::max(sz as usize, scratch.len()) + MIN_GROW_BY;
+                        // rusk_uplink::debug!("resizeto {}", len);
+                        scratch.resize(len, 0u8);
+                    }
+                    scratch.as_mut_ptr() as *mut _ as u32
+                }
+            }
+
+            #[no_mangle]
+            #init_impl
+        }
+    };
+    gen.into()
+}
+
+// triggering the build

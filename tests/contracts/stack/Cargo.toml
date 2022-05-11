@@ -11,7 +11,8 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-microkelvin = { version = "0.13.0-rc", default-features = false }
+#microkelvin = { version = "0.13.0-rc", default-features = false }
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "rkyv_abistore_alloc2"}
 rusk-uplink = { path = "../../../rusk-uplink" }
 rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }
 rkyv = { version = "0.7.20", default-features = false, features = ["archive_le", "size_32"] }

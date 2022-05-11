@@ -5,19 +5,14 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-    option_result_unwrap_unchecked
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::StoreContext;
 use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawTransaction, Transaction,
 };
-use rusk_uplink_derive::{apply, execute, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -26,6 +21,9 @@ use alloc::boxed::Box;
 pub struct TxVec {
     value: u8,
 }
+
+#[init]
+fn init() {}
 
 impl TxVec {
     pub fn read_value(&self) -> u8 {
@@ -60,7 +58,7 @@ impl Query for TxVecReadValue {
     type Return = u8;
 }
 
-#[execute(name = "read_value", buf = 8192)]
+#[execute(name = "read_value")]
 impl Execute<TxVecReadValue> for TxVec {
     fn execute(&self, _: TxVecReadValue, _: StoreContext) -> u8 {
         self.read_value()
@@ -85,7 +83,7 @@ impl Transaction for TxVecSum {
     type Return = u8;
 }
 
-#[apply(name = "sum", buf = 8192)]
+#[apply(name = "sum")]
 impl Apply<TxVecSum> for TxVec {
     fn apply(&mut self, s: TxVecSum, _: StoreContext) -> u8 {
         self.sum(&s.values);
@@ -111,7 +109,7 @@ impl Transaction for TxVecDelegateSum {
     type Return = ();
 }
 
-#[apply(name = "delegate_sum", buf = 8192)]
+#[apply(name = "delegate_sum")]
 impl Apply<TxVecDelegateSum> for TxVec {
     fn apply(&mut self, s: TxVecDelegateSum, store: StoreContext) {
         self.delegate_sum(&s.contract_id, &s.data, store)

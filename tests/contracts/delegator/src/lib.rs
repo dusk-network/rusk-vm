@@ -5,12 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-    option_result_unwrap_unchecked
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
@@ -18,13 +13,16 @@ use rusk_uplink::{
     Apply, ContractId, Execute, Query, RawQuery, RawTransaction, ReturnValue,
     StoreContext, Transaction,
 };
-use rusk_uplink_derive::{apply, execute, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 extern crate alloc;
 use alloc::boxed::Box;
 
 #[state]
 pub struct Delegator;
+
+#[init]
+fn init() {}
 
 #[query(new = false)]
 pub struct QueryForwardData {
@@ -110,7 +108,7 @@ impl Apply<TransactionForwardData> for Delegator {
             &RawTransaction::from(query_data, query_name),
             store.clone(),
         );
-        store.put_raw(result.state());
+        let _ = store.put_raw(result.state());
     }
 }
 

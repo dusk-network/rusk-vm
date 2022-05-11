@@ -12,7 +12,7 @@ use bytecheck::CheckBytes;
 use microkelvin::{MaybeArchived, OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{apply, execute, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 use dusk_hamt::{Hamt, Lookup};
 
@@ -42,6 +42,9 @@ impl SecretHash {
 pub struct Register {
     pub open_secrets: Hamt<SecretHash, u32, (), OffsetLen>,
 }
+
+#[init]
+fn init() {}
 
 impl Register {
     pub fn new() -> Self {

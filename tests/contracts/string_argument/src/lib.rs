@@ -4,19 +4,17 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-    option_result_unwrap_unchecked
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};
-use rusk_uplink_derive::{execute, query, state};
+use rusk_uplink_derive::{execute, init, query, state};
 
 #[state]
 pub struct Stringer;
+
+#[init]
+fn init() {}
 
 #[query(new = false)]
 pub struct Passthrough {

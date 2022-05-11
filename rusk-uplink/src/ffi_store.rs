@@ -21,7 +21,7 @@ fn abi_put(slice: &[u8]) -> OffsetLen {
     let len = slice.len() as u16;
     let ofs = unsafe { _put(&slice[0], len) };
 
-    let ol = OffsetLen::new(ofs, len);
+    let ol = OffsetLen::new(ofs, len as u32);
     crate::debug!("ol {:?}", ol);
     ol
 }
@@ -41,6 +41,8 @@ struct AbiStoreInner {
     data: *mut [u8],
     written: usize,
     token: Token,
+    data_vec: *mut Vec<u8>,
+    data_ofs: usize,
 }
 
 pub struct AbiStore {
@@ -51,26 +53,45 @@ impl Fallible for AbiStore {
     type Error = core::convert::Infallible;
 }
 
+const MIN_RESIZE: usize = 8192;
+
 impl AbiStoreInner {
-    fn new(buf: &mut [u8]) -> Self {
+    fn new(buf: &mut [u8], buf_vec: &mut Vec<u8>, data_ofs: usize) -> Self {
         AbiStoreInner {
             data: buf,
             written: 0,
             token: Token::new(),
+            data_vec: buf_vec,
+            data_ofs,
+        }
+    }
+
+    fn resize_by(&mut self, by: usize) {
+        // let cur_len = unsafe { (*self.data_vec).len() };
+        // if cur_len > 60000 {
+        //     crate::debug!("resize to {} {}", cur_len + by, by);
+        // }
+        unsafe {
+            (*self.data_vec).resize((*self.data_vec).len() + by, 0u8);
+            self.data = &mut (*self.data_vec).as_mut_slice()[self.data_ofs..];
         }
     }
 
     fn get(&mut self, ident: &OffsetLen) -> &[u8] {
-        crate::debug!("get {:?}", ident);
-        crate::debug!("abistore written {:?}", self.written);
-
         let offset = ident.offset();
-        let len = ident.len();
+        let len = ident.len() as usize;
+        let current_len = unsafe { &mut *self.data }.len();
 
+        if (self.written + len) > current_len {
+            self.resize_by(core::cmp::max(
+                self.written + len - current_len,
+                MIN_RESIZE,
+            ));
+        }
         let slice = unsafe { &mut *self.data };
         let to_write = &mut slice[self.written..][..len as usize];
 
-        self.written += len as usize;
+        self.written += len;
 
         abi_get(offset, to_write);
 
@@ -98,9 +119,9 @@ impl AbiStoreInner {
 }
 
 impl AbiStore {
-    pub fn new(buf: &mut [u8]) -> Self {
+    pub fn new(buf: &mut [u8], buf_vec: &mut Vec<u8>, data_ofs: usize) -> Self {
         AbiStore {
-            inner: UnsafeCell::new(AbiStoreInner::new(buf)),
+            inner: UnsafeCell::new(AbiStoreInner::new(buf, buf_vec, data_ofs)),
         }
     }
 }
@@ -127,9 +148,18 @@ impl Store for AbiStore {
         inner.commit(buffer)
     }
 
-    fn extend(&self, _buffer: &mut TokenBuffer) -> Result<(), ()> {
-        // We can't
-        Err(())
+    fn extend(
+        &self,
+        buffer: &mut TokenBuffer,
+        size_needed: usize,
+    ) -> Result<(), ()> {
+        let inner = unsafe { &mut *self.inner.get() };
+        let slice = unsafe { &mut *inner.data };
+        inner.resize_by(size_needed + slice.len() + MIN_RESIZE);
+        let slice = unsafe { &mut *inner.data };
+        buffer.reset_buffer(slice); // only if written at TokenBuffer creation time was zero, otherwise need
+                                    // to add offset to TokenBuffer
+        Ok(())
     }
 
     fn return_token(&self, token: Token) {

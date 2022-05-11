@@ -5,20 +5,18 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-    option_result_unwrap_unchecked
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use microkelvin::{OffsetLen, StoreRef};
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query};
-use rusk_uplink_derive::{execute, query, state};
+use rusk_uplink_derive::{execute, init, query, state};
 
 #[state]
 pub struct Fibonacci;
+
+#[init]
+fn init() {}
 
 #[query]
 pub struct ComputeFrom {
@@ -30,7 +28,7 @@ impl Query for ComputeFrom {
     type Return = u32;
 }
 
-#[execute(name = "compute", buf = 128)]
+#[execute(name = "compute")]
 impl Execute<ComputeFrom> for Fibonacci {
     fn execute(
         &self,

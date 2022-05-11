@@ -23,7 +23,7 @@ impl Get {
         trace!("Executing 'get' host function");
         let context = env.get_context();
 
-        let id = OffsetLen::new(ofs, len);
+        let id = OffsetLen::new(ofs, len as u32);
 
         let store = env.store();
         let slice = store.get_raw(&id);
