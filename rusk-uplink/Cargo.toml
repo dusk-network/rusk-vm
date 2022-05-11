@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 #microkelvin = { version = "0.13.0-rc", default-features = false }
-microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "rkyv_abistore_alloc2"}
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-persistence"}
 rkyv = { version = "0.7.26", default-features = false, features = ["alloc", "validation"] }
 bytecheck = { version = "0.6.7", default-features = false }
 rusk-uplink_derive = { path = "../rusk-uplink_derive"}
