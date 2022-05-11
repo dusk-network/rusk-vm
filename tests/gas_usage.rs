@@ -4,13 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use counter::Counter;
-use stack::*;
-use register::*;
-use microkelvin::{HostStore, StoreRef};
-use rusk_vm::{Contract, GasMeter, NetworkState, Schedule};
 use byteorder::{LittleEndian, WriteBytesExt};
-
+use counter::Counter;
+use microkelvin::{HostStore, StoreRef};
+use register::*;
+use rusk_vm::{Contract, GasMeter, NetworkState, Schedule};
+use stack::*;
 
 fn execute_counter_contract() -> u64 {
     let schedule = Schedule::default();
@@ -117,8 +116,9 @@ fn execute_multiple_transactions_stack_contract(count: u64) -> u64 {
 fn execute_multiple_register_contract(count: u64) -> u64 {
     let schedule = Schedule::default();
 
-    let code =
-        include_bytes!("../target/wasm32-unknown-unknown/release/register.wasm");
+    let code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/register.wasm"
+    );
     let register = Register::new();
 
     let store = StoreRef::new(HostStore::new());
@@ -153,14 +153,34 @@ fn execute_multiple_register_contract(count: u64) -> u64 {
     gas.spent()
 }
 
-
 #[test]
 fn measure_gas_usage() {
     println!("gas usage:");
-    println!("counter                                 {}", execute_counter_contract());
-    println!("stack single push/pop                   {}", execute_stack_single_push_pop_contract());
-    println!("stack multiple push/pop ({})         {}", 65536, execute_stack_multi_push_pop_contract(65536));
-    println!("stack multiple transactions push ({}) {}", 8192, execute_multiple_transactions_stack_contract(8192));
-    println!("hamt single insert/get                  {}", execute_multiple_register_contract(1));
-    println!("hamt multiple insert/get ({})         {}", 8192, execute_multiple_register_contract(8192));
+    println!(
+        "counter                                 {}",
+        execute_counter_contract()
+    );
+    println!(
+        "stack single push/pop                   {}",
+        execute_stack_single_push_pop_contract()
+    );
+    println!(
+        "stack multiple push/pop ({})         {}",
+        65536,
+        execute_stack_multi_push_pop_contract(65536)
+    );
+    println!(
+        "stack multiple transactions push ({}) {}",
+        8192,
+        execute_multiple_transactions_stack_contract(8192)
+    );
+    println!(
+        "hamt single insert/get                  {}",
+        execute_multiple_register_contract(1)
+    );
+    println!(
+        "hamt multiple insert/get ({})         {}",
+        8192,
+        execute_multiple_register_contract(8192)
+    );
 }
