@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `GasMeter::set_left(0)` with `GasMeter::exhaust()` [#308]
 - Change `CallContext::top()` to return a `Result` [#308]
 - Change `CallContext::gas_meter()` to update the gas meter before return it [#308]
+- Change the compiler to use always `Singlepass` [#337]
 
 ### Removed
 
