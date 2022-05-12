@@ -15,7 +15,9 @@ pub use rusk_uplink::{ContractId, ContractState};
 #[derive(Archive, Clone, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
 pub struct Contract {
+    // put the below behind link
     state: Vec<u8>,
+    // put the below behind link
     code: Vec<u8>,
 }
 
