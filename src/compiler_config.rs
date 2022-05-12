@@ -12,11 +12,7 @@ use wasmer::wasmparser::Operator::*;
 use wasmer::CompilerConfig;
 use wasmer_middlewares::Metering;
 
-#[cfg(target_arch = "x86_64")]
 use wasmer_compiler_singlepass::Singlepass as Compiler;
-
-#[cfg(not(target_arch = "x86_64"))]
-use wasmer_compiler_cranelift::Cranelift as Compiler;
 
 pub struct CompilerConfigProvider;
 

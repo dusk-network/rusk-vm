@@ -20,10 +20,10 @@ canonical = "0.7"
 canonical_derive = "0.7"
 dusk-hamt = "0.10.0-rc"
 microkelvin = { version = "0.15.0-rc", features = ["persistence"] }
-wasmer = "2.1"
-wasmer-vm = "2.1"
-wasmer-engine-universal = "2.1"
-wasmer-middlewares = "2.1"
+wasmer = "2.2"
+wasmer-vm = "2.2"
+wasmer-engine-universal = "2.2"
+wasmer-middlewares = "2.2"
 cached = "0.26"
 thiserror = "1.0"
 tracing = "0.1"
@@ -31,11 +31,7 @@ loupe = "0.1"
 once_cell = "1.9"
 parking_lot = "0.12"
 
-[target.'cfg(target_arch = "x86_64")'.dependencies]
-wasmer-compiler-singlepass = "2.1"
-
-[target.'cfg(not(target_arch = "x86_64"))'.dependencies]
-wasmer-compiler-cranelift = "2.1"
+wasmer-compiler-singlepass = "2.2"
 
 [dev-dependencies]
 dusk-bls12_381 = "0.9"
