@@ -40,7 +40,9 @@ impl Contracts {
         &'a self,
         contract_id: &ContractId,
     ) -> Result<impl BranchRef<'a, Contract>, VMError> {
-        self.0.get(contract_id).ok_or(VMError::UnknownContract)
+        self.0
+            .get(contract_id)
+            .ok_or(VMError::UnknownContract(*contract_id))
     }
 
     /// Returns a mutable reference to the specified contracts state.
@@ -48,7 +50,9 @@ impl Contracts {
         &'a mut self,
         contract_id: &ContractId,
     ) -> Result<impl BranchRefMut<'a, Contract>, VMError> {
-        self.0.get_mut(contract_id).ok_or(VMError::UnknownContract)
+        self.0
+            .get_mut(contract_id)
+            .ok_or(VMError::UnknownContract(*contract_id))
     }
 
     /// Deploys a contract to the state, returning the address of the created
@@ -400,20 +404,20 @@ impl NetworkState {
         self.modules.insert(module);
     }
 
-    /// Gets the state of the given contract in the `head` state.
-    pub fn get_contract_cast_state<C>(
-        &mut self,
-        contract_id: &ContractId,
-    ) -> Result<C, VMError> {
-        self.head.get_contract(contract_id).map_or(
-            Err(VMError::UnknownContract),
-            |_contract| {
-                // let mut source = Source::new((*contract).state().as_bytes());
-                // C::decode(&mut source).map_err(VMError::from_store_error)
-                todo!()
-            },
-        )
-    }
+    // /// Gets the state of the given contract in the `head` state.
+    // pub fn get_contract_cast_state<C>(
+    //     &mut self,
+    //     contract_id: &ContractId,
+    // ) -> Result<C, VMError> {
+    //     self.head.get_contract(contract_id).map_or(
+    //         Err(VMError::UnknownContract),
+    //         |_contract| {
+    //             // let mut source =
+    // Source::new((*contract).state().as_bytes());             //
+    // C::decode(&mut source).map_err(VMError::from_store_error)            
+    // todo!()         },
+    //     )
+    // }
 
     /// Gets module config
     pub fn get_module_config(&self) -> &ModuleConfig {

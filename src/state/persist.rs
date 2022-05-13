@@ -6,14 +6,12 @@
 
 use dusk_hamt::Hamt;
 use microkelvin::{
-    All, Compound, HostStore, Ident, Keyed, OffsetLen, StoreRef,
+    All, Compound, HostStore, Ident, Keyed, OffsetLen, PersistError, StoreRef,
 };
 use rkyv::ser::{serializers::AllocSerializer, Serializer};
 use rkyv::{archived_root, Archive, Deserialize, Infallible, Serialize};
 use rusk_uplink::ContractId;
 use std::fs;
-use std::io;
-use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::contract::Contract;
@@ -29,7 +27,7 @@ pub struct NetworkStateId {
 
 impl NetworkStateId {
     /// Read from the given path a [`NetworkStateId`]
-    pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, VMError> {
+    pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, PersistError> {
         let buf = fs::read(&path)?;
         // let id: <NetworkStateId as Archive>::Archived = unsafe {
         // *archived_root::<NetworkStateId>(buf.as_slice()) };
@@ -39,7 +37,7 @@ impl NetworkStateId {
     }
 
     /// Write to the given path a [`NetworkStateId`]
-    pub fn write<P: AsRef<Path>>(&self, path: P) -> Result<(), VMError> {
+    pub fn write<P: AsRef<Path>>(&self, path: P) -> Result<(), PersistError> {
         let mut serializer = AllocSerializer::<0>::default();
         serializer.serialize_value(self).unwrap();
         let bytes = serializer.into_serializer().into_inner();
@@ -55,13 +53,13 @@ impl NetworkState {
     pub fn persist(
         &self,
         store: StoreRef<OffsetLen>,
-    ) -> Result<NetworkStateId, io::Error> {
+    ) -> Result<NetworkStateId, VMError> {
         let head_stored = store.store(&self.head.0);
         let origin_stored = store.store(&self.origin.0);
         store.persist().map_err(|_| {
-            io::Error::new(
-                ErrorKind::Other,
-                VMError::PersistenceError(String::from("network state")),
+            VMError::NetworkStatePersistenceError(
+                String::from("could not persist state to"),
+                String::from("store"),
             )
         })?;
         Ok(NetworkStateId {
@@ -76,7 +74,7 @@ impl NetworkState {
         store: StoreRef<OffsetLen>,
         store_path: P,
     ) -> Result<NetworkStateId, VMError> {
-        let persistence_id = self.persist(store).expect("Error in persistence");
+        let persistence_id = self.persist(store)?;
 
         let file_path =
             store_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
@@ -102,13 +100,22 @@ impl NetworkState {
             .as_ref()
             .join(Self::PERSISTENCE_ID_FILE_NAME);
         let source_persistence_id =
-            NetworkStateId::read(source_persistence_id_file_path)?;
+            NetworkStateId::read(source_persistence_id_file_path.clone())?;
 
         let mut network = NetworkState::with_target_store(
             source_store.clone(),
             target_store.clone(),
         )
-        .restore(source_store.clone(), source_persistence_id)?;
+        .restore(source_store.clone(), source_persistence_id)
+        .map_err(|_| {
+            VMError::NetworkStatePersistenceError(
+                "could not restore state".to_string(),
+                source_persistence_id_file_path
+                    .to_str()
+                    .unwrap_or("unknown")
+                    .to_string(),
+            )
+        })?;
 
         network.store_contract_states(gas_meter)?;
         let target_persistence_id = network.persist(target_store.clone())?;
@@ -127,7 +134,7 @@ impl NetworkState {
         mut self,
         store: StoreRef<OffsetLen>,
         id: NetworkStateId,
-    ) -> Result<Self, io::Error> {
+    ) -> Result<Self, VMError> {
         let head_ident = Ident::<
             Hamt<ContractId, Contract, (), OffsetLen>,
             OffsetLen,
@@ -160,18 +167,19 @@ impl NetworkState {
     /// given source disk path.
     pub fn restore_from_disk<P: AsRef<Path>>(
         source_store_path: P,
-    ) -> Result<Self, io::Error> {
+    ) -> Result<Self, VMError> {
         let store =
             StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
         let file_path = source_store_path
             .as_ref()
             .join(Self::PERSISTENCE_ID_FILE_NAME);
-        let persistence_id = NetworkStateId::read(file_path).map_err(|_| {
-            io::Error::new(
-                ErrorKind::Other,
-                VMError::PersistenceError(String::from("network state")),
-            )
-        })?;
+        let persistence_id =
+            NetworkStateId::read(file_path.clone()).map_err(|_| {
+                VMError::NetworkStatePersistenceError(
+                    "could not restore state from".to_string(),
+                    file_path.to_str().unwrap_or("unknown").to_string(),
+                )
+            })?;
         NetworkState::new(store.clone()).restore(store, persistence_id)
     }
 

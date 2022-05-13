@@ -15,6 +15,7 @@ use cached::cached_key_result;
 use cached::TimedSizedCache;
 use rusk_uplink::HostModule;
 use std::collections::BTreeMap as Map;
+use thiserror::Error;
 use tracing::trace;
 use wasmer::Module;
 
@@ -91,13 +92,19 @@ impl HostModules {
     }
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum InstrumentationError {
+    #[error("gas metering injectino")]
     GasMeteringInjection,
+    #[error("stack height injection")]
     StackHeightInjection,
+    #[error("multiple tables")]
     MultipleTables,
+    #[error("max table size")]
     MaxTableSize,
+    #[error("invalid bytecode")]
     InvalidByteCode,
+    #[error("invalid instruction type")]
     InvalidInstructionType,
 }
 

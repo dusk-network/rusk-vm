@@ -225,7 +225,8 @@ impl<'a> CallContext<'a> {
             gas_meter.spent()
         );
 
-        let result = r.map_err(|a| VMError::ContractPanic(a.message()))?;
+        let result =
+            r.map_err(|a| VMError::ContractPanic(target, a.message()))?;
         self.stack.pop();
         Ok(result)
     }
@@ -353,7 +354,8 @@ impl<'a> CallContext<'a> {
             gas_meter.spent()
         );
 
-        let result = r.map_err(|a| VMError::ContractPanic(a.message()))?;
+        let result =
+            r.map_err(|a| VMError::ContractPanic(target, a.message()))?;
         self.stack.pop();
         Ok(result)
     }
