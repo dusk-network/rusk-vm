@@ -140,7 +140,7 @@ fn execute_multiple_register_contract(count: u64) -> u64 {
     secret_data_from_int(&mut secret_data, 5);
     let secret_hash = SecretHash::new(secret_data);
 
-    for i in 0..count {
+    for _ in 0..count {
         network
             .transact(contract_id, 0, Gossip::new(secret_hash), &mut gas)
             .expect("Transaction error");

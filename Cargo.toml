@@ -70,4 +70,4 @@ members = [
 ]
 
 [patch.crates-io]
-microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-persistence"}
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-error-port", features = ["host"]}

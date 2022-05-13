@@ -7,10 +7,8 @@
 use crate::gas;
 use crate::modules;
 
-use canonical::CanonError;
-use dusk_abi::ContractId;
 use microkelvin::PersistError;
-use std::io;
+use rusk_uplink::ContractId;
 use thiserror::Error;
 use wasmer_vm::TrapCode;
 
@@ -29,21 +27,21 @@ pub enum VMError {
     /// Invalid UTF-8
     #[error("Invalid UTF-8")]
     InvalidUtf8,
+    /// Error from reading invalid data
+    #[error("Invalid data")]
+    InvalidData,
     /// Contract execution ran out of gas
     #[error("Contract execution ran out of gas")]
     OutOfGas,
     /// Contract could not be found in the state
     #[error("Contract {0} could not be found in the state")]
     UnknownContract(ContractId),
-    /// Input / Output error
-    #[error("Input / Output error")]
-    IOError(#[from] io::Error),
-    /// Error propagated from underlying store
-    #[error("Error propagated from underlying store")]
-    StoreError(CanonError),
     /// Persistence error
     #[error(transparent)]
     PersistenceError(#[from] PersistError),
+    /// Network state persistence error
+    #[error("Persistence error - {0}: {1}")]
+    NetworkStatePersistenceError(String, String),
     /// WASMER export error
     #[error(transparent)]
     WasmerExportError(#[from] wasmer::ExportError),
@@ -82,11 +80,5 @@ impl From<wasmer::RuntimeError> for VMError {
             Some(trap_code) => VMError::WasmerTrap(trap_code),
             None => VMError::WasmerRuntimeError(e),
         }
-    }
-}
-
-impl From<CanonError> for VMError {
-    fn from(e: CanonError) -> Self {
-        VMError::StoreError(e)
     }
 }
