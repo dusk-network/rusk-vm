@@ -9,7 +9,6 @@
     core_intrinsics,
     lang_items,
     alloc_error_handler,
-    option_result_unwrap_unchecked
 )]
 
 use rkyv::{Archive, Deserialize, Serialize};

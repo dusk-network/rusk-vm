@@ -15,26 +15,16 @@ extern "C" {
 }
 
 fn abi_put(slice: &[u8]) -> OffsetLen {
-    crate::debug!("abi put {:?}", slice);
-
     assert!(slice.len() <= u16::MAX as usize);
     let len = slice.len() as u16;
     let ofs = unsafe { _put(&slice[0], len) };
 
-    let ol = OffsetLen::new(ofs, len);
-    crate::debug!("ol {:?}", ol);
-    ol
+    OffsetLen::new(ofs, len)
 }
 
 fn abi_get(offset: u64, buf: &mut [u8]) {
-    crate::debug!("abi get offset {:?}", offset);
     let len = buf.len() as u16;
-
-    crate::debug!("buffer A {:?}", buf);
-
     unsafe { _get(offset, len, &mut buf[0]) }
-
-    crate::debug!("buffer B {:?}", buf);
 }
 
 struct AbiStoreInner {
@@ -61,9 +51,6 @@ impl AbiStoreInner {
     }
 
     fn get(&mut self, ident: &OffsetLen) -> &[u8] {
-        crate::debug!("get {:?}", ident);
-        crate::debug!("abistore written {:?}", self.written);
-
         let offset = ident.offset();
         let len = ident.len();
 
