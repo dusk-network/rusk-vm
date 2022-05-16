@@ -114,7 +114,7 @@ impl NetworkState {
             .as_ref()
             .join(Self::PERSISTENCE_ID_FILE_NAME);
         let source_persistence_id =
-            NetworkStateId::read(source_persistence_id_file_path.clone())?;
+            NetworkStateId::read(source_persistence_id_file_path)?;
 
         let mut network = NetworkState::with_target_store(
             source_store.clone(),
@@ -180,7 +180,7 @@ impl NetworkState {
         let file_path = source_store_path
             .as_ref()
             .join(Self::PERSISTENCE_ID_FILE_NAME);
-        let persistence_id = NetworkStateId::read(file_path.clone())?;
+        let persistence_id = NetworkStateId::read(file_path)?;
         NetworkState::new(store.clone()).restore(store, persistence_id)
     }
 

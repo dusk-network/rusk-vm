@@ -508,7 +508,6 @@ fn out_of_gas_aborts_transaction_execution() {
         network.transact(contract_id, 0, counter::Increment, &mut gas);
     assert!(should_be_err.is_err());
     let err_text = format!("{:?}", should_be_err);
-    println!("err={}", err_text);
     assert!(
         err_text.contains("Out of Gas error")
             || err_text.contains("WasmerTrap")
@@ -538,7 +537,6 @@ fn out_of_gas_aborts_query_execution() {
         network.query(contract_id, 0, counter::ReadValue, &mut gas);
     assert!(should_be_err.is_err());
     let err_text = format!("{:?}", should_be_err);
-    println!("err={}", err_text);
     assert!(
         err_text.contains("Out of Gas error")
             || err_text.contains("WasmerTrap")
