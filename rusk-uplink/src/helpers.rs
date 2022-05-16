@@ -7,6 +7,7 @@
 use core::hash::Hash;
 use std::collections::hash_map::DefaultHasher;
 
+// todo! proper hash will be implemented in issue 344
 pub fn hash_mocker(bytes: &[u8]) -> [u8; 32] {
     use std::convert::TryFrom;
     use std::hash::Hasher;
