@@ -17,13 +17,13 @@ impl Get {
     pub fn get(
         env: &Env,
         ofs: u64,
-        len: u16,
+        len: u32,
         buf_ptr: i32,
     ) -> Result<(), VMError> {
         trace!("Executing 'get' host function");
         let context = env.get_context();
 
-        let id = OffsetLen::new(ofs, len as u32);
+        let id = OffsetLen::new(ofs, len);
 
         let store = env.store();
         let slice = store.get_raw(&id);
@@ -42,7 +42,7 @@ impl Put {
         let bytes = env
             .get_context()
             .read_memory(mem_ofs as u64, len as usize)?;
-        let i = env.store().put_raw(bytes);
+        let i = env.target_store().put_raw(bytes);
         Ok(i.offset())
     }
 }

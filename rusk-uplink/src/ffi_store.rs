@@ -10,31 +10,21 @@ use microkelvin::{OffsetLen, Store, Token, TokenBuffer};
 use rkyv::Fallible;
 
 extern "C" {
-    fn _put(slice: &u8, len: u16) -> u64;
-    fn _get(offset: u64, len: u16, buf: &mut u8);
+    fn _put(slice: &u8, len: u32) -> u64;
+    fn _get(offset: u64, len: u32, buf: &mut u8);
 }
 
 fn abi_put(slice: &[u8]) -> OffsetLen {
-    crate::debug!("abi put {:?}", slice);
-
-    assert!(slice.len() <= u16::MAX as usize);
-    let len = slice.len() as u16;
+    assert!(slice.len() <= u32::MAX as usize);
+    let len = slice.len() as u32;
     let ofs = unsafe { _put(&slice[0], len) };
 
-    let ol = OffsetLen::new(ofs, len as u32);
-    crate::debug!("ol {:?}", ol);
-    ol
+    OffsetLen::new(ofs, len)
 }
 
 fn abi_get(offset: u64, buf: &mut [u8]) {
-    crate::debug!("abi get offset {:?}", offset);
-    let len = buf.len() as u16;
-
-    crate::debug!("buffer A {:?}", buf);
-
+    let len = buf.len() as u32;
     unsafe { _get(offset, len, &mut buf[0]) }
-
-    crate::debug!("buffer B {:?}", buf);
 }
 
 struct AbiStoreInner {
@@ -106,15 +96,18 @@ impl AbiStoreInner {
         let slice = unsafe { &mut *self.data };
         let unwritten = &mut slice[self.written..];
         let token = self.token.take().expect("token error");
+        assert_eq!(self.written, 0, "Buffer must be requested when written is zero, if not, TokenBuffer will have to keep this offset to make extend work");
         TokenBuffer::new(token, unwritten)
     }
 
     fn commit(&mut self, buffer: &mut TokenBuffer) -> OffsetLen {
         let slice = buffer.written_bytes();
-        let len = slice.len();
-        assert!(len <= u16::MAX as usize);
-        self.written += len;
-        abi_put(slice)
+        let len = slice.len() as usize;
+        let abi_put_ofslen = abi_put(slice);
+        buffer.rewind();
+        assert!(len <= u32::MAX as usize);
+        self.written -= core::cmp::min(len, self.written);
+        abi_put_ofslen
     }
 }
 
