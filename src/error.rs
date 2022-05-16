@@ -39,9 +39,6 @@ pub enum VMError {
     /// Persistence error
     #[error(transparent)]
     PersistenceError(#[from] PersistError),
-    /// Network state persistence error
-    #[error("Persistence error - {0}: {1}")]
-    NetworkStatePersistenceError(String, String),
     /// WASMER export error
     #[error(transparent)]
     WasmerExportError(#[from] wasmer::ExportError),

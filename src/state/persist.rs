@@ -26,6 +26,9 @@ pub enum PersistError {
     /// An io-error occurred while persisting
     #[error(transparent)]
     Io(#[from] io::Error),
+    /// Store persistence error
+    #[error("{0}")]
+    Store(String),
 }
 
 /// The [`NetworkStateId`] is the persisted id of the [`NetworkState`]
@@ -65,10 +68,9 @@ impl NetworkState {
         let head_stored = store.store(&self.head.0);
         let origin_stored = store.store(&self.origin.0);
         store.persist().map_err(|_| {
-            VMError::NetworkStatePersistenceError(
-                String::from("could not persist state to"),
-                String::from("store"),
-            )
+            PersistError::Store(String::from(
+                "Store persistence failed for network state",
+            ))
         })?;
         Ok(NetworkStateId {
             head: *head_stored.ident().erase(),
@@ -178,13 +180,7 @@ impl NetworkState {
         let file_path = source_store_path
             .as_ref()
             .join(Self::PERSISTENCE_ID_FILE_NAME);
-        let persistence_id =
-            NetworkStateId::read(file_path.clone()).map_err(|_| {
-                VMError::NetworkStatePersistenceError(
-                    "could not restore state from".to_string(),
-                    file_path.to_str().unwrap_or("unknown").to_string(),
-                )
-            })?;
+        let persistence_id = NetworkStateId::read(file_path.clone())?;
         NetworkState::new(store.clone()).restore(store, persistence_id)
     }
 
