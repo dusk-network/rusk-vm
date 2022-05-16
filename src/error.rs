@@ -6,8 +6,8 @@
 
 use crate::gas;
 use crate::modules;
+use crate::state::persist::PersistError;
 
-use microkelvin::PersistError;
 use rusk_uplink::ContractId;
 use thiserror::Error;
 use wasmer_vm::TrapCode;

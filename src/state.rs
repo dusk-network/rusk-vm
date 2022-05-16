@@ -404,21 +404,6 @@ impl NetworkState {
         self.modules.insert(module);
     }
 
-    // /// Gets the state of the given contract in the `head` state.
-    // pub fn get_contract_cast_state<C>(
-    //     &mut self,
-    //     contract_id: &ContractId,
-    // ) -> Result<C, VMError> {
-    //     self.head.get_contract(contract_id).map_or(
-    //         Err(VMError::UnknownContract),
-    //         |_contract| {
-    //             // let mut source =
-    // Source::new((*contract).state().as_bytes());             //
-    // C::decode(&mut source).map_err(VMError::from_store_error)            
-    // todo!()         },
-    //     )
-    // }
-
     /// Gets module config
     pub fn get_module_config(&self) -> &ModuleConfig {
         &self.module_config

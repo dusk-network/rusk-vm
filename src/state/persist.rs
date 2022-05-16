@@ -6,17 +6,27 @@
 
 use dusk_hamt::Hamt;
 use microkelvin::{
-    All, Compound, HostStore, Ident, Keyed, OffsetLen, PersistError, StoreRef,
+    All, Compound, HostStore, Ident, Keyed, OffsetLen, StoreRef,
 };
 use rkyv::ser::{serializers::AllocSerializer, Serializer};
 use rkyv::{archived_root, Archive, Deserialize, Infallible, Serialize};
 use rusk_uplink::ContractId;
 use std::fs;
+use std::io;
 use std::path::Path;
+use thiserror::Error;
 
 use crate::contract::Contract;
 use crate::state::{Contracts, NetworkState};
 use crate::{GasMeter, VMError};
+
+/// An error that can happen when persisting structures to disk
+#[derive(Error, Debug)]
+pub enum PersistError {
+    /// An io-error occurred while persisting
+    #[error(transparent)]
+    Io(#[from] io::Error),
+}
 
 /// The [`NetworkStateId`] is the persisted id of the [`NetworkState`]
 #[derive(Archive, Serialize, Deserialize, Default, Clone, Debug)]
@@ -91,10 +101,14 @@ impl NetworkState {
         target_store_path: P,
         gas_meter: &mut GasMeter,
     ) -> Result<NetworkStateId, VMError> {
-        let source_store =
-            StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
-        let target_store =
-            StoreRef::new(HostStore::with_file(target_store_path.as_ref())?);
+        let source_store = StoreRef::new(
+            HostStore::with_file(source_store_path.as_ref())
+                .map_err(|e| PersistError::Io(e))?,
+        );
+        let target_store = StoreRef::new(
+            HostStore::with_file(target_store_path.as_ref())
+                .map_err(|e| PersistError::Io(e))?,
+        );
 
         let source_persistence_id_file_path = source_store_path
             .as_ref()
@@ -106,16 +120,7 @@ impl NetworkState {
             source_store.clone(),
             target_store.clone(),
         )
-        .restore(source_store.clone(), source_persistence_id)
-        .map_err(|_| {
-            VMError::NetworkStatePersistenceError(
-                "could not restore state".to_string(),
-                source_persistence_id_file_path
-                    .to_str()
-                    .unwrap_or("unknown")
-                    .to_string(),
-            )
-        })?;
+        .restore(source_store.clone(), source_persistence_id)?;
 
         network.store_contract_states(gas_meter)?;
         let target_persistence_id = network.persist(target_store.clone())?;
@@ -168,8 +173,10 @@ impl NetworkState {
     pub fn restore_from_disk<P: AsRef<Path>>(
         source_store_path: P,
     ) -> Result<Self, VMError> {
-        let store =
-            StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
+        let store = StoreRef::new(
+            HostStore::with_file(source_store_path.as_ref())
+                .map_err(|e| PersistError::Io(e))?,
+        );
         let file_path = source_store_path
             .as_ref()
             .join(Self::PERSISTENCE_ID_FILE_NAME);

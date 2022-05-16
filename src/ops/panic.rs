@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use tracing::{debug, trace};
-use rusk_uplink::ContractId;
 
 use crate::env::Env;
 use crate::VMError;
