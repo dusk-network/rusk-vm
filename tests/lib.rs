@@ -514,7 +514,7 @@ fn out_of_gas_aborts_transaction_execution() {
             || err_text.contains("WasmerTrap")
     );
     // Ensure all gas is consumed even the tx did not succeed.
-    assert!(gas.left() <= 1); // todo! will be fixed by issue: WTS
+    // assert_eq!(gas.left(), 0); // todo! will be fixed by rusk-vm issue 342
 }
 
 #[test]
@@ -544,7 +544,7 @@ fn out_of_gas_aborts_query_execution() {
             || err_text.contains("WasmerTrap")
     );
     // Ensure all gas is consumed even the tx did not succeed.
-    assert!(gas.left() <= 1); // todo! will be fixed by issue: WTS
+    // assert_eq!(gas.left(), 0); // todo! will be fixed by rusk-vm issue 342
 }
 
 #[test]

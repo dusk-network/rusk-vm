@@ -37,21 +37,19 @@ pub struct NetworkStateId {
 
 impl NetworkStateId {
     /// Read from the given path a [`NetworkStateId`]
-    pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, PersistError> {
-        let buf = fs::read(&path)?;
-        // let id: <NetworkStateId as Archive>::Archived = unsafe {
-        // *archived_root::<NetworkStateId>(buf.as_slice()) };
+    pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, VMError> {
+        let buf = fs::read(&path).map_err(|e| PersistError::Io(e))?;
         let id = unsafe { archived_root::<NetworkStateId>(buf.as_slice()) };
         let id: NetworkStateId = id.deserialize(&mut Infallible).unwrap();
         Ok(id)
     }
 
     /// Write to the given path a [`NetworkStateId`]
-    pub fn write<P: AsRef<Path>>(&self, path: P) -> Result<(), PersistError> {
+    pub fn write<P: AsRef<Path>>(&self, path: P) -> Result<(), VMError> {
         let mut serializer = AllocSerializer::<0>::default();
         serializer.serialize_value(self).unwrap();
         let bytes = serializer.into_serializer().into_inner();
-        fs::write(&path, bytes.as_slice())?;
+        fs::write(&path, bytes.as_slice()).map_err(|e| PersistError::Io(e))?;
         Ok(())
     }
 }
