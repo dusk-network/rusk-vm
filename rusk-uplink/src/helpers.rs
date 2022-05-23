@@ -4,17 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use core::hash::Hash;
-use std::collections::hash_map::DefaultHasher;
+use blake2b_simd::Params;
 
-// todo! proper hash will be implemented in issue 344
-pub fn hash_mocker(bytes: &[u8]) -> [u8; 32] {
-    use std::convert::TryFrom;
-    use std::hash::Hasher;
-    let mut a: [u8; 32] =
-        <[u8; 32]>::try_from(&bytes[bytes.len() - 32..]).unwrap();
-    let mut s = DefaultHasher::new();
-    bytes.hash(&mut s);
-    a[24..].copy_from_slice(&s.finish().to_le_bytes());
-    a
+pub fn hash(bytes: &[u8]) -> [u8; 32] {
+    let mut state = Params::new().hash_length(32).to_state();
+    state.update(bytes);
+
+    let mut buf = [0u8; 32];
+    buf.copy_from_slice(state.finalize().as_ref());
+    buf
 }
