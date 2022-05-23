@@ -15,7 +15,7 @@ use rkyv::validation::validators::DefaultValidator;
 use rkyv::{archived_root, Archive, Deserialize, Serialize};
 
 use rusk_uplink::{
-    hash_mocker, ContractId, HostModule, Query, RawQuery, RawTransaction,
+    hash, ContractId, HostModule, Query, RawQuery, RawTransaction,
     StoreContext, Transaction,
 };
 
@@ -62,7 +62,7 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        let id: ContractId = hash_mocker(contract.bytecode()).into();
+        let id: ContractId = hash(contract.bytecode()).into();
         self.deploy_with_id(id, contract, module_config)
     }
 

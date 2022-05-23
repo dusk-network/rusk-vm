@@ -19,7 +19,7 @@ use thiserror::Error;
 use tracing::trace;
 use wasmer::Module;
 
-pub use rusk_uplink::{hash_mocker, ContractId, ContractState};
+pub use rusk_uplink::{hash, ContractId, ContractState};
 
 type BoxedHostModule = Box<dyn HostModule>;
 
@@ -44,7 +44,7 @@ cached_key_result! {
     COMPUTE: TimedSizedCache<ModuleCacheKey, Module>
         = TimedSizedCache::with_size_and_lifespan(2048, 86400);
     Key = {
-        ModuleCacheKey{ hash: hash_mocker(bytecode), version: module_config.version } // todo instead of hash_mocker do actual hashing here
+        ModuleCacheKey{ hash: hash(bytecode), version: module_config.version }
     };
 
     fn get_or_create_module(bytecode: &[u8], module_config: &ModuleConfig) -> Result<Module, VMError> = {

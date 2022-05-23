@@ -17,7 +17,7 @@ fn stack() {
     let mut test = DualTest::new(Stack::new(), code);
 
     type Leaf = u64;
-    const N: Leaf = 5000;
+    const N: Leaf = 2048;
 
     for i in 0..N {
         test.apply(Push::new(i));
