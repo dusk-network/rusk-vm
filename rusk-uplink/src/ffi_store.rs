@@ -57,10 +57,6 @@ impl AbiStoreInner {
     }
 
     fn resize_by(&mut self, by: usize) {
-        // let cur_len = unsafe { (*self.data_vec).len() };
-        // if cur_len > 60000 {
-        //     crate::debug!("resize to {} {}", cur_len + by, by);
-        // }
         unsafe {
             (*self.data_vec).resize((*self.data_vec).len() + by, 0u8);
             self.data = &mut (*self.data_vec).as_mut_slice()[self.data_ofs..];
@@ -150,8 +146,7 @@ impl Store for AbiStore {
         let slice = unsafe { &mut *inner.data };
         inner.resize_by(size_needed + slice.len() + MIN_RESIZE);
         let slice = unsafe { &mut *inner.data };
-        buffer.reset_buffer(slice); // only if written at TokenBuffer creation time was zero, otherwise need
-                                    // to add offset to TokenBuffer
+        buffer.reset_buffer(slice);
         Ok(())
     }
 
