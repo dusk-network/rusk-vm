@@ -11,7 +11,9 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-microkelvin = { version = "0.13.0-rc", default-features = false }
+#microkelvin = { version = "0.16.0-rkyv.1", default-features = false }
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-large-buffer-support" }
+#microkelvin = { path = "../../../../microkelvin" }
 rusk-uplink = { path = "../../../rusk-uplink" }
 rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }
 rkyv = { version = "0.7.20", default-features = false, features = ["archive_le", "size_32"] }

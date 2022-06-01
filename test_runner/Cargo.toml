@@ -9,5 +9,6 @@ counter = { path = "../tests/contracts/counter" }
 stack = { path = "../tests/contracts/stack" }
 register = { path = "../tests/contracts/register" }
 #map = { path = "../tests/contracts/map" }
-microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-persistence"}
+microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-large-buffer-support" }
+#microkelvin = { path = "../../microkelvin" }
 byteorder = "1.4"
