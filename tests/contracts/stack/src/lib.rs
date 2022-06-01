@@ -157,12 +157,9 @@ impl Stack {
 
     pub fn popmulti(&mut self, value: u64) -> u64 {
         let mut sum = 0u64;
-        for i in 0..value {
-            let j = value - i - 1;
-            // let peeked = self.peek(j).unwrap_or(0);
+        for _ in 0..value {
             let popped = self.pop().unwrap();
             sum += popped;
-            // assert_eq!(peeked, popped)
         }
         sum
     }

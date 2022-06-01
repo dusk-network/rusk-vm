@@ -140,11 +140,10 @@ impl Store for AbiStore {
     fn extend(
         &self,
         buffer: &mut TokenBuffer,
-        size_needed: usize,
     ) -> Result<(), ()> {
         let inner = unsafe { &mut *self.inner.get() };
         let slice = unsafe { &mut *inner.data };
-        inner.resize_by(size_needed + slice.len() + MIN_RESIZE);
+        inner.resize_by(slice.len() + MIN_RESIZE);
         let slice = unsafe { &mut *inner.data };
         buffer.reset_buffer(slice);
         Ok(())
