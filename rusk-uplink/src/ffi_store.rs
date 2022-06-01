@@ -31,8 +31,6 @@ struct AbiStoreInner {
     data: *mut [u8],
     written: usize,
     token: Token,
-    data_vec: *mut Vec<u8>,
-    data_ofs: usize,
 }
 
 pub struct AbiStore {
@@ -46,21 +44,19 @@ impl Fallible for AbiStore {
 const MIN_RESIZE: usize = 8192;
 
 impl AbiStoreInner {
-    fn new(buf: &mut [u8], buf_vec: &mut Vec<u8>, data_ofs: usize) -> Self {
+    fn new(buf: &mut [u8]) -> Self {
         AbiStoreInner {
             data: buf,
             written: 0,
             token: Token::new(),
-            data_vec: buf_vec,
-            data_ofs,
         }
     }
 
-    fn resize_by(&mut self, by: usize) {
-        unsafe {
-            (*self.data_vec).resize((*self.data_vec).len() + by, 0u8);
-            self.data = &mut (*self.data_vec).as_mut_slice()[self.data_ofs..];
-        }
+    fn resize_by(&mut self, _by: usize) {
+        //unsafe {
+        //    (*self.data_vec).resize((*self.data_vec).len() + by, 0u8);
+        //    self.data = &mut (*self.data_vec).as_mut_slice()[self.data_ofs..];
+        //}
     }
 
     fn get(&mut self, ident: &OffsetLen) -> &[u8] {
@@ -108,9 +104,9 @@ impl AbiStoreInner {
 }
 
 impl AbiStore {
-    pub fn new(buf: &mut [u8], buf_vec: &mut Vec<u8>, data_ofs: usize) -> Self {
+    pub fn new(buf: &mut [u8]) -> Self {
         AbiStore {
-            inner: UnsafeCell::new(AbiStoreInner::new(buf, buf_vec, data_ofs)),
+            inner: UnsafeCell::new(AbiStoreInner::new(buf)),
         }
     }
 }

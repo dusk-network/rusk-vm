@@ -43,12 +43,12 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
             use rusk_uplink::{
                 get_state_arg, q_return, AbiStore, StoreContext
             };
-
+            use crate::scratch_mod::scratch;
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> u32 {
-                let (state_arg, mut rest) = unsafe { crate::scratch_mod::#scratch_name.split_at_mut(written_data as usize) };
+                let (state_arg, mut rest) = unsafe { #scratch_name.split_at_mut(written_data as usize) };
                 let store =
-                    StoreContext::new(AbiStore::new(unsafe { &mut rest }, unsafe { &mut crate::scratch_mod::#scratch_name }, written_data as usize));
+                    StoreContext::new(AbiStore::new(unsafe { &mut rest }));
                 let (state, arg): (#state_t, #arg_t) = unsafe {
                     get_state_arg(
                         written_state,
@@ -61,8 +61,8 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let res: <#arg_t as Query>::Return =
                     state.execute(arg, store.clone());
 
-                let scratch_mem = unsafe { crate::scratch_mod::#scratch_name.as_mut_slice() };
-                let store = StoreContext::new(AbiStore::new(scratch_mem, unsafe { &mut crate::scratch_mod::#scratch_name }, 0));
+                let scratch_mem = unsafe { &mut #scratch_name[..] };
+                let store = StoreContext::new(AbiStore::new(scratch_mem));
                 unsafe { q_return(&res, store) }
             }
         };
@@ -94,12 +94,12 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
             use rusk_uplink::{
                 get_state_arg, t_return, AbiStore, StoreContext
             };
-
+            use crate::scratch_mod::scratch;
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> [u32; 2] {
-                let (state_arg, mut rest) = unsafe { crate::scratch_mod::#scratch_name.split_at_mut(written_data as usize) };
+                let (state_arg, mut rest) = unsafe { #scratch_name.split_at_mut(written_data as usize) };
                 let store =
-                    StoreContext::new(AbiStore::new(unsafe { &mut rest }, unsafe { &mut crate::scratch_mod::#scratch_name }, written_data as usize));
+                    StoreContext::new(AbiStore::new(unsafe { &mut rest }));
                 let (mut state, arg): (#state_t, #arg_t) = unsafe {
                     get_state_arg(
                         written_state,
@@ -112,8 +112,8 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let res: <#arg_t as Transaction>::Return =
                     state.apply(arg, store.clone());
 
-                let scratch_mem = unsafe { crate::scratch_mod::#scratch_name.as_mut_slice() };
-                let store = StoreContext::new(AbiStore::new(scratch_mem, unsafe { &mut crate::scratch_mod::#scratch_name }, 0));
+                let scratch_mem = unsafe { &mut #scratch_name[..] };
+                let store = StoreContext::new(AbiStore::new(scratch_mem));
                 unsafe { t_return(&state, &res, store) }
             }
         };
@@ -170,17 +170,17 @@ pub fn init(_attrs: TokenStream, input: TokenStream) -> TokenStream {
             extern crate alloc;
             use alloc::vec::Vec;
             #[no_mangle]
-            pub static mut scratch: Vec<u8> = Vec::<u8>::new();
+            pub static mut scratch: [u8; 65536] = [0u8; 65536];
 
             #[no_mangle]
             pub fn grow_scratch(sz: u32) -> u32 {
                 const MIN_GROW_BY: usize = 0;
                 unsafe {
-                    if (sz as usize > scratch.len()) || (scratch.len() == 0) {
-                        let len = core::cmp::max(sz as usize, scratch.len()) + MIN_GROW_BY;
-                        // rusk_uplink::debug!("resizeto {}", len);
-                        scratch.resize(len, 0u8);
-                    }
+                    // if (sz as usize > scratch.len()) || (scratch.len() == 0) {
+                    //     let len = core::cmp::max(sz as usize, scratch.len()) + MIN_GROW_BY;
+                    //     // rusk_uplink::debug!("resizeto {}", len);
+                    //     scratch.resize(len, 0u8);
+                    // }
                     scratch.as_mut_ptr() as *mut _ as u32
                 }
             }
