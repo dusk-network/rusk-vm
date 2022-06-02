@@ -27,10 +27,32 @@ fn abi_get(offset: u64, buf: &mut [u8]) {
     unsafe { _get(offset, len, &mut buf[0]) }
 }
 
+const PAGE_SIZE: usize = 1024 * 64;
+
+#[derive(Debug)]
+struct Page {
+    bytes: Box<[u8; PAGE_SIZE]>,
+    written: usize,
+}
+
+impl Page {
+    fn new() -> Self {
+        Page {
+            bytes: Box::new([0u8; PAGE_SIZE]),
+            written: 0,
+        }
+    }
+
+    fn unwritten_tail(&mut self) -> &mut [u8] {
+        &mut self.bytes[self.written..]
+    }
+}
+
 struct AbiStoreInner {
     data: *mut [u8],
     written: usize,
     token: Token,
+    pages: Vec<Page>,
 }
 
 pub struct AbiStore {
@@ -41,22 +63,32 @@ impl Fallible for AbiStore {
     type Error = core::convert::Infallible;
 }
 
-const MIN_RESIZE: usize = 8192;
-
 impl AbiStoreInner {
     fn new(buf: &mut [u8]) -> Self {
         AbiStoreInner {
             data: buf,
             written: 0,
             token: Token::new(),
+            pages: Vec::new(),
         }
     }
 
-    fn resize_by(&mut self, _by: usize) {
-        //unsafe {
-        //    (*self.data_vec).resize((*self.data_vec).len() + by, 0u8);
-        //    self.data = &mut (*self.data_vec).as_mut_slice()[self.data_ofs..];
-        //}
+    fn unwritten_tail<'a>(&'a mut self) -> &'a mut [u8] {
+        let bytes = match self.pages.last_mut() {
+            Some(page) => page.unwritten_tail(),
+            None => {
+                self.pages = vec![Page::new()];
+                self.pages[0].unwritten_tail()
+            }
+        };
+        let extended: &'a mut [u8] = unsafe { core::mem::transmute(bytes) };
+        extended
+    }
+
+    fn extend(&mut self) {
+        self.pages.push(Page::new());
+        self.data = self.unwritten_tail();
+        self.written = 0;
     }
 
     fn get(&mut self, ident: &OffsetLen) -> &[u8] {
@@ -65,10 +97,7 @@ impl AbiStoreInner {
         let current_len = unsafe { &mut *self.data }.len();
 
         if (self.written + len) > current_len {
-            self.resize_by(core::cmp::max(
-                self.written + len - current_len,
-                MIN_RESIZE,
-            ));
+            self.extend();
         }
         let slice = unsafe { &mut *self.data };
         let to_write = &mut slice[self.written..][..len as usize];
@@ -138,8 +167,7 @@ impl Store for AbiStore {
         buffer: &mut TokenBuffer,
     ) -> Result<(), ()> {
         let inner = unsafe { &mut *self.inner.get() };
-        let slice = unsafe { &mut *inner.data };
-        inner.resize_by(slice.len() + MIN_RESIZE);
+        inner.extend();
         let slice = unsafe { &mut *inner.data };
         buffer.reset_buffer(slice);
         Ok(())
