@@ -35,6 +35,8 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
     let wrapper_fun_name = format_ident!("{}", q_fn_name);
     let scratch_name = format_ident!("scratch_{}", q_fn_name);
+    let bogus_fn_name = format_ident!("bogus_{}", q_fn_name);
+
     let gen = quote! {
 
         #q_impl
@@ -47,6 +49,11 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
             #[no_mangle]
             static mut #scratch_name: [u8; #buf_size] = [0u8; #buf_size];
+
+            #[no_mangle]
+            fn #bogus_fn_name(num: i32) -> i32 {
+                num * num
+            }
 
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> u32 {
@@ -90,6 +97,8 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
     let wrapper_fun_name = format_ident!("{}", t_fn_name);
     let scratch_name = format_ident!("scratch_{}", t_fn_name);
+    let bogus_fn_name = format_ident!("bogus_{}", t_fn_name);
+
     let gen = quote! {
 
         #t_impl
@@ -102,6 +111,11 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
             #[no_mangle]
             static mut #scratch_name: [u8; #buf_size] = [0u8; #buf_size];
+
+            #[no_mangle]
+            fn #bogus_fn_name(num: i32) -> i32 {
+                num * num
+            }
 
             #[no_mangle]
             fn #wrapper_fun_name(written_state: u32, written_data: u32) -> [u32; 2] {

@@ -281,6 +281,12 @@ impl<'a> CallContext<'a> {
                 instance.exports.get_native_function(transaction.name())?;
 
             let global_scratch = format!("scratch_{}", transaction.name());
+            let bogus_fn_name = format!("bogus_{}", transaction.name());
+
+            let bogus_func: NativeFunc<i32, i32> =
+                instance.exports.get_native_function(&bogus_fn_name)?;
+            assert_eq!(bogus_func.call(2).unwrap(), 4);
+            drop(bogus_func);
 
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports

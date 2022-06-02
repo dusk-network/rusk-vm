@@ -15,7 +15,7 @@ license = "MPL-2.0"
 [dependencies]
 wasmparser = "0.81"
 failure = "0.1"
-dusk-hamt = "0.10.0-rkyv.0"
+dusk-hamt = { git = "https://github.com/dusk-network/dusk-hamt" }
 microkelvin = "0.16.0-rkyv.0"
 wasmer = "=2.0"
 wasmer-vm = "2.0"
