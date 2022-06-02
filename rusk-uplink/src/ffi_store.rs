@@ -162,10 +162,7 @@ impl Store for AbiStore {
         inner.commit(buffer)
     }
 
-    fn extend(
-        &self,
-        buffer: &mut TokenBuffer,
-    ) -> Result<(), ()> {
+    fn extend(&self, buffer: &mut TokenBuffer) -> Result<(), ()> {
         let inner = unsafe { &mut *self.inner.get() };
         inner.extend();
         let slice = unsafe { &mut *inner.data };

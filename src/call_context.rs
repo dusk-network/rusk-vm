@@ -14,6 +14,7 @@ use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::{
     get_remaining_points, set_remaining_points, MeteringPoints,
 };
+use wasmer_types::Value;
 
 use crate::contract::ContractRef;
 use crate::env::Env;
@@ -175,15 +176,21 @@ impl<'a> CallContext<'a> {
 
             let run_func: NativeFunc<(u32, u32), u32> =
                 instance.exports.get_native_function(query.name())?;
-            let grow_scratch_func: NativeFunc<u32, u32> =
-                instance.exports.get_native_function("grow_scratch")?;
 
+            let global_scratch = format!("scratch");
+
+            let buf_offset = if let Value::I32(ofs) = instance
+                .exports
+                .get_global(global_scratch.as_str())
+                .map_err(|_| VMError::InvalidWASMModule)?
+                .get()
+            {
+                ofs as usize
+            } else {
+                return Err(VMError::InvalidWASMModule);
+            };
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
-
-            let buf_offset = grow_scratch_func
-                .call((contract.state().len() + query.data().len()) as u32)?
-                as usize;
 
             // Write the current archived state and the query into contract
             // scratch buffer
@@ -203,8 +210,6 @@ impl<'a> CallContext<'a> {
                 });
 
             let r = run_func.call(written_state as u32, written_data as u32);
-
-            let buf_offset = grow_scratch_func.call(0u32)? as usize;
 
             r.map(|result_written| {
                 memory.with_slice_from(buf_offset, |mem| {
@@ -280,18 +285,23 @@ impl<'a> CallContext<'a> {
 
             let run_func: NativeFunc<(u32, u32), u64> =
                 instance.exports.get_native_function(transaction.name())?;
-            let grow_scratch_func: NativeFunc<u32, u32> =
-                instance.exports.get_native_function("grow_scratch")?;
 
+            let global_scratch = format!("scratch");
+
+            let buf_offset = if let Value::I32(ofs) = instance
+                .exports
+                .get_global(global_scratch.as_str())
+                .map_err(|_| VMError::InvalidWASMModule)?
+                .get()
+            {
+                ofs as usize
+            } else {
+                return Err(VMError::InvalidWASMModule);
+            };
             let mut memory = WasmerMemory::new();
             memory.init(&instance.exports)?;
 
-            let buf_offset = grow_scratch_func.call(
-                (contract.state().len() + transaction.data().len()) as u32,
-            )? as usize;
-
             // Copy the contract state and the transaction into scratch memory
-
             let (written_state, written_data) =
                 memory.with_mut_slice_from(buf_offset, |mem| {
                     // copy the contract state into scratch memory
@@ -320,8 +330,6 @@ impl<'a> CallContext<'a> {
             }
 
             let r = run_func.call(written_state as u32, written_data as u32);
-
-            let buf_offset = grow_scratch_func.call(0u32)? as usize;
 
             r.map(|result| {
                 let (state_written, result_written) = separate_tuple(result);

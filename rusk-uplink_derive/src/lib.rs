@@ -167,17 +167,8 @@ pub fn init(_attrs: TokenStream, input: TokenStream) -> TokenStream {
     let gen = quote! {
         #[cfg(target_family = "wasm")]
         mod scratch_mod {
-            extern crate alloc;
-            use alloc::vec::Vec;
             #[no_mangle]
             pub static mut scratch: [u8; 65536] = [0u8; 65536];
-
-            #[no_mangle]
-            pub fn grow_scratch(_: u32) -> u32 {
-                unsafe {
-                    scratch.as_mut_ptr() as *mut _ as u32
-                }
-            }
 
             #[no_mangle]
             #init_impl
