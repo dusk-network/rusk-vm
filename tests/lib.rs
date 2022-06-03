@@ -611,6 +611,8 @@ fn out_of_gas_aborts_execution() {
     let should_be_err =
         network.transact::<_, ()>(contract_id, 0, counter::INCREMENT, &mut gas);
 
+    println!("{:?}", should_be_err);
+
     assert!(matches!(should_be_err, Err(VMError::OutOfGas)));
 
     // Ensure all gas is consumed even the tx did not succeed.

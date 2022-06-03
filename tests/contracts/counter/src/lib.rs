@@ -186,4 +186,9 @@ mod hosted {
         // todo, handle errors here
         transaction(bytes).unwrap()
     }
+
+    #[no_mangle]
+    fn pre_t(num: i32) -> i32 {
+        num * num
+    }
 }

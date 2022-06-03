@@ -249,6 +249,13 @@ impl<'a> CallContext<'a> {
             ));
         }
 
+        if let Ok(pre_run_func) =
+            instance.exports.get_native_function::<i32, i32>("pre_t")
+        {
+            let pre_r = pre_run_func.call(2)?;
+            assert_eq!(pre_r, 4);
+        }
+
         let run_func: NativeFunc<i32, ()> =
             instance.exports.get_native_function("t")?;
 
