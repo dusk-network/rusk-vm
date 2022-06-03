@@ -16,7 +16,7 @@ license = "MPL-2.0"
 wasmparser = "0.81.0"
 failure = "0.1"
 dusk-hamt = { path = "../dusk-hamt" }
-microkelvin = "0.16.0-rkyv.1"
+microkelvin = "0.16.0-rkyv.2"
 wasmer = "=2.0.0"
 wasmer-vm = "2.0.0"
 wasmer-compiler-singlepass = "=2.0.0"
@@ -68,7 +68,3 @@ members = [
     "rusk-uplink_derive",
     "test_runner",
 ]
-
-[patch.crates-io]
-microkelvin = { git = "https://github.com/dusk-network/microkelvin.git", branch = "vm2-large-buffer-support" }
-#microkelvin = { path = "../microkelvin" }

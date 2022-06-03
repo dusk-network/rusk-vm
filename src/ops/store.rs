@@ -17,7 +17,7 @@ impl Get {
     pub fn get(
         env: &Env,
         ofs: u64,
-        len: u32,
+        len: u16,
         buf_ptr: i32,
     ) -> Result<(), VMError> {
         trace!("Executing 'get' host function");

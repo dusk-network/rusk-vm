@@ -166,8 +166,8 @@ fn measure_gas_usage() {
     );
     println!(
         "stack multiple push/pop ({})         {}",
-        1024,
-        execute_stack_multi_push_pop_contract(1024)
+        8192,
+        execute_stack_multi_push_pop_contract(8192)
     );
     println!(
         "stack multiple transactions push ({}) {}",

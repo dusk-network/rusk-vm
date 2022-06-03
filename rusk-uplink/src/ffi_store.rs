@@ -10,20 +10,20 @@ use microkelvin::{OffsetLen, Store, Token, TokenBuffer};
 use rkyv::Fallible;
 
 extern "C" {
-    fn _put(slice: &u8, len: u32) -> u64;
-    fn _get(offset: u64, len: u32, buf: &mut u8);
+    fn _put(slice: &u8, len: u16) -> u64;
+    fn _get(offset: u64, len: u16, buf: &mut u8);
 }
 
 fn abi_put(slice: &[u8]) -> OffsetLen {
-    assert!(slice.len() <= u32::MAX as usize);
-    let len = slice.len() as u32;
+    assert!(slice.len() <= u16::MAX as usize);
+    let len = slice.len() as u16;
     let ofs = unsafe { _put(&slice[0], len) };
 
     OffsetLen::new(ofs, len)
 }
 
 fn abi_get(offset: u64, buf: &mut [u8]) {
-    let len = buf.len() as u32;
+    let len = buf.len() as u16;
     unsafe { _get(offset, len, &mut buf[0]) }
 }
 
@@ -125,7 +125,8 @@ impl AbiStoreInner {
         let slice = buffer.written_bytes();
         let len = slice.len() as usize;
         let abi_put_ofslen = abi_put(slice);
-        buffer.rewind();
+        let buf = buffer.as_mut() as *mut _ as *mut [u8];
+        buffer.remap(unsafe { &mut *buf } );// buffer.rewind();
         assert!(len <= u32::MAX as usize);
         self.written -= core::cmp::min(len, self.written);
         abi_put_ofslen
@@ -166,7 +167,7 @@ impl Store for AbiStore {
         let inner = unsafe { &mut *self.inner.get() };
         inner.extend();
         let slice = unsafe { &mut *inner.data };
-        buffer.reset_buffer(slice);
+        buffer.remap(slice);
         Ok(())
     }
 
