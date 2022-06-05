@@ -30,7 +30,6 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! debug {
     ($($tt:tt)*) => {
-        // TODO, make debugging possible from host env, with features;
         ()
     };
 }
