@@ -148,9 +148,7 @@ impl NetworkState {
             restored_origin.deserialize(&mut store.clone()).unwrap();
 
         self.origin = Contracts(restored_origin);
-
         self.head = Contracts(restored_head);
-
         self.staged = self.head.clone();
 
         Ok(self)
@@ -189,8 +187,7 @@ impl NetworkState {
         }
 
         for contract_id in contract_ids {
-            self.transact_store_state(contract_id, 0, gas_meter)
-                .unwrap_or(());
+            self.transact_store_state(contract_id, 0, gas_meter)?;
         }
 
         Ok(())

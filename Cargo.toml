@@ -13,24 +13,24 @@ description = "Rusk VM is the virtual machine running Dusk Network's Smart contr
 license = "MPL-2.0"
 
 [dependencies]
-wasmparser = "0.81.0"
+wasmparser = "0.81"
 failure = "0.1"
 dusk-hamt = "0.11.0-rkyv"
 microkelvin = "0.16.0-rkyv.2"
-wasmer = "=2.0.0"
-wasmer-vm = "2.0.0"
-wasmer-compiler-singlepass = "=2.0.0"
-wasmer-engine-universal = "=2.0.0"
-wasmer-middlewares = "=2.0.0"
-wasmer-types = "=2.0.0"
-cached = "0.26.2"
-thiserror = "1.0.24"
-tracing = "0.1.29"
+wasmer = "=2.0"
+wasmer-vm = "2.0"
+wasmer-compiler-singlepass = "2.0"
+wasmer-engine-universal = "2.0"
+wasmer-middlewares = "2.0"
+wasmer-types = "=2.0"
+cached = "0.26"
+thiserror = "1.0"
+tracing = "0.1"
 loupe = "0.1"
 rusk-uplink = { path = "rusk-uplink" }
 rusk-uplink_derive = { path = "./rusk-uplink_derive"}
 rkyv = { version = "0.7", default-features = false, features = ["alloc"] }
-bytecheck = { version = "0.6.7", default-features = false }
+bytecheck = { version = "0.6", default-features = false }
 derive-new = "0.5"
 
 [dev-dependencies]

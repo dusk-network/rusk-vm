@@ -420,7 +420,7 @@ impl NetworkState {
         &self.module_config
     }
 
-    /// Deserialize from contract state
+    /// Deserialize from contract state so that it is fully in memory
     pub fn deserialize_from_contract_state<S>(
         &self,
         store: StoreContext,
@@ -438,7 +438,7 @@ impl NetworkState {
         Ok(state)
     }
 
-    /// Serialize into contract state
+    /// Serialize the state and put it into contract
     pub fn serialize_into_contract_state<S>(
         &mut self,
         store: StoreRef<OffsetLen>,

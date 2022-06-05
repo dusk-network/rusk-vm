@@ -24,7 +24,6 @@ mod ops;
 mod resolver;
 mod state;
 
-
 pub use rusk_uplink;
 
 pub use contract::{Contract, ContractId, ContractRef};

@@ -20,7 +20,7 @@ use rusk_vm::*;
 use stack::*;
 
 const STACK_TEST_SIZE: u64 = 5000;
-const CONFIRM_STACK_METHOD: u32 = 2;
+const CONFIRM_STACK_WITH_CONSOLIDATION: bool = true;
 const REGISTER_TEST_SIZE: u64 = 5000;
 const STACK_REGISTER_TEST_SIZE: u64 = 5000;
 
@@ -379,7 +379,9 @@ fn move_stack_elements_to_memory(stack: &mut Stack) {
     }
 }
 
-fn confirm_stack1(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
+fn confirm_stack_without_consolidation(
+    source_path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
     let source_store =
         StoreRef::new(HostStore::with_file(source_path.as_ref())?);
     let file_path = PathBuf::from(source_path.as_ref()).join("persist_id");
@@ -458,7 +460,7 @@ fn confirm_stack1(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn confirm_stack2(
+fn confirm_stack_with_consolidation(
     source_path: impl AsRef<str>,
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
@@ -661,10 +663,10 @@ fn confirm(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     // confirm_counter(source_path, target_path)?;
-    // if CONFIRM_STACK_METHOD == 2 {
-    //     confirm_stack2(source_path, target_path)?;
+    // if CONFIRM_STACK_WITH_CONSOLIDATION {
+    //     confirm_stack_with_consolidation(source_path, target_path)?;
     // } else {
-    //     confirm_stack1(source_path)?;
+    //     confirm_stack_without_consolidation(source_path)?;
     // }
     // confirm_register(source_path, target_path)?;
     confirm_stack_and_register(source_path, target_path)?;

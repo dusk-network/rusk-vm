@@ -19,6 +19,9 @@ use args::*;
 mod derive_args;
 use derive_args::*;
 
+const SCRATCH_NAME: &str = "scratch";
+const SCRATCH_SIZE: usize = 65536;
+
 #[proc_macro_attribute]
 pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let q_impl = parse_macro_input!(input as syn::ItemImpl);
@@ -33,7 +36,7 @@ pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let state_t = q_impl.self_ty.as_ref();
 
     let wrapper_fun_name = format_ident!("{}", q_fn_name);
-    let scratch_name = format_ident!("scratch");
+    let scratch_name = format_ident!("{}", SCRATCH_NAME);
     let gen = quote! {
 
         #q_impl
@@ -84,7 +87,7 @@ pub fn apply(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let state_t = t_impl.self_ty.as_ref();
 
     let wrapper_fun_name = format_ident!("{}", t_fn_name);
-    let scratch_name = format_ident!("scratch");
+    let scratch_name = format_ident!("{}", SCRATCH_NAME);
     let gen = quote! {
 
         #t_impl
@@ -168,7 +171,7 @@ pub fn init(_attrs: TokenStream, input: TokenStream) -> TokenStream {
         #[cfg(target_family = "wasm")]
         mod scratch_mod {
             #[no_mangle]
-            pub static mut scratch: [u8; 65536] = [0u8; 65536];
+            pub static mut scratch: [u8; #SCRATCH_SIZE] = [0u8; #SCRATCH_SIZE];
 
             #[no_mangle]
             #init_impl

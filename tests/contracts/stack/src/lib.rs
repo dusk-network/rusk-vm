@@ -15,8 +15,7 @@ use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 #[state(new = false)]
 pub struct Stack {
-    /// temporary
-    pub inner: NStack<u64, Cardinality, OffsetLen>,
+    inner: NStack<u64, Cardinality, OffsetLen>,
 }
 #[init]
 fn init() {}
