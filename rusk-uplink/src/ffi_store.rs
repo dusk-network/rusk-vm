@@ -121,7 +121,7 @@ impl AbiStoreInner {
         let abi_put_ofslen = abi_put(slice);
         let buf = buffer.as_mut() as *mut _ as *mut [u8];
         buffer.remap(unsafe { &mut *buf }); // buffer.rewind();
-        assert!(len <= u32::MAX as usize);
+        assert!(len <= u16::MAX as usize);
         self.written -= core::cmp::min(len, self.written);
         abi_put_ofslen
     }

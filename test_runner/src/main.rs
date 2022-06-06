@@ -110,12 +110,7 @@ fn initialize_stack(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
 
-    const N: u64 = STACK_TEST_SIZE;
-
-    for i in 0..N {
-        if (N > 1000) && (i % 100 == 0) {
-            println!("push ===> {}", i);
-        }
+    for i in 0..STACK_TEST_SIZE {
         network
             .transact(contract_id, 0, Push::new(i), &mut gas)
             .unwrap();
@@ -158,12 +153,7 @@ fn initialize_register(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
 
-    const N: u64 = REGISTER_TEST_SIZE;
-
-    for i in 0..N {
-        if (N > 1000) && (i % 100 == 0) {
-            println!("gossip ===> {}", i);
-        }
+    for i in 0..REGISTER_TEST_SIZE {
         let mut secret_data: [u8; 32] = [0u8; 32];
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
@@ -183,16 +173,13 @@ fn initialize_register(
     fs::write(&contract_id_path, contract_id.as_bytes())?;
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    for i in 0..N {
+    for i in 0..REGISTER_TEST_SIZE {
         let mut secret_data: [u8; 32] = [0u8; 32];
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
         let ii = network
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
             .unwrap();
-        if (N > 1000) && (i % 100 == 0) {
-            println!("confirming num secrets for {} ===> {} ", i, ii);
-        }
     }
 
     Ok(())
@@ -222,12 +209,7 @@ fn initialize_stack_and_register(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
 
-    const N: u64 = STACK_REGISTER_TEST_SIZE;
-
-    for i in 0..N {
-        if (N > 1000) && (i % 100 == 0) {
-            println!("push to NStack and insert into Hamt ===> {}", i);
-        }
+    for i in 0..STACK_REGISTER_TEST_SIZE {
         network
             .transact(contract_id_stack, 0, Push::new(i), &mut gas)
             .unwrap();
@@ -279,10 +261,8 @@ fn initialize_stack_multi(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
 
-    const N: u64 = STACK_TEST_SIZE;
-
     network
-        .transact(contract_id, 0, PushMulti::new(N), &mut gas)
+        .transact(contract_id, 0, PushMulti::new(STACK_TEST_SIZE), &mut gas)
         .unwrap();
 
     network.commit();
@@ -325,7 +305,7 @@ fn confirm_stack(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     let file_path = PathBuf::from(source_path.as_ref()).join("persist_id");
     let state_id = NetworkStateId::read(file_path)?;
 
-    let network = NetworkState::new(source_store.clone())
+    let mut network = NetworkState::new(source_store.clone())
         .restore(source_store.clone(), state_id)
         .map_err(|_| PersistE)?;
 
@@ -333,14 +313,14 @@ fn confirm_stack(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
     let buf = fs::read(&contract_id_path)?;
 
-    let contract_id = ContractId::from(buf);
+    let stack_contract_id = ContractId::from(buf);
 
-    const N: u64 = STACK_TEST_SIZE;
-
-    let stack_state = network
-        .deserialize_from_contract_state::<Stack>(source_store, contract_id)?;
-    for i in 0..N {
-        assert_eq!(Some(i), stack_state.peek(i));
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    for i in 0..STACK_TEST_SIZE {
+        let ii = network
+            .transact(stack_contract_id, 0, Pop::new(), &mut gas)
+            .unwrap();
+        assert_eq!(Some(STACK_TEST_SIZE - 1 - i), ii);
     }
 
     Ok(())
@@ -370,13 +350,8 @@ fn confirm_register(
                 &mut gas,
             )
             .unwrap();
-        if (REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
-            println!("checking num secrets (Hamt) ===> {} {} ", i, ii);
-        }
+        assert_eq!(i as u32, ii);
     }
-    /*
-    ok - state has been preserved using much less storage
-     */
     Ok(())
 }
 
@@ -400,13 +375,6 @@ fn confirm_stack_and_register(
         let ii = network
             .transact(stack_contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
-        if (STACK_REGISTER_TEST_SIZE > 1000) && (ii.unwrap() % 100 == 0) {
-            println!(
-                "checking pop (NStack) ===> {} {:?}",
-                STACK_REGISTER_TEST_SIZE - 1 - i,
-                ii
-            );
-        }
         assert_eq!(Some(STACK_REGISTER_TEST_SIZE - 1 - i), ii);
     }
 
@@ -431,9 +399,7 @@ fn confirm_stack_and_register(
                 &mut gas,
             )
             .unwrap();
-        if (STACK_REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
-            println!("checking num secrets (Hamt) ===> {} {} ", i, ii);
-        }
+        assert_eq!(i as u32, ii);
     }
 
     Ok(())
@@ -457,16 +423,14 @@ fn confirm_stack_multi(
     let contract_id = ContractId::from(buf);
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    //
-    const N: u64 = STACK_TEST_SIZE;
 
     let mut expected_sum = 0u64;
-    for i in 0..N {
+    for i in 0..STACK_TEST_SIZE {
         expected_sum += i;
     }
 
     let sum = network
-        .transact(contract_id, 0, PopMulti::new(N), &mut gas)
+        .transact(contract_id, 0, PopMulti::new(STACK_TEST_SIZE), &mut gas)
         .unwrap();
     assert_eq!(sum, expected_sum);
 

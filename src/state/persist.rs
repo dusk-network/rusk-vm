@@ -5,9 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_hamt::Hamt;
-use microkelvin::{
-    All, Compound, HostStore, Ident, Keyed, OffsetLen, StoreRef,
-};
+use microkelvin::{HostStore, Ident, OffsetLen, StoreRef};
 use rkyv::ser::{serializers::AllocSerializer, Serializer};
 use rkyv::{archived_root, Archive, Deserialize, Infallible, Serialize};
 use rusk_uplink::ContractId;
@@ -18,7 +16,7 @@ use std::path::Path;
 
 use crate::contract::Contract;
 use crate::state::{Contracts, NetworkState};
-use crate::{GasMeter, VMError};
+use crate::VMError;
 
 /// The [`NetworkStateId`] is the persisted id of the [`NetworkState`]
 #[derive(Archive, Serialize, Deserialize, Default, Clone, Debug)]
@@ -31,8 +29,6 @@ impl NetworkStateId {
     /// Read from the given path a [`NetworkStateId`]
     pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, VMError> {
         let buf = fs::read(&path)?;
-        // let id: <NetworkStateId as Archive>::Archived = unsafe {
-        // *archived_root::<NetworkStateId>(buf.as_slice()) };
         let id = unsafe { archived_root::<NetworkStateId>(buf.as_slice()) };
         let id: NetworkStateId = id.deserialize(&mut Infallible).unwrap();
         Ok(id)
@@ -136,25 +132,5 @@ impl NetworkState {
             )
         })?;
         NetworkState::new(store.clone()).restore(store, persistence_id)
-    }
-
-    /// Store contracts' states
-    pub fn store_contract_states(
-        &mut self,
-        gas_meter: &mut GasMeter,
-    ) -> Result<(), VMError> {
-        let mut contract_ids: Vec<ContractId> = vec![];
-
-        let branch = self.head.0.walk(All).expect("Some(_)");
-        for leaf in branch {
-            let val = leaf.key();
-            contract_ids.push(*val);
-        }
-
-        for contract_id in contract_ids {
-            self.transact_store_state(contract_id, 0, gas_meter)?;
-        }
-
-        Ok(())
     }
 }
