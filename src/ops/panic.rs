@@ -25,7 +25,7 @@ impl Panic {
         Err(match String::from_utf8(slice.to_vec()) {
             Ok(panic_msg) => {
                 debug!("Contract panic: {:?}", panic_msg);
-                VMError::ContractPanic(panic_msg)
+                VMError::ContractPanic(*env.get_context().callee(), panic_msg)
             }
             Err(_) => {
                 debug!("Invalid UTF-8 in panic");
