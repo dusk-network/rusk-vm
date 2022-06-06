@@ -42,7 +42,7 @@ impl Put {
         let bytes = env
             .get_context()
             .read_memory(mem_ofs as u64, len as usize)?;
-        let i = env.store().put_raw(bytes);
+        let i = env.target_store().put_raw(bytes);
         Ok(i.offset())
     }
 }

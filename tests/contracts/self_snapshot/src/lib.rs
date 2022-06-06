@@ -5,11 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 use rusk_uplink::{
@@ -18,12 +14,14 @@ use rusk_uplink::{
 };
 extern crate alloc;
 use alloc::boxed::Box;
-use rusk_uplink_derive::{apply, execute, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 #[state]
 pub struct SelfSnapshot {
     crossover: i32,
 }
+#[init]
+fn init() {}
 
 impl SelfSnapshot {
     pub fn crossover(&self) -> i32 {

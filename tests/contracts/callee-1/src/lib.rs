@@ -5,22 +5,20 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{
     Apply, ContractId, Execute, Query, StoreContext, Transaction,
 };
-use rusk_uplink_derive::{apply, execute, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 #[state(new = false)]
 pub struct Callee1State {
     target_address: ContractId,
 }
+#[init]
+fn init() {}
 
 impl Callee1State {
     pub fn new() -> Self {
