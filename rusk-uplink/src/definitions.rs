@@ -76,6 +76,35 @@ where
     }
 }
 
+impl core::fmt::LowerHex for ContractId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let bytes = self.as_bytes();
+        if f.alternate() {
+            write!(f, "0x")?
+        }
+        for byte in bytes {
+            write!(f, "{:02x}", &byte)?
+        }
+        Ok(())
+    }
+}
+impl core::fmt::UpperHex for ContractId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let bytes = self.as_bytes();
+        if f.alternate() {
+            write!(f, "0x")?
+        }
+        for byte in bytes {
+            write!(f, "{:02X}", &byte)?
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for ContractId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(self, f)
+    }
+}
 pub trait Execute<Q>
 where
     Q: Query,
