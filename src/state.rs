@@ -94,7 +94,6 @@ pub struct NetworkState {
     modules: HostModules,
     module_config: ModuleConfig,
     store: StoreContext,
-    target_store: StoreContext,
 }
 
 impl NetworkState {
@@ -102,22 +101,6 @@ impl NetworkState {
     pub fn new(store: StoreContext) -> Self {
         NetworkState {
             store: store.clone(),
-            target_store: store,
-            staged: Default::default(),
-            origin: Default::default(),
-            head: Default::default(),
-            modules: Default::default(),
-            module_config: Default::default(),
-        }
-    }
-    /// Returns a new empty [`NetworkState`] with a separate target store.
-    pub fn with_target_store(
-        store: StoreContext,
-        target_store: StoreContext,
-    ) -> Self {
-        NetworkState {
-            store,
-            target_store,
             staged: Default::default(),
             origin: Default::default(),
             head: Default::default(),
@@ -131,7 +114,6 @@ impl NetworkState {
         let module_config = ModuleConfig::from_schedule(schedule);
         Self {
             store: store.clone(),
-            target_store: store,
             module_config,
             staged: Default::default(),
             origin: Default::default(),
@@ -226,12 +208,8 @@ impl NetworkState {
 
         let store = self.store.clone();
 
-        let mut context = CallContext::new(
-            self,
-            block_height,
-            self.store.clone(),
-            self.target_store.clone(),
-        );
+        let mut context =
+            CallContext::new(self, block_height, self.store.clone());
 
         let result = match context.query(
             target,
@@ -287,12 +265,8 @@ impl NetworkState {
         let mut fork = self.clone();
 
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(
-            &mut fork,
-            block_height,
-            self.store.clone(),
-            self.target_store.clone(),
-        );
+        let mut context =
+            CallContext::new(&mut fork, block_height, self.store.clone());
 
         let result = match context.transact(
             target,
@@ -314,7 +288,7 @@ impl NetworkState {
             .map_err(|_| VMError::InvalidData)?;
 
         let deserialized: T::Return = cast
-            .deserialize(&mut self.target_store.clone())
+            .deserialize(&mut self.store.clone())
             .expect("Infallible");
 
         // Commit to the changes
@@ -343,12 +317,8 @@ impl NetworkState {
         // Fork the current network's state
         let mut fork = self.clone();
         // Use the forked state to execute the transaction
-        let mut context = CallContext::new(
-            &mut fork,
-            block_height,
-            self.store.clone(),
-            self.target_store.clone(),
-        );
+        let mut context =
+            CallContext::new(&mut fork, block_height, self.store.clone());
         let _result = match context.transact(
             target,
             RawTransaction::from([], "unarchive"),

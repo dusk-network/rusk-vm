@@ -86,41 +86,6 @@ impl NetworkState {
         Ok(persistence_id)
     }
 
-    /// Consolidates the state to disc,
-    /// given the source disc path.
-    pub fn consolidate_to_disk<P: AsRef<Path>>(
-        source_store_path: P,
-        target_store_path: P,
-        gas_meter: &mut GasMeter,
-    ) -> Result<NetworkStateId, VMError> {
-        let source_store =
-            StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
-        let target_store =
-            StoreRef::new(HostStore::with_file(target_store_path.as_ref())?);
-
-        let source_persistence_id_file_path = source_store_path
-            .as_ref()
-            .join(Self::PERSISTENCE_ID_FILE_NAME);
-        let source_persistence_id =
-            NetworkStateId::read(source_persistence_id_file_path)?;
-
-        let mut network = NetworkState::with_target_store(
-            source_store.clone(),
-            target_store.clone(),
-        )
-        .restore(source_store.clone(), source_persistence_id)?;
-
-        network.store_contract_states(gas_meter)?;
-        let target_persistence_id = network.persist(target_store.clone())?;
-
-        let target_persistence_id_file_path = target_store_path
-            .as_ref()
-            .join(Self::PERSISTENCE_ID_FILE_NAME);
-        target_persistence_id.write(target_persistence_id_file_path)?;
-
-        Ok(target_persistence_id)
-    }
-
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
     /// contracts of the entire blockchain state.
     pub fn restore(
