@@ -29,6 +29,7 @@ tracing = "0.1"
 loupe = "0.1"
 rusk-uplink = { path = "rusk-uplink" }
 rusk-uplink_derive = { path = "./rusk-uplink_derive"}
+# todo: other places in rusk-vm and in microkelvin use rkyv 0.7.29 - please revisit our strategy on rkyv patch versions
 rkyv = { version = "0.7", default-features = false, features = ["alloc"] }
 bytecheck = { version = "0.6", default-features = false }
 derive-new = "0.5"
