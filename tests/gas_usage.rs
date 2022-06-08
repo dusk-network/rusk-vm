@@ -171,8 +171,8 @@ fn measure_gas_usage() {
     );
     println!(
         "stack multiple transactions push ({}) {}",
-        8192,
-        execute_multiple_transactions_stack_contract(8192)
+        2048,
+        execute_multiple_transactions_stack_contract(2048)
     );
     println!(
         "hamt single insert/get                  {}",
@@ -180,7 +180,7 @@ fn measure_gas_usage() {
     );
     println!(
         "hamt multiple insert/get ({})         {}",
-        8192,
-        execute_multiple_register_contract(8192)
+        2048,
+        execute_multiple_register_contract(2048)
     );
 }
