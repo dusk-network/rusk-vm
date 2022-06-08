@@ -10,5 +10,5 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 rusk-uplink = { path = "../../../rusk-uplink" }
 rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }
-rkyv = { version = "0.7.20", default-features = false, features = ["archive_le", "size_32"] }
+rkyv = { version = "0.7.29", default-features = false, features = [ "size_32"] }
 derive-new = "0.5"
