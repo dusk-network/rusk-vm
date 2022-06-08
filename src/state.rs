@@ -99,7 +99,9 @@ impl Contracts {
         &'a self,
         contract_id: &ContractId,
     ) -> Result<impl BranchRef<'a, Contract>, VMError> {
-        self.0.get(contract_id).ok_or(VMError::UnknownContract)
+        self.0
+            .get(contract_id)
+            .ok_or(VMError::UnknownContract(*contract_id))
     }
 
     /// Returns a mutable reference to the specified contracts state.
@@ -107,7 +109,9 @@ impl Contracts {
         &'a mut self,
         contract_id: &ContractId,
     ) -> Result<impl BranchRefMut<'a, Contract>, VMError> {
-        self.0.get_mut(contract_id).ok_or(VMError::UnknownContract)
+        self.0
+            .get_mut(contract_id)
+            .ok_or(VMError::UnknownContract(*contract_id))
     }
 
     /// Deploys a contract to the state, returning the address of the created
@@ -389,7 +393,7 @@ impl NetworkState {
         contract_id: &ContractId,
     ) -> Result<C, VMError> {
         self.head.get_contract(contract_id).map_or(
-            Err(VMError::UnknownContract),
+            Err(VMError::UnknownContract(*contract_id)),
             |_contract| {
                 // let mut source = Source::new((*contract).state().as_bytes());
                 // C::decode(&mut source).map_err(VMError::from_store_error)
@@ -397,7 +401,6 @@ impl NetworkState {
             },
         )
     }
-
     /// Gets module config
     pub fn get_module_config(&self) -> &ModuleConfig {
         &self.module_config

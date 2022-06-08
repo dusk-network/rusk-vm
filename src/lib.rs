@@ -10,13 +10,13 @@
 #![warn(missing_docs)]
 
 use std::collections::HashMap;
-use std::{fmt, io};
 
 mod call_context;
 mod compiler;
 mod compiler_config;
 mod contract;
 mod env;
+mod error;
 mod gas;
 mod memory;
 mod modules;
@@ -24,171 +24,13 @@ mod ops;
 mod resolver;
 mod state;
 
+pub use rusk_uplink;
 pub use state::persist::NetworkStateId;
 
-pub use rusk_uplink;
-
 pub use contract::{Contract, ContractId, ContractRef};
+pub use error::VMError;
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
-
-use thiserror::Error;
-use wasmer_vm::TrapCode;
-
-#[derive(Error)]
-/// The errors that can happen while executing the VM
-pub enum VMError {
-    /// Invalid arguments in host call
-    InvalidArguments,
-    /// The contract panicked with message in `String`
-    ContractPanic(String),
-    /// Could not find WASM memory
-    MemoryNotFound,
-    /// Error during the instrumentalization
-    InstrumentationError(modules::InstrumentationError),
-    /// Invalid ABI Call
-    InvalidABICall,
-    /// Invalid Utf8
-    InvalidUtf8,
-    /// Invalid Public key
-    InvalidEd25519PublicKey,
-    /// Invalid Signature
-    InvalidEd25519Signature,
-    /// Contract returned, not an error per se, this is how contracts return.
-    ContractReturn(i32, i32),
-    /// Contract execution ran out of gas
-    OutOfGas,
-    /// Not enough funds for call
-    NotEnoughFunds,
-    /// Contract could not be found in the state
-    UnknownContract,
-    /// WASM threw an error
-    WASMError(failure::Error),
-    /// Input output error
-    IOError(io::Error),
-    /// Invalid WASM Module
-    InvalidWASMModule,
-    /// Error from reading invalid data
-    InvalidData,
-    /// Other error from the state persistence mechanism
-    PersistenceError(String),
-    /// WASMER export error
-    WasmerExportError(wasmer::ExportError),
-    /// WASMER runtime error
-    WasmerRuntimeError(wasmer::RuntimeError),
-    /// WASMER compile error
-    WasmerCompileError(wasmer::CompileError),
-    /// WASMER trap
-    WasmerTrap(TrapCode),
-    /// WASMER instantiation error
-    WasmerInstantiationError(wasmer::InstantiationError),
-}
-
-impl From<io::Error> for VMError {
-    fn from(e: io::Error) -> Self {
-        VMError::IOError(e)
-    }
-}
-
-impl From<modules::InstrumentationError> for VMError {
-    fn from(e: modules::InstrumentationError) -> Self {
-        VMError::InstrumentationError(e)
-    }
-}
-
-impl From<gas::GasError> for VMError {
-    fn from(_: gas::GasError) -> Self {
-        // Currently the only gas error is `GasLimitExceeded`
-        VMError::OutOfGas
-    }
-}
-
-impl From<wasmer::InstantiationError> for VMError {
-    fn from(e: wasmer::InstantiationError) -> Self {
-        VMError::WasmerInstantiationError(e)
-    }
-}
-
-impl From<wasmer::ExportError> for VMError {
-    fn from(e: wasmer::ExportError) -> Self {
-        VMError::WasmerExportError(e)
-    }
-}
-
-impl From<wasmer::CompileError> for VMError {
-    fn from(e: wasmer::CompileError) -> Self {
-        VMError::WasmerCompileError(e)
-    }
-}
-
-impl From<wasmer::RuntimeError> for VMError {
-    fn from(e: wasmer::RuntimeError) -> Self {
-        let runtime_error = e.clone();
-        match e.to_trap() {
-            Some(trap_code) => VMError::WasmerTrap(trap_code),
-            _ => VMError::WasmerRuntimeError(runtime_error),
-        }
-    }
-}
-
-impl fmt::Display for VMError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            VMError::InvalidArguments => write!(f, "Invalid arguments")?,
-            VMError::ContractPanic(string) => {
-                write!(f, "Contract panic \"{}\"", string)?
-            }
-            VMError::InvalidUtf8 => write!(f, "Invalid UTF-8")?,
-            VMError::InvalidEd25519PublicKey => {
-                write!(f, "Invalid Ed25519 Public Key")?
-            }
-            VMError::InvalidEd25519Signature => {
-                write!(f, "Invalid Ed25519 Signature")?
-            }
-            VMError::ContractReturn(_, _) => write!(f, "Contract Return")?,
-            VMError::OutOfGas => write!(f, "Out of Gas error")?,
-            VMError::NotEnoughFunds => write!(f, "Not enough funds error")?,
-            VMError::WASMError(e) => write!(f, "WASM Error ({:?})", e)?,
-            VMError::MemoryNotFound => write!(f, "Memory not found")?,
-            VMError::InvalidABICall => write!(f, "Invalid ABI Call")?,
-            VMError::IOError(e) => write!(f, "Input/Output Error ({:?})", e)?,
-            VMError::UnknownContract => write!(f, "Unknown Contract")?,
-            VMError::InvalidWASMModule => write!(f, "Invalid WASM module")?,
-            VMError::InvalidData => write!(f, "Invalid data")?,
-            VMError::InstrumentationError(e) => {
-                write!(f, "Instrumentalization error {:?}", e)?
-            }
-            VMError::PersistenceError(string) => {
-                write!(f, "Persistence error \"{}\"", string)?
-            }
-            VMError::WasmerExportError(e) => match e {
-                wasmer::ExportError::IncompatibleType => {
-                    write!(f, "WASMER Export Error - incompatible export type")?
-                }
-                wasmer::ExportError::Missing(s) => {
-                    write!(f, "WASMER Export Error - missing: \"{}\"", s)?
-                }
-            },
-            VMError::WasmerRuntimeError(e) => {
-                write!(f, "WASMER Runtime Error {:?}", e)?
-            }
-            VMError::WasmerTrap(e) => write!(f, "WASMER Trap ({:?})", e)?,
-            VMError::WasmerInstantiationError(e) => {
-                write!(f, "WASMER Instantiation Error ({:?})", e)?
-            }
-            VMError::WasmerCompileError(e) => {
-                write!(f, "WASMER Compile Error {:?}", e)?
-            }
-        }
-        Ok(())
-    }
-}
-
-impl fmt::Debug for VMError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
-    }
-}
 
 /// Definition of the cost schedule and other parameterizations for wasm vm.
 #[derive(Clone, PartialEq, Eq)]
