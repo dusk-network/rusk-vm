@@ -125,9 +125,7 @@ impl Stack {
     pub fn peek(&self, n: u64) -> Option<u64> {
         self.inner.walk(Nth(n)).map(|n| match n.leaf() {
             microkelvin::MaybeArchived::Memory(u) => *u,
-            microkelvin::MaybeArchived::Archived(archived) => {
-                u64::from(archived)
-            }
+            microkelvin::MaybeArchived::Archived(archived) => *archived,
         })
     }
 

@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 microkelvin = { version = "0.16.0-rkyv", default-features = false }
 rusk-uplink = { path = "../../../rusk-uplink", default-features = false }
-rkyv = { version = "0.7", default-features = false }
+rkyv = { version = "0.7.29", default-features = false, features = [ "size_32"] }
 dusk-hamt = "0.11.0-rkyv"
 bytecheck = { version = "0.6", default-features = false }
 rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }

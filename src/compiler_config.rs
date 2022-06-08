@@ -96,7 +96,6 @@ impl CompilerConfigProvider {
                 Catch { .. } => costs.flow,
                 Throw { .. } => costs.flow,
                 Rethrow { .. } => costs.flow,
-                Unwind => costs.flow,
                 End => costs.flow,
                 Br { .. } => costs.flow,
                 BrIf { .. } => costs.flow,
@@ -611,6 +610,7 @@ impl CompilerConfigProvider {
                 F64x2ConvertLowI32x4U => regular_op_cost,
                 F32x4DemoteF64x2Zero => regular_op_cost,
                 F64x2PromoteLowF32x4 => regular_op_cost,
+                _ => regular_op_cost,
             }
         };
 
