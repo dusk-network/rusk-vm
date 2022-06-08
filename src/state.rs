@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use std::ops::Deref;
+
 use dusk_hamt::{Hamt, Lookup};
 
 use bytecheck::CheckBytes;
@@ -25,6 +27,65 @@ use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
+
+#[derive(Debug, Clone)]
+pub struct Event {
+    origin: ContractId,
+    name: String,
+    data: Vec<u8>,
+}
+
+impl Event {
+    pub(crate) fn new(origin: ContractId, name: String, data: Vec<u8>) -> Self {
+        Self { origin, name, data }
+    }
+
+    /// The Id of the smart contract originating the event.
+    pub fn origin(&self) -> ContractId {
+        self.origin
+    }
+
+    /// The name of the event.
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    /// The data included with the event.
+    pub fn data(&self) -> &[u8] {
+        self.data.as_slice()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Receipt<R> {
+    ret: R,
+    events: Vec<Event>,
+}
+
+impl<R> Receipt<R> {
+    pub(crate) fn new(ret: R, events: Vec<Event>) -> Self {
+        Self { ret, events }
+    }
+
+    /// The return of the smart contract call.
+    pub fn ret(&self) -> &R {
+        &self.ret
+    }
+
+    /// List of events emitted during smart contract execution, in order of
+    /// emission.
+    pub fn events(&self) -> &[Event] {
+        &self.events
+    }
+}
+
+impl<R> Deref for Receipt<R> {
+    type Target = R;
+
+    fn deref(&self) -> &R {
+        &self.ret
+    }
+}
 
 pub mod persist;
 
@@ -191,7 +252,7 @@ impl NetworkState {
         block_height: u64,
         query: Q,
         gas_meter: &mut GasMeter,
-    ) -> Result<Q::Return, VMError>
+    ) -> Result<Receipt<Q::Return>, VMError>
     where
         Q: Query + Serialize<StoreSerializer<OffsetLen>>,
         Q::Return: Archive,
@@ -229,11 +290,12 @@ impl NetworkState {
             .cast::<Q::Return>()
             .map_err(|_| VMError::InvalidData)?;
 
-        let deserialized: Q::Return = cast
+        let events = context.take_events();
+        let ret: Q::Return = cast
             .deserialize(&mut self.store.clone())
             .expect("Infallible");
 
-        Ok(deserialized)
+        Ok(Receipt::new(ret, events))
     }
 
     /// Transact with the contract at `target` address in the `head` state,
@@ -246,7 +308,7 @@ impl NetworkState {
         block_height: u64,
         transaction: T,
         gas_meter: &mut GasMeter,
-    ) -> Result<T::Return, VMError>
+    ) -> Result<Receipt<T::Return>, VMError>
     where
         T: Transaction + Serialize<StoreSerializer<OffsetLen>>,
         T::Return: Archive,
@@ -286,7 +348,8 @@ impl NetworkState {
             .cast::<T::Return>()
             .map_err(|_| VMError::InvalidData)?;
 
-        let deserialized: T::Return = cast
+        let events = context.take_events();
+        let ret: T::Return = cast
             .deserialize(&mut self.store.clone())
             .expect("Infallible");
 
@@ -294,7 +357,7 @@ impl NetworkState {
 
         *self = fork;
 
-        Ok(deserialized)
+        Ok(Receipt::new(ret, events))
     }
 
     /// Returns the root of the tree in the `head` state.

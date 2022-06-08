@@ -7,6 +7,7 @@
 pub mod block_height;
 pub mod call_stack;
 pub mod debug;
+pub mod emit;
 pub mod gas;
 pub mod panic;
 pub mod query;

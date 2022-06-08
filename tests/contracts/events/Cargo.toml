@@ -1,0 +1,17 @@
+[package]
+name = "events"
+version = "0.1.0"
+authors = [
+    "Eduardo Leegwater Simões <eduardo@dusk.network>",
+]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+microkelvin = { version = "0.16.0-rkyv", default-features = false }
+rusk-uplink = { path = "../../../rusk-uplink" }
+rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }
+rkyv = { version = "0.7.20", default-features = false, features = ["archive_le", "size_32"] }
+derive-new = "0.5"

@@ -53,7 +53,7 @@ fn gas_context() {
         )
         .unwrap();
 
-    let limits = network
+    let limits = &*network
         .query(contract_id, 0, gas_context::ReadGasLimits, &mut gas)
         .unwrap();
 
@@ -120,7 +120,7 @@ fn gas_context_with_call_limit() {
         )
         .unwrap();
 
-    let limits = network
+    let limits = &*network
         .query(contract_id, 0, gas_context::ReadGasLimits, &mut gas)
         .unwrap();
 

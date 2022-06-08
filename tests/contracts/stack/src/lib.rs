@@ -82,26 +82,32 @@ impl Apply<Pop> for Stack {
         self.pop()
     }
 }
+
 #[transaction]
 pub struct PopMulti {
     value: u64,
 }
+
 impl Transaction for PopMulti {
     const NAME: &'static str = "popmulti";
     type Return = u64;
 }
+
 #[apply(name = "popmulti")]
 impl Apply<PopMulti> for Stack {
     fn apply(&mut self, arg: PopMulti, _: StoreContext) -> u64 {
         self.popmulti(arg.value)
     }
 }
+
 #[transaction]
 pub struct Unarchive;
+
 impl Transaction for Unarchive {
     const NAME: &'static str = "unarchive";
     type Return = ();
 }
+
 #[apply(name = "unarchive")]
 impl Apply<Unarchive> for Stack {
     fn apply(&mut self, _: Unarchive, _: StoreContext) {
@@ -138,9 +144,11 @@ impl Stack {
             self.inner.push(i);
         }
     }
+
     pub fn pop(&mut self) -> Option<u64> {
         self.inner.pop()
     }
+
     pub fn popmulti(&mut self, value: u64) -> u64 {
         let mut sum = 0u64;
         for _ in 0..value {

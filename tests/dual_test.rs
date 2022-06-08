@@ -56,7 +56,7 @@ where
             .query(self.contract_id, 0, q, &mut gas)
             .unwrap();
 
-        assert_eq!(a, b, "Direct call and wasm transaction differ in result");
+        assert_eq!(a, *b, "Direct call and wasm transaction differ in result");
         a
     }
 
@@ -77,7 +77,7 @@ where
             .transact(self.contract_id, 0, t, &mut gas)
             .unwrap();
 
-        assert_eq!(a, b, "Direct call and wasm transaction differ in result");
+        assert_eq!(a, *b, "Direct call and wasm transaction differ in result");
         a
     }
 }
