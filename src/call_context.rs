@@ -25,6 +25,7 @@ use crate::resolver::HostImportsResolver;
 use crate::state::NetworkState;
 use crate::VMError;
 
+const SCRATCH_NAME: &str = "scratch";
 pub struct StackFrame {
     callee: ContractId,
     ret: ReturnValue,
@@ -170,11 +171,9 @@ impl<'a> CallContext<'a> {
             let run_func: NativeFunc<(u32, u32), u32> =
                 instance.exports.get_native_function(query.name())?;
 
-            let global_scratch = format!("scratch_{}", query.name());
-
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
-                .get_global(global_scratch.as_str())
+                .get_global(SCRATCH_NAME)
                 .map_err(|_| VMError::InvalidWASMModule)?
                 .get()
             {
@@ -280,11 +279,9 @@ impl<'a> CallContext<'a> {
             let run_func: NativeFunc<(u32, u32), u64> =
                 instance.exports.get_native_function(transaction.name())?;
 
-            let global_scratch = format!("scratch_{}", transaction.name());
-
             let buf_offset = if let Value::I32(ofs) = instance
                 .exports
-                .get_global(global_scratch.as_str())
+                .get_global(SCRATCH_NAME)
                 .map_err(|_| VMError::InvalidWASMModule)?
                 .get()
             {
@@ -329,11 +326,6 @@ impl<'a> CallContext<'a> {
 
             r.map(|result| {
                 let (state_written, result_written) = separate_tuple(result);
-
-                println!(
-                    "state_written, result_written {:?}",
-                    (state_written, result_written)
-                );
 
                 memory.with_slice_from(buf_offset, |mem| {
                     let new_state = &mem[..state_written as usize];

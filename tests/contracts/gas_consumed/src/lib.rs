@@ -5,15 +5,11 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Apply, Execute, Query, StoreContext, Transaction};
-use rusk_uplink_derive::{apply, execute, query, state, transaction};
+use rusk_uplink_derive::{apply, execute, init, query, state, transaction};
 
 extern crate alloc;
 
@@ -21,6 +17,8 @@ extern crate alloc;
 pub struct GasConsumed {
     value: i32,
 }
+#[init]
+fn init() {}
 
 impl GasConsumed {
     pub fn value(&self) -> i32 {

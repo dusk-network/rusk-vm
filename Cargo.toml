@@ -16,7 +16,7 @@ license = "MPL-2.0"
 wasmparser = "0.81"
 failure = "0.1"
 dusk-hamt = "0.11.0-rkyv"
-microkelvin = "0.16.0-rkyv.0"
+microkelvin = "0.16.0-rkyv"
 wasmer = "=2.0"
 wasmer-vm = "2.0"
 wasmer-compiler-singlepass = "2.0"
@@ -35,6 +35,7 @@ derive-new = "0.5"
 
 [dev-dependencies]
 criterion = "0.3"
+byteorder = "1.4"
 
 register = { path = "tests/contracts/register" }
 minimal_counter = { path = "tests/contracts/minimal_counter" }
@@ -66,4 +67,5 @@ members = [
     "tests/contracts/*",
     "rusk-uplink",
     "rusk-uplink_derive",
+    "test_runner",
 ]

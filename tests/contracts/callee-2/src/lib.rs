@@ -5,19 +5,17 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![no_std]
-#![feature(
-    core_intrinsics,
-    lang_items,
-    alloc_error_handler,
-)]
+#![feature(core_intrinsics, lang_items, alloc_error_handler)]
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{ContractId, Execute, Query, StoreContext};
-use rusk_uplink_derive::{execute, query, state};
+use rusk_uplink_derive::{execute, init, query, state};
 extern crate alloc;
 
 #[state]
 pub struct Callee2State;
+#[init]
+fn init() {}
 
 #[query(new = false)]
 pub struct Callee2Query {

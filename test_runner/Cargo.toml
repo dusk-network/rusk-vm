@@ -1,0 +1,12 @@
+[package]
+name = "setup"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rusk-vm = { path = ".." }
+counter = { path = "../tests/contracts/counter" }
+stack = { path = "../tests/contracts/stack" }
+register = { path = "../tests/contracts/register" }
+microkelvin = "0.16.0-rkyv"
+byteorder = "1.4"

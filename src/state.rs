@@ -11,6 +11,7 @@ use microkelvin::{
     BranchRef, BranchRefMut, OffsetLen, StoreRef, StoreSerializer,
 };
 use rkyv::validation::validators::DefaultValidator;
+use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{
     hash_mocker, ContractId, HostModule, Query, RawQuery, RawTransaction,
     StoreContext, Transaction,
@@ -24,7 +25,8 @@ use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
 use crate::{Schedule, VMError};
-use rkyv::{Archive, Deserialize, Serialize};
+
+pub mod persist;
 
 /// State of the contracts on the network.
 #[derive(Archive, Default, Clone)]
@@ -85,6 +87,7 @@ impl Contracts {
 /// `origin`.
 #[derive(Clone)]
 pub struct NetworkState {
+    pub(crate) staged: Contracts,
     origin: Contracts,
     head: Contracts,
     modules: HostModules,
@@ -97,6 +100,7 @@ impl NetworkState {
     pub fn new(store: StoreContext) -> Self {
         NetworkState {
             store,
+            staged: Default::default(),
             origin: Default::default(),
             head: Default::default(),
             modules: Default::default(),
@@ -110,6 +114,7 @@ impl NetworkState {
         Self {
             store,
             module_config,
+            staged: Default::default(),
             origin: Default::default(),
             head: Default::default(),
             modules: Default::default(),

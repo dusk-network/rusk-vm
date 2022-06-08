@@ -352,8 +352,9 @@ fn tx_vec() {
         .unwrap();
     assert_eq!(value, v);
 
-    let values = (0..3500).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
-    let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+    let values = (0..3501).map(|i: u32| (i % 256) as u8).collect::<Vec<u8>>();
+    let value =
+        value.wrapping_add(values.iter().fold(0u8, |s, v| s.wrapping_add(*v)));
 
     let delegate_sum = TxVecDelegateSum::new(contract_id, &values[..]);
     network
