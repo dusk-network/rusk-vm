@@ -21,6 +21,7 @@ use derive_args::*;
 
 const SCRATCH_NAME: &str = "scratch";
 const SCRATCH_SIZE: usize = 65536;
+
 #[proc_macro_attribute]
 pub fn execute(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let q_impl = parse_macro_input!(input as syn::ItemImpl);

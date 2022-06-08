@@ -99,7 +99,7 @@ impl NetworkState {
     /// Returns a new empty [`NetworkState`].
     pub fn new(store: StoreContext) -> Self {
         NetworkState {
-            store: store.clone(),
+            store,
             staged: Default::default(),
             origin: Default::default(),
             head: Default::default(),
@@ -112,7 +112,7 @@ impl NetworkState {
     pub fn with_schedule(store: StoreContext, schedule: &Schedule) -> Self {
         let module_config = ModuleConfig::from_schedule(schedule);
         Self {
-            store: store.clone(),
+            store,
             module_config,
             staged: Default::default(),
             origin: Default::default(),

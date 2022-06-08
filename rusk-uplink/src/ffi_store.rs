@@ -80,11 +80,13 @@ impl AbiStoreInner {
         let extended: &'a mut [u8] = unsafe { core::mem::transmute(bytes) };
         extended
     }
+
     fn extend(&mut self) {
         self.pages.push(Page::new());
         self.data = self.unwritten_tail();
         self.written = 0;
     }
+
     fn get(&mut self, ident: &OffsetLen) -> &[u8] {
         let offset = ident.offset();
         let len = ident.len() as usize;
