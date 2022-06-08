@@ -94,7 +94,7 @@ impl HostModules {
 
 #[derive(Error, Debug)]
 pub enum InstrumentationError {
-    #[error("gas metering injectino")]
+    #[error("gas metering injection")]
     GasMeteringInjection,
     #[error("stack height injection")]
     StackHeightInjection,
