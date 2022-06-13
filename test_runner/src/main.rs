@@ -9,9 +9,7 @@ use std::error::Error;
 use std::fmt::Display;
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 
-use crate::rusk_uplink::StoreContext;
 use byteorder::{LittleEndian, WriteBytesExt};
 use counter::*;
 use microkelvin::*;
@@ -63,20 +61,16 @@ fn initialize_counter(
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     assert_eq!(
-        network
-            .query(contract_id, 0, counter::ReadValue, &mut gas)
-            .unwrap(),
+        *network.query(contract_id, 0, ReadValue, &mut gas).unwrap(),
         99
     );
 
     network
-        .transact(contract_id, 0, counter::Increment, &mut gas)
+        .transact(contract_id, 0, Increment, &mut gas)
         .unwrap();
 
     assert_eq!(
-        network
-            .query(contract_id, 0, counter::ReadValue, &mut gas)
-            .unwrap(),
+        *network.query(contract_id, 0, ReadValue, &mut gas).unwrap(),
         100
     );
 
@@ -177,7 +171,7 @@ fn initialize_register(
         let mut secret_data: [u8; 32] = [0u8; 32];
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
-        let ii = network
+        network
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)
             .unwrap();
     }
@@ -290,9 +284,7 @@ fn confirm_counter(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     assert_eq!(
-        network
-            .query(contract_id, 0, counter::ReadValue, &mut gas)
-            .unwrap(),
+        *network.query(contract_id, 0, ReadValue, &mut gas).unwrap(),
         100
     );
 
@@ -317,7 +309,7 @@ fn confirm_stack(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..STACK_TEST_SIZE {
-        let ii = network
+        let ii = *network
             .transact(stack_contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
         assert_eq!(Some(STACK_TEST_SIZE - 1 - i), ii);
@@ -342,7 +334,7 @@ fn confirm_register(
         let mut secret_data: [u8; 32] = [0u8; 32];
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
-        let ii = network
+        let ii = *network
             .query(
                 register_contract_id,
                 0,
@@ -372,7 +364,7 @@ fn confirm_stack_and_register(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..STACK_REGISTER_TEST_SIZE {
-        let ii = network
+        let ii = *network
             .transact(stack_contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
         assert_eq!(Some(STACK_REGISTER_TEST_SIZE - 1 - i), ii);
@@ -391,7 +383,7 @@ fn confirm_stack_and_register(
         let mut secret_data: [u8; 32] = [0u8; 32];
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
-        let ii = network
+        let ii = *network
             .query(
                 register_contract_id,
                 0,
@@ -429,7 +421,7 @@ fn confirm_stack_multi(
         expected_sum += i;
     }
 
-    let sum = network
+    let sum = *network
         .transact(contract_id, 0, PopMulti::new(STACK_TEST_SIZE), &mut gas)
         .unwrap();
     assert_eq!(sum, expected_sum);

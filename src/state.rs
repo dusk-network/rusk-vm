@@ -22,7 +22,7 @@ use rusk_uplink::{
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
-use crate::contract::{Contract, ContractRef};
+use crate::contract::Contract;
 use crate::gas::GasMeter;
 use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
@@ -132,10 +132,9 @@ impl Contracts {
         contract: Contract,
         module_config: &ModuleConfig,
     ) -> Result<ContractId, VMError> {
-        self.0.insert(id, contract);
+        compile_module(contract.bytecode(), module_config)?;
 
-        let inserted_contract = self.get_contract(&id)?;
-        compile_module(inserted_contract.leaf().bytecode(), module_config)?;
+        self.0.insert(id, contract);
 
         Ok(id)
     }
