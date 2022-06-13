@@ -108,14 +108,6 @@ impl HostImportsResolver {
                         store::Hash::hash,
                     ),
                 ),
-                "gas" => namespace.insert(
-                    "gas",
-                    Function::new_native_with_env(
-                        store,
-                        env.clone(),
-                        gas::Gas::gas,
-                    ),
-                ),
                 "gas_consumed" => namespace.insert(
                     "gas_consumed",
                     Function::new_native_with_env(

@@ -44,12 +44,13 @@ impl ApplyTransaction {
         let mut query_data: AlignedVec = AlignedVec::new();
         query_data.extend_from_slice(query_memory);
 
+        let mut gas_meter = context.gas_meter()?.limited(gas_limit);
+
         let query_name = context.read_memory(name_ofs, name_len)?;
         let name =
             str::from_utf8(query_name).map_err(|_| VMError::InvalidUtf8)?;
 
         let raw_transaction = RawTransaction::from(query_data, name);
-        let mut gas_meter = context.gas_meter().limited(gas_limit);
         let context = env.get_context();
         let result =
             context.transact(contract_id, raw_transaction, &mut gas_meter)?;

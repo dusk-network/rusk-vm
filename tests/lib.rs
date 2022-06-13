@@ -468,15 +468,22 @@ fn gas_consumed_host_function_works() {
         100
     );
 
-    network
+    let ret = *network
         .query(contract_id, 0, gas_consumed::GasConsumedQuery, &mut gas)
         .expect("Query error");
 
     assert_eq!(gas.left() + gas.spent(), CALLER_GAS_LIMIT,
        "The gas left plus the gas spent should be equal to the initial gas provided
        Debug info:
-       GasMeter values: gas.left() = {}, gas.spent() = {}", gas.left(),
-    gas.spent());
+       GasMeter values: gas.left() = {}, gas.spent() = {}", gas.left(), gas.spent());
+
+    let gas_consumption_before = ret.2;
+    let gas_consumption_after = ret.3;
+    assert_ne!(gas_consumption_before, gas_consumption_after);
+
+    let gas_left_before = ret.4;
+    let gas_left_after = ret.5;
+    assert_ne!(gas_left_before, gas_left_after);
 }
 
 #[test]
