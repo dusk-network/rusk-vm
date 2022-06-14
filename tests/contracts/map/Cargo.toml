@@ -1,0 +1,15 @@
+[package]
+name = "map"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+microkelvin = "0.16.0-rkyv"
+dusk-hamt = "0.11.0-rkyv"
+rusk-uplink = { path = "../../../rusk-uplink" }
+rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }
+rkyv = { version = "0.7.29", default-features = false, features = [ "size_32"] }
+derive-new = "0.5"
