@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Place both `Contract::state` and `Contract::code` behind `microkelvin::Link` [#333]
 - Change `commit` method to commit the changes from `staged` to `head` [#302]
 - Change `register_host_module` to be an associated function
 - Replace `GasMeter::set_left(0)` with `GasMeter::exhaust()` [#308]
@@ -240,6 +241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2019-08-02
 - Initial
 
+[#333]: https://github.com/dusk-network/rusk-vm/issues/333
 [#308]: https://github.com/dusk-network/rusk-vm/issues/308
 [#302]: https://github.com/dusk-network/rusk-vm/issues/302
 [#283]: https://github.com/dusk-network/rusk-vm/issues/283

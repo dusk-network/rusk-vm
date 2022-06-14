@@ -6,7 +6,7 @@
 
 use std::mem;
 
-use microkelvin::{BranchRef, BranchRefMut};
+use microkelvin::{BranchRef, BranchRefMut, MaybeArchived};
 use rusk_uplink::{
     ContractId, RawQuery, RawTransaction, ReturnValue, StoreContext,
 };
@@ -16,7 +16,6 @@ use wasmer::{Exports, ImportObject, Instance, LazyInit, Module, NativeFunc};
 use wasmer_middlewares::metering::set_remaining_points;
 use wasmer_types::Value;
 
-use crate::contract::ContractRef;
 use crate::env::Env;
 use crate::gas::GasMeter;
 use crate::memory::WasmerMemory;
@@ -144,10 +143,13 @@ impl<'a> CallContext<'a> {
             let contract = self.state.get_contract(&target)?;
             let contract = contract.leaf();
 
-            let module = compile_module(
-                contract.bytecode(),
-                self.state.get_module_config(),
-            )?;
+            let bytecode = match contract {
+                MaybeArchived::Memory(m) => m.bytecode(),
+                MaybeArchived::Archived(a) => a.bytecode(&self.store),
+            };
+
+            let module =
+                compile_module(bytecode, self.state.get_module_config())?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -199,7 +201,11 @@ impl<'a> CallContext<'a> {
 
             let (written_state, written_data) =
                 memory.with_mut_slice_from(buf_offset, |mem| {
-                    let state = contract.state();
+                    let state = match contract {
+                        MaybeArchived::Memory(m) => m.state(),
+                        MaybeArchived::Archived(a) => a.state(&self.store),
+                    };
+
                     let len = state.len() as usize;
 
                     mem[0..len].copy_from_slice(state);
