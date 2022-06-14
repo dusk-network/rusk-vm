@@ -9,7 +9,9 @@ use std::error::Error;
 use std::fmt::Display;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
+use crate::rusk_uplink::StoreContext;
 use byteorder::{LittleEndian, WriteBytesExt};
 use counter::*;
 use microkelvin::*;
@@ -18,6 +20,7 @@ use rusk_vm::*;
 use stack::*;
 
 const STACK_TEST_SIZE: u64 = 5000;
+const CONFIRM_STACK_WITH_CONSOLIDATION: bool = true;
 const REGISTER_TEST_SIZE: u64 = 5000;
 const STACK_REGISTER_TEST_SIZE: u64 = 5000;
 
@@ -271,8 +274,17 @@ fn initialize_stack_multi(
     Ok(())
 }
 
-fn confirm_counter(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    let mut network = NetworkState::restore_from_disk(source_path.as_ref())
+fn confirm_counter(
+    source_path: impl AsRef<str>,
+    target_path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    NetworkState::consolidate_to_disk(
+        PathBuf::from(source_path.as_ref()),
+        PathBuf::from(target_path.as_ref()),
+        &mut gas,
+    )?;
+    let mut network = NetworkState::restore_from_disk(target_path.as_ref())
         .map_err(|_| PersistE)?;
 
     let contract_id_path =
@@ -291,7 +303,54 @@ fn confirm_counter(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn confirm_stack(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
+fn remove_disk_store(path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
+    let _ = Command::new("rm")
+        .arg(
+            PathBuf::from(path.as_ref())
+                .join("storage")
+                .to_str()
+                .expect("Path join works"),
+        )
+        .output()?;
+    Ok(())
+}
+fn create_directory(path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
+    let _output = Command::new("mkdir")
+        .arg(path.as_ref())
+        .output()
+        .expect("failed to execute process");
+    Ok(())
+}
+fn create_disk_store(
+    path: impl AsRef<str>,
+) -> Result<StoreContext, Box<dyn Error>> {
+    create_directory(path.as_ref())?;
+    let store = StoreRef::new(HostStore::with_file(path.as_ref())?);
+    Ok(store)
+}
+fn move_stack_elements_to_memory(stack: &mut Stack) {
+    /*
+    note - brute force method to bring all leaves to memory
+     */
+    // let mut temp_store: Vec<u64> = Vec::new();
+    // for i in 0..N {
+    //     temp_store.push(stack.pop().unwrap());
+    // }
+    // temp_store.reverse();
+    // for i in temp_store {
+    //     stack.push(i);
+    // }
+    /*
+    note - simpler method to bring all leaves to memory
+     */
+    let branch_mut = stack.inner.walk_mut(All).expect("Some(Branch)");
+    for leaf in branch_mut {
+        *leaf += 0;
+    }
+}
+fn confirm_stack_without_consolidation(
+    source_path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
     let source_store =
         StoreRef::new(HostStore::with_file(source_path.as_ref())?);
     let file_path = PathBuf::from(source_path.as_ref()).join("persist_id");
@@ -305,23 +364,112 @@ fn confirm_stack(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
     let buf = fs::read(&contract_id_path)?;
 
-    let stack_contract_id = ContractId::from(buf);
+    let contract_id = ContractId::from(buf);
 
+    const N: u64 = STACK_TEST_SIZE;
+    /*
+    we need to deserialize contract state so that it is fully in memory for store1
+    then we need to serialize it to store2
+     */
+    let mut stack_state = network
+        .deserialize_from_contract_state::<Stack>(source_store, contract_id)?;
+    for i in 0..N {
+        assert_eq!(Some(i), stack_state.peek(i));
+    }
+    // return Ok(()); // return here for big storage footprint
+    remove_disk_store(source_path.as_ref())?;
+    let store2 = create_disk_store(source_path.as_ref())?;
+    /*
+    enforce moving of the entire state to memory
+     */
+    move_stack_elements_to_memory(&mut stack_state);
+    /*
+    serialize the state and put it into the contract
+     */
+    network.serialize_into_contract_state(
+        store2.clone(),
+        contract_id,
+        &stack_state,
+    )?;
+    network.commit();
+    /*
+    now we can persist everything
+     */
+    store2.persist().expect("Error in persistence");
+    let persist_id2 = network
+        .persist(store2.clone())
+        .expect("Error in persistence");
+    /*
+    we can now restore and make sure that the state has been preserved
+     */
+    let mut network = NetworkState::new(store2.clone())
+        .restore(store2.clone(), persist_id2)
+        .map_err(|_| PersistE)?;
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    for i in 0..N {
+        let ii = network
+            .transact(contract_id, 0, Pop::new(), &mut gas)
+            .unwrap();
+        if (N > 1000) && (i % 100 == 0) {
+            println!("checking pop ===> {} {:?}", N - 1 - i, ii);
+        }
+        assert_eq!(Some(N - 1 - i), ii);
+    }
+    /*
+    ok - state has been preserved using much less storage as the entire history is now gone
+     */
+    Ok(())
+}
+fn confirm_stack_with_consolidation(
+    source_path: impl AsRef<str>,
+    target_path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    NetworkState::consolidate_to_disk(
+        PathBuf::from(source_path.as_ref()),
+        PathBuf::from(target_path.as_ref()),
+        &mut gas,
+    )?;
+    /*
+    we can now restore and make sure that the state has been preserved
+     */
+    let mut network = NetworkState::restore_from_disk(target_path.as_ref())
+        .map_err(|_| PersistE)?;
+    let contract_id_path =
+        PathBuf::from(source_path.as_ref()).join("stack_contract_id");
+    let buf = fs::read(&contract_id_path)?;
+    let contract_id = ContractId::from(buf);
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..STACK_TEST_SIZE {
-        let ii = *network
-            .transact(stack_contract_id, 0, Pop::new(), &mut gas)
+        let ii = network
+            .transact(contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
+        if (STACK_TEST_SIZE > 1000) && (i % 100 == 0) {
+            println!("checking pop ===> {} {:?}", STACK_TEST_SIZE - 1 - i, ii);
+        }
         assert_eq!(Some(STACK_TEST_SIZE - 1 - i), ii);
     }
+    /*
+    ok - state has been preserved using much less storage
+     */
 
     Ok(())
 }
 
 fn confirm_register(
     source_path: impl AsRef<str>,
+    target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let mut network = NetworkState::restore_from_disk(source_path.as_ref())
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    NetworkState::consolidate_to_disk(
+        PathBuf::from(source_path.as_ref()),
+        PathBuf::from(target_path.as_ref()),
+        &mut gas,
+    )?;
+    /*
+    we can now restore and make sure that the state has been preserved
+     */
+    let mut network = NetworkState::restore_from_disk(target_path.as_ref())
         .map_err(|_| PersistE)?;
 
     let contract_id_register_path =
@@ -342,15 +490,30 @@ fn confirm_register(
                 &mut gas,
             )
             .unwrap();
-        assert_eq!(i as u32, ii);
+        if (REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
+            println!("checking num secrets (Hamt) ===> {} {} ", i, ii);
+        }
     }
+    /*
+    ok - state has been preserved using much less storage
+     */
     Ok(())
 }
 
 fn confirm_stack_and_register(
     source_path: impl AsRef<str>,
+    target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let mut network = NetworkState::restore_from_disk(source_path.as_ref())
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    NetworkState::consolidate_to_disk(
+        PathBuf::from(source_path.as_ref()),
+        PathBuf::from(target_path.as_ref()),
+        &mut gas,
+    )?;
+    /*
+    we can now restore and make sure that the state has been preserved
+     */
+    let mut network = NetworkState::restore_from_disk(target_path.as_ref())
         .map_err(|_| PersistE)?;
 
     /*
@@ -364,9 +527,16 @@ fn confirm_stack_and_register(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..STACK_REGISTER_TEST_SIZE {
-        let ii = *network
+        let ii = network
             .transact(stack_contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
+        if (STACK_REGISTER_TEST_SIZE > 1000) && (ii.unwrap() % 100 == 0) {
+            println!(
+                "checking pop (NStack) ===> {} {:?}",
+                STACK_REGISTER_TEST_SIZE - 1 - i,
+                ii
+            );
+        }
         assert_eq!(Some(STACK_REGISTER_TEST_SIZE - 1 - i), ii);
     }
 
@@ -391,7 +561,9 @@ fn confirm_stack_and_register(
                 &mut gas,
             )
             .unwrap();
-        assert_eq!(i as u32, ii);
+        if (STACK_REGISTER_TEST_SIZE > 1000) && (i % 100 == 0) {
+            println!("checking num secrets (Hamt) ===> {} {} ", i, ii);
+        }
     }
 
     Ok(())
@@ -430,20 +602,27 @@ fn confirm_stack_multi(
 }
 
 fn initialize(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    // initialize_counter(source_path.as_ref())?;
-    // initialize_stack(source_path.as_ref())?;
-    // initialize_register(source_path.as_ref())?;
-    // initialize_stack_and_register(source_path.as_ref())?;
-    // initialize_stack_multi(source_path.as_ref())?;
+    // initialize_counter(source_path)?;
+    // initialize_stack(source_path)?;
+    // initialize_register(source_path)?;
+    initialize_stack_and_register(source_path)?;
+    // initialize_stack_multi(source_path)?;
     Ok(())
 }
 
-fn confirm(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    // confirm_counter(source_path.as_ref())?;
-    // confirm_stack(source_path.as_ref())?;
-    // confirm_register(source_path.as_ref())?;
-    // confirm_stack_and_register(source_path.as_ref())?;
-    // confirm_stack_multi(source_path.as_ref())?;
+fn confirm(
+    source_path: impl AsRef<str>,
+    target_path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
+    // confirm_counter(source_path, target_path)?;
+    // if CONFIRM_STACK_WITH_CONSOLIDATION {
+    //     confirm_stack_with_consolidation(source_path, target_path)?;
+    // } else {
+    //     confirm_stack_without_consolidation(source_path)?;
+    // }
+    // confirm_register(source_path, target_path)?;
+    confirm_stack_and_register(source_path, target_path)?;
+    // confirm_stack_multi(source_path)?;
     Ok(())
 }
 
@@ -458,7 +637,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match &*args[1] {
         "initialize" => initialize(source_path),
-        "confirm" => confirm(source_path),
+        "confirm" => {
+            let target_path = args[3].clone();
+            confirm(source_path, target_path)
+        }
         _ => Err(Box::new(IllegalArg)),
     }
 }
