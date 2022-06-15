@@ -26,7 +26,7 @@ mod state;
 pub use rusk_uplink;
 pub use state::persist::NetworkStateId;
 
-pub use config::{Config, OpCosts};
+pub use config::{Config, HostCosts, OpCosts};
 pub use contract::{Contract, ContractId};
 pub use error::VMError;
 pub use gas::{Gas, GasMeter};

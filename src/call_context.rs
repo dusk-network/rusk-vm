@@ -17,12 +17,12 @@ use wasmer_middlewares::metering::set_remaining_points;
 use wasmer_types::Value;
 
 use crate::env::Env;
-use crate::gas::GasMeter;
+use crate::gas::{Gas, GasMeter};
 use crate::memory::WasmerMemory;
 use crate::modules::compile_module;
 use crate::resolver::HostImportsResolver;
 use crate::state::{Event, NetworkState};
-use crate::VMError;
+use crate::{Config, VMError};
 
 const SCRATCH_NAME: &str = "scratch";
 pub struct StackFrame {
@@ -404,6 +404,20 @@ impl<'a> CallContext<'a> {
         gas_meter.update(instance, 0)?;
 
         Ok(&self.top().gas_meter)
+    }
+    /// Charge gas to the meter in the topmost stack frame.
+    pub fn charge_gas(&mut self, gas: Gas) -> Result<(), VMError> {
+        let frame = &mut self.top_mut();
+        let instance = &frame.instance;
+        let gas_meter = &mut frame.gas_meter;
+
+        gas_meter.update(instance, gas)?;
+
+        Ok(())
+    }
+
+    pub fn config(&self) -> &'static Config {
+        self.state.config()
     }
 
     pub fn top(&self) -> &StackFrame {

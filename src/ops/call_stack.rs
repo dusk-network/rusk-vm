@@ -15,8 +15,12 @@ impl Callee {
     pub fn callee(env: &Env, result_ofs: i32) -> Result<(), VMError> {
         trace!("Executing 'callee' host function");
 
-        let _result_ofs = result_ofs as usize;
         let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.callee)?;
+
+        let _result_ofs = result_ofs as usize;
         let callee = *context.callee();
 
         context.write_memory(callee.as_bytes(), result_ofs as u64)
@@ -29,8 +33,12 @@ impl Caller {
     pub fn caller(env: &Env, result_ofs: i32) -> Result<(), VMError> {
         trace!("Executing 'caller' host function");
 
-        let _result_ofs = result_ofs as usize;
         let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.caller)?;
+
+        let _result_ofs = result_ofs as usize;
         let caller = *context.caller();
 
         context.write_memory(caller.as_bytes(), result_ofs as u64)

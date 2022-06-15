@@ -4,9 +4,108 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use counter::Counter;
+use block_height::{BlockHeight, ReadBlockHeight};
+use counter::{Counter, ReadValue};
+use delegator::{Delegator, QueryForwardData};
 use microkelvin::{HostStore, StoreRef};
-use rusk_vm::{Config, Contract, GasMeter, NetworkState, OpCosts};
+use rusk_vm::{Config, Contract, GasMeter, HostCosts, NetworkState, OpCosts};
+
+// host fn cost should dominate for proper testing
+const HOST_FN_COST: u64 = 1_000_000_000;
+const GAS_LIMIT: u64 = 10 * HOST_FN_COST;
+
+const HIGH_HOST_COST_CONFIG: Config = Config {
+    host_costs: HostCosts {
+        query: HOST_FN_COST,
+        block_height: HOST_FN_COST,
+        ..HostCosts::new()
+    },
+    ..Config::new()
+};
+
+fn execute_block_height_with_config(config: &'static Config) -> u64 {
+    let block_height = BlockHeight;
+
+    let block_height_code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/block_height.wasm"
+    );
+
+    let store = StoreRef::new(HostStore::new());
+    let mut network = NetworkState::with_config(store.clone(), config);
+
+    let block_height_contract =
+        Contract::new(&block_height, block_height_code.to_vec(), &store);
+
+    let block_height_id = network.deploy(block_height_contract).unwrap();
+    let mut gas = GasMeter::with_limit(GAS_LIMIT);
+
+    network
+        .query(block_height_id, 0, ReadBlockHeight, &mut gas)
+        .unwrap();
+
+    gas.spent()
+}
+
+#[test]
+fn block_height_host_cost() {
+    let cheap = execute_block_height_with_config(&DEFAULT_CONFIG);
+    let expensive = execute_block_height_with_config(&HIGH_HOST_COST_CONFIG);
+
+    assert_eq!(
+        expensive,
+        cheap + HIGH_HOST_COST_CONFIG.host_costs.block_height
+            - DEFAULT_CONFIG.host_costs.block_height
+    );
+}
+
+fn execute_counter_delegation_with_config(config: &'static Config) -> u64 {
+    let counter = Counter::new(0);
+    let delegator = Delegator;
+
+    let counter_code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
+    );
+    let delegator_code = include_bytes!(
+        "../target/wasm32-unknown-unknown/release/delegator.wasm"
+    );
+
+    let store = StoreRef::new(HostStore::new());
+    let mut network = NetworkState::with_config(store.clone(), config);
+
+    let counter_contract =
+        Contract::new(&counter, counter_code.to_vec(), &store);
+    let delegator_contract =
+        Contract::new(&delegator, delegator_code.to_vec(), &store);
+
+    let counter_id = network.deploy(counter_contract).unwrap();
+    let delegator_id = network.deploy(delegator_contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(GAS_LIMIT);
+
+    network
+        .query(
+            delegator_id,
+            0,
+            QueryForwardData::new(counter_id, &[], "read_value"),
+            &mut gas,
+        )
+        .unwrap();
+
+    gas.spent()
+}
+
+#[test]
+fn inter_contract_host_call_cost() {
+    let cheap = execute_counter_delegation_with_config(&DEFAULT_CONFIG);
+    let expensive =
+        execute_counter_delegation_with_config(&HIGH_HOST_COST_CONFIG);
+
+    assert_eq!(
+        expensive,
+        cheap + HIGH_HOST_COST_CONFIG.host_costs.query
+            - DEFAULT_CONFIG.host_costs.query
+    );
+}
 
 fn execute_contract_with_config(config: &'static Config) -> u64 {
     let counter = Counter::new(99);
@@ -27,7 +126,7 @@ fn execute_contract_with_config(config: &'static Config) -> u64 {
         .expect("Transaction error");
 
     network
-        .query(contract_id, 0, counter::ReadValue, &mut gas)
+        .query(contract_id, 0, ReadValue, &mut gas)
         .expect("Query error");
 
     gas.spent()

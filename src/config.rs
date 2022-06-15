@@ -29,6 +29,9 @@ pub struct Config {
 
     /// Cost per instruction type
     pub op_costs: OpCosts,
+
+    /// Cost per host function call
+    pub host_costs: HostCosts,
 }
 
 impl Config {
@@ -40,6 +43,7 @@ impl Config {
             max_memory_pages: 16384,
             has_metering: true,
             op_costs: OpCosts::new(),
+            host_costs: HostCosts::new(),
         }
     }
 }
@@ -111,6 +115,51 @@ impl OpCosts {
 }
 
 impl Default for OpCosts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct HostCosts {
+    pub block_height: Gas,
+    pub callee: Gas,
+    pub caller: Gas,
+    pub debug: Gas,
+    pub emit: Gas,
+    pub gas_consumed: Gas,
+    pub gas_left: Gas,
+    pub panic: Gas,
+    pub get: Gas,
+    pub put: Gas,
+    pub hash: Gas,
+    pub query: Gas,
+    pub transact: Gas,
+}
+
+impl HostCosts {
+    /// Creates a new [`HostCosts`] with default values
+    pub const fn new() -> Self {
+        Self {
+            block_height: 1,
+            callee: 1,
+            caller: 1,
+            debug: 1,
+            emit: 1,
+            gas_consumed: 1,
+            gas_left: 1,
+            panic: 1,
+            get: 1,
+            put: 1,
+            hash: 1,
+            query: 1,
+            transact: 1,
+        }
+    }
+}
+
+impl Default for HostCosts {
     fn default() -> Self {
         Self::new()
     }

@@ -23,6 +23,9 @@ impl Get {
         trace!("Executing 'get' host function");
         let context = env.get_context();
 
+        let config = context.config();
+        context.charge_gas(config.host_costs.get)?;
+
         let id = OffsetLen::new(ofs, len);
 
         let store = env.store();
@@ -39,6 +42,11 @@ pub struct Put;
 impl Put {
     pub fn put(env: &Env, mem_ofs: i32, len: i32) -> Result<u64, VMError> {
         trace!("Executing 'put' host function");
+        let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.put)?;
+
         let bytes = env
             .get_context()
             .read_memory(mem_ofs as u64, len as usize)?;
@@ -60,6 +68,9 @@ impl Hash {
         let len = len as usize;
         let ret = ret as u64;
         let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.hash)?;
 
         let mem = context.read_memory(ofs, len)?;
         let hash = mem.to_vec();

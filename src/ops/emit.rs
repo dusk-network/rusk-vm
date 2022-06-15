@@ -22,13 +22,17 @@ impl Emit {
     ) -> Result<(), VMError> {
         trace!("Executing 'emit' host function");
 
+        let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.emit)?;
+
         let data_ofs = data_ofs as u64;
         let data_len = data_len as usize;
 
         let name_ofs = name_ofs as u64;
         let name_len = name_len as usize;
 
-        let context = env.get_context();
         let origin = *context.callee();
 
         let data_memory = context.read_memory(data_ofs, data_len)?;

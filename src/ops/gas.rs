@@ -17,6 +17,9 @@ impl GasConsumed {
 
         let context = env.get_context();
 
+        let config = context.config();
+        context.charge_gas(config.host_costs.gas_consumed)?;
+
         Ok(context.gas_meter()?.spent())
     }
 }
@@ -28,6 +31,10 @@ impl GasLeft {
         trace!("Executing 'gas_left' host function");
 
         let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.gas_left)?;
+
         let gas_left = context.gas_meter()?.left();
         Ok(gas_left)
     }

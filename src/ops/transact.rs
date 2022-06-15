@@ -28,13 +28,16 @@ impl ApplyTransaction {
     ) -> Result<u64, VMError> {
         trace!("Executing 'query' host function");
 
+        let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.transact)?;
+
         let contract_id_ofs = contract_id_ofs as u64;
         let transact_ofs = transact_ofs as u64;
         let transact_len = transact_len as usize;
         let name_ofs = name_ofs as u64;
         let name_len = name_len as usize;
-
-        let context = env.get_context();
 
         let contract_id_memory =
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;
