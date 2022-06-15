@@ -17,6 +17,7 @@ use thiserror::Error;
 use crate::contract::Contract;
 use crate::state::{Contracts, NetworkState};
 use crate::VMError;
+
 /// An error that can happen when persisting structures to disk
 #[derive(Error, Debug)]
 pub enum PersistError {
@@ -57,7 +58,8 @@ impl NetworkStateId {
 impl NetworkState {
     const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
 
-    /// Persists the origin contracts stored on the [`NetworkState`]
+    /// Persists the origin contracts stored on the [`NetworkState`], together
+    /// with their configuration
     pub fn persist(
         &self,
         store: StoreRef<OffsetLen>,
@@ -91,8 +93,8 @@ impl NetworkState {
         Ok(persistence_id)
     }
 
-    /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
-    /// contracts of the entire blockchain state.
+    /// Given a [`NetworkStateId`] restores both [`Hamt`]s which store the
+    /// contract - the entire blockchain state - together with configuration.
     pub fn restore(
         mut self,
         store: StoreRef<OffsetLen>,
