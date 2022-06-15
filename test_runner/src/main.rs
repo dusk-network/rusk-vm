@@ -124,6 +124,7 @@ fn initialize_stack(
 
     network.commit();
 
+    println!("initialize stack - persist to disk");
     network.persist_to_disk(store, PathBuf::from(source_path.as_ref()))?;
 
     let contract_id_path =
@@ -463,6 +464,7 @@ fn confirm_stack2(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
+    println!("confirm stack - consolidate to disk");
     NetworkState::consolidate_to_disk(
         PathBuf::from(source_path.as_ref()),
         PathBuf::from(target_path.as_ref()),
@@ -649,9 +651,9 @@ fn confirm_stack_multi(
 
 fn initialize(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     // initialize_counter(source_path)?;
-    // initialize_stack(source_path)?;
+    initialize_stack(source_path)?;
     // initialize_register(source_path)?;
-    initialize_stack_and_register(source_path)?;
+    // initialize_stack_and_register(source_path)?;
     // initialize_stack_multi(source_path)?;
     Ok(())
 }
@@ -661,13 +663,13 @@ fn confirm(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     // confirm_counter(source_path, target_path)?;
-    // if CONFIRM_STACK_METHOD == 2 {
-    //     confirm_stack2(source_path, target_path)?;
-    // } else {
-    //     confirm_stack1(source_path)?;
-    // }
+    if CONFIRM_STACK_METHOD == 2 {
+        confirm_stack2(source_path, target_path)?;
+    } else {
+        confirm_stack1(source_path)?;
+    }
     // confirm_register(source_path, target_path)?;
-    confirm_stack_and_register(source_path, target_path)?;
+    // confirm_stack_and_register(source_path, target_path)?;
     // confirm_stack_multi(source_path)?;
     Ok(())
 }

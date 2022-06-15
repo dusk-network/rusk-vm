@@ -58,6 +58,8 @@ impl NetworkState {
     ) -> Result<NetworkStateId, io::Error> {
         let head_stored = store.store(&self.head.0);
         let origin_stored = store.store(&self.origin.0);
+        println!("head_stored offslen={:?}", head_stored.ident().clone().erase());
+        println!("origin_stored offslen={:?}", origin_stored.ident().clone().erase());
         store.persist().map_err(|_| {
             io::Error::new(
                 ErrorKind::Other,
