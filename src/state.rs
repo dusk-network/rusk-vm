@@ -142,6 +142,11 @@ impl NetworkState {
         }
     }
 
+    /// Returns store context
+    pub fn get_store_ref(&self) -> StoreContext {
+        self.store.clone()
+    }
+
     /// Returns a reference to the specified contracts state in the `head`
     /// state.
     pub fn get_contract<'a>(

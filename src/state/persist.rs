@@ -30,7 +30,9 @@ pub struct NetworkStateId {
 
 impl NetworkStateId {
     /// Read from the given path a [`NetworkStateId`]
-    pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, VMError> {
+    pub fn read<P>(path: P) -> Result<Self, VMError>
+    where P: AsRef<Path>
+    {
         let buf = fs::read(&path)?;
         // let id: <NetworkStateId as Archive>::Archived = unsafe {
         // *archived_root::<NetworkStateId>(buf.as_slice()) };
@@ -40,7 +42,9 @@ impl NetworkStateId {
     }
 
     /// Write to the given path a [`NetworkStateId`]
-    pub fn write<P: AsRef<Path>>(&self, path: P) -> Result<(), VMError> {
+    pub fn write<P>(&self, path: P) -> Result<(), VMError>
+    where P: AsRef<Path>
+    {
         let mut serializer = AllocSerializer::<0>::default();
         serializer.serialize_value(self).unwrap();
         let bytes = serializer.into_serializer().into_inner();
@@ -54,7 +58,9 @@ impl NetworkState {
 
     /// Persists the state to disk
     /// todo: change VMError to PersistError when merging
-    pub fn persist<P: AsRef<Path>>(&mut self, path: P) -> Result<(), VMError> {
+    pub fn persist<P>(&mut self, path: P) -> Result<(), VMError>
+    where P: AsRef<Path>
+    {
         let persistence_id = self
             .persist_store(self.store.clone())
             .expect("Error in persistence");
@@ -68,15 +74,14 @@ impl NetworkState {
 
     /// Compact the state to disk
     /// todo: change VMError to PersistError when merging
-    pub fn compact<P: AsRef<Path>>(
-        path: P,
+    pub fn compact<P>(
+        from_path: P,
+        to_path: P,
         gas_meter: &mut GasMeter,
-    ) -> Result<PathBuf, VMError> {
-        let target_path = path.as_ref().to_str().unwrap();
-        let new_target_path = format!("{}-2", target_path);
-        let new_target_path = Path::new(new_target_path.as_str());
-        NetworkState::consolidate_to_disk(path, new_target_path, gas_meter)?;
-        Ok(new_target_path.to_path_buf())
+    ) -> Result<(), VMError>
+    where P: AsRef<Path> {
+        NetworkState::consolidate_to_disk(from_path, to_path, gas_meter)?;
+        Ok(())
     }
 
     /// Persists the origin contracts stored on the [`NetworkState`]
@@ -107,11 +112,13 @@ impl NetworkState {
     }
 
     /// Persists the state to disk along with persistence id
-    pub fn persist_to_disk<P: AsRef<Path>>(
+    pub fn persist_to_disk<P>(
         &self,
         store: StoreRef<OffsetLen>,
         store_path: P,
-    ) -> Result<NetworkStateId, VMError> {
+    ) -> Result<NetworkStateId, VMError>
+    where P: AsRef<Path>
+    {
         let persistence_id =
             self.persist_store(store).expect("Error in persistence");
 
@@ -125,11 +132,13 @@ impl NetworkState {
 
     /// Consolidates the state to disc,
     /// given the source disc path.
-    pub fn consolidate_to_disk(
-        source_store_path: impl AsRef<Path>,
-        target_store_path: impl AsRef<Path>,
+    pub fn consolidate_to_disk<P>(
+        source_store_path: P,
+        target_store_path: P,
         gas_meter: &mut GasMeter,
-    ) -> Result<NetworkStateId, VMError> {
+    ) -> Result<NetworkStateId, VMError>
+    where P: AsRef<Path>
+    {
         let source_store =
             StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
         let target_store =
@@ -160,8 +169,13 @@ impl NetworkState {
 
     /// Restores state from disk
     /// todo: change VMError to PersistError when merging
-    pub fn restore<P: AsRef<Path>>(path: P) -> Result<NetworkState, VMError> {
+    pub fn restore<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path> {
         NetworkState::restore_from_disk(path).map_err(|e| e.into())
+    }
+
+    /// Creates state from disk
+    pub fn create<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path> {
+        NetworkState::create_from_disk(path).map_err(|e| e.into())
     }
 
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
@@ -201,9 +215,11 @@ impl NetworkState {
 
     /// Restores network state
     /// given source disk path.
-    pub fn restore_from_disk<P: AsRef<Path>>(
+    pub fn restore_from_disk<P>(
         source_store_path: P,
-    ) -> Result<Self, io::Error> {
+    ) -> Result<Self, io::Error>
+    where P: AsRef<Path>
+    {
         let store =
             StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
         let file_path = source_store_path
@@ -217,6 +233,18 @@ impl NetworkState {
         })?;
         NetworkState::new(store.clone())
             .restore_from_store(store, persistence_id)
+    }
+
+    /// Creates network state
+    /// given source disk path.
+    pub fn create_from_disk<P>(
+        source_store_path: P,
+    ) -> Result<Self, io::Error>
+    where P: AsRef<Path>
+    {
+        let store =
+            StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
+        Ok(NetworkState::new(store))
     }
 
     /// Store contracts' states

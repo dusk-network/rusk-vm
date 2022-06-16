@@ -2,13 +2,12 @@
 
 ## NetworkState Instance Methods
 
-- pub fn persist<P: AsRef<Path>>(&mut self, path: P) -> Result<(), VMError>
+- `pub fn persist<P>(&mut self, path: P) -> Result<(), VMError> where P: AsRef<Path>`
 
 ## NetworkState Static Constructor Methods
-
-- pub fn compact<P: AsRef<Path>>(path: P, gas_meter: &mut GasMeter) -> Result<PathBuf, VMError>
-
-- pub fn restore<P: AsRef<Path>>(path: P) -> Result<NetworkState, VMError>
+- `pub fn create<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path>`
+- `pub fn restore<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path>`
+- `pub fn compact<P>(from_path: P, to_path: P, gas_meter: &mut GasMeter) -> Result<(), VMError> where P: AsRef<Path>`
 
 ## Notes
 

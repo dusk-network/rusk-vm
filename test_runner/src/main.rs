@@ -96,16 +96,15 @@ fn initialize_counter(
 fn initialize_stack(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
     let stack = Stack::new();
 
     let code = include_bytes!(
         "../../target/wasm32-unknown-unknown/release/stack.wasm"
     );
 
-    let contract = Contract::new(&stack, code.to_vec(), &store);
+    let mut network = NetworkState::create(source_path.as_ref())?;
 
-    let mut network = NetworkState::new(store.clone());
+    let contract = Contract::new(&stack, code.to_vec(), &network.get_store_ref());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -502,14 +501,14 @@ fn confirm_stack2(
 
 fn confirm_stack3(
     source_path: impl AsRef<str>,
-    _target_path: impl AsRef<str>,
+    target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
     println!("confirm stack 3 - consolidate to disk");
 
-    let new_path = NetworkState::compact(source_path.as_ref(), &mut gas)?;
+    NetworkState::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
 
-    let mut network = NetworkState::restore(new_path).map_err(|_| PersistE)?;
+    let mut network = NetworkState::restore(target_path.as_ref()).map_err(|_| PersistE)?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
