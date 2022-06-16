@@ -11,10 +11,11 @@ use microkelvin::{
 use rkyv::ser::{serializers::AllocSerializer, Serializer};
 use rkyv::{archived_root, Archive, Deserialize, Infallible, Serialize};
 use rusk_uplink::ContractId;
+use std::borrow::Borrow;
 use std::fs;
 use std::io;
 use std::io::ErrorKind;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::contract::Contract;
 use crate::state::{Contracts, NetworkState};
@@ -51,15 +52,48 @@ impl NetworkStateId {
 impl NetworkState {
     const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
 
+    /// Persists the state to disk
+    /// todo: change VMError to PersistError when merging
+    pub fn persist<P: AsRef<Path>>(&mut self, path: P) -> Result<(), VMError> {
+        let persistence_id = self
+            .persist_store(self.store.clone())
+            .expect("Error in persistence");
+
+        let file_path = path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
+
+        persistence_id.write(file_path)?;
+
+        Ok(())
+    }
+
+    /// Compact the state to disk
+    /// todo: change VMError to PersistError when merging
+    pub fn compact<P: AsRef<Path>>(
+        path: P,
+        gas_meter: &mut GasMeter,
+    ) -> Result<PathBuf, VMError> {
+        let target_path = path.as_ref().to_str().unwrap();
+        let new_target_path = format!("{}-2", target_path);
+        let new_target_path = Path::new(new_target_path.as_str());
+        NetworkState::consolidate_to_disk(path, new_target_path, gas_meter)?;
+        Ok(new_target_path.to_path_buf())
+    }
+
     /// Persists the origin contracts stored on the [`NetworkState`]
-    pub fn persist(
+    pub fn persist_store(
         &self,
         store: StoreRef<OffsetLen>,
     ) -> Result<NetworkStateId, io::Error> {
         let head_stored = store.store(&self.head.0);
         let origin_stored = store.store(&self.origin.0);
-        println!("head_stored offslen={:?}", head_stored.ident().clone().erase());
-        println!("origin_stored offslen={:?}", origin_stored.ident().clone().erase());
+        println!(
+            "head_stored offslen={:?}",
+            head_stored.ident().clone().erase()
+        );
+        println!(
+            "origin_stored offslen={:?}",
+            origin_stored.ident().clone().erase()
+        );
         store.persist().map_err(|_| {
             io::Error::new(
                 ErrorKind::Other,
@@ -78,7 +112,8 @@ impl NetworkState {
         store: StoreRef<OffsetLen>,
         store_path: P,
     ) -> Result<NetworkStateId, VMError> {
-        let persistence_id = self.persist(store).expect("Error in persistence");
+        let persistence_id =
+            self.persist_store(store).expect("Error in persistence");
 
         let file_path =
             store_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
@@ -90,9 +125,9 @@ impl NetworkState {
 
     /// Consolidates the state to disc,
     /// given the source disc path.
-    pub fn consolidate_to_disk<P: AsRef<Path>>(
-        source_store_path: P,
-        target_store_path: P,
+    pub fn consolidate_to_disk(
+        source_store_path: impl AsRef<Path>,
+        target_store_path: impl AsRef<Path>,
         gas_meter: &mut GasMeter,
     ) -> Result<NetworkStateId, VMError> {
         let source_store =
@@ -110,10 +145,10 @@ impl NetworkState {
             source_store.clone(),
             target_store.clone(),
         )
-        .restore(source_store.clone(), source_persistence_id)?;
+        .restore_from_store(source_store.clone(), source_persistence_id)?;
 
         network.store_contract_states(gas_meter)?;
-        let target_persistence_id = network.persist(target_store.clone())?;
+        let target_persistence_id = network.persist_store(target_store)?;
 
         let target_persistence_id_file_path = target_store_path
             .as_ref()
@@ -123,9 +158,15 @@ impl NetworkState {
         Ok(target_persistence_id)
     }
 
+    /// Restores state from disk
+    /// todo: change VMError to PersistError when merging
+    pub fn restore<P: AsRef<Path>>(path: P) -> Result<NetworkState, VMError> {
+        NetworkState::restore_from_disk(path).map_err(|e| e.into())
+    }
+
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
     /// contracts of the entire blockchain state.
-    pub fn restore(
+    pub fn restore_from_store(
         mut self,
         store: StoreRef<OffsetLen>,
         id: NetworkStateId,
@@ -174,7 +215,8 @@ impl NetworkState {
                 VMError::PersistenceError(String::from("network state")),
             )
         })?;
-        NetworkState::new(store.clone()).restore(store, persistence_id)
+        NetworkState::new(store.clone())
+            .restore_from_store(store, persistence_id)
     }
 
     /// Store contracts' states

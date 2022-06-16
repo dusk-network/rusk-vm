@@ -20,7 +20,7 @@ use rusk_vm::*;
 use stack::*;
 
 const STACK_TEST_SIZE: u64 = 5000;
-const CONFIRM_STACK_METHOD: u32 = 2;
+const CONFIRM_STACK_METHOD: u32 = 3;
 const REGISTER_TEST_SIZE: u64 = 5000;
 const STACK_REGISTER_TEST_SIZE: u64 = 5000;
 
@@ -125,7 +125,7 @@ fn initialize_stack(
     network.commit();
 
     println!("initialize stack - persist to disk");
-    network.persist_to_disk(store, PathBuf::from(source_path.as_ref()))?;
+    network.persist(PathBuf::from(source_path.as_ref()))?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -387,7 +387,7 @@ fn confirm_stack1(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     let state_id = NetworkStateId::read(file_path)?;
 
     let mut network = NetworkState::new(source_store.clone())
-        .restore(source_store.clone(), state_id)
+        .restore_from_store(source_store.clone(), state_id)
         .map_err(|_| PersistE)?;
 
     let contract_id_path =
@@ -432,14 +432,14 @@ fn confirm_stack1(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
      */
     store2.persist().expect("Error in persistence");
     let persist_id2 = network
-        .persist(store2.clone())
+        .persist_store(store2.clone())
         .expect("Error in persistence");
 
     /*
     we can now restore and make sure that the state has been preserved
      */
     let mut network = NetworkState::new(store2.clone())
-        .restore(store2.clone(), persist_id2)
+        .restore_from_store(store2.clone(), persist_id2)
         .map_err(|_| PersistE)?;
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
@@ -476,6 +476,40 @@ fn confirm_stack2(
      */
     let mut network = NetworkState::restore_from_disk(target_path.as_ref())
         .map_err(|_| PersistE)?;
+
+    let contract_id_path =
+        PathBuf::from(source_path.as_ref()).join("stack_contract_id");
+    let buf = fs::read(&contract_id_path)?;
+
+    let contract_id = ContractId::from(buf);
+
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    for i in 0..STACK_TEST_SIZE {
+        let ii = network
+            .transact(contract_id, 0, Pop::new(), &mut gas)
+            .unwrap();
+        if (STACK_TEST_SIZE > 1000) && (i % 100 == 0) {
+            println!("checking pop ===> {} {:?}", STACK_TEST_SIZE - 1 - i, ii);
+        }
+        assert_eq!(Some(STACK_TEST_SIZE - 1 - i), ii);
+    }
+    /*
+    ok - state has been preserved using much less storage
+     */
+
+    Ok(())
+}
+
+fn confirm_stack3(
+    source_path: impl AsRef<str>,
+    _target_path: impl AsRef<str>,
+) -> Result<(), Box<dyn Error>> {
+    let mut gas = GasMeter::with_limit(100_000_000_000);
+    println!("confirm stack 3 - consolidate to disk");
+
+    let new_path = NetworkState::compact(source_path.as_ref(), &mut gas)?;
+
+    let mut network = NetworkState::restore(new_path).map_err(|_| PersistE)?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -623,7 +657,7 @@ fn confirm_stack_multi(
     let state_id = NetworkStateId::read(file_path)?;
 
     let mut network = NetworkState::new(store.clone())
-        .restore(store, state_id)
+        .restore_from_store(store, state_id)
         .map_err(|_| PersistE)?;
 
     let contract_id_path =
@@ -663,7 +697,9 @@ fn confirm(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     // confirm_counter(source_path, target_path)?;
-    if CONFIRM_STACK_METHOD == 2 {
+    if CONFIRM_STACK_METHOD == 3 {
+        confirm_stack3(source_path, target_path)?;
+    } else if CONFIRM_STACK_METHOD == 2 {
         confirm_stack2(source_path, target_path)?;
     } else {
         confirm_stack1(source_path)?;
