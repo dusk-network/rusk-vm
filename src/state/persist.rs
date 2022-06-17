@@ -33,8 +33,6 @@ impl NetworkStateId {
     where P: AsRef<Path>
     {
         let buf = fs::read(&path)?;
-        // let id: <NetworkStateId as Archive>::Archived = unsafe {
-        // *archived_root::<NetworkStateId>(buf.as_slice()) };
         let id = unsafe { archived_root::<NetworkStateId>(buf.as_slice()) };
         let id: NetworkStateId = id.deserialize(&mut Infallible).unwrap();
         Ok(id)
@@ -106,7 +104,7 @@ impl NetworkState {
     }
 
     /// Persists the origin contracts stored on the [`NetworkState`]
-    pub fn persist_to_store(
+    fn persist_to_store(
         &self,
         store: StoreRef<OffsetLen>,
     ) -> Result<NetworkStateId, io::Error> {
