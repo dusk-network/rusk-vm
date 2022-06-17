@@ -11,7 +11,6 @@ use microkelvin::{
 use rkyv::ser::{serializers::AllocSerializer, Serializer};
 use rkyv::{archived_root, Archive, Deserialize, Infallible, Serialize};
 use rusk_uplink::ContractId;
-use std::borrow::Borrow;
 use std::fs;
 use std::io;
 use std::io::ErrorKind;
@@ -57,12 +56,11 @@ impl NetworkState {
     const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
 
     /// Persists the state to disk
-    /// todo: change VMError to PersistError when merging
     pub fn persist<P>(&mut self, path: P) -> Result<(), VMError>
     where P: AsRef<Path>
     {
         let persistence_id = self
-            .persist_store(self.store.clone())
+            .persist_to_store(self.store.clone())
             .expect("Error in persistence");
 
         let file_path = path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
@@ -73,19 +71,42 @@ impl NetworkState {
     }
 
     /// Compact the state to disk
-    /// todo: change VMError to PersistError when merging
     pub fn compact<P>(
         from_path: P,
         to_path: P,
         gas_meter: &mut GasMeter,
     ) -> Result<(), VMError>
     where P: AsRef<Path> {
-        NetworkState::consolidate_to_disk(from_path, to_path, gas_meter)?;
+        let source_store =
+            StoreRef::new(HostStore::with_file(from_path.as_ref())?);
+        let target_store =
+            StoreRef::new(HostStore::with_file(to_path.as_ref())?);
+
+        let source_persistence_id_file_path = from_path
+            .as_ref()
+            .join(Self::PERSISTENCE_ID_FILE_NAME);
+        let source_persistence_id =
+            NetworkStateId::read(source_persistence_id_file_path)?;
+
+        let mut network = NetworkState::with_target_store(
+            source_store.clone(),
+            target_store.clone(),
+        )
+            .restore_from_store(source_store.clone(), source_persistence_id)?;
+
+        network.store_contract_states(gas_meter)?;
+        let target_persistence_id = network.persist_to_store(target_store)?;
+
+        let target_persistence_id_file_path = to_path
+            .as_ref()
+            .join(Self::PERSISTENCE_ID_FILE_NAME);
+        target_persistence_id.write(target_persistence_id_file_path)?;
+
         Ok(())
     }
 
     /// Persists the origin contracts stored on the [`NetworkState`]
-    pub fn persist_store(
+    pub fn persist_to_store(
         &self,
         store: StoreRef<OffsetLen>,
     ) -> Result<NetworkStateId, io::Error> {
@@ -111,64 +132,7 @@ impl NetworkState {
         })
     }
 
-    /// Persists the state to disk along with persistence id
-    pub fn persist_to_disk<P>(
-        &self,
-        store: StoreRef<OffsetLen>,
-        store_path: P,
-    ) -> Result<NetworkStateId, VMError>
-    where P: AsRef<Path>
-    {
-        let persistence_id =
-            self.persist_store(store).expect("Error in persistence");
-
-        let file_path =
-            store_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
-
-        persistence_id.write(file_path)?;
-
-        Ok(persistence_id)
-    }
-
-    /// Consolidates the state to disc,
-    /// given the source disc path.
-    pub fn consolidate_to_disk<P>(
-        source_store_path: P,
-        target_store_path: P,
-        gas_meter: &mut GasMeter,
-    ) -> Result<NetworkStateId, VMError>
-    where P: AsRef<Path>
-    {
-        let source_store =
-            StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
-        let target_store =
-            StoreRef::new(HostStore::with_file(target_store_path.as_ref())?);
-
-        let source_persistence_id_file_path = source_store_path
-            .as_ref()
-            .join(Self::PERSISTENCE_ID_FILE_NAME);
-        let source_persistence_id =
-            NetworkStateId::read(source_persistence_id_file_path)?;
-
-        let mut network = NetworkState::with_target_store(
-            source_store.clone(),
-            target_store.clone(),
-        )
-        .restore_from_store(source_store.clone(), source_persistence_id)?;
-
-        network.store_contract_states(gas_meter)?;
-        let target_persistence_id = network.persist_store(target_store)?;
-
-        let target_persistence_id_file_path = target_store_path
-            .as_ref()
-            .join(Self::PERSISTENCE_ID_FILE_NAME);
-        target_persistence_id.write(target_persistence_id_file_path)?;
-
-        Ok(target_persistence_id)
-    }
-
     /// Restores state from disk
-    /// todo: change VMError to PersistError when merging
     pub fn restore<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path> {
         NetworkState::restore_from_disk(path).map_err(|e| e.into())
     }
@@ -215,7 +179,7 @@ impl NetworkState {
 
     /// Restores network state
     /// given source disk path.
-    pub fn restore_from_disk<P>(
+    fn restore_from_disk<P>(
         source_store_path: P,
     ) -> Result<Self, io::Error>
     where P: AsRef<Path>

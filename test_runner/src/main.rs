@@ -83,12 +83,14 @@ fn initialize_counter(
 
     network.commit();
 
-    network.persist_to_disk(store, source_path.as_ref())?;
+    network.persist(source_path.as_ref())?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("counter_contract_id");
 
     fs::write(&contract_id_path, contract_id.as_bytes())?;
+
+    println!("end of initialize counter {}", source_path.as_ref());
 
     Ok(())
 }
@@ -176,7 +178,7 @@ fn initialize_register(
 
     network.commit();
 
-    network.persist_to_disk(store, PathBuf::from(source_path.as_ref()))?;
+    network.persist(PathBuf::from(source_path.as_ref()))?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("register_contract_id");
@@ -247,7 +249,7 @@ fn initialize_stack_and_register(
 
     network.commit();
 
-    network.persist_to_disk(store, source_path.as_ref())?;
+    network.persist(source_path.as_ref())?;
 
     let contract_id_stack_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -288,7 +290,7 @@ fn initialize_stack_multi(
 
     network.commit();
 
-    network.persist_to_disk(store, source_path.as_ref())?;
+    network.persist(source_path.as_ref())?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -303,12 +305,14 @@ fn confirm_counter(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::consolidate_to_disk(
+    println!("before compact");
+    NetworkState::compact(
         PathBuf::from(source_path.as_ref()),
         PathBuf::from(target_path.as_ref()),
         &mut gas,
     )?;
-    let mut network = NetworkState::restore_from_disk(target_path.as_ref())
+    println!("after compact");
+    let mut network = NetworkState::restore(target_path.as_ref())
         .map_err(|_| PersistE)?;
 
     let contract_id_path =
@@ -431,7 +435,7 @@ fn confirm_stack1(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
      */
     store2.persist().expect("Error in persistence");
     let persist_id2 = network
-        .persist_store(store2.clone())
+        .persist_to_store(store2.clone())
         .expect("Error in persistence");
 
     /*
@@ -464,7 +468,7 @@ fn confirm_stack2(
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
     println!("confirm stack - consolidate to disk");
-    NetworkState::consolidate_to_disk(
+    NetworkState::compact(
         PathBuf::from(source_path.as_ref()),
         PathBuf::from(target_path.as_ref()),
         &mut gas,
@@ -473,7 +477,7 @@ fn confirm_stack2(
     /*
     we can now restore and make sure that the state has been preserved
      */
-    let mut network = NetworkState::restore_from_disk(target_path.as_ref())
+    let mut network = NetworkState::restore(target_path.as_ref())
         .map_err(|_| PersistE)?;
 
     let contract_id_path =
@@ -538,7 +542,7 @@ fn confirm_register(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::consolidate_to_disk(
+    NetworkState::compact(
         PathBuf::from(source_path.as_ref()),
         PathBuf::from(target_path.as_ref()),
         &mut gas,
@@ -547,7 +551,7 @@ fn confirm_register(
     /*
     we can now restore and make sure that the state has been preserved
      */
-    let mut network = NetworkState::restore_from_disk(target_path.as_ref())
+    let mut network = NetworkState::restore(target_path.as_ref())
         .map_err(|_| PersistE)?;
 
     let contract_id_register_path =
@@ -583,7 +587,7 @@ fn confirm_stack_and_register(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::consolidate_to_disk(
+    NetworkState::compact(
         PathBuf::from(source_path.as_ref()),
         PathBuf::from(target_path.as_ref()),
         &mut gas,
@@ -592,7 +596,7 @@ fn confirm_stack_and_register(
     /*
     we can now restore and make sure that the state has been preserved
      */
-    let mut network = NetworkState::restore_from_disk(target_path.as_ref())
+    let mut network = NetworkState::restore(target_path.as_ref())
         .map_err(|_| PersistE)?;
 
     /*
@@ -683,11 +687,11 @@ fn confirm_stack_multi(
 }
 
 fn initialize(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    // initialize_counter(source_path)?;
-    initialize_stack(source_path)?;
-    // initialize_register(source_path)?;
-    // initialize_stack_and_register(source_path)?;
-    // initialize_stack_multi(source_path)?;
+    // initialize_counter(source_path.as_ref())?;
+    initialize_stack(source_path.as_ref())?;
+    // initialize_register(source_path.as_ref())?;
+    // initialize_stack_and_register(source_path.as_ref())?;
+    // initialize_stack_multi(source_path.as_ref())?;
     Ok(())
 }
 
@@ -695,17 +699,17 @@ fn confirm(
     source_path: impl AsRef<str>,
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    // confirm_counter(source_path, target_path)?;
+    // confirm_counter(source_path.as_ref(), target_path.as_ref())?;
     if CONFIRM_STACK_METHOD == 3 {
-        confirm_stack3(source_path, target_path)?;
+        confirm_stack3(source_path.as_ref(), target_path.as_ref())?;
     } else if CONFIRM_STACK_METHOD == 2 {
-        confirm_stack2(source_path, target_path)?;
+        confirm_stack2(source_path.as_ref(), target_path.as_ref())?;
     } else {
-        confirm_stack1(source_path)?;
+        confirm_stack1(source_path.as_ref())?;
     }
-    // confirm_register(source_path, target_path)?;
-    // confirm_stack_and_register(source_path, target_path)?;
-    // confirm_stack_multi(source_path)?;
+    // confirm_register(source_path.as_ref(), target_path.as_ref())?;
+    // confirm_stack_and_register(source_path.as_ref(), target_path.as_ref())?;
+    // confirm_stack_multi(source_path.as_ref())?;
     Ok(())
 }
 
