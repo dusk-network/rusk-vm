@@ -5,8 +5,14 @@
 - `pub fn restore<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path>`
 - `pub fn compact<P>(from_path: P, to_path: P, gas_meter: &mut GasMeter) -> Result<(), VMError> where P: AsRef<Path>`
 
+- goal:
+- `pub fn compact<P>(to_path: P, gas_meter: &mut GasMeter) -> Result<(), VMError> where P: AsRef<Path>`
+
 ## NetworkState Instance Methods
 - `pub fn persist<P>(&mut self, path: P) -> Result<(), VMError> where P: AsRef<Path>`
+
+- goal:
+- `pub fn persist<P>(&mut self) -> Result<(), VMError>`
 
 ## Notes
 
