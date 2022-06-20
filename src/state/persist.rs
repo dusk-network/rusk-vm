@@ -55,6 +55,31 @@ impl NetworkStateId {
 impl NetworkState {
     const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
 
+    fn read_persistence_id<P>(path: P) -> Result<NetworkStateId, VMError>
+    where
+        P: AsRef<Path>,
+    {
+        NetworkStateId::read(
+            path.as_ref()
+                .to_path_buf()
+                .join(Self::PERSISTENCE_ID_FILE_NAME),
+        )
+    }
+
+    fn write_persistence_id<P>(
+        path: P,
+        network_state_id: &NetworkStateId,
+    ) -> Result<(), VMError>
+    where
+        P: AsRef<Path>,
+    {
+        network_state_id.write(
+            path.as_ref()
+                .to_path_buf()
+                .join(Self::PERSISTENCE_ID_FILE_NAME),
+        )
+    }
+
     /// Compact the state to disk
     pub(in crate::state) fn compact<P>(
         from_path: P,
@@ -69,10 +94,7 @@ impl NetworkState {
         let target_store =
             StoreRef::new(HostStore::with_file(to_path.as_ref())?);
 
-        let source_persistence_id_file_path =
-            from_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
-        let source_persistence_id =
-            NetworkStateId::read(source_persistence_id_file_path)?;
+        let source_persistence_id = NetworkState::read_persistence_id(from_path)?;
 
         let mut network = NetworkState::with_target_store(
             source_store.clone(),
@@ -83,15 +105,13 @@ impl NetworkState {
         network.store_contract_states(gas_meter)?;
         let target_persistence_id = network.persist_to_store(target_store)?;
 
-        let target_persistence_id_file_path =
-            to_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
-        target_persistence_id.write(target_persistence_id_file_path)?;
+        NetworkState::write_persistence_id(to_path, &target_persistence_id)?;
 
         Ok(())
     }
 
     /// Persists the contracts stored on the [`NetworkState`]
-    pub(in crate::state) fn persist_to_store(
+    fn persist_to_store(
         &self,
         store: StoreRef<OffsetLen>,
     ) -> Result<NetworkStateId, io::Error> {
@@ -129,20 +149,17 @@ impl NetworkState {
             .persist_to_store(self.store.clone())
             .expect("Error in persistence");
 
-        let file_path =
-            path.as_ref().join(NetworkState::PERSISTENCE_ID_FILE_NAME);
-
-        persistence_id.write(file_path)?;
+        NetworkState::write_persistence_id(path, &persistence_id)?;
         Ok(())
     }
 
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
     /// contracts of the entire blockchain state.
-    pub(in crate::state) fn restore_from_store(
+    fn restore_from_store(
         mut self,
         store: StoreRef<OffsetLen>,
         id: NetworkStateId,
-    ) -> Result<Self, io::Error> {
+    ) -> Result<Self, VMError> {
         let head_ident = Ident::<
             Hamt<ContractId, Contract, (), OffsetLen>,
             OffsetLen,
@@ -175,21 +192,13 @@ impl NetworkState {
     /// given source disk path.
     pub(in crate::state) fn restore_from_disk<P>(
         source_store_path: P,
-    ) -> Result<Self, io::Error>
+    ) -> Result<Self, VMError>
     where
         P: AsRef<Path>,
     {
         let store =
-            StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
-        let file_path = source_store_path
-            .as_ref()
-            .join(Self::PERSISTENCE_ID_FILE_NAME);
-        let persistence_id = NetworkStateId::read(file_path).map_err(|_| {
-            io::Error::new(
-                ErrorKind::Other,
-                VMError::PersistenceError(String::from("network state")),
-            )
-        })?;
+            StoreRef::new(HostStore::with_file(source_store_path.as_ref()).map_err(|e| VMError::from(e))?);
+        let persistence_id = NetworkState::read_persistence_id(source_store_path)?;
         NetworkState::new(store.clone())
             .restore_from_store(store, persistence_id)
     }
@@ -207,8 +216,7 @@ impl NetworkState {
         Ok(NetworkState::new(store))
     }
 
-    /// Store contracts' states
-    pub(in crate::state) fn store_contract_states(
+    fn store_contract_states(
         &mut self,
         gas_meter: &mut GasMeter,
     ) -> Result<(), VMError> {
