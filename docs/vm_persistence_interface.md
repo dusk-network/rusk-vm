@@ -1,49 +1,42 @@
 # Rusk-VM Persistence Interface
 
-## NetworkState Static Constructor Methods
-- `pub fn create<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path>`
-(will create NetworkState with store whose "native" path is `path`)
-- `pub fn restore<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path>`
+## Backend Constructor Methods
+- `pub fn new<P>(path: P) -> Result<Backend, VMError> where P: AsRef<Path>`
+- `pub fn restore<P>(path: P) -> Result<Backend, VMError> where P: AsRef<Path>`
 - `pub fn compact<P>(from_path: P, to_path: P, gas_meter: &mut GasMeter) -> Result<(), VMError> where P: AsRef<Path>`
 
-## NetworkState Instance Methods
-- `pub fn persist<P>(&mut self, path: P) -> Result<(), VMError> where P: AsRef<Path>`
-  (will persist store to its "native" path and the resulting NewtworkStateId to `path` )
+## Backend Instance Methods
+- `pub fn persist(&mut self) -> Result<(), VMError> where P: AsRef<Path>`
 
 
 ## Notes
 
 ### Creating
-Network state can be created from scratch, given an existing file system location `path`.
-Store needed for subsequent contract operations can then be obtained via `get_store_ref()`.
+Backend containing network state instance can be created from scratch via method `new`.
+Restore is also a way to create backend.
+Location `path` needs to exist before the call and have necessary permissions.
 
 ### Restoring
-Network state can be restored from a disk location, especially, this can be done
+Backend can be restored from a disk location, this can be done, e.g.,
 after system restart or after compacting.
 
 ### Compacting
-Compact method executes the following procedure:
+Compacting method executes the following procedure:
 - extracts network state id from `from_path`
 - restores network state using network state id and `from_path`
 - performs global unarchive operation on contracts' states (by invoking transaction `unarchive` on all contacts)
 - stores the network state to a new file system location at `to_path`
+- stores new network state id at the same location
 
-After compacting, user can invoke `restore` on `to_path` to obtain new network state.
+After compacting, user can invoke `restore` on `to_path` to obtain a new compacted instance of the Backend.
 The location at `from_path` can then be discarded.
-Both locations `from_path` and `to_path` need to exist before the call and have the necessary write permissions.
+Both locations `from_path` and `to_path` need to exist before the call and need to have necessary permissions.
 
 ### Persisting
-Network state can be persisted to a given location, note that only network state id will be persisted
-to the `path` location, while network state' store will be persisted its initial location, the one with
-which the state was created or restored from.
-When `persist` is used after `create` or `restore`, the same `path` should be used for `persist` as for
-`create`/`restore`.
-
-### Path
-<P: AsRef<Path>> is a more universal type than PathBuf used so far
+Backend instance can be persisted to its location.
 
 ### NetworkStateId
-Use of NetworkStateId is hidden from the interface's user.
-It contains two OffsetLen elements for two contract maps, and it is stored
-as a file in serialized form at the same location as the `path`.
-Hence, there is no need to deal with it explicitly.
+The use of NetworkStateId is hidden, so that user of the interface does not need to be aware of it.
+NetworkStateId contains OffsetLen elements for contract maps, and it is stored
+as a file in serialized form at the same location as the corresponding store.
+There is no need to deal with it explicitly.
