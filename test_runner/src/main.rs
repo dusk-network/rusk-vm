@@ -55,7 +55,8 @@ fn initialize_counter(
         "../../target/wasm32-unknown-unknown/release/counter.wasm"
     );
 
-    let contract = Contract::new(&counter, code.to_vec(), &network.get_store_ref());
+    let contract =
+        Contract::new(&counter, code.to_vec(), &network.get_store_ref());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -105,7 +106,8 @@ fn initialize_stack(
     let mut backend = Backend::new(source_path.as_ref())?;
     let network = &mut *backend;
 
-    let contract = Contract::new(&stack, code.to_vec(), &network.get_store_ref());
+    let contract =
+        Contract::new(&stack, code.to_vec(), &network.get_store_ref());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -153,7 +155,8 @@ fn initialize_register(
         "../../target/wasm32-unknown-unknown/release/register.wasm"
     );
 
-    let contract = Contract::new(&stack, code.to_vec(), &network.get_store_ref());
+    let contract =
+        Contract::new(&stack, code.to_vec(), &network.get_store_ref());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -213,7 +216,8 @@ fn initialize_stack_and_register(
         "../../target/wasm32-unknown-unknown/release/register.wasm"
     );
 
-    let contract_stack = Contract::new(&stack, code_stack.to_vec(), &network.get_store_ref());
+    let contract_stack =
+        Contract::new(&stack, code_stack.to_vec(), &network.get_store_ref());
     let contract_register =
         Contract::new(&stack, code_register.to_vec(), &network.get_store_ref());
 
@@ -272,7 +276,8 @@ fn initialize_stack_multi(
         "../../target/wasm32-unknown-unknown/release/stack.wasm"
     );
 
-    let contract = Contract::new(&stack, code.to_vec(), &network.get_store_ref());
+    let contract =
+        Contract::new(&stack, code.to_vec(), &network.get_store_ref());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -334,7 +339,11 @@ fn confirm_stack(
     let mut gas = GasMeter::with_limit(100_000_000_000);
     println!("confirm stack 3 - consolidate to disk");
 
-    NetworkState::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
+    NetworkState::compact(
+        source_path.as_ref(),
+        target_path.as_ref(),
+        &mut gas,
+    )?;
 
     let mut backend = Backend::restore(target_path.as_ref())?;
     let network = &mut *backend;
@@ -367,7 +376,11 @@ fn confirm_register(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
+    NetworkState::compact(
+        source_path.as_ref(),
+        target_path.as_ref(),
+        &mut gas,
+    )?;
     let mut backend = Backend::restore(target_path.as_ref())?;
     let network = &mut *backend;
 
@@ -404,7 +417,11 @@ fn confirm_stack_and_register(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
+    NetworkState::compact(
+        source_path.as_ref(),
+        target_path.as_ref(),
+        &mut gas,
+    )?;
     let mut backend = Backend::restore(target_path.as_ref())?;
     let network = &mut *backend;
 
@@ -464,13 +481,8 @@ fn confirm_stack_and_register(
 fn confirm_stack_multi(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
-    let file_path = PathBuf::from(source_path.as_ref()).join("persist_id");
-    let state_id = NetworkStateId::read(file_path)?;
-
-    let mut network = NetworkState::new(store.clone())
-        .restore_from_store(store, state_id)
-        .map_err(|_| PersistE)?;
+    let mut backend = Backend::restore(source_path.as_ref())?;
+    let network = &mut *backend;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -479,7 +491,7 @@ fn confirm_stack_multi(
     let contract_id = ContractId::from(buf);
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    //
+
     const N: u64 = STACK_TEST_SIZE;
 
     let mut expected_sum = 0u64;

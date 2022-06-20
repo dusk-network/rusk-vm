@@ -30,7 +30,8 @@ pub struct NetworkStateId {
 impl NetworkStateId {
     /// Read from the given path a [`NetworkStateId`]
     pub fn read<P>(path: P) -> Result<Self, VMError>
-    where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         let buf = fs::read(&path)?;
         let id = unsafe { archived_root::<NetworkStateId>(buf.as_slice()) };
@@ -40,7 +41,8 @@ impl NetworkStateId {
 
     /// Write to the given path a [`NetworkStateId`]
     pub fn write<P>(&self, path: P) -> Result<(), VMError>
-    where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         let mut serializer = AllocSerializer::<0>::default();
         serializer.serialize_value(self).unwrap();
@@ -51,7 +53,7 @@ impl NetworkStateId {
 }
 
 impl NetworkState {
-    pub const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
+    const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
 
     /// Compact the state to disk
     pub fn compact<P>(
@@ -59,15 +61,16 @@ impl NetworkState {
         to_path: P,
         gas_meter: &mut GasMeter,
     ) -> Result<(), VMError>
-    where P: AsRef<Path> {
+    where
+        P: AsRef<Path>,
+    {
         let source_store =
             StoreRef::new(HostStore::with_file(from_path.as_ref())?);
         let target_store =
             StoreRef::new(HostStore::with_file(to_path.as_ref())?);
 
-        let source_persistence_id_file_path = from_path
-            .as_ref()
-            .join(Self::PERSISTENCE_ID_FILE_NAME);
+        let source_persistence_id_file_path =
+            from_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
         let source_persistence_id =
             NetworkStateId::read(source_persistence_id_file_path)?;
 
@@ -75,20 +78,19 @@ impl NetworkState {
             source_store.clone(),
             target_store.clone(),
         )
-            .restore_from_store(source_store.clone(), source_persistence_id)?;
+        .restore_from_store(source_store.clone(), source_persistence_id)?;
 
         network.store_contract_states(gas_meter)?;
         let target_persistence_id = network.persist_to_store(target_store)?;
 
-        let target_persistence_id_file_path = to_path
-            .as_ref()
-            .join(Self::PERSISTENCE_ID_FILE_NAME);
+        let target_persistence_id_file_path =
+            to_path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
         target_persistence_id.write(target_persistence_id_file_path)?;
 
         Ok(())
     }
 
-    /// Persists the origin contracts stored on the [`NetworkState`]
+    /// Persists the contracts stored on the [`NetworkState`]
     pub fn persist_to_store(
         &self,
         store: StoreRef<OffsetLen>,
@@ -113,6 +115,22 @@ impl NetworkState {
             head: *head_stored.ident().erase(),
             origin: *origin_stored.ident().erase(),
         })
+    }
+
+    /// Persists network state to disk
+    pub fn persist_to_disk<P>(&self, path: P) -> Result<(), VMError>
+    where
+        P: AsRef<Path>,
+    {
+        let persistence_id = self
+            .persist_to_store(self.store.clone())
+            .expect("Error in persistence");
+
+        let file_path =
+            path.as_ref().join(NetworkState::PERSISTENCE_ID_FILE_NAME);
+
+        persistence_id.write(file_path)?;
+        Ok(())
     }
 
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
@@ -152,10 +170,9 @@ impl NetworkState {
 
     /// Restores network state
     /// given source disk path.
-    pub fn restore_from_disk<P>(
-        source_store_path: P,
-    ) -> Result<Self, io::Error>
-    where P: AsRef<Path>
+    pub fn restore_from_disk<P>(source_store_path: P) -> Result<Self, io::Error>
+    where
+        P: AsRef<Path>,
     {
         let store =
             StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
@@ -174,10 +191,9 @@ impl NetworkState {
 
     /// Creates network state
     /// given source disk path.
-    pub fn create_from_disk<P>(
-        source_store_path: P,
-    ) -> Result<Self, io::Error>
-    where P: AsRef<Path>
+    pub fn create_from_disk<P>(source_store_path: P) -> Result<Self, io::Error>
+    where
+        P: AsRef<Path>,
     {
         let store =
             StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
