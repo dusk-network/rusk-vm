@@ -25,6 +25,7 @@ mod resolver;
 mod state;
 
 pub use state::persist::NetworkStateId;
+pub use state::backend::Backend;
 
 pub use rusk_uplink;
 

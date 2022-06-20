@@ -14,7 +14,7 @@ use rusk_uplink::ContractId;
 use std::fs;
 use std::io;
 use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::contract::Contract;
 use crate::state::{Contracts, NetworkState};
@@ -51,22 +51,7 @@ impl NetworkStateId {
 }
 
 impl NetworkState {
-    const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
-
-    /// Persists the state to disk
-    pub fn persist<P>(&mut self, path: P) -> Result<(), VMError>
-    where P: AsRef<Path>
-    {
-        let persistence_id = self
-            .persist_to_store(self.store.clone())
-            .expect("Error in persistence");
-
-        let file_path = path.as_ref().join(Self::PERSISTENCE_ID_FILE_NAME);
-
-        persistence_id.write(file_path)?;
-
-        Ok(())
-    }
+    pub const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
 
     /// Compact the state to disk
     pub fn compact<P>(
@@ -104,7 +89,7 @@ impl NetworkState {
     }
 
     /// Persists the origin contracts stored on the [`NetworkState`]
-    fn persist_to_store(
+    pub fn persist_to_store(
         &self,
         store: StoreRef<OffsetLen>,
     ) -> Result<NetworkStateId, io::Error> {
@@ -128,16 +113,6 @@ impl NetworkState {
             head: *head_stored.ident().erase(),
             origin: *origin_stored.ident().erase(),
         })
-    }
-
-    /// Restores state from disk
-    pub fn restore<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path> {
-        NetworkState::restore_from_disk(path).map_err(|e| e.into())
-    }
-
-    /// Creates state from disk
-    pub fn create<P>(path: P) -> Result<NetworkState, VMError> where P: AsRef<Path> {
-        NetworkState::create_from_disk(path).map_err(|e| e.into())
     }
 
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
@@ -177,7 +152,7 @@ impl NetworkState {
 
     /// Restores network state
     /// given source disk path.
-    fn restore_from_disk<P>(
+    pub fn restore_from_disk<P>(
         source_store_path: P,
     ) -> Result<Self, io::Error>
     where P: AsRef<Path>

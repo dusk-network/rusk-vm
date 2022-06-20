@@ -46,7 +46,8 @@ impl Display for PersistE {
 fn initialize_counter(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let mut backend = Backend::new(source_path.as_ref())?;
+    let network = &mut *backend;
 
     let counter = Counter::new(99);
 
@@ -54,9 +55,7 @@ fn initialize_counter(
         "../../target/wasm32-unknown-unknown/release/counter.wasm"
     );
 
-    let contract = Contract::new(&counter, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
+    let contract = Contract::new(&counter, code.to_vec(), &network.get_store_ref());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -82,7 +81,7 @@ fn initialize_counter(
 
     network.commit();
 
-    network.persist(source_path.as_ref())?;
+    backend.persist()?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("counter_contract_id");
@@ -103,7 +102,8 @@ fn initialize_stack(
         "../../target/wasm32-unknown-unknown/release/stack.wasm"
     );
 
-    let mut network = NetworkState::create(source_path.as_ref())?;
+    let mut backend = Backend::new(source_path.as_ref())?;
+    let network = &mut *backend;
 
     let contract = Contract::new(&stack, code.to_vec(), &network.get_store_ref());
 
@@ -125,7 +125,7 @@ fn initialize_stack(
     network.commit();
 
     println!("initialize stack - persist to disk");
-    network.persist(PathBuf::from(source_path.as_ref()))?;
+    backend.persist()?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -145,16 +145,15 @@ fn secret_data_from_int(secret_data: &mut [u8; 32], i: u64) {
 fn initialize_register(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let mut backend = Backend::new(source_path.as_ref())?;
+    let network = &mut *backend;
     let stack = Stack::new();
 
     let code = include_bytes!(
         "../../target/wasm32-unknown-unknown/release/register.wasm"
     );
 
-    let contract = Contract::new(&stack, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
+    let contract = Contract::new(&stack, code.to_vec(), &network.get_store_ref());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -177,8 +176,6 @@ fn initialize_register(
 
     network.commit();
 
-    network.persist(PathBuf::from(source_path.as_ref()))?;
-
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("register_contract_id");
 
@@ -197,13 +194,16 @@ fn initialize_register(
         }
     }
 
+    backend.persist()?;
+
     Ok(())
 }
 
 fn initialize_stack_and_register(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let mut backend = Backend::new(source_path.as_ref())?;
+    let network = &mut *backend;
     let stack = Stack::new();
 
     let code_stack = include_bytes!(
@@ -213,11 +213,9 @@ fn initialize_stack_and_register(
         "../../target/wasm32-unknown-unknown/release/register.wasm"
     );
 
-    let contract_stack = Contract::new(&stack, code_stack.to_vec(), &store);
+    let contract_stack = Contract::new(&stack, code_stack.to_vec(), &network.get_store_ref());
     let contract_register =
-        Contract::new(&stack, code_register.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
+        Contract::new(&stack, code_register.to_vec(), &network.get_store_ref());
 
     let contract_id_stack = network.deploy(contract_stack).unwrap();
     let contract_id_register = network.deploy(contract_register).unwrap();
@@ -248,7 +246,7 @@ fn initialize_stack_and_register(
 
     network.commit();
 
-    network.persist(source_path.as_ref())?;
+    backend.persist()?;
 
     let contract_id_stack_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -266,16 +264,15 @@ fn initialize_stack_and_register(
 fn initialize_stack_multi(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let mut backend = Backend::new(source_path.as_ref())?;
+    let network = &mut *backend;
     let stack = Stack::new();
 
     let code = include_bytes!(
         "../../target/wasm32-unknown-unknown/release/stack.wasm"
     );
 
-    let contract = Contract::new(&stack, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
+    let contract = Contract::new(&stack, code.to_vec(), &network.get_store_ref());
 
     let contract_id = network.deploy(contract).unwrap();
 
@@ -289,7 +286,7 @@ fn initialize_stack_multi(
 
     network.commit();
 
-    network.persist(source_path.as_ref())?;
+    backend.persist()?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -304,15 +301,13 @@ fn confirm_counter(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    println!("before compact");
-    NetworkState::compact(
+    Backend::compact(
         PathBuf::from(source_path.as_ref()),
         PathBuf::from(target_path.as_ref()),
         &mut gas,
     )?;
-    println!("after compact");
-    let mut network = NetworkState::restore(target_path.as_ref())
-        .map_err(|_| PersistE)?;
+    let mut backend = Backend::restore(target_path.as_ref())?;
+    let network = &mut *backend;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("counter_contract_id");
@@ -341,7 +336,8 @@ fn confirm_stack(
 
     NetworkState::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
 
-    let mut network = NetworkState::restore(target_path.as_ref()).map_err(|_| PersistE)?;
+    let mut backend = Backend::restore(target_path.as_ref())?;
+    let network = &mut *backend;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -371,17 +367,9 @@ fn confirm_register(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::compact(
-        PathBuf::from(source_path.as_ref()),
-        PathBuf::from(target_path.as_ref()),
-        &mut gas,
-    )?;
-
-    /*
-    we can now restore and make sure that the state has been preserved
-     */
-    let mut network = NetworkState::restore(target_path.as_ref())
-        .map_err(|_| PersistE)?;
+    NetworkState::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
+    let mut backend = Backend::restore(target_path.as_ref())?;
+    let network = &mut *backend;
 
     let contract_id_register_path =
         PathBuf::from(source_path.as_ref()).join("register_contract_id");
@@ -416,17 +404,9 @@ fn confirm_stack_and_register(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::compact(
-        PathBuf::from(source_path.as_ref()),
-        PathBuf::from(target_path.as_ref()),
-        &mut gas,
-    )?;
-
-    /*
-    we can now restore and make sure that the state has been preserved
-     */
-    let mut network = NetworkState::restore(target_path.as_ref())
-        .map_err(|_| PersistE)?;
+    NetworkState::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
+    let mut backend = Backend::restore(target_path.as_ref())?;
+    let network = &mut *backend;
 
     /*
        confirm stack
@@ -517,9 +497,9 @@ fn confirm_stack_multi(
 
 fn initialize(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
     // initialize_counter(source_path.as_ref())?;
-    initialize_stack(source_path.as_ref())?;
+    // initialize_stack(source_path.as_ref())?;
     // initialize_register(source_path.as_ref())?;
-    // initialize_stack_and_register(source_path.as_ref())?;
+    initialize_stack_and_register(source_path.as_ref())?;
     // initialize_stack_multi(source_path.as_ref())?;
     Ok(())
 }
@@ -529,9 +509,9 @@ fn confirm(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     // confirm_counter(source_path.as_ref(), target_path.as_ref())?;
-    confirm_stack(source_path.as_ref(), target_path.as_ref())?;
+    // confirm_stack(source_path.as_ref(), target_path.as_ref())?;
     // confirm_register(source_path.as_ref(), target_path.as_ref())?;
-    // confirm_stack_and_register(source_path.as_ref(), target_path.as_ref())?;
+    confirm_stack_and_register(source_path.as_ref(), target_path.as_ref())?;
     // confirm_stack_multi(source_path.as_ref())?;
     Ok(())
 }
