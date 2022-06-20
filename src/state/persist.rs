@@ -56,7 +56,7 @@ impl NetworkState {
     const PERSISTENCE_ID_FILE_NAME: &'static str = "persist_id";
 
     /// Compact the state to disk
-    pub fn compact<P>(
+    pub(in crate::state) fn compact<P>(
         from_path: P,
         to_path: P,
         gas_meter: &mut GasMeter,
@@ -91,7 +91,7 @@ impl NetworkState {
     }
 
     /// Persists the contracts stored on the [`NetworkState`]
-    pub fn persist_to_store(
+    pub(in crate::state) fn persist_to_store(
         &self,
         store: StoreRef<OffsetLen>,
     ) -> Result<NetworkStateId, io::Error> {
@@ -118,7 +118,10 @@ impl NetworkState {
     }
 
     /// Persists network state to disk
-    pub fn persist_to_disk<P>(&self, path: P) -> Result<(), VMError>
+    pub(in crate::state) fn persist_to_disk<P>(
+        &self,
+        path: P,
+    ) -> Result<(), VMError>
     where
         P: AsRef<Path>,
     {
@@ -135,7 +138,7 @@ impl NetworkState {
 
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
     /// contracts of the entire blockchain state.
-    pub fn restore_from_store(
+    pub(in crate::state) fn restore_from_store(
         mut self,
         store: StoreRef<OffsetLen>,
         id: NetworkStateId,
@@ -170,7 +173,9 @@ impl NetworkState {
 
     /// Restores network state
     /// given source disk path.
-    pub fn restore_from_disk<P>(source_store_path: P) -> Result<Self, io::Error>
+    pub(in crate::state) fn restore_from_disk<P>(
+        source_store_path: P,
+    ) -> Result<Self, io::Error>
     where
         P: AsRef<Path>,
     {
@@ -191,7 +196,9 @@ impl NetworkState {
 
     /// Creates network state
     /// given source disk path.
-    pub fn create_from_disk<P>(source_store_path: P) -> Result<Self, io::Error>
+    pub(in crate::state) fn create_from_disk<P>(
+        source_store_path: P,
+    ) -> Result<Self, io::Error>
     where
         P: AsRef<Path>,
     {
@@ -201,7 +208,7 @@ impl NetworkState {
     }
 
     /// Store contracts' states
-    pub fn store_contract_states(
+    pub(in crate::state) fn store_contract_states(
         &mut self,
         gas_meter: &mut GasMeter,
     ) -> Result<(), VMError> {

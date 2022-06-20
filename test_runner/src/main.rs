@@ -339,11 +339,7 @@ fn confirm_stack(
     let mut gas = GasMeter::with_limit(100_000_000_000);
     println!("confirm stack 3 - consolidate to disk");
 
-    NetworkState::compact(
-        source_path.as_ref(),
-        target_path.as_ref(),
-        &mut gas,
-    )?;
+    Backend::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
 
     let mut backend = Backend::restore(target_path.as_ref())?;
     let network = &mut *backend;
@@ -376,11 +372,7 @@ fn confirm_register(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::compact(
-        source_path.as_ref(),
-        target_path.as_ref(),
-        &mut gas,
-    )?;
+    Backend::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
     let mut backend = Backend::restore(target_path.as_ref())?;
     let network = &mut *backend;
 
@@ -417,11 +409,7 @@ fn confirm_stack_and_register(
     target_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
     let mut gas = GasMeter::with_limit(100_000_000_000);
-    NetworkState::compact(
-        source_path.as_ref(),
-        target_path.as_ref(),
-        &mut gas,
-    )?;
+    Backend::compact(source_path.as_ref(), target_path.as_ref(), &mut gas)?;
     let mut backend = Backend::restore(target_path.as_ref())?;
     let network = &mut *backend;
 
