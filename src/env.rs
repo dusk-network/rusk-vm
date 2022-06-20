@@ -34,4 +34,7 @@ impl Env {
     pub fn store(&self) -> &StoreContext {
         self.get_context().store()
     }
+    pub fn target_store(&self) -> &StoreContext {
+        self.get_context().target_store()
+    }
 }

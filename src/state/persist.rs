@@ -5,7 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_hamt::Hamt;
-use microkelvin::{HostStore, Ident, OffsetLen, StoreRef};
+use microkelvin::{
+    All, Compound, HostStore, Ident, Keyed, OffsetLen, StoreRef,
+};
 use rkyv::ser::{serializers::AllocSerializer, Serializer};
 use rkyv::{archived_root, Archive, Deserialize, Infallible, Serialize};
 use rusk_uplink::ContractId;
@@ -16,7 +18,7 @@ use thiserror::Error;
 
 use crate::contract::Contract;
 use crate::state::{Contracts, NetworkState};
-use crate::VMError;
+use crate::{GasMeter, VMError};
 /// An error that can happen when persisting structures to disk
 #[derive(Error, Debug)]
 pub enum PersistError {
@@ -91,6 +93,35 @@ impl NetworkState {
         Ok(persistence_id)
     }
 
+    /// Consolidates the state to disc,
+    /// given the source disc path.
+    pub fn consolidate_to_disk<P: AsRef<Path>>(
+        source_store_path: P,
+        target_store_path: P,
+        gas_meter: &mut GasMeter,
+    ) -> Result<NetworkStateId, VMError> {
+        let source_store =
+            StoreRef::new(HostStore::with_file(source_store_path.as_ref())?);
+        let target_store =
+            StoreRef::new(HostStore::with_file(target_store_path.as_ref())?);
+        let source_persistence_id_file_path = source_store_path
+            .as_ref()
+            .join(Self::PERSISTENCE_ID_FILE_NAME);
+        let source_persistence_id =
+            NetworkStateId::read(source_persistence_id_file_path)?;
+        let mut network = NetworkState::with_target_store(
+            source_store.clone(),
+            target_store.clone(),
+        )
+        .restore(source_store.clone(), source_persistence_id)?;
+        network.store_contract_states(gas_meter)?;
+        let target_persistence_id = network.persist(target_store.clone())?;
+        let target_persistence_id_file_path = target_store_path
+            .as_ref()
+            .join(Self::PERSISTENCE_ID_FILE_NAME);
+        target_persistence_id.write(target_persistence_id_file_path)?;
+        Ok(target_persistence_id)
+    }
     /// Given a [`NetworkStateId`] restores both [`Hamt`] which store
     /// contracts of the entire blockchain state.
     pub fn restore(
@@ -138,5 +169,21 @@ impl NetworkState {
             .join(Self::PERSISTENCE_ID_FILE_NAME);
         let persistence_id = NetworkStateId::read(file_path)?;
         NetworkState::new(store.clone()).restore(store, persistence_id)
+    }
+    /// Store contracts' states
+    pub fn store_contract_states(
+        &mut self,
+        gas_meter: &mut GasMeter,
+    ) -> Result<(), VMError> {
+        let mut contract_ids: Vec<ContractId> = vec![];
+        let branch = self.head.0.walk(All).expect("Some(_)");
+        for leaf in branch {
+            let val = leaf.key();
+            contract_ids.push(*val);
+        }
+        for contract_id in contract_ids {
+            self.transact_store_state(contract_id, 0, gas_meter)?;
+        }
+        Ok(())
     }
 }
