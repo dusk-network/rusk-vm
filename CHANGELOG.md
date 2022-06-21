@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Enable reading the state root [#265]
 
+- Add `NetworkState::with_config` for instantiating a VM with the given configuration [#304]
+- Add `NetworkState::config` for getting instance configuration [#304]
+- Add `Config` and `OpCosts` structs [#304]
+- Enable reading the state root [#265]
 - Add `staged` state in addition to the existing `head` and `origin` [#302]
 - Add `unstage` method to remove changes from `staged` [#302]
-- Add `push` method to push the commited changes to `origin` [#302]
+- Add `push` method to push the committed changes to `origin` [#302]
 - Add `exhaust` method to `GasMeter` [#308]
 - Add a private `update` method to `GasMeter` [#308]
 - Add `Instance` field to `StackFrame` [#308]
@@ -20,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change persistence to include configuration hash [#304]
+- Refactor configuration to be a static `Config` per instance [#304]
 - Place both `Contract::state` and `Contract::code` behind `microkelvin::Link` [#333]
 - Change `commit` method to commit the changes from `staged` to `head` [#302]
 - Change `register_host_module` to be an associated function
@@ -28,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove `NetworkState::with_schedule` [#304]
+- Remove `ModuleConfig` and `NetworkState::get_module_config` [#304]
+- Remove `Schedule` as configuration structure [#304]
 - Remove `set_left` method from `GasMeter` [#308]
 - Remove legacy `gas` host function
 - Remove `CallContext::gas_meter_mut()` [#308]
@@ -243,6 +251,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#333]: https://github.com/dusk-network/rusk-vm/issues/333
 [#308]: https://github.com/dusk-network/rusk-vm/issues/308
+[#304]: https://github.com/dusk-network/rusk-vm/issues/304
 [#302]: https://github.com/dusk-network/rusk-vm/issues/302
 [#283]: https://github.com/dusk-network/rusk-vm/issues/283
 [#270]: https://github.com/dusk-network/rusk-vm/issues/270

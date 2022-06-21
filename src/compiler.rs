@@ -5,8 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::compiler_config::CompilerConfigProvider;
-use crate::modules::ModuleConfig;
+use crate::config::Config;
 use crate::VMError;
+
 use loupe::MemoryUsage;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -112,15 +113,14 @@ impl WasmerCompiler {
     /// Creates module out of bytecode
     pub fn create_module(
         bytecode: impl AsRef<[u8]>,
-        module_config: &ModuleConfig,
+        config: &'static Config,
     ) -> Result<Module, VMError> {
-        let compiler_config =
-            CompilerConfigProvider::from_config(module_config)?;
+        let compiler_config = CompilerConfigProvider::singlepass(config);
         let base = BaseTunables::for_target(&Target::default());
         let tunables = LimitingTunables::new(
             base,
-            Pages(module_config.max_memory_pages),
-            module_config.max_table_size,
+            Pages(config.max_memory_pages),
+            config.max_table_size,
         );
         let store = wasmer::Store::new_with_tunables(
             &Universal::new(compiler_config).engine(),

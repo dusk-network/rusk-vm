@@ -22,11 +22,11 @@ use rusk_uplink::{
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
+use crate::config::{Config, DEFAULT_CONFIG};
 use crate::contract::Contract;
 use crate::gas::GasMeter;
-use crate::modules::ModuleConfig;
 use crate::modules::{compile_module, HostModules};
-use crate::{Schedule, VMError};
+use crate::VMError;
 
 #[derive(Debug, Clone)]
 pub struct Event {
@@ -95,20 +95,20 @@ pub struct Contracts(Hamt<ContractId, Contract, (), OffsetLen>);
 
 impl Contracts {
     /// Returns a reference to the specified contracts state.
-    pub fn get_contract<'a>(
-        &'a self,
+    pub fn get_contract(
+        &self,
         contract_id: &ContractId,
-    ) -> Result<impl BranchRef<'a, Contract>, VMError> {
+    ) -> Result<impl BranchRef<Contract>, VMError> {
         self.0
             .get(contract_id)
             .ok_or(VMError::UnknownContract(*contract_id))
     }
 
     /// Returns a mutable reference to the specified contracts state.
-    pub fn get_contract_mut<'a>(
-        &'a mut self,
+    pub fn get_contract_mut(
+        &mut self,
         contract_id: &ContractId,
-    ) -> Result<impl BranchRefMut<'a, Contract>, VMError> {
+    ) -> Result<impl BranchRefMut<Contract>, VMError> {
         self.0
             .get_mut(contract_id)
             .ok_or(VMError::UnknownContract(*contract_id))
@@ -119,10 +119,10 @@ impl Contracts {
     pub fn deploy(
         &mut self,
         contract: Contract,
-        module_config: &ModuleConfig,
+        config: &'static Config,
     ) -> Result<ContractId, VMError> {
         let id: ContractId = hash(contract.bytecode()).into();
-        self.deploy_with_id(id, contract, module_config)
+        self.deploy_with_id(id, contract, config)
     }
 
     /// Deploys a contract with the given id to the state.
@@ -130,9 +130,9 @@ impl Contracts {
         &mut self,
         id: ContractId,
         contract: Contract,
-        module_config: &ModuleConfig,
+        config: &'static Config,
     ) -> Result<ContractId, VMError> {
-        compile_module(contract.bytecode(), module_config)?;
+        compile_module(contract.bytecode(), config)?;
 
         self.0.insert(id, contract);
 
@@ -155,51 +155,48 @@ pub struct NetworkState {
     origin: Contracts,
     head: Contracts,
     modules: HostModules,
-    module_config: ModuleConfig,
     store: StoreContext,
+    config: &'static Config,
 }
 
 impl NetworkState {
-    /// Returns a new empty [`NetworkState`].
+    /// Returns a new empty [`NetworkState`] with the default configuration.
     pub fn new(store: StoreContext) -> Self {
+        Self::with_config(store, &DEFAULT_CONFIG)
+    }
+
+    /// Returns a new empty [`NetworkState`] with the given configuration.
+    pub fn with_config(store: StoreContext, config: &'static Config) -> Self {
         NetworkState {
             store,
             staged: Default::default(),
             origin: Default::default(),
             head: Default::default(),
             modules: Default::default(),
-            module_config: Default::default(),
+            config,
         }
     }
 
-    /// Returns a [`NetworkState`] based on a schedule
-    pub fn with_schedule(store: StoreContext, schedule: &Schedule) -> Self {
-        let module_config = ModuleConfig::from_schedule(schedule);
-        Self {
-            store,
-            module_config,
-            staged: Default::default(),
-            origin: Default::default(),
-            head: Default::default(),
-            modules: Default::default(),
-        }
+    /// Returns the configuration of this instance.
+    pub fn config(&self) -> &'static Config {
+        self.config
     }
 
     /// Returns a reference to the specified contracts state in the `head`
     /// state.
-    pub fn get_contract<'a>(
-        &'a self,
+    pub fn get_contract(
+        &self,
         contract_id: &ContractId,
-    ) -> Result<impl BranchRef<'a, Contract>, VMError> {
+    ) -> Result<impl BranchRef<Contract>, VMError> {
         self.head.get_contract(contract_id)
     }
 
     /// Returns a mutable reference to the specified contracts state in the
     /// `origin` state.
-    pub fn get_contract_mut<'a>(
-        &'a mut self,
+    pub fn get_contract_mut(
+        &mut self,
         contract_id: &ContractId,
-    ) -> Result<impl BranchRefMut<'a, Contract>, VMError> {
+    ) -> Result<impl BranchRefMut<Contract>, VMError> {
         self.head.get_contract_mut(contract_id)
     }
 
@@ -236,7 +233,7 @@ impl NetworkState {
         &mut self,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy(contract, &self.module_config)
+        self.head.deploy(contract, self.config)
     }
 
     /// Deploys a contract to the `head` state with the given id / address.
@@ -245,7 +242,7 @@ impl NetworkState {
         id: ContractId,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy_with_id(id, contract, &self.module_config)
+        self.head.deploy_with_id(id, contract, self.config)
     }
 
     /// Query the contract at `target` address in the `head` state.
@@ -399,9 +396,5 @@ impl NetworkState {
                 todo!()
             },
         )
-    }
-    /// Gets module config
-    pub fn get_module_config(&self) -> &ModuleConfig {
-        &self.module_config
     }
 }
