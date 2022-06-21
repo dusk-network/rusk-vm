@@ -27,13 +27,16 @@ impl ExecuteQuery {
     ) -> Result<u32, VMError> {
         trace!("Executing 'query' host function");
 
+        let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.query)?;
+
         let contract_id_ofs = contract_id_ofs as u64;
         let query_ofs = query_ofs as u64;
         let query_len = query_len as usize;
         let name_ofs = name_ofs as u64;
         let name_len = name_len as usize;
-
-        let context = env.get_context();
 
         let contract_id_memory =
             context.read_memory(contract_id_ofs, size_of::<ContractId>())?;

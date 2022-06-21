@@ -14,7 +14,12 @@ pub struct BlockHeight;
 impl BlockHeight {
     pub fn block_height(env: &Env) -> Result<u64, VMError> {
         trace!("Executing 'block_height' host function");
-        let block_height = env.get_context().block_height();
+        let context = env.get_context();
+
+        let config = context.config();
+        context.charge_gas(config.host_costs.block_height)?;
+
+        let block_height = context.block_height();
         Ok(block_height)
     }
 }

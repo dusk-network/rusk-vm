@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+- Add `HostCosts` config structure [#205]
 - Add `NetworkState::with_config` for instantiating a VM with the given configuration [#304]
 - Add `NetworkState::config` for getting instance configuration [#304]
 - Add `Config` and `OpCosts` structs [#304]
@@ -23,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change host functions to charge their cost according to config [#205]
+- Change `Config` to include `host_costs` [#205]
 - Change persistence to include configuration hash [#304]
 - Refactor configuration to be a static `Config` per instance [#304]
 - Place both `Contract::state` and `Contract::code` behind `microkelvin::Link` [#333]
@@ -263,6 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#247]: https://github.com/dusk-network/rusk-vm/issues/247
 [#245]: https://github.com/dusk-network/rusk-vm/issues/245
 [#236]: https://github.com/dusk-network/rusk-vm/issues/236
+[#205]: https://github.com/dusk-network/rusk-vm/issues/205
 [#201]: https://github.com/dusk-network/rusk-vm/issues/201
 [#210]: https://github.com/dusk-network/rusk-vm/issues/210
 [#203]: https://github.com/dusk-network/rusk-vm/issues/203
