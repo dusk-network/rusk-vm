@@ -50,7 +50,7 @@ impl<A, I> Compound<A, I> for ContractData {
 #[derive(Archive, Clone, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
 pub struct Contract {
-    state: Link<ContractData, (), OffsetLen>,
+    state: LinkedList<Vec<u8>, (), OffsetLen>,
     code: LinkedList<Vec<u8>, (), OffsetLen>,
 }
 
@@ -70,11 +70,12 @@ impl Contract {
 
         let state_vec = ser.spill_bytes(|bytes| Vec::from(bytes));
 
-        let state = Link::new(ContractData(state_vec));
+        let mut state_list = LinkedList::<Vec<u8>, (), OffsetLen>::new();
         let mut code_list = LinkedList::<Vec<u8>, (), OffsetLen>::new();
+        state_list.push(state_vec);
         code_list.push(code.into());
 
-        Contract { state, code: code_list }
+        Contract { state: state_list, code: code_list }
     }
 
     /// Update the contract's state
@@ -97,10 +98,12 @@ impl Contract {
 
     /// Returns a slice to the contract's state
     pub fn state(&self) -> &[u8] {
-        match self.state.inner() {
-            MaybeStored::Memory(m) => m.as_ref(),
-            MaybeStored::Stored(s) => s.inner().as_ref(),
-        }
+        let vector = self.state.walk(All).expect("Some(Branch)").leaf();
+        let vector = match vector {
+            MaybeArchived::Memory(v) => v,
+            MaybeArchived::Archived(v) => v.as_slice(),
+        };
+        vector
     }
 }
 
@@ -115,3 +118,15 @@ impl ArchivedContract {
         &store.get(self.state.ident()).0
     }
 }
+
+// impl ArchivedContract {
+    // Returns the identity of the contract's bytecode in the store
+    // pub fn bytecode<'a>(&self, store: &'a StoreContext) -> &'a [u8] {
+    //     &store.get(self.code.ident()).0
+    // }
+
+    // Returns the identity of the contract's state in the store
+    // pub fn state<'a>(&self, store: &'a StoreContext) -> &'a [u8] {
+    //     &store.get(self.state.ident()).0
+    // }
+// }
