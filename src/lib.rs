@@ -22,6 +22,7 @@ mod modules;
 mod ops;
 mod resolver;
 mod state;
+mod linked_list;
 
 pub use rusk_uplink;
 
@@ -30,3 +31,4 @@ pub use contract::{Contract, ContractId};
 pub use error::VMError;
 pub use gas::{Gas, GasMeter};
 pub use state::NetworkState;
+pub use linked_list::LinkedList;

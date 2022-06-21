@@ -5,13 +5,12 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use bytecheck::CheckBytes;
-use microkelvin::{
-    Child, ChildMut, Compound, Link, MaybeStored, OffsetLen, StoreSerializer,
-};
+use microkelvin::{All, Child, ChildMut, Compound, Link, MaybeArchived, MaybeStored, OffsetLen, StoreSerializer};
 use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
 use rusk_uplink::StoreContext;
 pub use rusk_uplink::{ContractId, ContractState};
+use crate::linked_list::LinkedList;
 
 #[derive(Archive, Clone, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
@@ -52,7 +51,7 @@ impl<A, I> Compound<A, I> for ContractData {
 #[archive_attr(derive(CheckBytes))]
 pub struct Contract {
     state: Link<ContractData, (), OffsetLen>,
-    code: Link<ContractData, (), OffsetLen>,
+    code: LinkedList<Vec<u8>, (), OffsetLen>,
 }
 
 impl Contract {
@@ -72,9 +71,10 @@ impl Contract {
         let state_vec = ser.spill_bytes(|bytes| Vec::from(bytes));
 
         let state = Link::new(ContractData(state_vec));
-        let code = Link::new(ContractData(code.into()));
+        let mut code_list = LinkedList::<Vec<u8>, (), OffsetLen>::new();
+        code_list.push(code.into());
 
-        Contract { state, code }
+        Contract { state, code: code_list }
     }
 
     /// Update the contract's state
@@ -87,10 +87,12 @@ impl Contract {
 
     /// Returns a slice to the contract's bytecode
     pub fn bytecode(&self) -> &[u8] {
-        match self.code.inner() {
-            MaybeStored::Memory(m) => m.as_ref(),
-            MaybeStored::Stored(s) => s.inner().as_ref(),
-        }
+        let vector = self.code.walk(All).expect("Some(Branch)").leaf();
+        let vector = match vector {
+            MaybeArchived::Memory(v) => v,
+            MaybeArchived::Archived(v) => v.as_slice(),
+        };
+        vector
     }
 
     /// Returns a slice to the contract's state
