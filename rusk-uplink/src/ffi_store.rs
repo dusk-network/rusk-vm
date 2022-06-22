@@ -4,7 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+extern crate alloc;
+
 use core::cell::UnsafeCell;
+
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 use microkelvin::{OffsetLen, Store, Token, TokenBuffer};
 use rkyv::Fallible;
@@ -73,7 +78,10 @@ impl AbiStoreInner {
         let bytes = match self.pages.last_mut() {
             Some(page) => page.unwritten_tail(),
             None => {
-                self.pages = vec![Page::new()];
+                let mut pages = Vec::with_capacity(1);
+                pages.push(Page::new());
+
+                self.pages = pages;
                 self.pages[0].unwritten_tail()
             }
         };

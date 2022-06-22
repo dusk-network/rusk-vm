@@ -4,10 +4,14 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+extern crate alloc;
+
 pub use crate::{
     ArchiveError, ContractId, ContractState, Query, RawEvent, RawQuery,
     RawTransaction, ReturnValue, Transaction,
 };
+
+use alloc::string::String;
 
 use bytecheck::CheckBytes;
 use microkelvin::{OffsetLen, StoreRef, StoreSerializer};

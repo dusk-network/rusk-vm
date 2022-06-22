@@ -4,6 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![no_std]
+#![feature(core_intrinsics)]
+#![feature(alloc_error_handler)]
+#![feature(lang_items)]
+
 /// Store backend over FFI
 #[cfg(not(feature = "host"))]
 mod ffi_store;
@@ -27,3 +32,5 @@ pub use debug::*;
 
 pub mod framing;
 pub use framing::*;
+
+mod items;
