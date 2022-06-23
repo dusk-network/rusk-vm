@@ -12,3 +12,7 @@ bytecheck = { version = "0.6", default-features = false }
 rusk-uplink_derive = { path = "../rusk-uplink_derive"}
 blake2b_simd = { version = "0.3", default-features = false }
 wee_alloc = "0.4"
+
+[features]
+default = ["host"]
+host = []

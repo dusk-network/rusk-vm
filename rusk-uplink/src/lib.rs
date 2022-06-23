@@ -33,4 +33,5 @@ pub use debug::*;
 pub mod framing;
 pub use framing::*;
 
+#[cfg(not(feature = "host"))]
 mod items;
