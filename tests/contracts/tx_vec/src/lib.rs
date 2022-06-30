@@ -31,7 +31,7 @@ impl TxVec {
 
     pub fn sum(&mut self, values: impl AsRef<[u8]>) {
         let values: &[u8] = &Box::from(values.as_ref());
-        self.value += values.into_iter().fold(0u8, |s, v| s.wrapping_add(*v));
+        self.value += values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
     }
 
     pub fn delegate_sum(

@@ -81,7 +81,7 @@ impl Transaction for TransactionForwardData {
 
 #[execute(name = "delegate_query")]
 impl Execute<QueryForwardData> for Delegator {
-    fn execute(&self, arg: QueryForwardData, store: StoreContext) -> u32 {
+    fn execute(&self, arg: QueryForwardData, mut store: StoreContext) -> u32 {
         let query_name = arg.name.as_ref();
         let mut query_data = AlignedVec::new();
         query_data.extend_from_slice(arg.data.as_ref());
@@ -91,7 +91,7 @@ impl Execute<QueryForwardData> for Delegator {
         );
         let res = result.cast_data::<<QueryForwardData as Query>::Return>();
         let res: <QueryForwardData as Query>::Return =
-            res.deserialize(&mut store.clone()).unwrap();
+            res.deserialize(&mut store).unwrap();
         res
     }
 }

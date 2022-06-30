@@ -72,10 +72,11 @@ where
 
         let a = self.state.apply(t.clone(), self.store.clone());
 
-        let b = self
+        let (b, network) = self
             .network
             .transact(self.contract_id, 0, t, &mut gas)
             .unwrap();
+        self.network = network;
 
         assert_eq!(a, *b, "Direct call and wasm transaction differ in result");
         a

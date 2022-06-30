@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change `NetworkState::transact` to return both a receipt and the resulting state [#357]
+- Change `NetworkState::transact` and `NetworkState::query` to take immutable
+  receivers [#357]
 - Change host functions to charge their cost according to config [#205]
 - Change `Config` to include `host_costs` [#205]
 - Change persistence to include configuration hash [#304]
@@ -37,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove state management from `NetworkState` [#357]
 - Remove `NetworkState::with_schedule` [#304]
 - Remove `ModuleConfig` and `NetworkState::get_module_config` [#304]
 - Remove `Schedule` as configuration structure [#304]
@@ -254,6 +258,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial
 
 [#374]: https://github.com/dusk-network/rusk-vm/issues/374
+[#357]: https://github.com/dusk-network/rusk-vm/issues/357
 [#333]: https://github.com/dusk-network/rusk-vm/issues/333
 [#308]: https://github.com/dusk-network/rusk-vm/issues/308
 [#304]: https://github.com/dusk-network/rusk-vm/issues/304

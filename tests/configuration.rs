@@ -121,7 +121,7 @@ fn execute_contract_with_config(config: &'static Config) -> u64 {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, counter::Increment, &mut gas)
         .expect("Transaction error");
 

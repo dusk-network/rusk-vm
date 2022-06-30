@@ -65,7 +65,7 @@ fn initialize_counter(
         99
     );
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, Increment, &mut gas)
         .unwrap();
 
@@ -73,8 +73,6 @@ fn initialize_counter(
         *network.query(contract_id, 0, ReadValue, &mut gas).unwrap(),
         100
     );
-
-    network.commit();
 
     network.persist_to_disk(store, source_path.as_ref())?;
 
@@ -105,12 +103,11 @@ fn initialize_stack(
     let mut gas = GasMeter::with_limit(100_000_000_000);
 
     for i in 0..STACK_TEST_SIZE {
-        network
+        let (_, new_network) = network
             .transact(contract_id, 0, Push::new(i), &mut gas)
             .unwrap();
+        network = new_network;
     }
-
-    network.commit();
 
     network.persist_to_disk(store, PathBuf::from(source_path.as_ref()))?;
 
@@ -152,12 +149,11 @@ fn initialize_register(
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
 
-        network
+        let (_, new_network) = network
             .transact(contract_id, 0, Gossip::new(secret_hash), &mut gas)
             .unwrap();
+        network = new_network;
     }
-
-    network.commit();
 
     network.persist_to_disk(store, PathBuf::from(source_path.as_ref()))?;
 
@@ -204,13 +200,13 @@ fn initialize_stack_and_register(
     let mut gas = GasMeter::with_limit(100_000_000_000);
 
     for i in 0..STACK_REGISTER_TEST_SIZE {
-        network
+        let (_, new_network) = network
             .transact(contract_id_stack, 0, Push::new(i), &mut gas)
             .unwrap();
         let mut secret_data: [u8; 32] = [0u8; 32];
         secret_data_from_int(&mut secret_data, i);
         let secret_hash = SecretHash::new(secret_data);
-        network
+        let (_, new_network) = new_network
             .transact(
                 contract_id_register,
                 0,
@@ -218,9 +214,8 @@ fn initialize_stack_and_register(
                 &mut gas,
             )
             .unwrap();
+        network = new_network;
     }
-
-    network.commit();
 
     network.persist_to_disk(store, source_path.as_ref())?;
 
@@ -255,11 +250,9 @@ fn initialize_stack_multi(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, PushMulti::new(STACK_TEST_SIZE), &mut gas)
         .unwrap();
-
-    network.commit();
 
     network.persist_to_disk(store, source_path.as_ref())?;
 
@@ -309,10 +302,10 @@ fn confirm_stack(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..STACK_TEST_SIZE {
-        let ii = *network
+        let (ii, _) = network
             .transact(stack_contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
-        assert_eq!(Some(STACK_TEST_SIZE - 1 - i), ii);
+        assert_eq!(Some(STACK_TEST_SIZE - 1 - i), *ii);
     }
 
     Ok(())
@@ -364,10 +357,10 @@ fn confirm_stack_and_register(
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
     for i in 0..STACK_REGISTER_TEST_SIZE {
-        let ii = *network
+        let (ii, _) = network
             .transact(stack_contract_id, 0, Pop::new(), &mut gas)
             .unwrap();
-        assert_eq!(Some(STACK_REGISTER_TEST_SIZE - 1 - i), ii);
+        assert_eq!(Some(STACK_REGISTER_TEST_SIZE - 1 - i), *ii);
     }
 
     /*
@@ -421,10 +414,10 @@ fn confirm_stack_multi(
         expected_sum += i;
     }
 
-    let sum = *network
+    let (sum, _) = network
         .transact(contract_id, 0, PopMulti::new(STACK_TEST_SIZE), &mut gas)
         .unwrap();
-    assert_eq!(sum, expected_sum);
+    assert_eq!(*sum, expected_sum);
 
     Ok(())
 }

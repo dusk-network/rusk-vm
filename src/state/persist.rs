@@ -32,14 +32,13 @@ pub enum PersistError {
 /// The [`NetworkStateId`] is the persisted id of the [`NetworkState`]
 #[derive(Archive, Serialize, Deserialize, Default, Clone, Debug)]
 pub struct NetworkStateId {
-    origin: OffsetLen,
-    head: OffsetLen,
+    contracts: OffsetLen,
 }
 
 impl NetworkStateId {
     /// Read from the given path a [`NetworkStateId`]
     pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, VMError> {
-        let buf = fs::read(&path).map_err(|e| PersistError::Io(e))?;
+        let buf = fs::read(&path).map_err(PersistError::Io)?;
         let id = unsafe { archived_root::<NetworkStateId>(buf.as_slice()) };
         let id: NetworkStateId = id.deserialize(&mut Infallible).unwrap();
         Ok(id)
@@ -50,7 +49,7 @@ impl NetworkStateId {
         let mut serializer = AllocSerializer::<0>::default();
         serializer.serialize_value(self).unwrap();
         let bytes = serializer.into_serializer().into_inner();
-        fs::write(&path, bytes.as_slice()).map_err(|e| PersistError::Io(e))?;
+        fs::write(&path, bytes.as_slice()).map_err(PersistError::Io)?;
         Ok(())
     }
 }
@@ -64,16 +63,14 @@ impl NetworkState {
         &self,
         store: StoreRef<OffsetLen>,
     ) -> Result<NetworkStateId, VMError> {
-        let head_stored = store.store(&self.head.0);
-        let origin_stored = store.store(&self.origin.0);
+        let contracts_stored = store.store(&self.contracts.0);
         store.persist().map_err(|_| {
             PersistError::Store(String::from(
                 "Store persistence failed for network state",
             ))
         })?;
         Ok(NetworkStateId {
-            head: *head_stored.ident().erase(),
-            origin: *origin_stored.ident().erase(),
+            contracts: *contracts_stored.ident().erase(),
         })
     }
 
@@ -100,28 +97,18 @@ impl NetworkState {
         store: StoreRef<OffsetLen>,
         id: NetworkStateId,
     ) -> Result<Self, VMError> {
-        let head_ident = Ident::<
+        let contracts_ident = Ident::<
             Hamt<ContractId, Contract, (), OffsetLen>,
             OffsetLen,
-        >::new(id.head);
-        let origin_ident = Ident::<
-            Hamt<ContractId, Contract, (), OffsetLen>,
-            OffsetLen,
-        >::new(id.origin);
+        >::new(id.contracts);
 
-        let restored_head: &<Hamt<ContractId, Contract, (), OffsetLen> as Archive>::Archived =
-            store.get::<Hamt<ContractId, Contract, (), OffsetLen>>(&head_ident);
-        let restored_origin: &<Hamt<ContractId, Contract, (), OffsetLen> as Archive>::Archived =
-            store.get::<Hamt<ContractId, Contract, (), OffsetLen>>(&origin_ident);
+        let restored_contracts: &<Hamt<ContractId, Contract, (), OffsetLen> as Archive>::Archived =
+            store.get::<Hamt<ContractId, Contract, (), OffsetLen>>(&contracts_ident);
 
-        let restored_head: Hamt<ContractId, Contract, (), OffsetLen> =
-            restored_head.deserialize(&mut store.clone()).unwrap();
-        let restored_origin: Hamt<ContractId, Contract, (), OffsetLen> =
-            restored_origin.deserialize(&mut store.clone()).unwrap();
+        let restored_contracts: Hamt<ContractId, Contract, (), OffsetLen> =
+            restored_contracts.deserialize(&mut store.clone()).unwrap();
 
-        self.origin = Contracts(restored_origin);
-        self.head = Contracts(restored_head);
-        self.staged = self.head.clone();
+        self.contracts = Contracts(restored_contracts);
 
         Ok(self)
     }
@@ -133,7 +120,7 @@ impl NetworkState {
     ) -> Result<Self, VMError> {
         let store = StoreRef::new(
             HostStore::with_file(source_store_path.as_ref())
-                .map_err(|e| PersistError::Io(e))?,
+                .map_err(PersistError::Io)?,
         );
         let file_path = source_store_path
             .as_ref()

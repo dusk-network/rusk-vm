@@ -123,7 +123,7 @@ fn delegated_call() {
 
     // delegate transaction
 
-    network
+    let (_, network) = network
         .transact(
             delegator_id,
             0,
@@ -165,7 +165,7 @@ fn events() {
     let receipt = network
         .query(contract_id, 0, EventNum(10), &mut gas)
         .unwrap();
-    for (i, event) in receipt.events().into_iter().enumerate() {
+    for (i, event) in receipt.events().iter().enumerate() {
         assert_eq!(&(i as i32).to_le_bytes()[..], event.data());
     }
 }
@@ -241,7 +241,6 @@ fn self_snapshot() {
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
-
     assert_eq!(
         7,
         *network
@@ -250,17 +249,17 @@ fn self_snapshot() {
     );
 
     // returns old value
-    assert_eq!(
-        *network
-            .transact(
-                contract_id,
-                0,
-                self_snapshot::SetCrossoverTransaction::new(9),
-                &mut gas,
-            )
-            .unwrap(),
-        7
-    );
+
+    let (receipt, network) = network
+        .transact(
+            contract_id,
+            0,
+            self_snapshot::SetCrossoverTransaction::new(9),
+            &mut gas,
+        )
+        .unwrap();
+
+    assert_eq!(*receipt, 7);
 
     assert_eq!(
         9,
@@ -269,7 +268,7 @@ fn self_snapshot() {
             .unwrap()
     );
 
-    network
+    let (_, network) = network
         .transact(
             contract_id,
             0,
@@ -320,7 +319,7 @@ fn self_snapshot() {
             "set_crossover",
         );
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, self_call_test_b_transaction, &mut gas)
         .unwrap();
 
@@ -355,7 +354,7 @@ fn tx_vec() {
     let values = vec![3u8, 5, 7];
     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, TxVecSum::new(values), &mut gas)
         .unwrap();
 
@@ -368,7 +367,7 @@ fn tx_vec() {
     let value = value + values.iter().fold(0u8, |s, v| s.wrapping_add(*v));
 
     let delegate_sum = TxVecDelegateSum::new(contract_id, &values[..]);
-    network
+    let (_, network) = network
         .transact(contract_id, 0, delegate_sum, &mut gas)
         .unwrap();
 
@@ -382,7 +381,7 @@ fn tx_vec() {
         value.wrapping_add(values.iter().fold(0u8, |s, v| s.wrapping_add(*v)));
 
     let delegate_sum = TxVecDelegateSum::new(contract_id, &values[..]);
-    network
+    let (_, network) = network
         .transact(contract_id, 0, delegate_sum, &mut gas)
         .unwrap();
 
@@ -419,11 +418,11 @@ fn calling() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
+    let (_, network) = network
         .transact(caller_id, 0, CallerTransaction::new(callee1_id), &mut gas)
         .unwrap();
 
-    network
+    let (_, network) = network
         .transact(callee1_id, 0, Callee1Transaction::new(callee2_id), &mut gas)
         .unwrap();
 
@@ -458,7 +457,7 @@ fn gas_consumed_host_function_works() {
     const CALLER_GAS_LIMIT: u64 = 1_000_000_000;
     let mut gas = GasMeter::with_limit(CALLER_GAS_LIMIT);
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, GasConsumedIncrement, &mut gas)
         .expect("Transaction error");
 
@@ -504,7 +503,7 @@ fn gas_consumption_works() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, counter::Increment, &mut gas)
         .expect("Transaction error");
 
@@ -570,7 +569,7 @@ fn out_of_gas_aborts_query_execution() {
 }
 
 #[test]
-fn commit_and_reset() {
+fn old_and_new_state() {
     let counter = Counter::new(99);
 
     let code =
@@ -582,32 +581,21 @@ fn commit_and_reset() {
     let mut network = NetworkState::new(store);
 
     let contract_id = network.deploy(contract).unwrap();
-    network.commit();
-
-    let mut network_clone = network.clone();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
+    let (_, new_network) = network
         .transact(contract_id, 0, counter::Increment, &mut gas)
         .unwrap();
-    network_clone
-        .transact(contract_id, 0, counter::Increment, &mut gas)
-        .unwrap();
-
-    network.commit();
-
-    network.reset();
-    network_clone.reset();
 
     assert_eq!(
-        *network
+        *new_network
             .query(contract_id, 0, counter::ReadValue, &mut gas)
             .unwrap(),
         100
     );
     assert_eq!(
-        *network_clone
+        *network
             .query(contract_id, 0, counter::ReadValue, &mut gas)
             .unwrap(),
         99
@@ -636,7 +624,7 @@ fn register() {
 
     const N: u32 = 5;
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, Gossip::new(secret_hash), &mut gas)
         .expect("Transaction error");
 
@@ -647,10 +635,12 @@ fn register() {
         1
     );
 
+    let mut network = network;
     for _ in 1..N {
-        network
+        network = network
             .transact(contract_id, 0, Gossip::new(secret_hash), &mut gas)
-            .expect("Transaction error");
+            .expect("Transaction error")
+            .1;
     }
 
     assert_eq!(
@@ -677,12 +667,10 @@ fn map() {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    assert_eq!(
-        None,
-        *network
-            .transact(contract_id, 0, Set::new(0, 13), &mut gas)
-            .expect("Transaction should not error")
-    );
+    let (receipt, network) = network
+        .transact(contract_id, 0, Set::new(0, 13), &mut gas)
+        .expect("Transaction should not error");
+    assert_eq!(None, *receipt);
 
     assert_eq!(
         Some(13),
@@ -691,12 +679,10 @@ fn map() {
             .expect("Query should not error")
     );
 
-    assert_eq!(
-        Some(13),
-        *network
-            .transact(contract_id, 0, Remove::new(0), &mut gas)
-            .expect("Transaction should not error")
-    );
+    let (receipt, network) = network
+        .transact(contract_id, 0, Remove::new(0), &mut gas)
+        .expect("Transaction should not error");
+    assert_eq!(Some(13), *receipt);
 
     assert_eq!(
         None,

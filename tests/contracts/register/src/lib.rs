@@ -68,7 +68,7 @@ impl Execute<NumSecrets> for Register {
             .as_ref()
             .map(|branch| match branch.leaf() {
                 MaybeArchived::Memory(m) => *m,
-                MaybeArchived::Archived(a) => (*a).into(),
+                MaybeArchived::Archived(a) => *a,
             })
             .unwrap_or(0)
     }
@@ -88,7 +88,7 @@ impl Apply<Gossip> for Register {
         if let Some(mut branch) = self.open_secrets.get_mut(&t.0) {
             *branch.leaf_mut() += 1;
         } else {
-            self.open_secrets.insert(t.0.clone(), 1);
+            self.open_secrets.insert(t.0, 1);
         }
     }
 }
