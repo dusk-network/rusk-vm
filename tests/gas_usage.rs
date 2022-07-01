@@ -6,21 +6,18 @@
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use counter::Counter;
-use microkelvin::{HostStore, StoreRef};
 use register::*;
 use rusk_vm::{Contract, GasMeter, NetworkState};
 use stack::*;
 
 fn execute_counter_contract() -> u64 {
-    let counter = Counter::new(99);
+    let mut network = NetworkState::new();
 
+    let counter = Counter::new(99);
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&counter, code.to_vec(), &store);
-    let mut network = NetworkState::new(store);
-
+    let contract = Contract::new(&counter, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
@@ -37,14 +34,13 @@ fn execute_counter_contract() -> u64 {
 }
 
 fn execute_stack_single_push_pop_contract() -> u64 {
+    let mut network = NetworkState::new();
+
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
     let stack = Stack::new();
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&stack, code.to_vec(), &store);
-    let mut network = NetworkState::new(store);
-
+    let contract = Contract::new(&stack, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
@@ -61,14 +57,13 @@ fn execute_stack_single_push_pop_contract() -> u64 {
 }
 
 fn execute_stack_multi_push_pop_contract(count: u64) -> u64 {
+    let mut network = NetworkState::new();
+
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
     let stack = Stack::new();
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&stack, code.to_vec(), &store);
-    let mut network = NetworkState::new(store);
-
+    let contract = Contract::new(&stack, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
@@ -85,14 +80,13 @@ fn execute_stack_multi_push_pop_contract(count: u64) -> u64 {
 }
 
 fn execute_multiple_transactions_stack_contract(count: u64) -> u64 {
+    let mut network = NetworkState::new();
+
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
     let stack = Stack::new();
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&stack, code.to_vec(), &store);
-    let mut network = NetworkState::new(store);
-
+    let contract = Contract::new(&stack, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
@@ -108,15 +102,14 @@ fn execute_multiple_transactions_stack_contract(count: u64) -> u64 {
 }
 
 fn execute_multiple_register_contract(count: u64) -> u64 {
+    let mut network = NetworkState::new();
+
     let code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/register.wasm"
     );
     let register = Register::new();
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&register, code.to_vec(), &store);
-    let mut network = NetworkState::new(store);
-
+    let contract = Contract::new(&register, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);

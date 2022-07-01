@@ -13,7 +13,7 @@ pub fn get_state_arg<S, P>(
     written_state: u32,
     written_data: u32,
     scratch: impl AsRef<[u8]>,
-    store: StoreContext,
+    mut store: StoreContext,
 ) -> (S, P)
 where
     S: Archive,
@@ -26,13 +26,13 @@ where
     let state = unsafe {
         archived_root::<S>(&scratch.as_ref()[..written_state as usize])
     };
-    let state: S = state.deserialize(&mut store.clone()).unwrap();
+    let state: S = state.deserialize(&mut store).unwrap();
     let arg = unsafe {
         archived_root::<P>(
             &scratch.as_ref()[written_state as usize..written_data as usize],
         )
     };
-    let arg: P = arg.deserialize(&mut store.clone()).unwrap();
+    let arg: P = arg.deserialize(&mut store).unwrap();
 
     (state, arg)
 }

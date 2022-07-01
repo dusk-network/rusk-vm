@@ -150,12 +150,6 @@ impl ContractState {
     }
 }
 
-pub trait HostModule {
-    fn execute(&self);
-
-    fn module_id(&self) -> ContractId;
-}
-
 // TODO, use borrowed bytes here?
 #[derive(Debug, Default)]
 pub struct ReturnValue {

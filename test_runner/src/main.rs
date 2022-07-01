@@ -12,7 +12,6 @@ use std::path::PathBuf;
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use counter::*;
-use microkelvin::*;
 use register::*;
 use rusk_vm::*;
 use stack::*;
@@ -44,7 +43,9 @@ impl Display for PersistE {
 fn initialize_counter(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let mut network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
 
     let counter = Counter::new(99);
 
@@ -52,10 +53,7 @@ fn initialize_counter(
         "../../target/wasm32-unknown-unknown/release/counter.wasm"
     );
 
-    let contract = Contract::new(&counter, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
-
+    let contract = Contract::new(&counter, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
@@ -74,7 +72,7 @@ fn initialize_counter(
         100
     );
 
-    network.persist_to_disk(store, source_path.as_ref())?;
+    network.persist()?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("counter_contract_id");
@@ -87,17 +85,17 @@ fn initialize_counter(
 fn initialize_stack(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let mut network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
+
     let stack = Stack::new();
 
     let code = include_bytes!(
         "../../target/wasm32-unknown-unknown/release/stack.wasm"
     );
 
-    let contract = Contract::new(&stack, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
-
+    let contract = Contract::new(&stack, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
@@ -109,7 +107,7 @@ fn initialize_stack(
         network = new_network;
     }
 
-    network.persist_to_disk(store, PathBuf::from(source_path.as_ref()))?;
+    network.persist()?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -129,17 +127,17 @@ fn secret_data_from_int(secret_data: &mut [u8; 32], i: u64) {
 fn initialize_register(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let mut network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
+
     let stack = Stack::new();
 
     let code = include_bytes!(
         "../../target/wasm32-unknown-unknown/release/register.wasm"
     );
 
-    let contract = Contract::new(&stack, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
-
+    let contract = Contract::new(&stack, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
@@ -155,7 +153,7 @@ fn initialize_register(
         network = new_network;
     }
 
-    network.persist_to_disk(store, PathBuf::from(source_path.as_ref()))?;
+    network.persist()?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("register_contract_id");
@@ -178,7 +176,10 @@ fn initialize_register(
 fn initialize_stack_and_register(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let mut network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
+
     let stack = Stack::new();
 
     let code_stack = include_bytes!(
@@ -188,11 +189,10 @@ fn initialize_stack_and_register(
         "../../target/wasm32-unknown-unknown/release/register.wasm"
     );
 
-    let contract_stack = Contract::new(&stack, code_stack.to_vec(), &store);
+    let contract_stack =
+        Contract::new(&stack, code_stack.to_vec(), network.store());
     let contract_register =
-        Contract::new(&stack, code_register.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
+        Contract::new(&stack, code_register.to_vec(), network.store());
 
     let contract_id_stack = network.deploy(contract_stack).unwrap();
     let contract_id_register = network.deploy(contract_register).unwrap();
@@ -217,7 +217,7 @@ fn initialize_stack_and_register(
         network = new_network;
     }
 
-    network.persist_to_disk(store, source_path.as_ref())?;
+    network.persist()?;
 
     let contract_id_stack_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -235,17 +235,17 @@ fn initialize_stack_and_register(
 fn initialize_stack_multi(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
+    let network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
+
     let stack = Stack::new();
 
     let code = include_bytes!(
         "../../target/wasm32-unknown-unknown/release/stack.wasm"
     );
 
-    let contract = Contract::new(&stack, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store.clone());
-
+    let contract = Contract::new(&stack, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(100_000_000_000);
@@ -254,7 +254,7 @@ fn initialize_stack_multi(
         .transact(contract_id, 0, PushMulti::new(STACK_TEST_SIZE), &mut gas)
         .unwrap();
 
-    network.persist_to_disk(store, source_path.as_ref())?;
+    network.persist()?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -265,8 +265,9 @@ fn initialize_stack_multi(
 }
 
 fn confirm_counter(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    let mut network = NetworkState::restore_from_disk(source_path.as_ref())
-        .map_err(|_| PersistE)?;
+    let network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("counter_contract_id");
@@ -285,14 +286,9 @@ fn confirm_counter(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
 }
 
 fn confirm_stack(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    let source_store =
-        StoreRef::new(HostStore::with_file(source_path.as_ref())?);
-    let file_path = PathBuf::from(source_path.as_ref()).join("persist_id");
-    let state_id = NetworkStateId::read(file_path)?;
-
-    let mut network = NetworkState::new(source_store.clone())
-        .restore(source_store.clone(), state_id)
-        .map_err(|_| PersistE)?;
+    let network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");
@@ -314,8 +310,9 @@ fn confirm_stack(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
 fn confirm_register(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let mut network = NetworkState::restore_from_disk(source_path.as_ref())
-        .map_err(|_| PersistE)?;
+    let network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
 
     let contract_id_register_path =
         PathBuf::from(source_path.as_ref()).join("register_contract_id");
@@ -343,8 +340,9 @@ fn confirm_register(
 fn confirm_stack_and_register(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let mut network = NetworkState::restore_from_disk(source_path.as_ref())
-        .map_err(|_| PersistE)?;
+    let network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
 
     /*
        confirm stack
@@ -393,13 +391,9 @@ fn confirm_stack_and_register(
 fn confirm_stack_multi(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let store = StoreRef::new(HostStore::with_file(source_path.as_ref())?);
-    let file_path = PathBuf::from(source_path.as_ref()).join("persist_id");
-    let state_id = NetworkStateId::read(file_path)?;
-
-    let mut network = NetworkState::new(store.clone())
-        .restore(store, state_id)
-        .map_err(|_| PersistE)?;
+    let network = NetworkState::builder()
+        .store_dir(source_path.as_ref())?
+        .build();
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("stack_contract_id");

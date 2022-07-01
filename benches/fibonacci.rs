@@ -6,7 +6,6 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fibonacci::Fibonacci;
-use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 
 fn get_config() -> Criterion {
@@ -32,12 +31,11 @@ fn fibonacci_bench(c: &mut Criterion) {
         ".wasm"
     ));
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&Fibonacci, code.to_vec(), &store);
+    let mut network = NetworkState::new();
 
-    let mut network = NetworkState::new(store);
-
+    let contract = Contract::new(&Fibonacci, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).unwrap();
+
     let mut gas = GasMeter::with_limit(1_000_000_000_000);
     c.bench_function("fibonacci 15", |b| {
         b.iter(|| {

@@ -4,8 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+pub mod builder;
+pub mod persist;
+
 use std::fmt;
 use std::ops::Deref;
+use std::path::PathBuf;
 
 use dusk_hamt::{Hamt, Lookup};
 
@@ -16,18 +20,19 @@ use microkelvin::{
 use rkyv::validation::validators::DefaultValidator;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{
-    hash, ContractId, HostModule, Query, RawQuery, RawTransaction,
-    StoreContext, Transaction,
+    hash, ContractId, Query, RawQuery, RawTransaction, StoreContext,
+    Transaction,
 };
 
 use tracing::{trace, trace_span};
 
 use crate::call_context::CallContext;
-use crate::config::{Config, DEFAULT_CONFIG};
+use crate::config::Config;
 use crate::contract::Contract;
+use crate::error::VMError;
 use crate::gas::GasMeter;
 use crate::modules::{compile_module, HostModules};
-use crate::VMError;
+use crate::state::builder::NetworkStateBuilder;
 
 #[derive(Debug, Clone)]
 pub struct Event {
@@ -88,8 +93,6 @@ impl<R> Deref for Receipt<R> {
     }
 }
 
-pub mod persist;
-
 /// State of the contracts on the network.
 #[derive(Archive, Default, Clone)]
 pub struct Contracts(Hamt<ContractId, Contract, (), OffsetLen>);
@@ -143,34 +146,39 @@ impl Contracts {
 
 /// The main network state.
 ///
-/// Use [`query`] and [`transact`] to interact with the state.
+/// Use [`query`] and [`transact`] to interact with the state. By default the
+/// state is backed.
+///
+/// [`query`]: `NetworkState::query`
+/// [`transact`]: `NetworkState::transact`
 #[derive(Clone)]
 pub struct NetworkState {
     contracts: Contracts,
     modules: HostModules,
     store: StoreContext,
+    id_path: Option<PathBuf>,
     config: &'static Config,
 }
 
 impl NetworkState {
     /// Returns a new empty [`NetworkState`] with the default configuration.
-    pub fn new(store: StoreContext) -> Self {
-        Self::with_config(store, &DEFAULT_CONFIG)
+    pub fn new() -> Self {
+        NetworkStateBuilder::new().build()
     }
 
-    /// Returns a new empty [`NetworkState`] with the given configuration.
-    pub fn with_config(store: StoreContext, config: &'static Config) -> Self {
-        NetworkState {
-            contracts: Default::default(),
-            modules: Default::default(),
-            store,
-            config,
-        }
+    /// Returns a builder for more advanced configuration.
+    pub fn builder() -> NetworkStateBuilder {
+        NetworkStateBuilder::new()
     }
 
     /// Returns the configuration of this instance.
     pub fn config(&self) -> &'static Config {
         self.config
+    }
+
+    /// Returns the store backing the state.
+    pub fn store(&self) -> &StoreContext {
+        &self.store
     }
 
     /// Returns a reference to the specified contracts state in the state.
@@ -329,17 +337,9 @@ impl NetworkState {
         todo!()
     }
 
-    /// Register a host function handler.
-    pub fn register_host_module<M>(&mut self, module: M)
-    where
-        M: HostModule + 'static,
-    {
-        self.modules.insert(module);
-    }
-
     /// Gets the state of the given contract.
     pub fn get_contract_cast_state<C>(
-        &mut self,
+        &self,
         contract_id: &ContractId,
     ) -> Result<C, VMError> {
         self.contracts.get_contract(contract_id).map_or(
@@ -350,6 +350,12 @@ impl NetworkState {
                 todo!()
             },
         )
+    }
+}
+
+impl Default for NetworkState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

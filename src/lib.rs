@@ -24,7 +24,6 @@ mod resolver;
 mod state;
 
 pub use rusk_uplink;
-pub use state::persist::NetworkStateId;
 
 pub use config::{Config, HostCosts, OpCosts};
 pub use contract::{Contract, ContractId};

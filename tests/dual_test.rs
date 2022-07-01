@@ -7,7 +7,7 @@
 use std::fmt::Debug;
 
 use bytecheck::CheckBytes;
-use microkelvin::{HostStore, OffsetLen, StoreRef, StoreSerializer};
+use microkelvin::{OffsetLen, StoreRef, StoreSerializer};
 use rkyv::{
     validation::validators::DefaultValidator, Archive, Deserialize, Serialize,
 };
@@ -15,7 +15,6 @@ use rusk_uplink::{Apply, Execute, Query, Transaction};
 use rusk_vm::{Contract, ContractId, GasMeter, NetworkState};
 
 pub struct DualTest<S> {
-    store: StoreRef<OffsetLen>,
     contract_id: ContractId,
     network: NetworkState,
     state: S,
@@ -26,13 +25,12 @@ where
     S: Serialize<StoreSerializer<OffsetLen>>,
 {
     pub fn new(state: S, code: &[u8]) -> Self {
-        let store = StoreRef::new(HostStore::new());
-        let contract = Contract::new(&state, code.to_vec(), &store);
-        let mut network = NetworkState::new(store.clone());
+        let mut network = NetworkState::new();
+
+        let contract = Contract::new(&state, code.to_vec(), network.store());
         let contract_id = network.deploy(contract).unwrap();
 
         DualTest {
-            store,
             network,
             state,
             contract_id,
@@ -49,7 +47,7 @@ where
     {
         let mut gas = GasMeter::with_limit(1_000_000_000);
 
-        let a = self.state.execute(q.clone(), self.store.clone());
+        let a = self.state.execute(q.clone(), self.network.store().clone());
 
         let b = self
             .network
@@ -70,7 +68,7 @@ where
     {
         let mut gas = GasMeter::with_limit(1_000_000_000);
 
-        let a = self.state.apply(t.clone(), self.store.clone());
+        let a = self.state.apply(t.clone(), self.network.store().clone());
 
         let (b, network) = self
             .network

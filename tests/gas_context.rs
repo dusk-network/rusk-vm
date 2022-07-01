@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use gas_context::{GasContextData, SetGasLimits};
-use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Contract, Gas, GasMeter, NetworkState};
 
 fn make_gas_bounds(top: u64, vec: &mut Vec<(u64, u64)>, count: usize) {
@@ -20,15 +19,14 @@ fn make_gas_bounds(top: u64, vec: &mut Vec<(u64, u64)>, count: usize) {
 fn gas_context() {
     let gas_context_data = GasContextData::new();
 
+    let mut network = NetworkState::new();
+
     let code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/gas_context.wasm"
     );
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&gas_context_data, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store);
-
+    let contract =
+        Contract::new(&gas_context_data, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).unwrap();
 
     const INITIAL_GAS_LIMIT: Gas = 1_000_000_000;
@@ -81,15 +79,14 @@ fn gas_context() {
 fn gas_context_with_call_limit() {
     let gas_context_data = GasContextData::new();
 
+    let mut network = NetworkState::new();
+
     let code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/gas_context.wasm"
     );
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&gas_context_data, code.to_vec(), &store);
-
-    let mut network = NetworkState::new(store);
-
+    let contract =
+        Contract::new(&gas_context_data, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).unwrap();
 
     const INITIAL_GAS_LIMIT: Gas = 900_000_000;
@@ -103,12 +100,7 @@ fn gas_context_with_call_limit() {
     let number_of_nested_calls: usize = call_gas_limits.len();
 
     let (_, network) = network
-        .transact(
-            contract_id,
-            0,
-            gas_context::SetGasLimits::new(call_gas_limits),
-            &mut gas,
-        )
+        .transact(contract_id, 0, SetGasLimits::new(call_gas_limits), &mut gas)
         .unwrap();
 
     let (_, network) = network

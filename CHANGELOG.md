@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+- Add `NetworkState::store` [#319]
+- Add `NetworkState::builder` [#319]
+- Add `Default` implementation for `NetworkState` [#319]
+- Add `NetworkStateBuilder` [#319]
 - Introduce lang items as in `dusk-abi` [#374]
 - Add `HostCosts` config structure [#205]
 - Add `NetworkState::with_config` for instantiating a VM with the given configuration [#304]
@@ -25,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change `NetworkState::persist` to require no arguments [#319]
+- Change `NetworkState::new` to require no arguments [#319]
 - Change `NetworkState::transact` to return both a receipt and the resulting state [#357]
 - Change `NetworkState::transact` and `NetworkState::query` to take immutable
   receivers [#357]
@@ -40,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove `NetworkState::restore_from_disk` and `NetworkState::restore` [#319]
+- Remove `NetworkState::persist_to_disk` [#319]
+- Remove `NetworkState::with_config` [#319]
+- Remove `NetworkStateId` [#319]
 - Remove state management from `NetworkState` [#357]
 - Remove `NetworkState::with_schedule` [#304]
 - Remove `ModuleConfig` and `NetworkState::get_module_config` [#304]
@@ -260,6 +270,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#374]: https://github.com/dusk-network/rusk-vm/issues/374
 [#357]: https://github.com/dusk-network/rusk-vm/issues/357
 [#333]: https://github.com/dusk-network/rusk-vm/issues/333
+[#319]: https://github.com/dusk-network/rusk-vm/issues/319
 [#308]: https://github.com/dusk-network/rusk-vm/issues/308
 [#304]: https://github.com/dusk-network/rusk-vm/issues/304
 [#302]: https://github.com/dusk-network/rusk-vm/issues/302
