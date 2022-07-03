@@ -478,7 +478,7 @@ impl Top {
 
 impl ArchivedTop {
     pub fn bytecode(&self) -> &[u8] {
-        self.code.data.as_slice() // should be get_data()
+        self.code.get_data()
     }
 }
 
@@ -498,6 +498,12 @@ impl Nest
     fn new() -> Self {
         Nest { data: Vec::from("abc") }
     }
+    fn get_data(&self) -> &[u8] {
+        self.data.as_slice()
+    }
+}
+
+impl ArchivedNest {
     fn get_data(&self) -> &[u8] {
         self.data.as_slice()
     }
