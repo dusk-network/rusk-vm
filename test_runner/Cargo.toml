@@ -10,3 +10,5 @@ stack = { path = "../tests/contracts/stack" }
 register = { path = "../tests/contracts/register" }
 microkelvin = "0.16.0-rkyv"
 byteorder = "1.4"
+rkyv = { version = "0.7.29", default-features = false }
+bytecheck = { version = "0.6", default-features = false }

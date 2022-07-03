@@ -452,13 +452,80 @@ NOTE - tests contained in this file won't work
 until we have support for contracts' bytecodes longer than 64k
  */
 
+use bytecheck::CheckBytes;
+use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
+use rkyv::ser::serializers::AllocSerializer;
+
+
+/*
+    Top
+ */
+
+#[derive(Archive, Clone, Serialize, Deserialize, Default, Debug)]
+#[archive_attr(derive(CheckBytes))]
+pub struct Top {
+    code: Nest,
+}
+
+impl Top {
+    pub fn new(nest: &Nest) -> Self {
+        Top { code: nest.clone() }
+    }
+    pub fn bytecode(&self) -> &[u8] {
+        self.code.get_data()
+    }
+}
+
+impl ArchivedTop {
+    pub fn bytecode(&self) -> &[u8] {
+        self.code.data.as_slice() // should be get_data()
+    }
+}
+
+/*
+    Nest
+ */
+
+#[derive(Archive, Clone, Serialize, Deserialize, Default, Debug)]
+#[archive_attr(derive(CheckBytes))]
+pub struct Nest
+{
+    data: Vec<u8>
+}
+
+impl Nest
+{
+    fn new() -> Self {
+        Nest { data: Vec::from("abc") }
+    }
+    fn get_data(&self) -> &[u8] {
+        self.data.as_slice()
+    }
+}
+
+/*
+    support
+ */
+
+fn support() -> Result<(), Box<dyn Error>>{
+    let top = Top::new(&Nest::new());
+    let mut serializer = AllocSerializer::<0>::default();
+    serializer.serialize_value(&top).unwrap();
+    let bytes = serializer.into_serializer().into_inner();
+    let archived = rkyv::check_archived_root::<Top>(&bytes[..]).unwrap();
+
+    let archived_bytecode = archived.bytecode();
+
+    println!("top archived bytecode = {:?}", archived_bytecode);
+
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
-    let source_path = args[2].clone();
 
     match &*args[1] {
-        "initialize" => initialize(source_path),
-        "confirm" => confirm(source_path),
+        "support" => support(),
         _ => Err(Box::new(IllegalArg)),
     }
 }
