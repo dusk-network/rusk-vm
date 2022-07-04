@@ -465,20 +465,33 @@ use rkyv::ser::serializers::AllocSerializer;
 #[archive_attr(derive(CheckBytes))]
 pub struct Top {
     code: Nest,
+    nonce: Nonce,
 }
 
 impl Top {
     pub fn new(nest: &Nest) -> Self {
-        Top { code: nest.clone() }
+        Top { code: nest.clone(), nonce: Nonce::Nonce1(1000) }
     }
     pub fn bytecode(&self) -> &[u8] {
         self.code.get_data()
+    }
+    pub fn get_nonce(&self) -> u64 {
+        match self.nonce {
+            Nonce::Nonce1(n) => n as u64,
+            Nonce::Nonce2(n) => n
+        }
     }
 }
 
 impl ArchivedTop {
     pub fn bytecode(&self) -> &[u8] {
         self.code.get_data()
+    }
+    pub fn get_nonce(&self) -> u64 {
+        match self.nonce {
+            ArchivedNonce::Nonce1(n) => n as u64,
+            ArchivedNonce::Nonce2(n) => n
+        }
     }
 }
 
@@ -510,6 +523,25 @@ impl ArchivedNest {
 }
 
 /*
+    nonce
+    to prove that it also works for enums
+ */
+
+#[derive(Archive, Clone, Serialize, Deserialize, Debug)]
+#[archive_attr(derive(CheckBytes))]
+pub enum Nonce
+{
+    Nonce1(u32),
+    Nonce2(u64)
+}
+
+impl Default for Nonce {
+    fn default() -> Self {
+        Nonce::Nonce1(0)
+    }
+}
+
+/*
     support
  */
 
@@ -520,9 +552,8 @@ fn support() -> Result<(), Box<dyn Error>>{
     let bytes = serializer.into_serializer().into_inner();
     let archived = rkyv::check_archived_root::<Top>(&bytes[..]).unwrap();
 
-    let archived_bytecode = archived.bytecode();
-
-    println!("top archived bytecode = {:?}", archived_bytecode);
+    println!("top archived bytecode = {:?}", archived.bytecode());
+    println!("top archived nonce = {:?}", archived.get_nonce());
 
     Ok(())
 }
