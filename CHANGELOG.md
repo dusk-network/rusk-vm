@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Make `put` host call charge gas per byte [#323]
 - Change `NetworkState::persist` to require no arguments [#319]
 - Change `NetworkState::new` to require no arguments [#319]
 - Change `NetworkState::transact` to return both a receipt and the resulting state [#357]
@@ -270,6 +271,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#374]: https://github.com/dusk-network/rusk-vm/issues/374
 [#357]: https://github.com/dusk-network/rusk-vm/issues/357
 [#333]: https://github.com/dusk-network/rusk-vm/issues/333
+[#323]: https://github.com/dusk-network/rusk-vm/issues/323
 [#319]: https://github.com/dusk-network/rusk-vm/issues/319
 [#308]: https://github.com/dusk-network/rusk-vm/issues/308
 [#304]: https://github.com/dusk-network/rusk-vm/issues/304

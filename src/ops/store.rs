@@ -45,7 +45,7 @@ impl Put {
         let context = env.get_context();
 
         let config = context.config();
-        context.charge_gas(config.host_costs.put)?;
+        context.charge_gas(len as u64 * config.host_costs.put)?;
 
         let bytes = env
             .get_context()
