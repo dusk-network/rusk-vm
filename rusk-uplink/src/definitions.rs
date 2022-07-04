@@ -4,7 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+extern crate alloc;
+
 use core::fmt::Debug;
+
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 use bytecheck::CheckBytes;
 use microkelvin::{OffsetLen, StoreRef, StoreSerializer};

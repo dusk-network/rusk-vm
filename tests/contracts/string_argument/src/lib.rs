@@ -4,7 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![no_std]
 #![feature(core_intrinsics, lang_items, alloc_error_handler)]
+
+extern crate alloc;
+
+use alloc::string::String;
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{Execute, Query, StoreContext};

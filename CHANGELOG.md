@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+- Introduce lang items as in `dusk-abi` [#374]
 - Add `HostCosts` config structure [#205]
 - Add `NetworkState::with_config` for instantiating a VM with the given configuration [#304]
 - Add `NetworkState::config` for getting instance configuration [#304]
@@ -252,6 +253,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2019-08-02
 - Initial
 
+[#374]: https://github.com/dusk-network/rusk-vm/issues/374
 [#333]: https://github.com/dusk-network/rusk-vm/issues/333
 [#308]: https://github.com/dusk-network/rusk-vm/issues/308
 [#304]: https://github.com/dusk-network/rusk-vm/issues/304
