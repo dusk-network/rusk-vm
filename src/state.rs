@@ -4,6 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use std::fmt;
 use std::ops::Deref;
 
 use dusk_hamt::{Hamt, Lookup};
@@ -142,18 +143,10 @@ impl Contracts {
 
 /// The main network state.
 ///
-/// It keeps two different states, the `origin` and the `head`. The `origin` is
-/// the starting state, and `head` is origin with all the received transactions
-/// applied.
-///
-/// It is possible to either [commit](`Self::commit`) to the `head` state,
-/// turning it into the new `origin`, or [reset](`Self::reset`) it back to
-/// `origin`.
+/// Use [`query`] and [`transact`] to interact with the state.
 #[derive(Clone)]
 pub struct NetworkState {
-    pub(crate) staged: Contracts,
-    origin: Contracts,
-    head: Contracts,
+    contracts: Contracts,
     modules: HostModules,
     store: StoreContext,
     config: &'static Config,
@@ -168,11 +161,9 @@ impl NetworkState {
     /// Returns a new empty [`NetworkState`] with the given configuration.
     pub fn with_config(store: StoreContext, config: &'static Config) -> Self {
         NetworkState {
-            store,
-            staged: Default::default(),
-            origin: Default::default(),
-            head: Default::default(),
+            contracts: Default::default(),
             modules: Default::default(),
+            store,
             config,
         }
     }
@@ -182,22 +173,21 @@ impl NetworkState {
         self.config
     }
 
-    /// Returns a reference to the specified contracts state in the `head`
-    /// state.
+    /// Returns a reference to the specified contracts state in the state.
     pub fn get_contract(
         &self,
         contract_id: &ContractId,
     ) -> Result<impl BranchRef<Contract>, VMError> {
-        self.head.get_contract(contract_id)
+        self.contracts.get_contract(contract_id)
     }
 
     /// Returns a mutable reference to the specified contracts state in the
-    /// `origin` state.
+    /// state.
     pub fn get_contract_mut(
         &mut self,
         contract_id: &ContractId,
     ) -> Result<impl BranchRefMut<Contract>, VMError> {
-        self.head.get_contract_mut(contract_id)
+        self.contracts.get_contract_mut(contract_id)
     }
 
     /// Returns a reference to the map of registered host modules
@@ -205,49 +195,28 @@ impl NetworkState {
         &self.modules
     }
 
-    #[cfg(feature = "persistence")]
-    /// Persists the origin contracts stored on the [`NetworkState`] specifying
-    /// a backend ctor function.
-    pub fn persist(
-        &self,
-        ctor: fn() -> Result<DiskBackend, PersistError>,
-    ) -> Result<PersistedId, PersistError> {
-        Persistence::persist(&BackendCtor::new(ctor), &self.head.0)
-    }
-
-    #[cfg(feature = "persistence")]
-    /// Given a [`PersistedId`] restores the [`Hamt`] which stores the contracts
-    /// of the entire blockchain state.
-    pub fn restore(mut self, id: PersistedId) -> Result<Self, PersistError> {
-        let map = Map::from_generic(&id.restore()?)?;
-
-        self.origin = Contracts(map);
-        self.head = self.origin.clone();
-
-        Ok(self)
-    }
-
-    /// Deploys a contract to the `head` state, returning the address of the
+    /// Deploys a contract to the state, returning the address of the
     /// created contract or an error.
     pub fn deploy(
         &mut self,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy(contract, self.config)
+        self.contracts.deploy(contract, self.config)
     }
 
-    /// Deploys a contract to the `head` state with the given id / address.
+    /// Deploys a contract to the state with the given id / address.
     pub fn deploy_with_id(
         &mut self,
         id: ContractId,
         contract: Contract,
     ) -> Result<ContractId, VMError> {
-        self.head.deploy_with_id(id, contract, self.config)
+        self.contracts.deploy_with_id(id, contract, self.config)
     }
 
-    /// Query the contract at `target` address in the `head` state.
+    /// Query the contract at `target` address in the state, returning the query
+    /// receipt.
     pub fn query<Q>(
-        &mut self,
+        &self,
         target: ContractId,
         block_height: u64,
         query: Q,
@@ -266,10 +235,11 @@ impl NetworkState {
             gas_limit = ?gas_meter.limit()
         );
 
+        let mut state = self.clone();
         let store = self.store.clone();
 
         let mut context =
-            CallContext::new(self, block_height, self.store.clone());
+            CallContext::new(&mut state, block_height, self.store.clone());
 
         let result = match context.query(
             target,
@@ -298,17 +268,15 @@ impl NetworkState {
         Ok(Receipt::new(ret, events))
     }
 
-    /// Transact with the contract at `target` address in the `head` state,
-    /// returning the result of the transaction.
-    ///
-    /// This will advance the `head` to the resultant state.
+    /// Transact with the contract at `target` address in the state, returning
+    /// the transaction receipt and the resultant state.
     pub fn transact<T>(
-        &mut self,
+        &self,
         target: ContractId,
         block_height: u64,
         transaction: T,
         gas_meter: &mut GasMeter,
-    ) -> Result<Receipt<T::Return>, VMError>
+    ) -> Result<(Receipt<T::Return>, NetworkState), VMError>
     where
         T: Transaction + Serialize<StoreSerializer<OffsetLen>>,
         T::Return: Archive,
@@ -353,26 +321,12 @@ impl NetworkState {
             .deserialize(&mut self.store.clone())
             .expect("Infallible");
 
-        // Commit to the changes
-
-        *self = fork;
-
-        Ok(Receipt::new(ret, events))
+        Ok((Receipt::new(ret, events), fork))
     }
 
-    /// Returns the root of the tree in the `head` state.
+    /// Returns the root of the contracts tree.
     pub fn root(&self) -> [u8; 32] {
         todo!()
-    }
-
-    /// Resets the `head` state to `origin`.
-    pub fn reset(&mut self) {
-        self.head = self.origin.clone();
-    }
-
-    /// Commits to the `head` state, making it the new `origin`.
-    pub fn commit(&mut self) {
-        self.origin = self.head.clone();
     }
 
     /// Register a host function handler.
@@ -383,12 +337,12 @@ impl NetworkState {
         self.modules.insert(module);
     }
 
-    /// Gets the state of the given contract in the `head` state.
+    /// Gets the state of the given contract.
     pub fn get_contract_cast_state<C>(
         &mut self,
         contract_id: &ContractId,
     ) -> Result<C, VMError> {
-        self.head.get_contract(contract_id).map_or(
+        self.contracts.get_contract(contract_id).map_or(
             Err(VMError::UnknownContract(*contract_id)),
             |_contract| {
                 // let mut source = Source::new((*contract).state().as_bytes());
@@ -396,5 +350,13 @@ impl NetworkState {
                 todo!()
             },
         )
+    }
+}
+
+impl fmt::Debug for NetworkState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NetworkState")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
     }
 }

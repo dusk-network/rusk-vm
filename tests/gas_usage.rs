@@ -25,7 +25,7 @@ fn execute_counter_contract() -> u64 {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, counter::Increment, &mut gas)
         .expect("Transaction error");
 
@@ -49,7 +49,7 @@ fn execute_stack_single_push_pop_contract() -> u64 {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, stack::Push::new(100), &mut gas)
         .expect("Transaction error");
 
@@ -73,13 +73,13 @@ fn execute_stack_multi_push_pop_contract(count: u64) -> u64 {
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, stack::PushMulti::new(count), &mut gas)
         .expect("Transaction error");
 
     network
         .transact(contract_id, 0, stack::PopMulti::new(count), &mut gas)
-        .expect("Query error");
+        .expect("Transaction error");
 
     gas.spent()
 }
@@ -98,9 +98,10 @@ fn execute_multiple_transactions_stack_contract(count: u64) -> u64 {
     let mut gas = GasMeter::with_limit(1_000_000_000);
 
     for i in 0..count {
-        network
+        let (_, new_network) = network
             .transact(contract_id, 0, Push::new(i), &mut gas)
             .unwrap();
+        network = new_network;
     }
 
     gas.spent()
@@ -132,9 +133,10 @@ fn execute_multiple_register_contract(count: u64) -> u64 {
     let secret_hash = SecretHash::new(secret_data);
 
     for _ in 0..count {
-        network
+        let (_, new_network) = network
             .transact(contract_id, 0, Gossip::new(secret_hash), &mut gas)
             .expect("Transaction error");
+        network = new_network;
 
         network
             .query(contract_id, 0, NumSecrets::new(secret_hash), &mut gas)

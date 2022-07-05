@@ -22,7 +22,10 @@ fn stack_64(
     const N: Leaf = 64;
 
     for i in 0..N {
-        let _ = network.transact(contract_id, 0, stack::Push::new(i), gas);
+        let (_, new_network) = network
+            .transact(contract_id, 0, stack::Push::new(i), gas)
+            .expect("push to stack should succeed");
+        *network = new_network;
     }
 }
 

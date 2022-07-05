@@ -38,13 +38,13 @@ fn gas_context() {
 
     let call_gas_limits = vec![0; NUMBER_OF_NESTED_CALLS];
 
-    network
+    let (_, network) = network
         .transact(contract_id, 0, SetGasLimits::new(call_gas_limits), &mut gas)
         .unwrap();
 
     let mut gas = GasMeter::with_limit(INITIAL_GAS_LIMIT);
 
-    network
+    let (_, network) = network
         .transact(
             contract_id,
             0,
@@ -102,7 +102,7 @@ fn gas_context_with_call_limit() {
 
     let number_of_nested_calls: usize = call_gas_limits.len();
 
-    network
+    let (_, network) = network
         .transact(
             contract_id,
             0,
@@ -111,7 +111,7 @@ fn gas_context_with_call_limit() {
         )
         .unwrap();
 
-    network
+    let (_, network) = network
         .transact(
             contract_id,
             0,
