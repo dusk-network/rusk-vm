@@ -8,7 +8,7 @@ name: Continuous integration
 jobs:
   analyze:
     name: Dusk Analyzer
-    runs-on: ubuntu-latest
+    runs-on: core
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -33,7 +33,7 @@ jobs:
 
   test_nightly:
     name: Nightly tests
-    runs-on: ubuntu-latest
+    runs-on: core
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -45,9 +45,6 @@ jobs:
 
       - name: Install WASM32 target
         run: rustup target add wasm32-unknown-unknown
-
-      - name: Install kcov
-        run: sudo apt install -y kcov
 
       - name: Build test contracts
         run: make test-contracts
@@ -75,7 +72,7 @@ jobs:
 
   fmt:
     name: Rustfmt
-    runs-on: ubuntu-latest
+    runs-on: core
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
