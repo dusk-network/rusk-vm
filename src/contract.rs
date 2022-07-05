@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use bytecheck::CheckBytes;
-use microkelvin::{All, Child, ChildMut, Compound, Link, MaybeArchived, MaybeStored, OffsetLen, StoreSerializer};
+use microkelvin::{All, Child, ChildMut, Compound, Link, MaybeArchived, MaybeStored, Nth, OffsetLen, StoreSerializer};
 use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
 use rusk_uplink::StoreContext;
@@ -80,10 +80,8 @@ impl Contract {
 
     /// Update the contract's state
     pub fn set_state(&mut self, state: &[u8]) {
-        let s = self.state.inner_mut();
-
-        s.0.truncate(0);
-        s.0.extend_from_slice(state);
+        self.state.pop();
+        self.state.push(Vec::from(state));
     }
 
     /// Returns a slice to the contract's bytecode
@@ -110,7 +108,8 @@ impl Contract {
 impl ArchivedContract {
     /// Returns the identity of the contract's bytecode in the store
     pub fn bytecode<'a>(&self, store: &'a StoreContext) -> &'a [u8] {
-        &store.get(self.code.ident()).0
+        let first = *self.code.walk(Nth(0)).expect("Some(Branch)").leaf();
+        first
     }
 
     /// Returns the identity of the contract's state in the store
