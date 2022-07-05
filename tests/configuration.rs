@@ -7,7 +7,6 @@
 use block_height::{BlockHeight, ReadBlockHeight};
 use counter::{Counter, ReadValue};
 use delegator::{Delegator, QueryForwardData};
-use microkelvin::{HostStore, StoreRef};
 use rusk_vm::{Config, Contract, GasMeter, HostCosts, NetworkState, OpCosts};
 
 // host fn cost should dominate for proper testing
@@ -26,15 +25,17 @@ const HIGH_HOST_COST_CONFIG: Config = Config {
 fn execute_block_height_with_config(config: &'static Config) -> u64 {
     let block_height = BlockHeight;
 
+    let mut network = NetworkState::builder().config(config).build();
+
     let block_height_code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/deps/block_height.wasm"
     );
 
-    let store = StoreRef::new(HostStore::new());
-    let mut network = NetworkState::with_config(store.clone(), config);
-
-    let block_height_contract =
-        Contract::new(&block_height, block_height_code.to_vec(), &store);
+    let block_height_contract = Contract::new(
+        &block_height,
+        block_height_code.to_vec(),
+        network.store(),
+    );
 
     let block_height_id = network.deploy(block_height_contract).unwrap();
     let mut gas = GasMeter::with_limit(GAS_LIMIT);
@@ -62,6 +63,8 @@ fn execute_counter_delegation_with_config(config: &'static Config) -> u64 {
     let counter = Counter::new(0);
     let delegator = Delegator;
 
+    let mut network = NetworkState::builder().config(config).build();
+
     let counter_code = include_bytes!(
         "../target/wasm32-unknown-unknown/release/deps/counter.wasm"
     );
@@ -69,13 +72,10 @@ fn execute_counter_delegation_with_config(config: &'static Config) -> u64 {
         "../target/wasm32-unknown-unknown/release/delegator.wasm"
     );
 
-    let store = StoreRef::new(HostStore::new());
-    let mut network = NetworkState::with_config(store.clone(), config);
-
     let counter_contract =
-        Contract::new(&counter, counter_code.to_vec(), &store);
+        Contract::new(&counter, counter_code.to_vec(), network.store());
     let delegator_contract =
-        Contract::new(&delegator, delegator_code.to_vec(), &store);
+        Contract::new(&delegator, delegator_code.to_vec(), network.store());
 
     let counter_id = network.deploy(counter_contract).unwrap();
     let delegator_id = network.deploy(delegator_contract).unwrap();
@@ -110,13 +110,12 @@ fn inter_contract_host_call_cost() {
 fn execute_contract_with_config(config: &'static Config) -> u64 {
     let counter = Counter::new(99);
 
+    let mut network = NetworkState::builder().config(config).build();
+
     let code =
         include_bytes!("../target/wasm32-unknown-unknown/release/counter.wasm");
 
-    let store = StoreRef::new(HostStore::new());
-    let contract = Contract::new(&counter, code.to_vec(), &store);
-    let mut network = NetworkState::with_config(store, config);
-
+    let contract = Contract::new(&counter, code.to_vec(), network.store());
     let contract_id = network.deploy(contract).expect("Deploy error");
 
     let mut gas = GasMeter::with_limit(1_000_000_000);

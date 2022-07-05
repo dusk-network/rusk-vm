@@ -14,12 +14,17 @@ use crate::VMError;
 
 use cached::cached_key_result;
 use cached::TimedSizedCache;
-use rusk_uplink::HostModule;
 use thiserror::Error;
 use tracing::trace;
 use wasmer::Module;
 
 pub use rusk_uplink::{hash, ContractId, ContractState};
+
+pub trait HostModule {
+    fn execute(&self);
+
+    fn module_id(&self) -> ContractId;
+}
 
 type BoxedHostModule = Box<dyn HostModule>;
 
