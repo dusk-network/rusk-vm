@@ -88,7 +88,7 @@ impl Contract {
     pub fn bytecode(&self) -> &[u8] {
         let vector = self.code.walk(All).expect("Some(Branch)").leaf();
         let vector = match vector {
-            MaybeArchived::Memory(v) => v,
+            MaybeArchived::Memory(v) => v.as_slice(),
             MaybeArchived::Archived(v) => v.as_slice(),
         };
         vector
@@ -98,7 +98,7 @@ impl Contract {
     pub fn state(&self) -> &[u8] {
         let vector = self.state.walk(All).expect("Some(Branch)").leaf();
         let vector = match vector {
-            MaybeArchived::Memory(v) => v,
+            MaybeArchived::Memory(v) => v.as_slice(),
             MaybeArchived::Archived(v) => v.as_slice(),
         };
         vector
@@ -108,7 +108,7 @@ impl Contract {
 impl ArchivedContract {
     /// Returns the identity of the contract's bytecode in the store
     pub fn bytecode(&self, store: &StoreContext) -> &[u8] {
-        let all = Branch::walk_with_store(MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(&self.code), All, *store);
+        let all = Branch::walk_with_store(MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(&self.code), All, store.clone());
         match all.expect("invalid branch").leaf() {
             MaybeArchived::Memory(v) => v,
             MaybeArchived::Archived(v) => v.as_slice(),
@@ -117,7 +117,7 @@ impl ArchivedContract {
 
     /// Returns the identity of the contract's state in the store
     pub fn state(&self, store: &StoreContext) -> &[u8] {
-        let all = Branch::walk_with_store(MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(&self.state), All, *store);
+        let all = Branch::walk_with_store(MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(&self.state), All, store.clone());
         match all.expect("invalid branch").leaf() {
             MaybeArchived::Memory(v) => v,
             MaybeArchived::Archived(v) => v.as_slice(),
