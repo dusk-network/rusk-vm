@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use bytecheck::CheckBytes;
-use microkelvin::{All, Child, ChildMut, Compound, Link, MaybeArchived, MaybeStored, Nth, OffsetLen, StoreSerializer};
+use microkelvin::{All, Branch, Child, ChildMut, Compound, Link, MaybeArchived, MaybeStored, Nth, OffsetLen, StoreSerializer};
 use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
 use rusk_uplink::StoreContext;
@@ -107,14 +107,21 @@ impl Contract {
 
 impl ArchivedContract {
     /// Returns the identity of the contract's bytecode in the store
-    pub fn bytecode<'a>(&self, store: &'a StoreContext) -> &'a [u8] {
-        let first = *self.code.walk(Nth(0)).expect("Some(Branch)").leaf();
-        first
+    pub fn bytecode(&self, store: &StoreContext) -> &[u8] {
+        let all = Branch::walk_with_store(MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(&self.code), All, *store);
+        match all.expect("invalid branch").leaf() {
+            MaybeArchived::Memory(v) => v,
+            MaybeArchived::Archived(v) => v.as_slice(),
+        }
     }
 
     /// Returns the identity of the contract's state in the store
-    pub fn state<'a>(&self, store: &'a StoreContext) -> &'a [u8] {
-        &store.get(self.state.ident()).0
+    pub fn state(&self, store: &StoreContext) -> &[u8] {
+        let all = Branch::walk_with_store(MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(&self.state), All, *store);
+        match all.expect("invalid branch").leaf() {
+            MaybeArchived::Memory(v) => v,
+            MaybeArchived::Archived(v) => v.as_slice(),
+        }
     }
 }
 
