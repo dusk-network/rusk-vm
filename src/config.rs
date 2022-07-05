@@ -132,6 +132,7 @@ pub struct HostCosts {
     pub gas_left: Gas,
     pub panic: Gas,
     pub get: Gas,
+    /// Cost per byte stored
     pub put: Gas,
     pub hash: Gas,
     pub query: Gas,

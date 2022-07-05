@@ -8,19 +8,11 @@ use block_height::{BlockHeight, ReadBlockHeight};
 use counter::{Counter, ReadValue};
 use delegator::{Delegator, QueryForwardData};
 use rusk_vm::{Config, Contract, GasMeter, HostCosts, NetworkState, OpCosts};
+use stack::{Push, Stack};
 
 // host fn cost should dominate for proper testing
 const HOST_FN_COST: u64 = 1_000_000_000;
 const GAS_LIMIT: u64 = 10 * HOST_FN_COST;
-
-const HIGH_HOST_COST_CONFIG: Config = Config {
-    host_costs: HostCosts {
-        query: HOST_FN_COST,
-        block_height: HOST_FN_COST,
-        ..HostCosts::new()
-    },
-    ..Config::new()
-};
 
 fn execute_block_height_with_config(config: &'static Config) -> u64 {
     let block_height = BlockHeight;
@@ -94,20 +86,7 @@ fn execute_counter_delegation_with_config(config: &'static Config) -> u64 {
     gas.spent()
 }
 
-#[test]
-fn inter_contract_host_call_cost() {
-    let cheap = execute_counter_delegation_with_config(&DEFAULT_CONFIG);
-    let expensive =
-        execute_counter_delegation_with_config(&HIGH_HOST_COST_CONFIG);
-
-    assert_eq!(
-        expensive,
-        cheap + HIGH_HOST_COST_CONFIG.host_costs.query
-            - DEFAULT_CONFIG.host_costs.query
-    );
-}
-
-fn execute_contract_with_config(config: &'static Config) -> u64 {
+fn execute_counter_with_config(config: &'static Config) -> u64 {
     let counter = Counter::new(99);
 
     let mut network = NetworkState::builder().config(config).build();
@@ -127,6 +106,31 @@ fn execute_contract_with_config(config: &'static Config) -> u64 {
     network
         .query(contract_id, 0, ReadValue, &mut gas)
         .expect("Query error");
+
+    gas.spent()
+}
+
+const NUM_INSERTS: usize = 8;
+
+fn execute_stack_with_config(config: &'static Config) -> u64 {
+    let stack = Stack::new();
+
+    let mut network = NetworkState::builder().config(config).build();
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/stack.wasm");
+
+    let contract = Contract::new(&stack, code.to_vec(), network.store());
+    let contract_id = network.deploy(contract).expect("Deploy error");
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    for i in 0..NUM_INSERTS {
+        let (_, new_network) = network
+            .transact(contract_id, 0, Push::new(i as u64), &mut gas)
+            .expect("Transaction error");
+        network = new_network;
+    }
 
     gas.spent()
 }
@@ -161,8 +165,58 @@ const HIGH_COST_CONFIG: Config = Config {
 
 #[test]
 fn change_gas_cost_per_op_with_schedule() {
-    assert!(execute_contract_with_config(&DEFAULT_CONFIG) < 15000);
-    assert!(execute_contract_with_config(&HIGH_COST_CONFIG) > 100_000);
+    assert!(execute_counter_with_config(&DEFAULT_CONFIG) < 15000);
+    assert!(execute_counter_with_config(&HIGH_COST_CONFIG) > 100_000);
+}
+
+const HIGH_HOST_COST_CONFIG: Config = Config {
+    host_costs: HostCosts {
+        query: HOST_FN_COST,
+        block_height: HOST_FN_COST,
+        ..HostCosts::new()
+    },
+    ..Config::new()
+};
+
+#[test]
+fn inter_contract_host_call_cost() {
+    let cheap = execute_counter_delegation_with_config(&DEFAULT_CONFIG);
+    let expensive =
+        execute_counter_delegation_with_config(&HIGH_HOST_COST_CONFIG);
+
+    assert_eq!(
+        expensive,
+        cheap + HIGH_HOST_COST_CONFIG.host_costs.query
+            - DEFAULT_CONFIG.host_costs.query
+    );
+}
+
+const HIGH_PUT_COST: Config = Config {
+    host_costs: HostCosts {
+        put: 2,
+        ..HostCosts::new()
+    },
+    ..Config::new()
+};
+
+const HIGHER_PUT_COST: Config = Config {
+    host_costs: HostCosts {
+        put: 3,
+        ..HostCosts::new()
+    },
+    ..Config::new()
+};
+
+#[test]
+fn change_gas_cost_per_store() {
+    let default_cost = execute_stack_with_config(&DEFAULT_CONFIG);
+    let high_cost = execute_stack_with_config(&HIGH_PUT_COST);
+    let higher_cost = execute_stack_with_config(&HIGHER_PUT_COST);
+
+    assert_ne!(default_cost, high_cost);
+    assert_ne!(default_cost, higher_cost);
+    assert_ne!(high_cost, higher_cost);
+    assert_eq!(high_cost - default_cost, higher_cost - high_cost);
 }
 
 const NO_METERING_CONFIG: Config = Config {
@@ -172,5 +226,5 @@ const NO_METERING_CONFIG: Config = Config {
 
 #[test]
 fn no_gas_consumption_when_metering_is_off() {
-    assert_eq!(execute_contract_with_config(&NO_METERING_CONFIG), 0);
+    assert_eq!(execute_counter_with_config(&NO_METERING_CONFIG), 0);
 }
