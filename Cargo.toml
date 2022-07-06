@@ -65,6 +65,10 @@ harness = false
 name = "stack"
 harness = false
 
+[[bench]]
+name = "root"
+harness = false
+
 [workspace]
 
 members = [
