@@ -5,13 +5,13 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 pub mod builder;
+pub mod contracts;
+pub mod hash;
 pub mod persist;
 
 use std::fmt;
 use std::ops::Deref;
 use std::path::PathBuf;
-
-use dusk_hamt::{Hamt, Lookup};
 
 use bytecheck::CheckBytes;
 use microkelvin::{
@@ -20,8 +20,7 @@ use microkelvin::{
 use rkyv::validation::validators::DefaultValidator;
 use rkyv::{Archive, Deserialize, Serialize};
 use rusk_uplink::{
-    hash, ContractId, Query, RawQuery, RawTransaction, StoreContext,
-    Transaction,
+    ContractId, Query, RawQuery, RawTransaction, StoreContext, Transaction,
 };
 
 use tracing::{trace, trace_span};
@@ -31,8 +30,10 @@ use crate::config::Config;
 use crate::contract::Contract;
 use crate::error::VMError;
 use crate::gas::GasMeter;
-use crate::modules::{compile_module, HostModules};
-use crate::state::builder::NetworkStateBuilder;
+use crate::modules::HostModules;
+
+use builder::NetworkStateBuilder;
+use contracts::Contracts;
 
 #[derive(Debug, Clone)]
 pub struct Event {
@@ -90,57 +91,6 @@ impl<R> Deref for Receipt<R> {
 
     fn deref(&self) -> &R {
         &self.ret
-    }
-}
-
-/// State of the contracts on the network.
-#[derive(Archive, Default, Clone)]
-pub struct Contracts(Hamt<ContractId, Contract, (), OffsetLen>);
-
-impl Contracts {
-    /// Returns a reference to the specified contracts state.
-    pub fn get_contract(
-        &self,
-        contract_id: &ContractId,
-    ) -> Result<impl BranchRef<Contract>, VMError> {
-        self.0
-            .get(contract_id)
-            .ok_or(VMError::UnknownContract(*contract_id))
-    }
-
-    /// Returns a mutable reference to the specified contracts state.
-    pub fn get_contract_mut(
-        &mut self,
-        contract_id: &ContractId,
-    ) -> Result<impl BranchRefMut<Contract>, VMError> {
-        self.0
-            .get_mut(contract_id)
-            .ok_or(VMError::UnknownContract(*contract_id))
-    }
-
-    /// Deploys a contract to the state, returning the address of the created
-    /// contract or an error.
-    pub fn deploy(
-        &mut self,
-        contract: Contract,
-        config: &'static Config,
-    ) -> Result<ContractId, VMError> {
-        let id: ContractId = hash(contract.bytecode()).into();
-        self.deploy_with_id(id, contract, config)
-    }
-
-    /// Deploys a contract with the given id to the state.
-    pub fn deploy_with_id(
-        &mut self,
-        id: ContractId,
-        contract: Contract,
-        config: &'static Config,
-    ) -> Result<ContractId, VMError> {
-        compile_module(contract.bytecode(), config)?;
-
-        self.0.insert(id, contract);
-
-        Ok(id)
     }
 }
 
@@ -334,7 +284,7 @@ impl NetworkState {
 
     /// Returns the root of the contracts tree.
     pub fn root(&self) -> [u8; 32] {
-        todo!()
+        self.contracts.root()
     }
 
     /// Gets the state of the given contract.
