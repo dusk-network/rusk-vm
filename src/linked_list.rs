@@ -19,14 +19,15 @@ use rkyv::{
 #[derive(Clone, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
 #[archive(bound(serialize = "
-  T: Clone + Serialize<StoreSerializer<I>>,
-  A: Clone + Clone + Annotation<T>,
+  T: Archive + Serialize<StoreSerializer<I>>,
+  A: Clone + Annotation<T>,
   I: Clone,
   __S: Sized + BorrowMut<StoreSerializer<I>>"))]
 #[archive(bound(deserialize = "
-  T::Archived: Deserialize<T, StoreRef<I>>,
-  ArchivedLink<Self, A, I>: Deserialize<Link<Self, A, I>, __D>,
-  A: Clone + Annotation<T>,
+  LinkedList<T, A, I>: Clone,
+  //T::Archived: Deserialize<T, StoreRef<I>>,
+  //ArchivedLink<Self, A, I>: Deserialize<Link<Self, A, I>, __D>,
+  A: Clone, // + Annotation<T>,
   I: Clone,
   __D: StoreProvider<I>,"))]
 pub enum LinkedList<T, A, I> {
@@ -100,10 +101,12 @@ where
     A::Archived: for<'any> CheckBytes<DefaultValidator<'any>>,
     I: Clone + for<'any> CheckBytes<DefaultValidator<'any>>,
 {
+    /// creates the new list
     pub fn new() -> Self {
         Default::default()
     }
 
+    /// pushes element on the list
     pub fn push(&mut self, t: T) {
         match core::mem::take(self) {
             LinkedList::Empty => {
@@ -121,6 +124,7 @@ where
         }
     }
 
+    /// pops element from the list
     pub fn pop(&mut self) -> Option<T>
     where
         T: Archive + Clone,

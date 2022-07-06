@@ -47,6 +47,8 @@ fn initialize_counter(
         .store_dir(source_path.as_ref())?
         .build();
 
+    println!("initialize counter 1");
+
     let counter = Counter::new(99);
 
     let code = include_bytes!(
@@ -57,6 +59,8 @@ fn initialize_counter(
     let contract_id = network.deploy(contract).unwrap();
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    println!("initialize counter 2");
 
     assert_eq!(
         *network.query(contract_id, 0, ReadValue, &mut gas).unwrap(),
@@ -72,12 +76,16 @@ fn initialize_counter(
         100
     );
 
+    println!("initialize counter 3");
+
     network.persist()?;
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("counter_contract_id");
 
     fs::write(&contract_id_path, contract_id.as_bytes())?;
+
+    println!("end of initialize counter");
 
     Ok(())
 }
@@ -235,7 +243,7 @@ fn initialize_stack_and_register(
 fn initialize_stack_multi(
     source_path: impl AsRef<str>,
 ) -> Result<(), Box<dyn Error>> {
-    let network = NetworkState::builder()
+    let mut network = NetworkState::builder()
         .store_dir(source_path.as_ref())?
         .build();
 
@@ -265,23 +273,31 @@ fn initialize_stack_multi(
 }
 
 fn confirm_counter(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
+    println!("confirm counter 0");
     let network = NetworkState::builder()
         .store_dir(source_path.as_ref())?
         .build();
+
+    println!("confirm counter 1");
 
     let contract_id_path =
         PathBuf::from(source_path.as_ref()).join("counter_contract_id");
     let buf = fs::read(&contract_id_path)?;
 
+    println!("confirm counter 2");
+
     let contract_id = ContractId::from(buf);
 
     let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    println!("confirm counter 3");
 
     assert_eq!(
         *network.query(contract_id, 0, ReadValue, &mut gas).unwrap(),
         100
     );
 
+    println!("confirm counter 4");
     Ok(())
 }
 
@@ -417,7 +433,7 @@ fn confirm_stack_multi(
 }
 
 fn initialize(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    // initialize_counter(source_path.as_ref())?;
+    initialize_counter(source_path.as_ref())?;
     // initialize_stack(source_path.as_ref())?;
     // initialize_register(source_path.as_ref())?;
     // initialize_stack_and_register(source_path.as_ref())?;
@@ -426,7 +442,7 @@ fn initialize(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
 }
 
 fn confirm(source_path: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    // confirm_counter(source_path.as_ref())?;
+    confirm_counter(source_path.as_ref())?;
     // confirm_stack(source_path.as_ref())?;
     // confirm_register(source_path.as_ref())?;
     // confirm_stack_and_register(source_path.as_ref())?;
