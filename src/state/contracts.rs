@@ -34,10 +34,13 @@ use rkyv::{Archive, Deserialize, Serialize};
 pub struct HashAnnotation([u8; 32]);
 
 impl Combine<HashAnnotation> for HashAnnotation {
+    /// Sum each byte of the hashes together to produce a new number. This
+    /// operation is commutative - meaning different tree structures will
+    /// produce the same result.
     fn combine(&mut self, with: &HashAnnotation) {
-        let mut hasher = Hasher::new();
-        hasher.update(self.0).update(with.0);
-        self.0 = hasher.finalize();
+        self.0.iter_mut().zip(with.0).for_each(|(b, ob)| {
+            *b = b.wrapping_add(ob);
+        });
     }
 }
 
