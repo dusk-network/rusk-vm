@@ -53,6 +53,7 @@ tx_vec = { path = "tests/contracts/tx_vec" }
 self_snapshot = { path = "tests/contracts/self_snapshot" }
 gas_context = { path = "tests/contracts/gas_context" }
 counter = { path = "tests/contracts/counter" }
+large_counter = { path = "tests/contracts/large_counter" }
 stack = { path = "tests/contracts/stack" }
 map = { path = "tests/contracts/map" }
 

@@ -586,6 +586,32 @@ fn old_and_new_state() {
 }
 
 #[test]
+fn large_counter() {
+    let counter = Counter::new(42);
+
+    let mut network = NetworkState::new();
+
+    let code =
+        include_bytes!("../target/wasm32-unknown-unknown/release/large_counter.wasm");
+
+    let contract = Contract::new(&counter, code.to_vec(), network.store());
+    let contract_id = network.deploy(contract).unwrap();
+
+    let mut gas = GasMeter::with_limit(1_000_000_000);
+
+    let (_, new_network) = network
+        .transact(contract_id, 0, counter::Increment, &mut gas)
+        .unwrap();
+
+    assert_eq!(
+        *new_network
+            .query(contract_id, 0, counter::ReadValue, &mut gas)
+            .unwrap(),
+        43
+    );
+}
+
+#[test]
 fn register() {
     let register = Register::new();
 

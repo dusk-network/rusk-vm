@@ -1,0 +1,17 @@
+[package]
+name = "large_counter"
+version = "0.1.0"
+authors = [
+    "Kristoffer Ström <kristoffer@dusk.network>",
+    "Miłosz Muszyński <milosz@dusk.network>",
+]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rusk-uplink = { path = "../../../rusk-uplink", default-features = false }
+rusk-uplink_derive = { path = "../../../rusk-uplink_derive" }
+rkyv = { version = "0.7.29", default-features = false, features = ["size_32"] }
+derive-new = "0.5"
