@@ -5,12 +5,15 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use bytecheck::CheckBytes;
-use microkelvin::{All, Branch, Child, ChildMut, Compound, Link, MaybeArchived, MaybeStored, Nth, OffsetLen, StoreSerializer};
+use microkelvin::{
+    All, Branch, Child, ChildMut, Compound, Link, MaybeArchived, MaybeStored,
+    Nth, OffsetLen, StoreSerializer,
+};
 use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
+use crate::linked_list::LinkedList;
 use rusk_uplink::StoreContext;
 pub use rusk_uplink::{ContractId, ContractState};
-use crate::linked_list::LinkedList;
 
 #[derive(Archive, Clone, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
@@ -74,7 +77,10 @@ impl Contract {
         let mut code_list = LinkedList::<Vec<u8>, (), OffsetLen>::new();
         code_list.push(code.into());
 
-        Contract { state, code: code_list }
+        Contract {
+            state,
+            code: code_list,
+        }
     }
 
     /// Update the contract's state
@@ -85,13 +91,13 @@ impl Contract {
     }
 
     /// Returns a slice to the contract's bytecode
-    pub fn bytecode(&self) -> &[u8] {
-        let vector = self.code.walk(All).expect("Some(Branch)").leaf();
-        let vector = match vector {
+    pub fn bytecode(&self) -> Vec<u8> {
+        let vector = self.code.walk(All).expect("Some(Branch)");
+        let bytes = match vector.leaf() {
             MaybeArchived::Memory(v) => v.as_slice(),
             MaybeArchived::Archived(v) => v.as_slice(),
         };
-        vector
+        bytes.to_vec()
     }
 
     /// Returns a slice to the contract's state
@@ -105,12 +111,20 @@ impl Contract {
 
 impl ArchivedContract {
     /// Returns the identity of the contract's bytecode in the store
-    pub fn bytecode(&self, store: &StoreContext) -> &[u8] {
-        let all = Branch::walk_with_store(MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(&self.code), All, store.clone());
-        match all.expect("invalid branch").leaf() {
+    pub fn bytecode(&self, store: &StoreContext) -> Vec<u8> {
+        let all = Branch::walk_with_store(
+            MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(
+                &self.code,
+            ),
+            All,
+            store.clone(),
+        )
+        .expect("invalid branch");
+        let bytes = match all.leaf() {
             MaybeArchived::Memory(v) => v,
             MaybeArchived::Archived(v) => v.as_slice(),
-        }
+        };
+        bytes.to_vec()
     }
 
     /// Returns the identity of the contract's state in the store

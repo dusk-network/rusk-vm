@@ -125,7 +125,7 @@ impl Contracts {
         contract: Contract,
         config: &'static Config,
     ) -> Result<ContractId, VMError> {
-        let id: ContractId = hash(contract.bytecode()).into();
+        let id: ContractId = hash(contract.bytecode().as_slice()).into();
         self.deploy_with_id(id, contract, config)
     }
 
@@ -136,7 +136,7 @@ impl Contracts {
         contract: Contract,
         config: &'static Config,
     ) -> Result<ContractId, VMError> {
-        compile_module(contract.bytecode(), config)?;
+        compile_module(contract.bytecode().as_slice(), config)?;
 
         self.0.insert(id, contract);
 

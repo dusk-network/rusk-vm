@@ -8,9 +8,8 @@ use core::borrow::BorrowMut;
 
 use bytecheck::CheckBytes;
 use microkelvin::{
-    Annotation, ArchivedChild, ArchivedCompound, ArchivedLink,
-    Child, ChildMut, Compound, Link, MutableLeaves,
-    StoreProvider, StoreRef, StoreSerializer,
+    Annotation, ArchivedChild, ArchivedCompound, ArchivedLink, Child, ChildMut,
+    Compound, Link, MutableLeaves, StoreProvider, StoreRef, StoreSerializer,
 };
 // use rend::LittleEndian;
 use rkyv::{
@@ -46,9 +45,9 @@ impl<T, A, I> Default for LinkedList<T, A, I> {
 }
 
 impl<T, A, I> ArchivedCompound<LinkedList<T, A, I>, A, I>
-for ArchivedLinkedList<T, A, I>
-    where
-        T: Archive,
+    for ArchivedLinkedList<T, A, I>
+where
+    T: Archive,
 {
     fn child(&self, ofs: usize) -> ArchivedChild<LinkedList<T, A, I>, A, I> {
         match (ofs, self) {
@@ -67,8 +66,8 @@ for ArchivedLinkedList<T, A, I>
 }
 
 impl<T, A, I> Compound<A, I> for LinkedList<T, A, I>
-    where
-        T: Archive,
+where
+    T: Archive,
 {
     type Leaf = T;
 
@@ -94,12 +93,12 @@ impl<T, A, I> Compound<A, I> for LinkedList<T, A, I>
 impl<T, A, I> MutableLeaves for LinkedList<T, A, I> {}
 
 impl<T, A, I> LinkedList<T, A, I>
-    where
-        T: Archive,
-        T::Archived: for<'any> CheckBytes<DefaultValidator<'any>>,
-        A: Archive,
-        A::Archived: for<'any> CheckBytes<DefaultValidator<'any>>,
-        I: Clone + for<'any> CheckBytes<DefaultValidator<'any>>,
+where
+    T: Archive,
+    T::Archived: for<'any> CheckBytes<DefaultValidator<'any>>,
+    A: Archive,
+    A::Archived: for<'any> CheckBytes<DefaultValidator<'any>>,
+    I: Clone + for<'any> CheckBytes<DefaultValidator<'any>>,
 {
     pub fn new() -> Self {
         Default::default()
@@ -123,11 +122,11 @@ impl<T, A, I> LinkedList<T, A, I>
     }
 
     pub fn pop(&mut self) -> Option<T>
-        where
-            T: Archive + Clone,
-            T::Archived: Deserialize<T, StoreRef<I>>,
-            A: Archive + Clone + Annotation<T>,
-            A::Archived: Deserialize<A, StoreRef<I>>,
+    where
+        T: Archive + Clone,
+        T::Archived: Deserialize<T, StoreRef<I>>,
+        A: Archive + Clone + Annotation<T>,
+        A::Archived: Deserialize<A, StoreRef<I>>,
     {
         match core::mem::take(self) {
             LinkedList::Empty => None,

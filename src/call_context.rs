@@ -148,7 +148,8 @@ impl<'a> CallContext<'a> {
                 MaybeArchived::Archived(a) => a.bytecode(&self.store),
             };
 
-            let module = compile_module(bytecode, self.state.config())?;
+            let module =
+                compile_module(bytecode.as_slice(), self.state.config())?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
@@ -266,7 +267,8 @@ impl<'a> CallContext<'a> {
             let mut contract = self.state.get_contract_mut(&target)?;
             let contract = contract.leaf_mut();
 
-            let module = compile_module(contract.bytecode(), config)?;
+            let module =
+                compile_module(contract.bytecode().as_slice(), config)?;
 
             let import_names: Vec<String> =
                 module.imports().map(|i| i.name().to_string()).collect();
