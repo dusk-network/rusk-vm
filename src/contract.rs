@@ -50,7 +50,7 @@ impl<A, I> Compound<A, I> for ContractData {
 #[derive(Archive, Clone, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes))]
 pub struct Contract {
-    state: LinkedList<Vec<u8>, (), OffsetLen>,
+    state: Link<ContractData, (), OffsetLen>,
     code: LinkedList<Vec<u8>, (), OffsetLen>,
 }
 
@@ -70,18 +70,18 @@ impl Contract {
 
         let state_vec = ser.spill_bytes(|bytes| Vec::from(bytes));
 
-        let mut state_list = LinkedList::<Vec<u8>, (), OffsetLen>::new();
+        let state = Link::new(ContractData(state_vec));
         let mut code_list = LinkedList::<Vec<u8>, (), OffsetLen>::new();
-        state_list.push(state_vec);
         code_list.push(code.into());
 
-        Contract { state: state_list, code: code_list }
+        Contract { state, code: code_list }
     }
 
     /// Update the contract's state
     pub fn set_state(&mut self, state: &[u8]) {
-        self.state.pop();
-        self.state.push(Vec::from(state));
+        let s = self.state.inner_mut();
+        s.0.truncate(0);
+        s.0.extend_from_slice(state);
     }
 
     /// Returns a slice to the contract's bytecode
@@ -96,12 +96,10 @@ impl Contract {
 
     /// Returns a slice to the contract's state
     pub fn state(&self) -> &[u8] {
-        let vector = self.state.walk(All).expect("Some(Branch)").leaf();
-        let vector = match vector {
-            MaybeArchived::Memory(v) => v.as_slice(),
-            MaybeArchived::Archived(v) => v.as_slice(),
-        };
-        vector
+        match self.state.inner() {
+            MaybeStored::Memory(m) => m.as_ref(),
+            MaybeStored::Stored(s) => s.inner().as_ref(),
+        }
     }
 }
 
@@ -116,23 +114,7 @@ impl ArchivedContract {
     }
 
     /// Returns the identity of the contract's state in the store
-    pub fn state(&self, store: &StoreContext) -> &[u8] {
-        let all = Branch::walk_with_store(MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(&self.state), All, store.clone());
-        match all.expect("invalid branch").leaf() {
-            MaybeArchived::Memory(v) => v,
-            MaybeArchived::Archived(v) => v.as_slice(),
-        }
+    pub fn state<'a>(&self, store: &'a StoreContext) -> &'a [u8] {
+        &store.get(self.state.ident()).0
     }
 }
-
-// impl ArchivedContract {
-    // Returns the identity of the contract's bytecode in the store
-    // pub fn bytecode<'a>(&self, store: &'a StoreContext) -> &'a [u8] {
-    //     &store.get(self.code.ident()).0
-    // }
-
-    // Returns the identity of the contract's state in the store
-    // pub fn state<'a>(&self, store: &'a StoreContext) -> &'a [u8] {
-    //     &store.get(self.state.ident()).0
-    // }
-// }
