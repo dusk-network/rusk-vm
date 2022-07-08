@@ -54,7 +54,7 @@ impl<A, I> Compound<A, I> for ContractData {
 #[archive_attr(derive(CheckBytes))]
 pub struct Contract {
     state: Link<ContractData, (), OffsetLen>,
-    code: LinkedList<Vec<u8>, (), OffsetLen>,
+    code: Link<LinkedList<ContractData, (), OffsetLen>, (), OffsetLen>,
 }
 
 impl Contract {
@@ -74,12 +74,12 @@ impl Contract {
         let state_vec = ser.spill_bytes(|bytes| Vec::from(bytes));
 
         let state = Link::new(ContractData(state_vec));
-        let mut code_list = LinkedList::<Vec<u8>, (), OffsetLen>::new();
-        code_list.push(code.into());
+        let mut code_list = LinkedList::<ContractData, (), OffsetLen>::new();
+        code_list.push(ContractData(code.into()));
 
         Contract {
             state,
-            code: code_list,
+            code: Link::new(code_list),
         }
     }
 
@@ -92,12 +92,20 @@ impl Contract {
 
     /// Returns a slice to the contract's bytecode
     pub fn bytecode(&self) -> Vec<u8> {
-        let vector = self.code.walk(All).expect("Some(Branch)");
-        let bytes = match vector.leaf() {
-            MaybeArchived::Memory(v) => v.as_slice(),
-            MaybeArchived::Archived(v) => v.as_slice(),
+        let v = match self.code.inner() {
+            MaybeStored::Memory(m) => {
+                let vector = m.walk(All).expect("Some(Branch)");
+                let bytes: &[u8] = match vector.leaf() {
+                    MaybeArchived::Memory(v) => v.as_ref(),
+                    MaybeArchived::Archived(v) => v.as_ref(),
+                };
+                bytes.to_vec()
+            }
+            MaybeStored::Stored(s) => {
+                Vec::new()
+            },
         };
-        bytes.to_vec()
+        v
     }
 
     /// Returns a slice to the contract's state
@@ -113,17 +121,20 @@ impl ArchivedContract {
     /// Returns the identity of the contract's bytecode in the store
     pub fn bytecode(&self, store: &StoreContext) -> Vec<u8> {
         let all = Branch::walk_with_store(
-            MaybeArchived::<LinkedList<Vec<u8>, (), OffsetLen>>::Archived(
-                &self.code,
+            MaybeArchived::<LinkedList<ContractData, (), OffsetLen>>::Archived(
+                &store.get(self.code.ident()),
             ),
             All,
             store.clone(),
         )
         .expect("invalid branch");
         let bytes = match all.leaf() {
-            MaybeArchived::Memory(v) => v,
-            MaybeArchived::Archived(v) => v.as_slice(),
+            MaybeArchived::Memory(v) => v.as_ref(),
+            MaybeArchived::Archived(v) => v.as_ref(),
         };
+        if bytes.len() > 65536 {
+            println!("xarchived xcontract, {} bytes", bytes.len());
+        }
         bytes.to_vec()
     }
 
