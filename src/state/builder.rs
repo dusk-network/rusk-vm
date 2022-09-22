@@ -7,6 +7,7 @@
 use crate::config::{Config, DEFAULT_CONFIG};
 use crate::contract::Contract;
 use crate::modules::{HostModule, HostModules};
+use crate::state::contracts::HashAnnotation;
 use crate::state::{Contracts, NetworkState};
 
 use std::fs;
@@ -60,12 +61,23 @@ impl NetworkStateBuilder {
                     persist_id.deserialize(&mut Infallible).unwrap();
 
                 let contracts_ident = Ident::<
-                    Hamt<ContractId, Contract, (), OffsetLen>,
+                    Hamt<ContractId, Contract, HashAnnotation, OffsetLen>,
                     OffsetLen,
                 >::new(persist_id);
 
-                let contracts: &<Hamt<ContractId, Contract, (), OffsetLen> as Archive>::Archived =
-                        store.get::<Hamt<ContractId, Contract, (), OffsetLen>>(&contracts_ident);
+                let contracts: &<Hamt<
+                    ContractId,
+                    Contract,
+                    HashAnnotation,
+                    OffsetLen,
+                > as Archive>::Archived = store.get::<Hamt<
+                    ContractId,
+                    Contract,
+                    HashAnnotation,
+                    OffsetLen,
+                >>(
+                    &contracts_ident
+                );
 
                 Contracts(contracts.deserialize(&mut store.clone()).unwrap())
             }

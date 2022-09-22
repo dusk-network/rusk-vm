@@ -10,6 +10,7 @@ use std::rc::Rc;
 
 use crate::compiler::WasmerCompiler;
 use crate::config::{config_hash, Config};
+use crate::state::hash::hash;
 use crate::VMError;
 
 use cached::cached_key_result;
@@ -18,7 +19,7 @@ use thiserror::Error;
 use tracing::trace;
 use wasmer::Module;
 
-pub use rusk_uplink::{hash, ContractId, ContractState};
+pub use rusk_uplink::{ContractId, ContractState};
 
 pub trait HostModule {
     fn execute(&self);
